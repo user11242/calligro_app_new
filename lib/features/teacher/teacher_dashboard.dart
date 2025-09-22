@@ -39,6 +39,14 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
                 color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22),
           ),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.notifications, color: Colors.white),
+              onPressed: () {
+                // TODO: Show notifications page or logic
+              },
+            ),
+          ],
         ),
         body: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
@@ -52,24 +60,37 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
             backgroundColor: Colors.black87,
             selectedItemColor: Colors.amber,
             unselectedItemColor: Colors.white70,
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-              BottomNavigationBarItem(icon: Icon(Icons.book), label: "Courses"),
-              BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+            items: [
+              BottomNavigationBarItem(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _selectedIndex == 0
+                      ? const Icon(Icons.home, key: ValueKey('home'))
+                      : const Icon(Icons.home_outlined, key: ValueKey('home_outlined')),
+                ),
+                label: "Home",
+              ),
+              BottomNavigationBarItem(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _selectedIndex == 1
+                      ? const Icon(Icons.book, key: ValueKey('courses'))
+                      : const Icon(Icons.book_outlined, key: ValueKey('courses_outlined')),
+                ),
+                label: "Courses",
+              ),
+              BottomNavigationBarItem(
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _selectedIndex == 2
+                      ? const Icon(Icons.person, key: ValueKey('profile'))
+                      : const Icon(Icons.person_outline, key: ValueKey('profile_outlined')),
+                ),
+                label: "Profile",
+              ),
             ],
           ),
         ),
-        floatingActionButton: _selectedIndex == 1
-            ? FloatingActionButton.extended(
-                onPressed: () {
-                  // 🔹 TODO: Navigate to course creation page
-                },
-                icon: const Icon(Icons.add),
-                label: const Text("Add Course"),
-                backgroundColor: Colors.amber,
-                foregroundColor: Colors.black,
-              )
-            : null,
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
-
 import '../../../core/theme/colors.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -17,7 +16,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final emailController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   bool isLoading = false;
 
   void _showMessage(String message, bool success) {
@@ -36,7 +34,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   Future<void> _handleResetPassword() async {
     final email = emailController.text.trim();
-
     if (email.isEmpty) {
       _showMessage("Please enter your email.", false);
       return;
@@ -82,6 +79,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height;
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -108,7 +106,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       color: Colors.white,
                       size: 28,
                     ),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      Navigator.pushReplacementNamed(context, "/LoginPage");
+                    },
                   ),
                   const SizedBox(height: 40),
                   const Padding(
@@ -126,9 +126,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      "Enter your email and we’ll send you a reset link.",
+                      "Enter your email and we'll send you a reset link.",
                       style: TextStyle(
-                        color: AppColors.login_register_toggle_color,
+                        color: AppColors.secondary,
                         fontSize: 14,
                       ),
                     ),
@@ -137,46 +137,43 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ),
             ),
           ),
-
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              height: height * 0.45,
+              height: keyboardOpen ? height * 0.7 : height * 0.6,
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 color: AppColors.primary,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 20),
-
-                  /// Reusable text field
-                  AuthTextField(
-                    controller: emailController,
-                    hint: "Email Address",
-                    icon: Icons.email, // ✅ now supported
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  /// Reusable button
-                  isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 20),
+                    AuthTextField(
+                      controller: emailController,
+                      hint: "Email Address",
+                      icon: Icons.email,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 25),
+                    isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
+                          )
+                        : AuthButton(
+                            text: "Send Reset Email",
+                            onPressed: _handleResetPassword,
                           ),
-                        )
-                      : AuthButton(
-                          text: "Send Reset Email",
-                          onPressed: _handleResetPassword,
-                        ),
-                ],
+                    SizedBox(height: keyboardOpen ? 20 : 0),
+                  ],
+                ),
               ),
             ),
           ),

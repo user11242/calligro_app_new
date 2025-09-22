@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/colors.dart';
 import 'package:calligro_app/features/student/widgets/app_bar.dart';
 import 'package:calligro_app/features/student/widgets/custom_drawer.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:calligro_app/features/student/widgets/bottom_bar.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});

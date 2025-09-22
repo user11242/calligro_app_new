@@ -78,7 +78,7 @@ exports.sendEmailOtp = https.onRequest({ secrets: [brevoApiKey] }, async (req, r
     const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
     const sendSmtpEmail = {
       to: [{ email }],
-      sender: { email: "no-reply@calligro.digital", name: "Calligro App" },
+      sender: { email: "no-reply@calligro.digital", name: "Calligro" },
       subject: "Your OTP Code",
       textContent: `Your OTP is ${otp}. It is valid for 10 minutes.`,
     };

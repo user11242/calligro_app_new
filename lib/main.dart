@@ -6,15 +6,14 @@ import 'package:calligro_app/features/auth/pages/register_page.dart';
 import 'package:calligro_app/features/student/pages/home_page.dart';
 import 'package:calligro_app/features/auth/pages/login_page.dart';
 import 'package:calligro_app/features/student/pages/profile_page.dart';
-import 'package:calligro_app/features/admin/admin_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:calligro_app/features/teacher/teacher_dashboard.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ dotenv
+import 'package:calligro_app/features/teacher/pages/add_course/add_course_dashboard.dart';
 
 // 🔔 Background message handler (must be top-level)
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -92,7 +91,8 @@ Future<void> main() async {
       '/adminDashboard': (context) => AdminDashboardPage(),
       '/adminUsers': (context) => AdminUsersPage(),
       '/adminPendingTeachers': (context) => AdminPendingTeachersPage(),
-      '/teacherDashboard':(context) => TeacherDashboardPage()
+      '/teacherDashboard':(context) => TeacherDashboardPage(),
+      '/addCourse':(context) => AddCourseDashboardPage(),
     },
   ));
 

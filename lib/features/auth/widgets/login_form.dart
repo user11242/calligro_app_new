@@ -18,14 +18,24 @@ class _LoginFormState extends State<LoginForm> {
   final passwordController = TextEditingController();
   final _authService = AuthService();
   bool isLoading = false;
+  bool isObscured = true; // Added to control password visibility
 
+  // Function to show custom SnackBar with success or error
   void _showMessage(String message, {bool success = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: success ? Colors.green : Colors.red,
+    final snackBar = SnackBar(
+      content: Text(
+        message,
+        style: TextStyle(color: success ? Colors.white : Colors.white),
+      ),
+      backgroundColor: success ? Colors.green.shade600 : Colors.red.shade600, // Success/Failure color
+      duration: const Duration(seconds: 3),  // Duration for automatic dismissal
+      behavior: SnackBarBehavior.floating,  // Floating style
+      margin: const EdgeInsets.all(16.0),  // Margin from the edges
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),  // Rounded corners for a modern look
       ),
     );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   Future<void> _handleLogin() async {
@@ -103,19 +113,25 @@ class _LoginFormState extends State<LoginForm> {
         const SizedBox(height: 20),
         AuthTextField(controller: emailController, hint: "Email", icon: Icons.email),
         const SizedBox(height: 18),
+        // Updated password field with toggle for visibility
         AuthTextField(
           controller: passwordController,
           hint: "Password",
-          obscure: true,
-          showToggle: true,
-          isObscured: true,
+          obscure: isObscured,
+          showToggle: true, // Enable toggle button
+          isObscured: isObscured,
           icon: Icons.lock,
+          onToggle: () {
+            setState(() {
+              isObscured = !isObscured; // Toggle the password visibility
+            });
+          },
         ),
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () => Navigator.pushReplacementNamed(context, "/forgotPassword"),
-            child: const Text("Forgot Password?", style: TextStyle(color: Colors.white70, fontSize: 14)),
+            child: const Text("Forgot Password?", style: TextStyle(color: AppColors.secondary, fontSize: 14)),
           ),
         ),
         const SizedBox(height: 20),
@@ -127,13 +143,13 @@ class _LoginFormState extends State<LoginForm> {
         // Divider
         Row(
           children: const [
-            Expanded(child: Divider(color: Colors.white54, thickness: 0.8)),
+            Expanded(child: Divider(color: AppColors.secondary, thickness: 0.8)),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 10),
               child: Text("Or continue with",
-                  style: TextStyle(color: AppColors.login_register_toggle_color)),
+                  style: TextStyle(color: AppColors.secondary)),
             ),
-            Expanded(child: Divider(color: Colors.white54, thickness: 0.8)),
+            Expanded(child: Divider(color: AppColors.secondary, thickness: 0.8)),
           ],
         ),
         const SizedBox(height: 25),
@@ -160,7 +176,7 @@ class _LoginFormState extends State<LoginForm> {
         const SizedBox(height: 30),
         TextButton(
           onPressed: () => Navigator.pushReplacementNamed(context, "/RegisterPage"),
-          child: const Text("Don't have an account? Register",style: TextStyle(color: Colors.white70,fontWeight: FontWeight.bold)),
+          child: const Text("Don't have an account? Register",style: TextStyle(color: AppColors.secondary,fontWeight: FontWeight.bold)),
         ),
       ],
     );

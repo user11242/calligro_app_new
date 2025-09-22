@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+
+//this page handle the style for the otp input fields
 class OtpInputWidget extends StatelessWidget {
   final List<TextEditingController> controllers;
   final String? errorText;

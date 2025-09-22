@@ -114,7 +114,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 18,
-                    color: Colors.white70,
+                    color: AppColors.secondary,
                     height: 1.5,
                   ),
                 ),

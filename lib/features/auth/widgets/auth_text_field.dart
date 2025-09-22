@@ -10,6 +10,8 @@ class AuthTextField extends StatelessWidget {
   final bool showToggle;
   final bool isObscured;
   final VoidCallback? onToggle;
+  final bool readOnly; // New property
+  final VoidCallback? onTap; // New property
 
   const AuthTextField({
     super.key,
@@ -21,6 +23,8 @@ class AuthTextField extends StatelessWidget {
     this.showToggle = false,
     this.isObscured = false,
     this.onToggle,
+    this.readOnly = false, // Set default value
+    this.onTap, // Make it optional
   });
 
   @override
@@ -28,11 +32,11 @@ class AuthTextField extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.07),
+        color: Colors.white.withOpacity(0.07),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -41,10 +45,10 @@ class AuthTextField extends StatelessWidget {
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
-        obscureText: obscure
-            ? (showToggle ? isObscured : true)
-            : false,
+        obscureText: obscure && (showToggle ? isObscured : true),
         style: const TextStyle(color: Colors.white),
+        readOnly: readOnly, // Use the new property
+        onTap: onTap, // Use the new property
         decoration: InputDecoration(
           contentPadding: const EdgeInsets.symmetric(
             vertical: 18,
@@ -52,14 +56,14 @@ class AuthTextField extends StatelessWidget {
           ),
           hintText: hint,
           hintStyle: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
+            color: Colors.white.withOpacity(0.5),
             fontSize: 15,
           ),
           prefixIcon: Icon(icon, color: AppColors.textColor),
           // ✨ Border styles
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.transparent),
+            borderSide: const BorderSide(color: Colors.transparent),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),

@@ -21,9 +21,11 @@ class EmailOtpService {
         return true;
       } else {
         final data = jsonDecode(response.body);
+        print('Error sending OTP: ${response.body}'); // Log the error response for debugging
         throw Exception(data["error"] ?? "Failed to send OTP");
       }
     } catch (e) {
+      print('Network error: $e'); // Log the network error
       throw Exception("Network error while sending OTP: $e");
     }
   }
@@ -39,11 +41,13 @@ class EmailOtpService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data["valid"] == true;
+        return data["valid"] == true;  // Ensure 'valid' key is correctly returned by Firebase function
       } else {
+        print('Error verifying OTP: ${response.body}'); // Log the error response for debugging
         return false;
       }
     } catch (e) {
+      print('Network error: $e'); // Log the network error
       throw Exception("Network error while verifying OTP: $e");
     }
   }

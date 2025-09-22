@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.calligro_app",
+      "sha256_cert_fingerprints": [
+        "06:EC:01:B2:D4:F2:1C:F1:52:71:B8:8B:47:78:E2:0F:72:F6:F7:33"
+      ]
+    }
+  }
+]

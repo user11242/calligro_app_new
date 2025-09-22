@@ -37,7 +37,9 @@ class _PhoneOtpStepState extends State<PhoneOtpStep> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (var c in _controllers) c.dispose();
+    for (var c in _controllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -58,6 +60,7 @@ class _PhoneOtpStepState extends State<PhoneOtpStep> {
       await _auth.verifyPhoneNumber(
         phoneNumber: widget.phone,
         verificationCompleted: (PhoneAuthCredential credential) async {
+          // 🔹 This is only triggered on Android for instant verification.
           await _auth.signInWithCredential(credential);
           widget.onVerified();
         },
@@ -77,11 +80,11 @@ class _PhoneOtpStepState extends State<PhoneOtpStep> {
     }
   }
 
-  Future<bool> verifyOtp() async {
+  Future<void> _verifyOtpAndProceed() async {
     final smsCode = _controllers.map((c) => c.text).join();
     if (_verificationId == null || smsCode.length != 6) {
       setState(() => _errorText = "Enter the 6-digit code");
-      return false;
+      return;
     }
 
     setState(() {
@@ -95,10 +98,9 @@ class _PhoneOtpStepState extends State<PhoneOtpStep> {
         smsCode: smsCode,
       );
       await _auth.signInWithCredential(credential);
-      return true;
+      widget.onVerified(); // 🔹 Trigger the parent's callback on success
     } catch (_) {
       setState(() => _errorText = "Invalid OTP, try again.");
-      return false;
     } finally {
       setState(() => isLoading = false);
     }
@@ -123,6 +125,24 @@ class _PhoneOtpStepState extends State<PhoneOtpStep> {
                   : "Resend in $_resendCooldown s",
               style: const TextStyle(color: Colors.white70),
             ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: isLoading ? null : _verifyOtpAndProceed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade400,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            child: isLoading
+                ? const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  )
+                : const Text("Next"),
           ),
         ],
       ),

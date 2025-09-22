@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:calligro_app/core/theme/colors.dart';
 import '../../data/services/auth_service.dart';
 import 'otp_input_widget.dart';
 
@@ -33,13 +32,15 @@ class _EmailOtpStepState extends State<EmailOtpStep> {
   @override
   void initState() {
     super.initState();
-    _sendOtp();
+    _sendOtp(); // Sends OTP immediately when the step loads
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    for (var c in _controllers) c.dispose();
+    for (var c in _controllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -78,7 +79,7 @@ class _EmailOtpStepState extends State<EmailOtpStep> {
 
     final valid = await _authService.verifyEmailOtp(widget.email, otp);
     if (valid) {
-      widget.onVerified();
+      widget.onVerified(); // Calls the parent's callback to move to the next step
     } else {
       setState(() => _errorText = "Invalid OTP, try again.");
     }
