@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:device_region/device_region.dart'; // 🔹 Import the device_region package
+import 'package:device_region/device_region.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/colors.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
@@ -28,15 +29,14 @@ class _RegisterFormState extends State<RegisterForm> {
   bool isLoading = false;
   bool isPasswordObscured = true;
   bool isConfirmPasswordObscured = true;
-  String _initialCountryCode = "US"; // 🔹 Default value, will be updated
+  String _initialCountryCode = "US";
 
   @override
   void initState() {
     super.initState();
-    _getInitialCountryCode(); // 🔹 Call the method to fetch country code
+    _getInitialCountryCode();
   }
 
-  // 🔹 Asynchronous method to get the SIM's country code
   Future<void> _getInitialCountryCode() async {
     try {
       final String? countryCode = await DeviceRegion.getSIMCountryCode();
@@ -59,6 +59,20 @@ class _RegisterFormState extends State<RegisterForm> {
     );
   }
 
+  Future<bool> _checkNameExists(String name) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('name', isEqualTo: name)
+          .limit(1)
+          .get();
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      debugPrint("Error checking name existence: $e");
+      return false;
+    }
+  }
+
   bool _validateFields() {
     bool isValid = true;
 
@@ -67,7 +81,7 @@ class _RegisterFormState extends State<RegisterForm> {
       isValid = false;
     }
 
-    if (emailController.text.isEmpty || !RegExp(r'^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]+').hasMatch(emailController.text)) {
+    if (emailController.text.isEmpty || !RegExp(r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+').hasMatch(emailController.text)) {
       _showMessage("Please enter a valid email address");
       isValid = false;
     }
@@ -79,8 +93,8 @@ class _RegisterFormState extends State<RegisterForm> {
     } else if (password.length < 6) {
       _showMessage("Password must be at least 6 characters long");
       isValid = false;
-    } else if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[A-Z])[A-Za-z\d@$!%*?&]{6,}$').hasMatch(password)) {
-      _showMessage("Password must contain at least one uppercase letter, one number, and one letter");
+    } else if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$').hasMatch(password)) {
+      _showMessage("Password must contain at least one uppercase letter, one number, and one symbol");
       isValid = false;
     }
 
@@ -111,6 +125,14 @@ class _RegisterFormState extends State<RegisterForm> {
 
     setState(() => isLoading = true);
 
+    // Check if the name already exists in Firestore
+    final nameExists = await _checkNameExists(nameController.text.trim());
+    if (nameExists) {
+      _showMessage("This name is already in use. Please choose another one.");
+      setState(() => isLoading = false);
+      return;
+    }
+
     final error = await _authService.registerWithEmail(
       name: nameController.text.trim(),
       email: emailController.text.trim(),
@@ -128,7 +150,7 @@ class _RegisterFormState extends State<RegisterForm> {
       return;
     }
 
-    showDialog(
+    final result = await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => VerificationWizardPage(
@@ -139,13 +161,15 @@ class _RegisterFormState extends State<RegisterForm> {
         name: nameController.text.trim(),
         portfolio: portfolioController.text.trim(),
       ),
-    ).then((_) {
+    );
+
+    if (result == true) {
       if (selectedRole == "teacher") {
         Navigator.pushReplacementNamed(context, "/teacherDashboard");
       } else {
         Navigator.pushReplacementNamed(context, "/");
       }
-    });
+    }
   }
 
   @override
@@ -245,7 +269,7 @@ class _RegisterFormState extends State<RegisterForm> {
                     borderSide: BorderSide(color: AppColors.textColor, width: 2),
                   ),
                 ),
-                initialCountryCode: _initialCountryCode, // 🔹 Use the fetched country code
+                initialCountryCode: _initialCountryCode,
                 onChanged: (phone) => fullPhoneNumber = phone.completeNumber,
               ),
               const SizedBox(height: 20),

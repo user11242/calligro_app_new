@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:phone_number/phone_number.dart';
+import 'package:device_region/device_region.dart'; // 🔹 Import the device_region package
 
 class StepTeacherPhone extends StatefulWidget {
   final TextEditingController controller;
@@ -19,15 +20,35 @@ class StepTeacherPhone extends StatefulWidget {
 class _StepTeacherPhoneState extends State<StepTeacherPhone> {
   final PhoneNumberUtil _phoneNumberUtil = PhoneNumberUtil();
   String? _errorText;
+  String _initialCountryCode = "US"; // 🔹 Default to a common country
 
-  Future<void> _validatePhone(String number, String isoCode) async {
+  @override
+  void initState() {
+    super.initState();
+    _getInitialCountryCode(); // 🔹 Get the country code when widget is initialized
+  }
+
+  // 🔹 Get the SIM country code using DeviceRegion package
+  Future<void> _getInitialCountryCode() async {
+    try {
+      final String? countryCode = await DeviceRegion.getSIMCountryCode();
+      if (countryCode != null) {
+        setState(() {
+          _initialCountryCode = countryCode.toUpperCase(); // Set the country code based on SIM
+        });
+      }
+    } catch (e) {
+      debugPrint("Error getting country code: $e");
+    }
+  }
+
+  // 🔹 Validate the phone number and format it properly
+  Future<void> _validateAndFormatPhone(String number, String isoCode) async {
     try {
       final parsed = await _phoneNumberUtil.parse(number, regionCode: isoCode);
 
-      if (parsed.e164 != null && parsed.e164!.isNotEmpty) {
-        // ✅ valid number
+      if (parsed.e164!.isNotEmpty) {
         setState(() => _errorText = null);
-        widget.controller.text = parsed.e164!; // keep E.164 in controller
         widget.onValidNumber?.call(parsed.e164!);
       } else {
         setState(() => _errorText = "Invalid phone number");
@@ -53,8 +74,7 @@ class _StepTeacherPhoneState extends State<StepTeacherPhone> {
         const SizedBox(height: 16),
 
         IntlPhoneField(
-          controller: widget.controller,
-          initialCountryCode: "JO", // ✅ change to your main country
+          initialCountryCode: _initialCountryCode, // 🔹 Use the fetched country code
           style: const TextStyle(color: Colors.white),
           dropdownTextStyle: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
@@ -69,7 +89,8 @@ class _StepTeacherPhoneState extends State<StepTeacherPhone> {
             errorText: _errorText,
           ),
           onChanged: (phone) {
-            _validatePhone(phone.number, phone.countryISOCode);
+            _validateAndFormatPhone(phone.number, phone.countryISOCode);
+            widget.controller.text = phone.completeNumber;
           },
         ),
       ],

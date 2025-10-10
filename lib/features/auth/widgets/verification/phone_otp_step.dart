@@ -1,37 +1,40 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'otp_input_widget.dart';
+import 'otp_input_widget.dart'; 
 
 class PhoneOtpStep extends StatefulWidget {
   final String phone;
   final VoidCallback onVerified;
+  final bool showNextButton;
 
   const PhoneOtpStep({
     super.key,
     required this.phone,
     required this.onVerified,
+    this.showNextButton = true,
   });
 
   @override
-  State<PhoneOtpStep> createState() => _PhoneOtpStepState();
+  // Public State class to allow parent access
+  State<PhoneOtpStep> createState() => PhoneOtpStepState();
 }
 
-class _PhoneOtpStepState extends State<PhoneOtpStep> {
+// Public State class to allow parent access to validation methods
+class PhoneOtpStepState extends State<PhoneOtpStep> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
 
   String? _verificationId;
   String? _errorText;
-  bool isLoading = false;
   int _resendCooldown = 0;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _sendOtp(); // 🔹 send OTP immediately when step opens
+    _sendOtp(); 
   }
 
   @override
@@ -50,59 +53,83 @@ class _PhoneOtpStepState extends State<PhoneOtpStep> {
       if (_resendCooldown == 0) {
         timer.cancel();
       } else {
-        setState(() => _resendCooldown--);
+        // 🔹 Check mounted inside periodic timer callback
+        if (mounted) setState(() => _resendCooldown--);
       }
     });
   }
 
   Future<void> _sendOtp() async {
+    setState(() => _errorText = null);
     try {
       await _auth.verifyPhoneNumber(
         phoneNumber: widget.phone,
         verificationCompleted: (PhoneAuthCredential credential) async {
-          // 🔹 This is only triggered on Android for instant verification.
           await _auth.signInWithCredential(credential);
           widget.onVerified();
         },
         verificationFailed: (e) {
+          // 🔹 Check mounted
+          if (!mounted) return;
           setState(() => _errorText = e.message);
         },
         codeSent: (verificationId, _) {
+          // 🔹 Check mounted
+          if (!mounted) return;
           setState(() => _verificationId = verificationId);
           _startCooldown();
         },
         codeAutoRetrievalTimeout: (verificationId) {
+          // 🔹 Check mounted
+          if (!mounted) return;
           setState(() => _verificationId = verificationId);
         },
       );
     } catch (e) {
+      // 🔹 Check mounted
+      if (!mounted) return;
       setState(() => _errorText = "Failed to send OTP: $e");
     }
   }
 
-  Future<void> _verifyOtpAndProceed() async {
+  // Public method callable by the parent widget (GoogleRegisterWizard)
+  Future<bool> verifyAndSubmit() async {
     final smsCode = _controllers.map((c) => c.text).join();
-    if (_verificationId == null || smsCode.length != 6) {
-      setState(() => _errorText = "Enter the 6-digit code");
-      return;
+    
+    if (_verificationId == null) {
+      setState(() => _errorText = "Please wait for the verification code to be sent.");
+      return false;
     }
 
-    setState(() {
-      _errorText = null;
-      isLoading = true;
-    });
+    if (smsCode.length != 6) {
+      setState(() => _errorText = "Enter the full 6-digit code");
+      return false;
+    }
 
+    setState(() => _errorText = null);
+    
     try {
       final credential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: smsCode,
       );
+      // await call
       await _auth.signInWithCredential(credential);
-      widget.onVerified(); // 🔹 Trigger the parent's callback on success
+      
+      // If sign-in is successful, widget.onVerified() is called, 
+      // which moves the step and disposes this widget.
+      widget.onVerified(); 
+      return true;
+    } on FirebaseAuthException catch (e) {
+      // 🔹 FIX: Check mounted before calling setState() on error
+      if (!mounted) return false;
+      setState(() => _errorText = e.message);
+      return false;
     } catch (_) {
+      // 🔹 FIX: Check mounted before calling setState() on error
+      if (!mounted) return false;
       setState(() => _errorText = "Invalid OTP, try again.");
-    } finally {
-      setState(() => isLoading = false);
+      return false;
     }
   }
 
@@ -115,6 +142,7 @@ class _PhoneOtpStepState extends State<PhoneOtpStep> {
           Text("Enter the code sent to ${widget.phone}",
               style: const TextStyle(color: Colors.white)),
           const SizedBox(height: 20),
+          // Using OtpInputWidget as per your last provided code
           OtpInputWidget(controllers: _controllers, errorText: _errorText),
           const SizedBox(height: 20),
           TextButton(
@@ -125,24 +153,6 @@ class _PhoneOtpStepState extends State<PhoneOtpStep> {
                   : "Resend in $_resendCooldown s",
               style: const TextStyle(color: Colors.white70),
             ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: isLoading ? null : _verifyOtpAndProceed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber.shade400,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: isLoading
-                ? const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  )
-                : const Text("Next"),
           ),
         ],
       ),

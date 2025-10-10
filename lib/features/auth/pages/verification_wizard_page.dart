@@ -1,3 +1,5 @@
+// File: lib/features/auth/presentation/pages/verification_wizard_page.dart
+
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -44,13 +46,11 @@ class _VerificationWizardPageState extends State<VerificationWizardPage> {
   @override
   void initState() {
     super.initState();
-    // 🔹 The fix: For students, we skip the phone step and start at step 1 (email).
     if (!isTeacher) {
       _step = 1;
     }
   }
 
-  // ---------- FINISH REGISTRATION ----------
   Future<void> _finishRegistration() async {
     setState(() => isLoading = true);
     try {
@@ -77,7 +77,10 @@ class _VerificationWizardPageState extends State<VerificationWizardPage> {
       await _firestore.collection("users").doc(user.uid).set(data);
 
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, "/LoginPage");
+      // Close the wizard and return to the previous page.
+      // The previous page should then handle the navigation to the login page.
+      Navigator.pop(context);
+
     } catch (e) {
       _showMessage("Registration failed: $e");
     } finally {
@@ -85,7 +88,6 @@ class _VerificationWizardPageState extends State<VerificationWizardPage> {
     }
   }
 
-  // ---------- NAVIGATION ----------
   void _goToNextStep() {
     setState(() {
       _step++;
@@ -98,7 +100,6 @@ class _VerificationWizardPageState extends State<VerificationWizardPage> {
     );
   }
 
-  // 🔹 A simple container for the dialog's content
   Widget _buildStepContent() {
     if (_step == 0) {
       return PhoneOtpStep(
@@ -118,44 +119,50 @@ class _VerificationWizardPageState extends State<VerificationWizardPage> {
     }
   }
 
-  // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
     const totalSteps = 3;
-    return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-      child: Dialog(
-        backgroundColor: AppColors.primary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding:
-            const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: SizedBox(
-            width: 360,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Align(
-                  alignment: Alignment.topRight,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white70),
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(context, "/RegisterPage");
-                    },
-                  ),
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () {
+                          // This will now correctly pop the dialog off the stack
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ),
+                    if (isTeacher && _step < 2)
+                      Text("Step ${_step + 1} of $totalSteps",
+                          style: const TextStyle(color: Colors.white70)),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 250,
+                      child: Center(
+                        child: _buildStepContent(),
+                      ),
+                    ),
+                  ],
                 ),
-                if (isTeacher && _step < 2)
-                  Text("Step ${_step + 1} of $totalSteps",
-                      style: const TextStyle(color: Colors.white70)),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 250,
-                  child: Center(
-                    child: _buildStepContent(),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:calligro_app/features/admin/pages/admin_pending_teachers.dart';
 import 'package:calligro_app/features/admin/pages/admin_users.dart';
 import 'package:calligro_app/features/auth/pages/forgot_password_page.dart';
 import 'package:calligro_app/features/auth/pages/register_page.dart';
+import 'package:calligro_app/features/community/community_page.dart';
 import 'package:calligro_app/features/student/pages/home_page.dart';
 import 'package:calligro_app/features/auth/pages/login_page.dart';
 import 'package:calligro_app/features/student/pages/profile_page.dart';
@@ -93,6 +94,7 @@ Future<void> main() async {
       '/adminPendingTeachers': (context) => AdminPendingTeachersPage(),
       '/teacherDashboard':(context) => TeacherDashboardPage(),
       '/addCourse':(context) => AddCourseDashboardPage(),
+      '/community':(context) => const CommunityPage(),
     },
   ));
 

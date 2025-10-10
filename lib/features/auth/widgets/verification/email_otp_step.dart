@@ -51,77 +51,108 @@ class _EmailOtpStepState extends State<EmailOtpStep> {
       if (_resendCooldown == 0) {
         timer.cancel();
       } else {
-        setState(() => _resendCooldown--);
+        if (mounted) {
+          setState(() => _resendCooldown--);
+        }
       }
     });
   }
 
   Future<void> _sendOtp() async {
-    final ok = await _authService.sendEmailOtp(widget.email);
-    if (ok) {
-      _startCooldown();
-    } else {
-      setState(() => _errorText = "Failed to send OTP");
+    setState(() {
+      _errorText = null;
+    });
+    try {
+      final ok = await _authService.sendEmailOtp(widget.email);
+      if (ok) {
+        _startCooldown();
+      } else {
+        if (mounted) {
+          setState(() => _errorText = "Failed to send OTP. Please try again later.");
+        }
+      }
+    } catch (e) {
+      print(e);
+      if (mounted) {
+        setState(() => _errorText = "An error occurred. Check your network connection.");
+      }
     }
   }
 
   Future<void> _verifyOtp() async {
     final otp = _controllers.map((c) => c.text).join();
     if (otp.length != 6) {
-      setState(() => _errorText = "Enter the 6-digit code");
+      if (mounted) {
+        setState(() => _errorText = "Enter the 6-digit code");
+      }
       return;
     }
 
-    setState(() {
-      _errorText = null;
-      isLoading = true;
-    });
-
-    final valid = await _authService.verifyEmailOtp(widget.email, otp);
-    if (valid) {
-      widget.onVerified(); // Calls the parent's callback to move to the next step
-    } else {
-      setState(() => _errorText = "Invalid OTP, try again.");
+    if (mounted) {
+      setState(() {
+        _errorText = null;
+        isLoading = true;
+      });
     }
 
-    setState(() => isLoading = false);
+    try {
+      final valid = await _authService.verifyEmailOtp(widget.email, otp);
+      if (valid) {
+        widget.onVerified(); // Calls the parent's callback to move to the next step
+      } else {
+        if (mounted) {
+          setState(() => _errorText = "Invalid OTP, please try again.");
+        }
+      }
+    } catch (e) {
+      print(e);
+      if (mounted) {
+        setState(() => _errorText = "An error occurred during verification.");
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          "Enter the code sent to ${widget.email}",
-          style: const TextStyle(color: Colors.white),
-        ),
-        const SizedBox(height: 20),
-        OtpInputWidget(controllers: _controllers, errorText: _errorText),
-        const SizedBox(height: 20),
-        TextButton(
-          onPressed: _resendCooldown == 0 ? _sendOtp : null,
-          child: Text(
-            _resendCooldown == 0
-                ? "Resend Code"
-                : "Resend in $_resendCooldown s",
-            style: const TextStyle(color: Colors.white70),
+    return SingleChildScrollView(  // Added to allow scrolling
+      child: Column(
+        children: [
+          Text(
+            "Enter the code sent to ${widget.email}",
+            style: const TextStyle(color: Colors.white),
           ),
-        ),
-        const SizedBox(height: 10),
-        ElevatedButton(
-          onPressed: isLoading ? null : _verifyOtp,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.amber.shade400,
-            foregroundColor: Colors.black,
+          const SizedBox(height: 20),
+          OtpInputWidget(controllers: _controllers, errorText: _errorText),
+          const SizedBox(height: 20),
+          TextButton(
+            onPressed: _resendCooldown == 0 ? _sendOtp : null,
+            child: Text(
+              _resendCooldown == 0
+                  ? "Resend Code"
+                  : "Resend in $_resendCooldown s",
+              style: const TextStyle(color: Colors.white70),
+            ),
           ),
-          child: isLoading
-              ? const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                )
-              : const Text("Verify"),
-        ),
-      ],
+          const SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: isLoading ? null : _verifyOtp,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade400,
+              foregroundColor: Colors.black,
+            ),
+            child: isLoading
+                ? const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  )
+                : const Text("Verify"),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -32,6 +32,7 @@ class StepTeacherPortfolio extends StatelessWidget {
             ),
           ),
           keyboardType: TextInputType.url,
+          style: const TextStyle(color: Colors.white), // Text color set to white
         ),
       ],
     );
