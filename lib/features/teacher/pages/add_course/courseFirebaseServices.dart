@@ -6,15 +6,24 @@ class CourseFirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Fetch teacher details from Firestore
-  Future<Map<String, String>> fetchTeacherDetails() async {
+  Future<Map<String, dynamic>> fetchTeacherDetails() async {
     User? user = _auth.currentUser;
     if (user != null) {
       try {
-        DocumentSnapshot teacherDoc = await _firestore.collection('users').doc(user.uid).get();
+        DocumentSnapshot teacherDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get(const GetOptions(source: Source.server));
         if (teacherDoc.exists) {
+          // Cast the data to a Map to safely access fields
+          final data = teacherDoc.data() as Map<String, dynamic>;
+
           return {
             'teacherId': user.uid,
-            'teacherName': teacherDoc['name'],  // Assuming the 'name' field exists
+            'teacherName': data['name'] ?? 'Unknown Teacher',
+            // FIXED: Fetches 'photoUrl' (Teacher Identity) from your database
+            'teacherProfilePic': data['photoUrl'] ?? '',
+            'hasPayoutInfo': data.containsKey('payoutSettings'),
           };
         }
         throw Exception('Teacher details not found');
@@ -33,5 +42,4 @@ class CourseFirebaseService {
       throw Exception('Error saving course: $e');
     }
   }
-
 }

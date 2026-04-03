@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calligro - Terms and Conditions</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #121212;
+            --accent: #D4AF37; /* Gold */
+            --text: #FFFFFF;
+            --text-dim: #BBBBBB;
+            --card: #1E1E1E;
+        }
+        body {
+            background-color: var(--primary);
+            color: var(--text);
+            font-family: 'Cairo', 'Inter', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 20px;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+        .lang-switcher {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .lang-btn {
+            background: none;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 5px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        .lang-btn:hover, .lang-btn.active {
+            background-color: var(--accent);
+            color: var(--primary);
+        }
+        .section {
+            display: none;
+            background-color: var(--card);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .section.active {
+            display: block;
+        }
+        .section.ltr {
+            direction: ltr;
+            text-align: left;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Calligro</div>
+            <h1>الشروط والأحكام / Terms & Conditions</h1>
+        </header>
+
+        <div class="lang-switcher">
+            <button class="lang-btn active" onclick="showLang('ar')">العربية</button>
+            <button class="lang-btn" onclick="showLang('en')">English</button>
+            <button class="lang-btn" onclick="showLang('tr')">Türkçe</button>
+        </div>
+
+        <div id="ar" class="section active">
+            <pre>مرحبًا بك في تطبيق Calligro.
+باستخدامك للتطبيق أو بإنشاء حساب، فإنك تقرّ بموافقتك الكاملة على هذه الشروط والأحكام. في حال عدم موافقتك على أي بند منها، يرجى التوقف عن استخدام التطبيق.
+
+1. التعريفات
+التطبيق: منصة Calligro الرقمية.
+المستخدم: أي شخص يستخدم التطبيق أو ينشئ حسابًا.
+الطالب: المستخدم الذي يسجّل في الدورات التعليمية.
+الأستاذ: المستخدم الذي يقدّم دورات أو خدمات تعليمية أو فنية.
+المحتوى: جميع المواد المنشورة داخل التطبيق، بما في ذلك النصوص، الصور، الفيديوهات، الدورات، الواجبات، والأعمال الفنية.
+
+2. إنشاء الحساب واستخدامه
+يلتزم المستخدم بتقديم معلومات صحيحة ودقيقة عند إنشاء الحساب.
+يتحمّل المستخدم كامل المسؤولية عن الحفاظ على سرية بيانات تسجيل الدخول.
+يحق لإدارة Calligro تعليق أو حذف أي حساب في حال الاشتباه باستخدام غير قانوني أو مخالف لهذه الشروط.
+
+3. أدوار المستخدمين
+الطالب
+يحق له التسجيل في الدورات، حضور الجلسات، وتسليم الواجبات.
+يُمنع إعادة نشر أو تسجيل أو مشاركة أي محتوى تعليمي دون إذن صريح من الأستاذ أو المنصة.
+الأستاذ
+يتحمّل الأستاذ المسؤولية الكاملة عن المحتوى الذي يقدّمه وجودته.
+يلتزم بتحديد مواعيد دقيقة والالتزام بها.
+يجب إضافة طريقة استلام الأرباح قبل نشر أي دورة.
+يخضع حساب الأستاذ للمراجعة والموافقة من إدارة Calligro.
+يتحمّل الأستاذ المسؤولية الكاملة عن صحة ودقة جميع المعلومات التي يقوم بإدخالها داخل التطبيق، بما في ذلك وصف الدورات، مواعيدها، محتواها، وأسعارها.
+لا تتحمل Calligro أي مسؤولية عن أي معلومات خاطئة أو مضللة يقوم الأستاذ بإدخالها.
+
+4. الدورات والجلسات التعليمية
+يتم تقديم الدورات وفق التفاصيل الموضحة في صفحة كل دورة.
+يتم عرض مواعيد الجلسات تلقائيًا حسب المنطقة الزمنية لكل مستخدم.
+يلتزم الأستاذ بتقديم الدورة كما هو معلن من حيث المحتوى، عدد الجلسات، والمواعيد.
+في حال عدم التزام الأستاذ
+في حال عدم التزام الأستاذ بشروط الدورة، بما في ذلك على سبيل المثال لا الحصر:
+إلغاء الجلسات بدون مبرر
+التأخير المتكرر
+عدم تقديم المحتوى المتفق عليه
+تدني مستوى الأداء بما يؤثر سلبًا على تجربة الطلاب
+يحق لإدارة Calligro اتخاذ الإجراءات المناسبة، والتي قد تشمل:
+توجيه تنبيه أو إنذار
+تعليق الدورة مؤقتًا
+إلغاء الدورة
+إيقاف أو تعليق حساب الأستاذ
+أي إجراء آخر تراه الإدارة مناسبًا للحفاظ على جودة المنصة
+
+5. المدفوعات والأرباح
+تتم عمليات الدفع من الطلاب عبر وسائل الدفع المعتمدة داخل التطبيق.
+تُحوّل أرباح الأساتذة حسب الطريقة التي يحددونها ووفق الجدول الزمني المعتمد.
+تحتفظ Calligro بنسبة عمولة مقابل استخدام المنصة والخدمات التقنية.
+لا تتحمل Calligro أي مسؤولية عن تأخير ناتج عن مزوّدي خدمات الدفع أو البنوك.
+
+6. سياسة الاسترداد (Refund Policy)
+يحق للطالب طلب استرداد المبلغ المدفوع فقط قبل بدء أول جلسة من الدورة.
+بعد بدء الدورة، لا يحق للطالب المطالبة بأي استرداد، سواء حضر الجلسات أم لم يحضرها.
+تتم معالجة طلبات الاسترداد وفق آلية الدفع المستخدمة وضمن المدة الزمنية التي يحددها مزوّدو خدمات الدفع.
+تحتفظ Calligro بحق رفض أي طلب استرداد في حال الاشتباه بإساءة الاستخدام.
+
+7. التقييمات (Ratings)
+يُسمح للطلاب بتقييم الأستاذ بعد إتمام الدورة أو استيفاء شروط الحضور أو التسليم.
+يجب أن تكون التقييمات صادقة، محترمة، وغير مسيئة.
+يحق لإدارة Calligro حذف أو إخفاء أي تقييم تراه غير عادل أو مخالف لسياسات المنصة.
+
+8. المحتوى والملكية الفكرية
+يحتفظ كل مستخدم بحقوقه الكاملة على المحتوى الذي ينشره.
+يمنح المستخدم Calligro ترخيصًا غير حصري لعرض المحتوى داخل التطبيق.
+يُمنع نسخ أو إعادة استخدام أي محتوى دون إذن خطي من صاحبه.
+
+9. المجتمع (Community)
+يُمنع نشر أي محتوى مسيء، غير أخلاقي، أو مخالف للقوانين.
+يُمنع الترويج لخدمات أو منصات خارج Calligro دون إذن مسبق.
+يحق لإدارة Calligro حذف أي منشور أو تعليق مخالف دون إشعار مسبق.
+
+10. الترجمة
+قد يتم ترجمة المحتوى تلقائيًا حسب لغة التطبيق.
+لا تتحمل Calligro أي مسؤولية عن أي أخطاء ناتجة عن الترجمة الآلية.
+
+11. تعليق أو إنهاء الحساب
+يحق للمستخدم طلب حذف حسابه في أي وقت.
+يحق لـ Calligro تعليق أو إنهاء أي حساب يخالف هذه الشروط أو يسيء استخدام المنصة.
+
+12. إخلاء المسؤولية
+Calligro منصة وسيطة ولا تتحمل مسؤولية أي خلاف مباشر بين الطالب والأستاذ.
+استخدامك للتطبيق يكون على مسؤوليتك الشخصية.
+
+13. التعديلات على الشروط
+تحتفظ Calligro بحق تعديل هذه الشروط في أي وقت.
+سيتم إشعار المستخدمين بأي تعديل جوهري، ويُعد الاستمرار في استخدام التطبيق موافقة على التعديلات.</pre>
+        </div>
+
+        <div id="en" class="section ltr">
+            <pre>Welcome to Calligro.
+By using the application or creating an account, you acknowledge your full agreement to these Terms and Conditions. If you do not agree to any part of them, please stop using the application.
+
+1. Definitions
+Application: Calligro digital platform.
+User: Anyone who uses the application or creates an account.
+Student: A user who enrolls in educational courses.
+Teacher: A user who offers educational or artistic courses or services.
+Content: All materials published within the application, including text, images, videos, courses, assignments, and artwork.
+
+2. Creating and using an account
+The user is committed to providing correct and accurate information when creating the account.
+The user bears full responsibility for maintaining the confidentiality of login data.
+Calligro has the right to suspend or delete any account in the event of suspected illegal use or violation of these terms.
+
+3. User Roles
+Student
+Has the right to register for courses, attend sessions, and submit assignments.
+It is prohibited to republish, record, or share any educational content without express permission from the teacher or the platform.
+Teacher
+The teacher bears full responsibility for the content they provide and its quality.
+Commit to setting accurate appointments and adhering to them.
+A method for receiving earnings must be added before publishing any course.
+The teacher's account is subject to review and approval by Calligro administration.
+The teacher bears full responsibility for the validity and accuracy of all information they enter into the application, including course descriptions, dates, content, and prices.
+Calligro bears no responsibility for any incorrect or misleading information entered by the teacher.
+
+4. Courses and Educational Sessions
+Courses are offered according to the details shown on each course page.
+Session times are displayed automatically according to each user's time zone.
+The teacher is committed to presenting the course as advertised in terms of content, number of sessions, and dates.
+In case of teacher non-compliance
+In the event that the teacher does not comply with the course conditions, including but not limited to:
+Canceling sessions without justification
+Repeated delays
+Failure to provide the agreed content
+Low performance level negatively affecting student experience
+Calligro administration has the right to take appropriate measures, which may include:
+Issuing a warning
+Temporarily suspending the course
+Canceling the course
+Suspending or terminating the teacher's account
+Any other action deemed appropriate by the administration to maintain the platform quality
+
+5. Payments and Earnings
+Payments from students are made via approved payment methods within the application.
+Teachers' earnings are transferred according to the method they specify and according to the approved schedule.
+Calligro retains a commission percentage for the use of the platform and technical services.
+Calligro bears no responsibility for delays resulting from payment service providers or banks.
+
+6. Refund Policy
+The student has the right to request a refund only before the start of the first session of the course.
+After the course starts, the student is not entitled to claim any refund, whether they attended the sessions or not.
+Refund requests are processed according to the payment mechanism used and within the time period specified by payment service providers.
+Calligro reserves the right to refuse any refund request in case of suspected abuse.
+
+7. Ratings
+Students are allowed to rate the teacher after completing the course or meeting attendance or submission requirements.
+Ratings must be honest, respectful, and non-abusive.
+Calligro administration has the right to delete or hide any rating it deems unfair or in violation of platform policies.
+
+8. Content and Intellectual Property
+Each user retains full rights to the content they publish.
+The user grants Calligro a non-exclusive license to display the content within the application.
+It is forbidden to copy or reuse any content without written permission from the owner.
+
+9. Community
+It is forbidden to publish any offensive, immoral, or illegal content.
+It is forbidden to promote services or platforms outside Calligro without prior permission.
+Calligro administration has the right to delete any post or comment that violates rules without prior notice.
+
+10. Translation
+Content may be automatically translated depending on the application language.
+Calligro bears no responsibility for any errors resulting from machine translation.
+
+11. Suspension or Termination of Account
+Attributes to the user the right to request deletion of their account at any time.
+Calligro has the right to suspend or terminate any account that violates these terms or misuses the platform.
+
+12. Disclaimer
+Calligro is an intermediary platform and is not responsible for any direct dispute between student and teacher.
+Your use of the application is at your own personal responsibility.
+
+13. Amendments to Terms
+Calligro reserves the right to amend these terms at any time.
+Users will be notified of any material amendment, and continued use of the application constitutes agreement to the amendments.</pre>
+        </div>
+
+        <div id="tr" class="section ltr">
+            <pre>Calligro'ya hoş geldiniz.
+Uygulamayı kullanarak veya bir hesap oluşturarak, bu Şartlar ve Koşulları tamamen kabul ettiğinizi beyan edersiniz. Bunların herhangi bir kısmını kabul etmiyorsanız, lütfen uygulamayı kullanmayı bırakın.
+
+1. Tanımlar
+Uygulama: Calligro dijital platformu.
+Kullanıcı: Uygulamayı kullanan veya hesap oluşturan herkes.
+Öğrenci: Eğitim kurslarına kaydolan kullanıcı.
+Öğretmen: Eğitim veya sanat kursları veya hizmetleri sunan kullanıcı.
+İçerik: Uygulama içinde yayınlanan tüm materyaller; metinler, resimler, videolar, kurslar, ödevler ve sanat eserleri dahil.
+
+2. Hesap oluşturma ve kullanımı
+Kullanıcı, hesap oluştururken doğru ve doğru bilgiler vermeyi taahhüt eder.
+Kullanıcı, giriş verilerinin gizliliğini korumaktan tamamen sorumludur.
+Calligro, yasa dışı kullanım şüphesi veya bu şartların ihlali durumunda herhangi bir hesabı askıya alma veya silme hakkına sahiptir.
+
+3. Kullanıcı Rolleri
+Öğrenci
+Kurslara kaydolma, oturumlara katılma ve ödev gönderme hakkına sahiptir.
+Öğretmenin veya platformun açık izni olmadan herhangi bir eğitim içeriğinin yeniden yayınlanması, kaydedilmesi veya paylaşılması yasaktır.
+Öğretmen
+Öğretmen, sunduğu içerik ve kalitesinden tamamen sorumludur.
+Kesin randevular belirlemeyi ve bunlara uymayı taahhüt eder.
+Herhangi bir kurs yayınlamadan önce kazanç alma yöntemi eklenmelidir.
+Öğretmenin hesabı, Calligro yönetimi tarafından incelemeye ve onaya tabidir.
+Öğretmen, kurs açıklamaları, tarihleri, içeriği ve fiyatları dahil olmak üzere uygulama içine girdiği tüm bilgilerin geçerliliği ve doğruluğundan tamamen sorumludur.
+Calligro, öğretmen tarafından girilen yanlış veya yanıltıcı bilgilerden sorumlu değildir.
+
+4. Kurslar ve Eğitim Oturumları
+Kurslar, her kurs sayfasında gösterilen ayrıntılara göre sunulur.
+Oturum saatleri, her kullanıcının saat dilimine göre otomatik olarak görüntülenir.
+Öğretmen, kursu içerik, oturum sayısı ve tarihler açısından ilan edildiği gibi sunmayı taahhüt eder.
+Öğretmen uyumsuzluğu durumunda
+Öğretmenin kurs koşullarına uymaması durumunda, bunlarla sınırlı olmamak üzere:
+Oturumların gerekçesiz iptali
+Tekrarlanan gecikmeler
+Kararlaştırılan içeriğin sağlanmaması
+Öğrenci deneyimini olumsuz etkileyen düşük performans düzeyi
+Calligro yönetimi, aşağıdakileri içerebilecek uygun önlemleri alma hakkına sahiptir:
+Uyarı verme
+Kursu geçici olarak askıya alma
+Kursu iptal etme
+Öğretmen hesabını askıya alma veya sonlandırma
+Platform kalitesini korumak için yönetim tarafından uygun görülen diğer herhangi bir eylem
+
+5. Ödemeler ve Kazançlar
+Öğrencilerden yapılan ödemeler, uygulama içindeki onaylanmış ödeme yöntemleri aracılığıyla yapılır.
+Öğretmenlerin kazançları, belirledikleri yönteme ve onaylanan takvime göre transfer edilir.
+Calligro, platform ve teknik hizmetlerin kullanımı için bir komisyon yüzdesi alır.
+Calligro, ödeme hizmeti sağlayıcılarından veya bankalardan kaynaklanan gecikmelerden sorumlu değildir.
+
+6. İade Politikası (Refund Policy)
+Öğrenci, yalnızca kursun ilk oturumu başlamadan önce ödenen tutarın iadesini talep etme hakkına sahiptir.
+Kurs başladıktan sonra, öğrenci oturumlara katılmış veya katılmamış olsun, herhangi bir iade talep etme hakkına sahip değildir.
+İade talepleri, kullanılan ödeme mekanizmasına ve ödeme hizmeti sağlayıcıları tarafından belirlenen süreye göre işlenir.
+Calligro, kötüye kullanım şüphesi durumunda herhangi bir iade talebini reddetme hakkını saklı tutar.
+
+7. Değerlendirmeler (Ratings)
+Öğrencilerin, kursu tamamladıktan veya katılım veya gönderim koşullarını yerine getirdikten sonra öğretmeni değerlendirmesine izin verilir.
+Değerlendirmeler dürüst, saygılı ve taciz edici olmamalıdır.
+Calligro yönetimi, haksız veya platform politikalarına aykırı gördüğü herhangi bir değerlendirmeyi silme veya gizleme hakkına sahiptir.
+
+8. İçerik ve Fikri Mülkiyet
+Her kullanıcı, yayınladığı içerik üzerindeki tüm haklarını saklı tutar.
+Kullanıcı, Calligro'ya içeriği uygulama içinde görüntülemek için münhasır olmayan bir lisans verir.
+Sahibinden yazılı izin alınmadan herhangi bir içeriğin kopyalanması veya yeniden kullanılması yasaktır.
+
+9. Topluluk (Community)
+Saldırgan, ahlaka aykırı veya yasa dışı herhangi bir içerik yayınlamak yasaktır.
+Önceden izin alınmadan Calligro dışındaki hizmetlerin veya platformların tanıtımını yapmak yasaktır.
+Calligro yönetimi, kuralları ihlal eden herhangi bir gönderiyi veya yorumu önceden bildirimde bulunmaksızın silme hakkına sahiptir.
+
+10. Çeviri
+İçerik, uygulama diline bağlı olarak otomatik olarak çevrilebilir.
+Calligro, makine çevirisinden kaynaklanan hatalardan sorumlu değildir.
+
+11. Hesabın Askıya Alınması veya Sonlandırılması
+Kullanıcıya her zaman hesabının silinmesini talep etme hakkı verilir.
+Calligro, bu şartları ihlal eden veya platformu kötüye kullanan herhangi bir hesabı askıya alma veya sonlandırma hakkına sahiptir.
+
+12. Sorumluluk Reddi
+Calligro bir aracı platformdur ve öğrenci ile öğretmen arasındaki doğrudan anlaşmazlıklardan sorumlu değildir.
+Uygulamayı kullanımınız kendi kişisel sorumluluğunuzdadır.
+
+13. Şartlarda Değişiklikler
+Calligro, bu şartları her zaman değiştirme hakkını saklı tutar.
+Kullanıcılara herhangi bir maddi değişiklik bildirilecek ve uygulamayı kullanmaya devam etmeleri değişiklikleri kabul ettikleri anlamına gelecektir.</pre>
+        </div>
+
+        <footer>
+            &copy; 2025 Calligro. All rights reserved.
+        </footer>
+    </div>
+
+    <script>
+        function showLang(lang) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(lang).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Set direction based on language
+            if (lang === 'ar') {
+                document.documentElement.dir = 'rtl';
+                document.documentElement.lang = 'ar';
+            } else {
+                document.documentElement.dir = 'ltr';
+                document.documentElement.lang = lang;
+            }
+        }
+    </script>
+</body>
+</html>

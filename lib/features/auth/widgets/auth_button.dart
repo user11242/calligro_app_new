@@ -1,25 +1,18 @@
+//Refactored
 import 'package:flutter/material.dart';
+import '../../../core/theme/colors.dart';
 
 class AuthButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
 
-  const AuthButton({
-    super.key,
-    required this.text,
-    required this.onPressed,
-  });
+  const AuthButton({super.key, required this.text, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF8B4513), // Saddle Brown
-            Color(0xFFEEE593), // Gold
-          ],
-        ),
+        gradient: LinearGradient(colors: AppColors.titleGradientReversed),
         borderRadius: BorderRadius.all(Radius.circular(30)),
       ),
       child: ElevatedButton(
@@ -37,7 +30,7 @@ class AuthButton extends StatelessWidget {
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.white,
           ),
         ),
       ),

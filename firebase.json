@@ -1,23 +1,64 @@
 {
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ]
+    "firestore": {
+        "rules": "firestore.rules"
+    },
+    "functions": [
+        {
+            "source": "functions",
+            "ignore": [
+                "node_modules",
+                ".git",
+                "firebase-debug.log",
+                "firebase-debug.*.log",
+                "*.local"
+            ]
+        }
+    ],
+    "hosting": {
+        "public": "public",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ]
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "calligro-bcfb2",
+                    "appId": "1:500166558232:android:9549878d6a0a0aa861396d",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "ios": {
+                "default": {
+                    "projectId": "calligro-bcfb2",
+                    "appId": "1:500166558232:ios:35b6158b88b3a4a061396d",
+                    "uploadDebugSymbols": false,
+                    "fileOutput": "ios/Runner/GoogleService-Info.plist"
+                }
+            },
+            "macos": {
+                "default": {
+                    "projectId": "calligro-bcfb2",
+                    "appId": "1:500166558232:ios:35b6158b88b3a4a061396d",
+                    "uploadDebugSymbols": false,
+                    "fileOutput": "macos/Runner/GoogleService-Info.plist"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "calligro-bcfb2",
+                    "configurations": {
+                        "android": "1:500166558232:android:9549878d6a0a0aa861396d",
+                        "ios": "1:500166558232:ios:35b6158b88b3a4a061396d",
+                        "macos": "1:500166558232:ios:35b6158b88b3a4a061396d",
+                        "web": "1:500166558232:web:88e9a2f3556a3a3361396d",
+                        "windows": "1:500166558232:web:d52aef4ad576015761396d"
+                    }
+                }
+            }
+        }
     }
-  ],
-  "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ]
-  }
 }

@@ -1,38 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:calligro_app/l10n/app_localizations.dart';
+import '../../widgets/auth_text_field.dart';
 
 class StepTeacherPortfolio extends StatelessWidget {
   final TextEditingController controller;
-  const StepTeacherPortfolio({super.key, required this.controller});
+  final String? errorText;
+  final Function(String)? onChanged;
+  final VoidCallback? onPaste;
+
+  const StepTeacherPortfolio({
+    super.key, 
+    required this.controller,
+    this.errorText,
+    this.onChanged,
+    this.onPaste,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
-          "Portfolio Link",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+        Text(
+          l10n.portfolioLink,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 16),
-        TextField(
+        AuthTextField(
           controller: controller,
-          decoration: InputDecoration(
-            hintText: "Portfolio Link (Instagram, Behance, etc.)",
-            hintStyle: const TextStyle(color: Colors.white54),
-            prefixIcon: const Icon(Icons.link, color: Colors.white70),
-            filled: true,
-            fillColor: Colors.white.withOpacity(0.1),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
+          hint: l10n.portfolioHint,
+          icon: Icons.link,
+          onChanged: onChanged,
+          errorText: errorText,
           keyboardType: TextInputType.url,
-          style: const TextStyle(color: Colors.white), // Text color set to white
+          isSuccess: errorText == null && controller.text.isNotEmpty,
+          onPaste: onPaste,
         ),
       ],
     );

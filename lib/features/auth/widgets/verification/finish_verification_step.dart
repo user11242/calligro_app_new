@@ -1,43 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:calligro_app/l10n/app_localizations.dart';
 
 class FinishVerificationStep extends StatelessWidget {
-  final VoidCallback onFinish;
-  final bool isLoading;
-
-  const FinishVerificationStep({
-    super.key,
-    required this.onFinish,
-    this.isLoading = false,
-  });
+  const FinishVerificationStep({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(  // Added to allow scrolling when the keyboard appears
+    final l10n = AppLocalizations.of(context)!;
+    return SingleChildScrollView(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            "All verified ✅\nPress Finish to complete registration.",
+          Text(
+            l10n.allVerified,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: isLoading ? null : onFinish,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber.shade400,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: isLoading
-                ? const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  )
-                : const Text("Finish"),
+            style: const TextStyle(color: Colors.white, fontSize: 16),
           ),
         ],
       ),

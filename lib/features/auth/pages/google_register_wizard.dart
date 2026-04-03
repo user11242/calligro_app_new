@@ -1,19 +1,25 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:calligro_app/l10n/app_localizations.dart';
 import '../../../core/theme/colors.dart';
+import 'package:calligro_app/features/auth/data/services/auth_service.dart';
+import '../../../core/message/app_messenger.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:device_region/device_region.dart';
+import 'package:calligro_app/features/auth/pages/terms_and_conditions_page.dart';
+import 'package:phone_number/phone_number.dart' as lib_phone;
+import '../../../core/utils/numeric_utils.dart';
 
-// Step widgets
-import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_role.dart';
-import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_welcome.dart';
-import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_student_finish.dart';
-import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_teacher_phone.dart';
-import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_teacher_portfolio.dart';
-import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_teacher_finish.dart';
-
-// Verification widgets
-import 'package:calligro_app/features/auth/widgets/verification/phone_otp_step.dart';
+// Steps
+import '../widgets/google_register_widgets/step_role.dart';
+import '../widgets/google_register_widgets/step_welcome.dart';
+import '../widgets/google_register_widgets/step_student_finish.dart';
+import '../widgets/google_register_widgets/step_teacher_portfolio.dart';
+import '../widgets/google_register_widgets/../verification/universal_otp_step.dart';
+import '../widgets/google_register_widgets/step_teacher_finish.dart';
 
 class GoogleRegisterWizard extends StatefulWidget {
   const GoogleRegisterWizard({super.key});
@@ -23,364 +29,469 @@ class GoogleRegisterWizard extends StatefulWidget {
 }
 
 class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
-  int _step = 0;
-  String selectedRole = "student";
-
+  final AuthService _authService = AuthService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final phoneController = TextEditingController();
   final portfolioController = TextEditingController();
+  final _phoneUtil = lib_phone.PhoneNumberUtil();
 
+  GlobalKey<UniversalOtpStepState> _otpKey = GlobalKey<UniversalOtpStepState>();
+
+  int _step = 0;
+  String selectedRole = "student";
   bool isLoading = false;
+  bool _acceptedTerms = false;
+  String fullPhoneNumber = "";
+  String _initialCountryCode = "JO";
+  bool _isStepsInitialized = false;
 
-  final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
+  String? _portfolioError;
 
-  // GlobalKey to access the public state of the OTP step
-  final GlobalKey<PhoneOtpStepState> _otpKey = GlobalKey<PhoneOtpStepState>();
+  void _validatePortfolio(String value) {
+    final l10n = AppLocalizations.of(context)!;
+    if (value.isEmpty) {
+      setState(() => _portfolioError = l10n.enterPortfolio);
+      return;
+    }
 
-  late List<Widget> steps;
-  
-  // State variables to store the original Google profile data (Name, Email, Photo)
-  String _initialName = '';
-  String _initialEmail = '';
-  String _initialPhotoUrl = '';
+    final urlRegex = RegExp(
+      r'^(http|https):\/\/(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(/[a-zA-Z0-9-._~:/?#\[\]@!$&' "'" r'()*+,;=%]*)?$',
+      caseSensitive: false,
+    );
+
+    if (!urlRegex.hasMatch(value.trim())) {
+      setState(() => _portfolioError = l10n.invalidPortfolio);
+    } else {
+      setState(() => _portfolioError = null);
+    }
+  }
+
+  Future<void> _pastePortfolio() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (data?.text != null) {
+      portfolioController.text = data!.text!;
+      _validatePortfolio(data.text!);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadInitialUserData(); // Load data from Google profile
-    _buildSteps();
+    _initializeWizard();
   }
 
-  // Function to capture the user's original Google profile data
-  void _loadInitialUserData() {
-    final user = _auth.currentUser;
-    if (user != null) {
-      _initialName = user.displayName ?? '';
-      _initialEmail = user.email ?? '';
-      _initialPhotoUrl = user.photoURL ?? '';
+  @override
+  void dispose() {
+    phoneController.dispose();
+    portfolioController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initializeWizard() async {
+    try {
+      // 1. Try SIM Card (Best)
+      String? countryCode = await DeviceRegion.getSIMCountryCode();
+
+      // 2. Fallback: Device System Region
+      if (countryCode == null || countryCode.isEmpty) {
+        final locale = WidgetsBinding.instance.platformDispatcher.locale;
+        countryCode = locale.countryCode;
+      }
+
+      if (countryCode != null && countryCode.isNotEmpty) {
+        _initialCountryCode = countryCode.toUpperCase();
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isStepsInitialized = true);
+  }
+
+  void _onRoleChanged(String newRole) {
+    setState(() {
+      selectedRole = newRole;
+      _step = 1;
+    });
+  }
+
+  Widget _buildStepContent() {
+    final currentUser = _auth.currentUser;
+    if (selectedRole == "student") {
+      switch (_step) {
+        case 0:
+          return StepWelcome(user: currentUser);
+        case 1:
+          return StepRole(selectedRole: selectedRole, onRoleChanged: _onRoleChanged);
+        case 2:
+          return const StepStudentFinish();
+        default:
+          return const SizedBox.shrink();
+      }
+    } else {
+      switch (_step) {
+        case 0:
+          return StepWelcome(user: currentUser);
+        case 1:
+          return StepRole(selectedRole: selectedRole, onRoleChanged: _onRoleChanged);
+        case 2:
+          return _buildPhoneInputStep();
+        case 3:
+          return UniversalOtpStep(key: _otpKey, destination: fullPhoneNumber, onVerified: _stepForward);
+        case 4:
+          return StepTeacherPortfolio(
+            controller: portfolioController,
+            errorText: _portfolioError,
+            onChanged: _validatePortfolio,
+            onPaste: _pastePortfolio,
+          );
+        case 5:
+          return const StepTeacherFinish();
+        default:
+          return const SizedBox.shrink();
+      }
     }
   }
 
-  void _buildSteps() {
-    steps = [
-      StepWelcome(user: _auth.currentUser),
-      StepRole(
-        selectedRole: selectedRole,
-        onRoleChanged: (r) => setState(() {
-          selectedRole = r;
-          _buildSteps();
-        }),
-      ),
-      if (selectedRole == "student") const StepStudentFinish(),
-      if (selectedRole == "teacher")
-        StepTeacherPhone(controller: phoneController),
-      if (selectedRole == "teacher")
-        PhoneOtpStep(
-          // Attach the key to the OTP step
-          key: _otpKey,
-          phone: phoneController.text.trim(),
-          onVerified: _nextStep,
-          showNextButton: false, 
+  Widget _buildPhoneInputStep() {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l10n.verifyIdentity,
+          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
-      if (selectedRole == "teacher")
-        StepTeacherPortfolio(controller: portfolioController),
-      if (selectedRole == "teacher") const StepTeacherFinish(),
-    ];
-  }
-
-  Future<bool> _validateStep(int step) async {
-    if (selectedRole == "teacher") {
-      // Step 3 (index 2) is the phone number input
-      if (step == 2 && phoneController.text.trim().isEmpty) {
-        _showError("Phone number required");
-        return false;
-      }
-      // Step 5 (index 4) is the portfolio link
-      if (step == 4 && !_isValidUrl(portfolioController.text.trim())) {
-        _showError("Enter a valid portfolio link (must start with http:// or https://)");
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool _isValidUrl(String url) {
-    // Basic regex check for URL format
-    final regex = RegExp(r"^https?:\/\/.+"); 
-    return regex.hasMatch(url);
-  }
-
-  Future<void> _nextStep() async {
-    // Intercept and handle OTP validation here
-    if (_isOtpStep) {
-      if (_otpKey.currentState == null) {
-         _showError("OTP validation state is not ready.");
-         return;
-      }
-      
-      setState(() => isLoading = true); // Show loading while validating OTP
-      
-      // Call the public method on the OTP step's state
-      final isOtpValid = await _otpKey.currentState!.verifyAndSubmit();
-      
-      setState(() => isLoading = false); // Hide loading
-
-      if (isOtpValid) {
-        // Since verifyAndSubmit() handles the Firebase sign-in, we just move the step.
-        // We rely on the internal logic of PhoneOtpStep to handle the transition.
-        setState(() => _step++);
-      }
-      return; // Stop further execution for this step
-    }
-
-    final ok = await _validateStep(_step);
-    if (!ok) return;
-
-    setState(() => _step++);
-  }
-
-  void _prevStep() {
-    if (_step > 0) setState(() => _step--);
-  }
-
-  void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        const SizedBox(height: 20),
+        IntlPhoneField(
+          controller: phoneController,
+          invalidNumberMessage: l10n.invalidMobileNumber,
+          initialCountryCode: _initialCountryCode,
+          style: const TextStyle(color: Colors.white),
+          inputFormatters: [NumericUtils.digitFormatter],
+          textAlign: TextAlign.start,
+          onChanged: (phone) {
+            setState(() {
+              // Normalize digits AND clean spaces/dashes for the backend
+              fullPhoneNumber = NumericUtils.normalize(phone.completeNumber, clean: true);
+            });
+          },
+          decoration: InputDecoration(
+            hintText: l10n.phoneNumber,
+            hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+            filled: true,
+            fillColor: Colors.white10,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.accentGold),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Future<void> _finish() async {
-    setState(() => isLoading = true);
-    
-    // 1. Force focus out to ensure the portfolio controller has the latest text
-    if (FocusScope.of(context).hasFocus) {
-      FocusScope.of(context).unfocus(); 
-    }
-    
-    User? user = _auth.currentUser;
-    if (user == null) {
-        if (mounted) setState(() => isLoading = false);
-        _showError("User not logged in.");
-        return;
-    }
+  Future<void> _nextStep() async {
+    final l10n = AppLocalizations.of(context)!;
+    if (isLoading) return;
 
-    // ⭐️ CRITICAL STEP: Explicitly reload the user to guarantee the latest profile data
-    try {
-        await user.reload();
-        // Get the reloaded user object reference
-        user = _auth.currentUser; 
-        if (user == null) throw Exception("User disappeared after reload.");
-    } catch (e) {
-        debugPrint("Failed to reload user data: $e");
-    }
-    
-    // Read the (reloaded) user properties
-    String finalName = user!.displayName ?? '';
-    String finalEmail = user!.email ?? '';
-    // Store the Photo URL separately for defensive saving
-    String photoUrlToSave = user!.photoURL ?? '';
+    if (selectedRole == "teacher" && _step == 2) {
+      if (phoneController.text.length < 5) return;
 
-    // Track the source of the data for debugging
-    String nameSource = "Google Auth";
-    String emailSource = "Google Auth";
-
-    // 1. Fallback to initial state variables
-    if (finalName.isEmpty) {
-      finalName = _initialName;
-      if (finalName.isNotEmpty) nameSource = "Initial State";
-    }
-    if (finalEmail.isEmpty) {
-      finalEmail = _initialEmail;
-      if (finalEmail.isNotEmpty) emailSource = "Initial State";
-    }
-    
-    // 2. 🚨 ULTIMATE FALLBACK: If still empty, use the UID/Placeholder.
-    if (finalName.isEmpty) {
-        finalName = "User ${user!.uid.substring(0, 8)}";
-        nameSource = "UID Placeholder"; // Indicate that the placeholder was used
-    }
-    if (finalEmail.isEmpty) {
-        finalEmail = "${user!.uid}@calligro.temp";
-        emailSource = "UID Placeholder"; // Indicate that the placeholder was used
-    }
-    
-    // Get the portfolio value and handle empty values
-    String portfolio = portfolioController.text.trim();
-    if (portfolio.isEmpty) {
-      portfolio = "No Portfolio";  // Provide fallback value
-    }
-
-    // ⭐️ DEBUGGING: Print the values we are about to save, including their source
-    debugPrint("--- Saving to Firestore ---");
-    debugPrint("UID: ${user!.uid}");
-    debugPrint("Name: $finalName (Source: $nameSource)");
-    debugPrint("Email: $finalEmail (Source: $emailSource)");
-    debugPrint("Photo URL: $photoUrlToSave (Saving separately)");
-    debugPrint("Role: $selectedRole");
-    if (selectedRole == "teacher") {
-        debugPrint("Phone: ${phoneController.text.trim()}");
-        debugPrint("Portfolio: $portfolio");
-    }
-    debugPrint("---------------------------");
-
-    // Primary data map (excluding the potentially problematic photoUrl for the first write)
-    final primaryData = {
-      "uid": user!.uid, 
-      "name": finalName, // Will be real name or UID placeholder
-      "email": finalEmail, // Will be real email or UID placeholder
-      "role": selectedRole,
-      "status": selectedRole == "teacher" ? "pending" : "approved",
-      "createdAt": FieldValue.serverTimestamp(),
-      if (selectedRole == "teacher") ...{
-        "phone": phoneController.text.trim(),
-        "portfolio": portfolio,
-      },
-    };
-
-    try {
-      // 1. Attempt to save primary data (Name, Email, Role)
-      await _firestore.collection("users").doc(user!.uid).set(
-        primaryData, 
-        SetOptions(merge: true)
-      );
-      debugPrint("Primary data (Name/Email/Role) saved successfully.");
-
-      // 2. Attempt to save Photo URL separately only if it's available
-      if (photoUrlToSave.isNotEmpty) {
-        await _firestore.collection("users").doc(user!.uid).set(
-          {"photoUrl": photoUrlToSave}, 
-          SetOptions(merge: true)
-        );
-        debugPrint("Photo URL saved successfully.");
-      } else {
-        // Ensure photoUrl is written as an empty string if it was missing
-        await _firestore.collection("users").doc(user!.uid).set(
-          {"photoUrl": ""}, 
-          SetOptions(merge: true)
-        );
-        debugPrint("Photo URL field initialized as empty.");
+      setState(() => isLoading = true);
+      
+      // 1. Format Check
+      bool isValidFormat = false;
+      try {
+        isValidFormat = await _phoneUtil.validate(fullPhoneNumber, regionCode: _initialCountryCode);
+      } catch (_) {
+        isValidFormat = false;
       }
 
-    } catch (e) {
-      // 🚨 Enhanced Error Logging
-      debugPrint("FATAL FIREBASE WRITE ERROR: $e");
-      _showError("Failed to save user data to Firestore. Check console for details.");
+      if (!mounted) return;
+
+      if (!isValidFormat) {
+        setState(() => isLoading = false);
+        AppMessenger.showSnackBar(context, title: l10n.error, message: l10n.invalidMobileNumber, type: MessengerType.error);
+        return;
+      }
+
+      // 2. Uniqueness Check
+      final isTaken = await _authService.isPhoneTaken(fullPhoneNumber);
+      if (mounted) setState(() => isLoading = false);
+
+      if (isTaken) {
+        if (mounted) {
+          AppMessenger.showSnackBar(context, title: l10n.unavailable, message: l10n.phoneNumberInUse, type: MessengerType.error);
+        }
+        return;
+      }
+    }
+
+    if (selectedRole == "teacher" && _step == 3) {
+      if (_otpKey.currentState == null) return;
+      setState(() => isLoading = true);
+      await _otpKey.currentState!.verifyAndSubmit();
       if (mounted) setState(() => isLoading = false);
       return;
     }
 
+    if (await _validateCurrentStepInput()) {
+      _isFinalStep() ? await _finishWizard() : _stepForward();
+    }
+  }
+
+  void _stepForward() {
+    if (mounted) {
+      setState(() {
+        _otpKey = GlobalKey<UniversalOtpStepState>();
+        _step++;
+      });
+    }
+  }
+
+  void _prevStep() {
+    if (_step > 0) {
+      // If moving back from OTP (step 3) to Phone Input (step 2) for teachers, unlink the phone.
+      if (selectedRole == "teacher" && _step == 3) {
+        _authService.unlinkPhone();
+      }
+      setState(() {
+        _otpKey = GlobalKey<UniversalOtpStepState>();
+        _step--;
+      });
+    } else {
+      // If at step 0 and go back (should be hidden in UI, but safety), handle cancel
+      _handleCancel();
+    }
+  }
+
+  Future<void> _handleCancel() async {
+    // If they cancel, we cleanup the ghost account so they aren't "stuck"
+    // especially important for Google users who signed in but didn't finish.
+    setState(() => isLoading = true);
+    await _authService.cleanupGhostAccount();
+    if (mounted) {
+      setState(() => isLoading = false);
+      Navigator.of(context).pop();
+    }
+  }
+
+  bool _isFinalStep() => (selectedRole == "student" && _step == 2) || (selectedRole == "teacher" && _step == 5);
+
+  Future<bool> _validateCurrentStepInput() async {
+    final l10n = AppLocalizations.of(context)!;
+    if (selectedRole == "teacher" && _step == 2 && phoneController.text.isEmpty) {
+      AppMessenger.showSnackBar(context, title: l10n.required, message: l10n.enterPhone, type: MessengerType.error);
+      return false;
+    }
+    if (selectedRole == "teacher" && _step == 4) {
+      _validatePortfolio(portfolioController.text);
+      if (_portfolioError != null) return false;
+    }
+    if (_isFinalStep() && !_acceptedTerms) {
+      AppMessenger.showSnackBar(context, title: l10n.termsRequired, message: l10n.acceptTermsToFinish, type: MessengerType.error);
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _finishWizard() async {
+    final l10n = AppLocalizations.of(context)!;
+    final navigator = Navigator.of(context);
+    setState(() => isLoading = true);
+    
+    final result = await _authService.createGoogleUserWithRole(
+      role: selectedRole,
+      phone: fullPhoneNumber,
+      portfolio: selectedRole == 'teacher' ? portfolioController.text : null,
+      acceptedTerms: true,
+    );
 
     if (!mounted) return;
     setState(() => isLoading = false);
-    // Return the selected role upon successful registration
-    Navigator.pop(context, selectedRole); 
-  }
 
-  bool _isFinalStep() {
-    if (selectedRole == "student") return _step == 2;
-    if (selectedRole == "teacher") return _step == 5;
-    return false;
-  }
+    // null = success, non-null string = error message
+    if (result == null) {
+      if (selectedRole == "student") {
+        // Direct to Student Dashboard
+        navigator.pushNamedAndRemoveUntil('/studentDashboard', (route) => false);
+      } else {
+        // Teachers are pending approval: POP FIRST so UI feels responsive
+        navigator.pop(true);
+        
+        AppMessenger.showSnackBar(
+          navigator.context,
+          title: l10n.applicationReceived,
+          message: l10n.teacherUnderReview,
+          type: MessengerType.success,
+        );
 
-  // Teacher steps: 0=Welcome, 1=Role, 2=Phone, 3=OTP, 4=Portfolio, 5=Finish
-  bool get _isOtpStep => selectedRole == "teacher" && _step == 3;
+        // Route to AuthWrapper which will show the TeacherPendingPage
+        navigator.pushNamedAndRemoveUntil('/', (route) => false);
+      }
+    } else {
+      AppMessenger.showSnackBar(context, title: l10n.error, message: result, type: MessengerType.error);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    _buildSteps();
-
-    return WillPopScope(
-      onWillPop: () async {
-        if (isLoading) return false;
-        return true;
+    final l10n = AppLocalizations.of(context)!;
+    return PopScope(
+      canPop: !isLoading, // Prevent pop if we are currently cleaning up
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return; // If already popped by something else
+        
+        // 👻 Cleanup if system back or swipe exits the wizard
+        await _authService.cleanupGhostAccount();
+        
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Material(
         color: Colors.transparent,
         child: Stack(
-          alignment: Alignment.center,
           children: [
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-              child: Container(color: Colors.black.withOpacity(0.5)),
+              child: Container(color: Colors.black54),
             ),
-            GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: SingleChildScrollView(
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.all(20),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.438,
-                    ),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.8,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        children: [
+            AnimatedPadding(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: Center(
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.85,
+                constraints: BoxConstraints(
+                  maxWidth: 450,
+                  maxHeight: MediaQuery.of(context).size.height * 0.85 - MediaQuery.of(context).viewInsets.bottom,
+                ),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(24)),
+                child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Stack(
+                      children: [
+                        if (_step == 2 || _step == 5)
                           Align(
-                            alignment: Alignment.topRight,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.white70,
+                            alignment: AlignmentDirectional.topStart,
+                            child: Container(
+                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                              child: IconButton(
+                                icon: const Icon(Icons.arrow_back, color: Colors.white70),
+                                onPressed: _prevStep,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                               ),
-                              onPressed: () => Navigator.pop(context),
                             ),
                           ),
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight: MediaQuery.of(context).size.height * 0.25,
-                            ),
-                            child: steps[_step],
+                        Align(
+                          alignment: AlignmentDirectional.topEnd,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white70),
+                            onPressed: _handleCancel,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                           ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              if (_step > 0)
-                                TextButton(
-                                  onPressed: _prevStep,
-                                  child: const Text(
-                                    "Back",
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                ),
-                              const Spacer(),
-                              ElevatedButton(
-                                onPressed: isLoading
-                                    ? null
-                                    : (_isFinalStep() ? _finish : _nextStep),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.amber.shade400,
-                                  foregroundColor: Colors.black,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 12,
-                                  ),
-                                ),
-                                child: isLoading
-                                    ? const CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      )
-                                    : Text(_isFinalStep() ? "Finish" : "Next"),
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      layoutBuilder: (child, list) => Stack(alignment: Alignment.center, children: [...list, if (child != null) child]),
+                      child: Container(
+                        key: ValueKey<int>(_step),
+                        child: !_isStepsInitialized ? const CircularProgressIndicator() : _buildStepContent(),
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    if (_isFinalStep())
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 15),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: Checkbox(
+                                value: _acceptedTerms, 
+                                onChanged: (v) => setState(() => _acceptedTerms = v!),
+                                activeColor: AppColors.textColor,
+                                checkColor: Colors.black,
+                                side: const BorderSide(color: Colors.white70, width: 2),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  children: [
+                                    TextSpan(text: l10n.iAccept),
+                                    TextSpan(
+                                      text: l10n.termsAndConditions,
+                                      style: const TextStyle(
+                                        color: AppColors.textColor, 
+                                        fontWeight: FontWeight.bold, 
+                                        decoration: TextDecoration.underline
+                                      ),
+                                      recognizer: TapGestureRecognizer()..onTap = () {
+                                        Navigator.push(context, MaterialPageRoute(builder: (context) => const TermsAndConditionsPage()));
+                                      },
+                                    ),
+                                    TextSpan(text: l10n.and),
+                                    TextSpan(
+                                      text: l10n.privacyPolicy,
+                                      style: const TextStyle(
+                                        color: AppColors.textColor, 
+                                        fontWeight: FontWeight.bold, 
+                                        decoration: TextDecoration.underline
+                                      ),
+                                      recognizer: TapGestureRecognizer()..onTap = () {
+                                        Navigator.push(context, MaterialPageRoute(builder: (context) => const TermsAndConditionsPage()));
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        if (!(selectedRole == "teacher" && _step == 3))
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.accentGold,
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: isLoading ? null : _nextStep,
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                  )
+                                : Text(
+                                    _isFinalStep() ? l10n.finish : l10n.next,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                      ],
+                    ),
+                    ],
                   ),
                 ),
               ),
             ),
+          ),
           ],
         ),
       ),

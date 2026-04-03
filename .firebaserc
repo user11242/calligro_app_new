@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "calligro-bcfb2"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

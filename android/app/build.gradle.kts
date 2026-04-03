@@ -1,5 +1,6 @@
 import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -8,42 +9,55 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+configurations.all {
+    exclude(group = "androidx.media3", module = "media3-exoplayer-rtsp")
+}
+
 android {
-    namespace = "com.example.calligro_app"
+    namespace = "com.yazan.calligro_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // New syntax to resolve deprecation warning
+    // Simplified target selection to avoid strict toolchain errors
     kotlin {
-        jvmToolchain(11)
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
 
     defaultConfig {
-        applicationId = "com.example.calligro_app"
-        minSdk = flutter.minSdkVersion
+        applicationId = "com.yazan.calligro_app"
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // FIX: The error "cannot be reassigned" is solved by adding to the existing map.
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.example.calligro_app"
+        // FIX: This allows the Google Auth redirect to work on Android
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.yazan.calligro_app"
+    }
+
+    // -------------------------------------------------------------
+    // Release Signing Configuration
+    // -------------------------------------------------------------
+    
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(keystorePropertiesFile.inputStream())
     }
 
     signingConfigs {
         create("release") {
-            // Replace with your actual keystore path and credentials
-            storeFile = file("path/to/your/release/keystore")
-            storePassword = "your_store_password"
-            keyAlias = "your_key_alias"
-            keyPassword = "your_key_password"
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
         }
     }
 
@@ -52,11 +66,15 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+    // -------------------------------------------------------------
 }
 
 dependencies {
     // Correctly adding the dependency for Google Identity Services SDK
     implementation("com.google.android.gms:play-services-auth:20.0.1")
+    
+    // Required for flutter_local_notifications backward compatibility with Java 8 APIs
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

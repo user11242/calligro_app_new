@@ -1,0 +1,259 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- 🔹 HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // ✅ FIXED: Added existence checks to prevent crashes on new users
+    function isAdmin() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isTeacher() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+
+    // =========================================================
+    // 🌍 PUBLIC REGISTRIES (Uniqueness Locks)
+    // =========================================================
+    
+    match /locked_usernames/{username} {
+      allow get: if true; 
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.uid == request.auth.uid && resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (isSignedIn() && (resource == null || resource.data.uid == request.auth.uid));
+    }
+
+    match /locked_emails/{email} {
+      allow get: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.uid == request.auth.uid && resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (isSignedIn() && (resource == null || resource.data.uid == request.auth.uid));
+    }
+
+    match /locked_phones/{phone} {
+      allow get: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.uid == request.auth.uid && resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (isSignedIn() && (resource == null || resource.data.uid == request.auth.uid));
+    }
+
+    // =========================================================
+    // 👤 USERS PROFILE (The Master List)
+    // =========================================================
+    match /users/{userId} {
+      allow read: if true;
+      
+      // ✅ FIXED: Allow initial document creation without a role (for FCM token save)
+      allow create: if isOwner(userId) && (
+        (request.resource.data.role == 'student') || 
+        (request.resource.data.role == 'teacher' && request.resource.data.status == 'pending') ||
+        request.resource.data.keys().hasOnly(['fcmToken', 'preferredLanguage', 'lastTokenUpdate'])
+      );
+      
+      allow delete: if isAdmin();
+      
+      // ✅ FIXED: Allow owner to set their role for the first time
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (isOwner(userId) && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']) ||
+          (!resource.data.keys().hasAny(['role']) && request.resource.data.role in ['student', 'teacher'])
+        )) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount', 'followingCount', 'totalStars', 'reviewCount'])
+      );
+
+      match /followers/{followerId} {
+        allow read: if true;
+        allow create, delete: if isOwner(followerId);
+      }
+      match /following/{followingId} {
+        allow read: if true;
+        allow create, delete: if isOwner(userId);
+      }
+
+      match /saved_posts/{postId} {
+        allow read, create, delete: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /notifications/{notificationId} {
+        allow read, update: if isOwner(userId);
+        allow delete: if isOwner(userId) || 
+                      (isSignedIn() && resource.data.userId == request.auth.uid) || 
+                      (isSignedIn() && notificationId == 'follow_' + request.auth.uid);
+        allow create: if isAdmin() || isOwner(userId) || isTeacher() || 
+                      (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      }
+
+      match /private/{document} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // =========================================================
+    // 🎓 STUDENTS & TEACHERS
+    // =========================================================
+    match /students/{studentId} {
+      allow read: if true;
+      allow create: if isOwner(studentId) && request.resource.data.role == 'student';
+      allow update: if isOwner(studentId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /teachers/{teacherId} {
+      allow read: if true;
+      allow create: if isOwner(teacherId) && request.resource.data.role == 'teacher' && request.resource.data.status == 'pending';
+      allow update: if isOwner(teacherId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================
+    // ⭐ REVIEWS & RATINGS
+    // =========================================================
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+    }
+
+    // =========================================================
+    // 💬 COURSES & ASSIGNMENTS
+    // =========================================================
+    match /courses/{courseId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      
+      allow update: if isSignedIn() && (
+        resource.data.teacherId == request.auth.uid || 
+        isAdmin() ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enrolledStudents', 'enrolledCount']) &&
+          request.resource.data.enrolledStudents.hasAny([request.auth.uid])
+        )
+      );
+      
+      allow delete: if (isSignedIn() && resource.data.teacherId == request.auth.uid) || isAdmin();
+
+      match /announcements/{announcementId} {
+        allow read: if true;
+        allow create, update, delete: if isSignedIn() && (
+          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
+          isAdmin()
+        );
+      }
+
+      match /assignments/{assignmentId} {
+        allow read: if true;
+        allow write: if isSignedIn() && get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid;
+        
+        match /submissions/{submissionId} {
+          allow create: if isSignedIn() && request.auth.uid == submissionId;
+          allow update: if isSignedIn() && (
+             request.auth.uid == submissionId || 
+             get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid
+          );
+          allow read: if isSignedIn() && (
+             request.auth.uid == submissionId || 
+             get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid 
+          );
+        }
+      }
+    }
+
+    // =========================================================
+    // 💬 COMMUNITY POSTS
+    // =========================================================
+    match /community_posts/{postId} {
+      allow read: if true;
+      allow create: if isOwner(request.resource.data.userId);
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+      allow update: if isSignedIn() && (
+        isOwner(resource.data.userId) || 
+        request.resource.data.userId == request.auth.uid || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likesCount', 'commentsCount'])
+      );
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isOwner(request.resource.data.userId);
+        allow update: if isSignedIn() && (
+          isOwner(resource.data.userId) || 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount'])
+        );
+        allow delete: if isSignedIn() && (
+          isOwner(resource.data.userId) || 
+          isOwner(get(/databases/$(database)/documents/community_posts/$(postId)).data.userId) ||
+          isAdmin()
+        );
+
+        match /replies/{replyId} {
+          allow read: if isSignedIn();
+          allow create: if isSignedIn();
+          allow update: if isOwner(request.resource.data.userId);
+          allow delete: if isSignedIn() && (
+            isOwner(resource.data.userId) || 
+            isOwner(get(/databases/$(database)/documents/community_posts/$(postId)/comments/$(commentId)).data.userId) ||
+            isAdmin()
+          );
+        }
+      }
+    }
+
+    // =========================================================
+    // 📢 BROADCAST MESSAGES
+    // =========================================================
+    match /broadcasts/{broadcastId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================
+    // 💰 WITHDRAWAL REQUESTS
+    // =========================================================
+    match /withdrawal_requests/{requestId} {
+      allow read: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================
+    // 🎨 GALLERY
+    // =========================================================
+    match /gallery_artists/{artistId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /gallery_artworks/{artworkId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // =========================================================
+    // 💰 TRANSACTIONS
+    // =========================================================
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || 
+        resource.data.teacherId == request.auth.uid || 
+        isAdmin()
+      );
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+    }
+
+    match /{path=**}/comments/{commentId} {
+      allow read: if true;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

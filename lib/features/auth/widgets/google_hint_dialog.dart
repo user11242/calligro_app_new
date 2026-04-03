@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/theme/colors.dart';
+import '../../../l10n/app_localizations.dart';
 
 class GoogleHintDialog extends StatelessWidget {
   final VoidCallback onContinue;
@@ -20,23 +21,23 @@ class GoogleHintDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.login, color: Colors.white, size: 48),
+              const Icon(Icons.login, color: AppColors.white, size: 48),
               const SizedBox(height: 16),
-              const Text(
-                "Continue registration with Google",
+              Text(
+                AppLocalizations.of(context)!.continueRegistrationWithGoogle,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: AppColors.white,
                 ),
               ),
               const SizedBox(height: 24),
 
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
+                  backgroundColor: AppColors.white,
+                  foregroundColor: AppColors.black87,
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -47,9 +48,9 @@ class GoogleHintDialog extends StatelessWidget {
                   height: 24,
                   width: 24,
                 ),
-                label: const Text(
-                  "Continue with Google",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                label: Text(
+                  AppLocalizations.of(context)!.continueWithGoogle,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 onPressed: onContinue, // ✅ no Navigator.pop here
               ),
@@ -58,9 +59,9 @@ class GoogleHintDialog extends StatelessWidget {
 
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  "Maybe later",
-                  style: TextStyle(color: Colors.white70),
+                child: Text(
+                  AppLocalizations.of(context)!.maybeLater,
+                  style: const TextStyle(color: AppColors.secondary),
                 ),
               ),
             ],

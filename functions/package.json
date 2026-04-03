@@ -16,7 +16,9 @@
     "@sendgrid/mail": "^8.1.5",
     "dotenv": "^17.2.2",
     "firebase-admin": "^13.5.0",
-    "firebase-functions": "^6.4.0",
+    "firebase-functions": "^7.0.5",
+    "google-auth-library": "^9.0.0",
+    "googleapis": "^144.0.0",
     "postmark": "^4.0.5",
     "sib-api-v3-sdk": "^8.5.0"
   },

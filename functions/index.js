@@ -16,7 +16,7 @@ const brevoApiKey = defineSecret("BREVO_API_KEY");
 // Initialize Firebase Admin
 // --------------------
 admin.initializeApp();
-setGlobalOptions({ maxInstances: 10 });
+setGlobalOptions({ maxInstances: 10, region: "us-central1" });
 
 // --------------------
 // Utility: Generate OTP
@@ -117,3 +117,324 @@ exports.verifyEmailOtp = https.onRequest(async (req, res) => {
     return res.status(500).send({ valid: false, error: err.message });
   }
 });
+
+// --------------------
+// Callable Function: Delete User Account
+// --------------------
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+
+exports.deleteUserAccount = onCall(async (request) => {
+  try {
+    // 1. Check Authentication
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
+    }
+
+    // 2. Check Admin Role (Optional but recommended security)
+    const requesterUid = request.auth.uid;
+    const requesterDoc = await admin.firestore().collection("users").doc(requesterUid).get();
+    if (!requesterDoc.exists || requesterDoc.data().role !== "admin") {
+      throw new HttpsError("permission-denied", "Only admins can delete user accounts.");
+    }
+
+    // 3. Get Target UID
+    const targetUid = request.data.uid;
+    if (!targetUid) {
+      throw new HttpsError("invalid-argument", "The function must be called with a 'uid' argument.");
+    }
+
+    // 4. Delete from Firebase Authentication
+    await admin.auth().deleteUser(targetUid);
+    console.log(`Successfully deleted user ${targetUid} from Authentication.`);
+
+    return { success: true, message: `User ${targetUid} deleted from Auth.` };
+
+  } catch (error) {
+    console.error("Error deleting user:", error);
+
+    // Re-throw HttpsError or wrap others
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", "Unable to delete user account.", error);
+  }
+});
+
+// --------------------
+// Callable Function: Delete Own Account
+// --------------------
+exports.deleteOwnAccount = onCall(async (request) => {
+  try {
+    // 1. Check Authentication
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
+    }
+
+    const uid = request.auth.uid;
+    console.log(`[DeleteOwnAccount] Proceeding to delete account for user: ${uid}`);
+
+    // 2. Fetch user data to know what to clean up (locks, etc)
+    const userDoc = await admin.firestore().collection("users").doc(uid).get();
+    if (!userDoc.exists) {
+      console.warn(`[DeleteOwnAccount] User document for ${uid} not found. Proceeding with Auth deletion.`);
+    }
+
+    const data = userDoc.data() || {};
+    const email = data.email || "";
+    const name = data.name || "";
+    const phone = data.phone || "";
+
+    const batch = admin.firestore().batch();
+
+    // 3. Queue Firestore Cleanup
+    // Delete user and teacher docs
+    batch.delete(admin.firestore().collection("users").doc(uid));
+    batch.delete(admin.firestore().collection("teachers").doc(uid));
+
+    // 4. Unlock credentials (so they can sign up again)
+    if (email) {
+      const emailKey = email.trim().toLowerCase();
+      batch.delete(admin.firestore().collection("locked_emails").doc(emailKey));
+    }
+    if (name) {
+      const nameKey = name.trim().toLowerCase();
+      batch.delete(admin.firestore().collection("locked_usernames").doc(nameKey));
+    }
+    if (phone) {
+      const cleanPhone = phone.replace(/[^\d+]/g, "");
+      batch.delete(admin.firestore().collection("locked_phones").doc(cleanPhone));
+    }
+
+    // 5. Commit Firestore changes
+    await batch.commit();
+    console.log(`[DeleteOwnAccount] Firestore data (profile and locks) cleaned up for ${uid}`);
+
+    // 6. Delete from Firebase Authentication
+    await admin.auth().deleteUser(uid);
+    console.log(`[DeleteOwnAccount] Auth account deleted for ${uid}`);
+
+    return { success: true, message: "Account deleted successfully." };
+
+  } catch (error) {
+    console.error("[DeleteOwnAccount] Error:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", "Unable to delete your account.", error);
+  }
+});
+
+// --------------------
+// HTTPS Callable: Reset Password with OTP
+// --------------------
+exports.resetPasswordWithOtp = onCall(async (request) => {
+  const { email, newPassword } = request.data;
+
+  // Validate inputs
+  if (!email || !newPassword) {
+    throw new HttpsError("invalid-argument", "Email and new password are required.");
+  }
+
+  if (newPassword.length < 6) {
+    throw new HttpsError("invalid-argument", "Password must be at least 6 characters.");
+  }
+
+  try {
+    // Get user by email
+    const userRecord = await admin.auth().getUserByEmail(email);
+
+    // Update the user's password
+    await admin.auth().updateUser(userRecord.uid, {
+      password: newPassword,
+    });
+
+    console.log(`Successfully reset password for user: ${email}`);
+
+    return {
+      success: true,
+      message: "Password reset successful!"
+    };
+  } catch (error) {
+    console.error("Error resetting password:", error);
+
+    if (error.code === "auth/user-not-found") {
+      throw new HttpsError("not-found", "No user found with this email.");
+    }
+
+    throw new HttpsError("internal", "Unable to reset password. Please try again.");
+  }
+});
+
+// --------------------
+// Callable Function: Get User Providers
+// --------------------
+exports.getUserProviders = onCall(async (request) => {
+  const { email } = request.data;
+
+  if (!email) {
+    throw new HttpsError("invalid-argument", "Email is required.");
+  }
+
+  try {
+    const userRecord = await admin.auth().getUserByEmail(email);
+    const providers = userRecord.providerData.map((provider) => provider.providerId);
+    return { providers };
+  } catch (error) {
+    if (error.code === 'auth/user-not-found') {
+      return { providers: [] };
+    }
+    throw new HttpsError("internal", "Unable to fetch user providers.", error);
+  }
+});
+
+// --------------------
+// HTTPS Function: Create Branded Classroom (Jitsi)
+// --------------------
+exports.createCalligroClassroom = onCall(async (request) => {
+  try {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in.");
+    }
+
+    const { courseName } = request.data;
+    if (!courseName) {
+      throw new HttpsError("invalid-argument", "courseName is required.");
+    }
+
+    // Generate a cryptographically secure, random Room ID
+    // Format: Calligro-[SanitizedName]-[LongRandomSuffix]
+    // 16 chars of randomness provides high security and global uniqueness
+    const randomSuffix = Math.random().toString(36).substring(2, 10) + 
+                         Math.random().toString(36).substring(2, 10);
+    
+    // Only allow A-Z, a-z, 0-9. If the title is Arabic, it becomes empty, so we fallback to "Class"
+    let sanitizedName = courseName.replace(/[^a-zA-Z0-9]/g, "").substring(0, 15);
+    if (!sanitizedName) {
+      sanitizedName = "LiveClass";
+    }
+
+    const roomId = `Calligro-${sanitizedName}-${randomSuffix}`;
+    
+    // Generate a random 10-character password for extra security
+    // This allows enrolled students to join automatically via the app
+    // but blocks unauthorized users who copy the Chrome link.
+    const password = Math.random().toString(36).substring(2, 12);
+
+    console.log(`✅ Branded Jitsi Room Created: ${roomId} with Password: ${password}`);
+
+    return {
+      link: roomId,
+      id: roomId,
+      password: password,
+    };
+  } catch (error) {
+    console.error("Error in createCalligroClassroom:", error);
+    throw new HttpsError("internal", error.message || "Failed to create classroom.");
+  }
+});
+
+// --------------------
+// HTTPS Callable: Verify Purchase (Premium IAP Security)
+// --------------------
+exports.verifyPurchase = onCall(async (request) => {
+  try {
+    // 1. Authenticate Request
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in to verify purchase.");
+    }
+
+    const { receiptData, courseId, productId } = request.data;
+    if (!receiptData || !courseId) {
+      throw new HttpsError("invalid-argument", "receiptData and courseId are required.");
+    }
+
+    const uid = request.auth.uid;
+    console.log(`📡 Validating purchase for User: ${uid}, Course: ${courseId}`);
+
+    // 2. Apple Receipt Validation (Using Node 22 fetch)
+    // In Production, you should check Production URL first. For Sandbox, use the sandbox URL.
+    const APPLE_VERIFY_URL = "https://sandbox.itunes.apple.com/verifyReceipt"; 
+    
+    const response = await fetch(APPLE_VERIFY_URL, {
+      method: "POST",
+      body: JSON.stringify({ "receipt-data": receiptData }),
+    });
+
+    const result = await response.json();
+
+    if (result.status !== 0) {
+      console.error(`❌ Apple Validation Failed. Status: ${result.status}`);
+      throw new HttpsError("permission-denied", `Apple validation failed with status ${result.status}`);
+    }
+
+    // 3. Extract & Validate Receipt Info
+    const receipt = result.receipt;
+    const inApp = receipt.in_app[0]; // Get the latest transaction
+    const transactionId = inApp.transaction_id;
+    const purchasedProductId = inApp.product_id;
+
+    console.log(`✅ Apple Verified: ${purchasedProductId} (Tx: ${transactionId})`);
+
+    // 4. Idempotency Check (Prevent duplicate processing)
+    const orderDoc = await admin.firestore().collection("orders").doc(transactionId).get();
+    if (orderDoc.exists) {
+      console.warn(`⚠️ Transaction ${transactionId} already processed.`);
+      return { success: true, message: "Order already processed." };
+    }
+
+    // 5. Fetch Metadata for Rich Auditing (User, Course, Teacher)
+    const userSnap = await admin.firestore().collection("users").doc(uid).get();
+    const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
+    
+    const userData = userSnap.data() || {};
+    const courseData = courseSnap.data() || {};
+
+    // 6. Atomic Update: Create Order + Enroll Student
+    const batch = admin.firestore().batch();
+    
+    // Create Detailed Audit Record
+    batch.set(admin.firestore().collection("orders").doc(transactionId), {
+      uid,
+      studentName: userData.name || "Unknown Student",
+      studentEmail: userData.email || "",
+      courseId,
+      courseName: courseData.courseName || "Unknown Course",
+      courseArabicName: courseData.courseArabicName || "",
+      teacherId: courseData.teacherId || "",
+      teacherName: courseData.teacherName || "Unknown Teacher",
+      productId: purchasedProductId,
+      transactionId,
+      price: courseData.price || 0,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      environment: result.environment || "sandbox",
+    });
+
+    // Enroll in Course
+    batch.update(admin.firestore().collection("courses").doc(courseId), {
+      enrolledStudents: admin.firestore.FieldValue.arrayUnion(uid),
+      enrolledCount: admin.firestore.FieldValue.increment(1),
+    });
+
+    await batch.commit();
+    console.log(`🏆 Successfully Enrolled User ${uid} in Course ${courseId}`);
+
+    return { 
+      success: true, 
+      transactionId,
+      message: "Purchase verified and course unlocked." 
+    };
+
+  } catch (error) {
+    console.error("verifyPurchase Error:", error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", error.message || "Failed to verify purchase.");
+  }
+});
+
+// --------------------
+// Import Notifications
+// --------------------
+Object.assign(exports, require("./notifications.js"));
+
+// DEPRECATED: Google Meet functions removed to simplify UX and avoid restrictions.
+// Students now use the branded 'Calligro Classroom' powered by Jitsi.

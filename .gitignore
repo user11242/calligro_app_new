@@ -43,3 +43,18 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+node_modules
+
+# LARGE ASSETS (Videos & Promotions)
+promo*/
+promo_v*/
+*.mp4
+*.mov
+*.wav
+*.m4v
+
+# TEMPORARY & TEST DATA
+pop_calls.txt
+test_*.dart
+*.code-workspace
+.DS_Store

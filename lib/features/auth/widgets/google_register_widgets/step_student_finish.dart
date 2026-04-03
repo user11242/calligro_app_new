@@ -1,24 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:calligro_app/l10n/app_localizations.dart';
 
 class StepStudentFinish extends StatelessWidget {
   const StepStudentFinish({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final l10n = AppLocalizations.of(context)!;
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.verified_user, // Use a verified icon
-            color: Colors.green, // Set icon color to green
-            size: 60.0, // Set a suitable icon size
-          ),
-          SizedBox(height: 20), // Add some space between the icon and text
+          const Icon(Icons.verified_user, color: Colors.green, size: 60.0),
+          const SizedBox(height: 20),
           Text(
-            "Great! You’re all set.\nPress Finish to continue.",
+            l10n.studentFinishMessage,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontSize: 16),
+            style: const TextStyle(color: Colors.white, fontSize: 16),
           ),
         ],
       ),
