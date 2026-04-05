@@ -294,13 +294,10 @@ export default function ClassroomPage() {
         {/* Live Participants Sidebar */}
         {isParticipantsOpen && (
           <div className="w-80 bg-secondary-dark border-l border-white/10 flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
-                Who's In
-              </h2>
-              <span className="bg-primary/20 text-primary px-2 py-0.5 rounded text-[10px] font-black">{participants.length} Active</span>
-            </div>
+            <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Who&apos;s In
+            </h2>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {participants.map((p) => (
