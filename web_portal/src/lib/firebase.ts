@@ -4,9 +4,10 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCgj1z12glctRJ-LjD8ebyZLDfFf_EDhwM").trim(),
+  // We force fixed values here because of persistent hidden character issues in the environment variables
+  apiKey: "AIzaSyCgj1z12glctRJ-LjD8ebyZLDfFf_EDhwM",
   authDomain: (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "calligro-bcfb2.firebaseapp.com").trim(),
-  projectId: (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "calligro-bcfb2").trim(),
+  projectId: "calligro-bcfb2",
   storageBucket: (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "calligro-bcfb2.firebasestorage.app").trim(),
   messagingSenderId: (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "500166558232").trim(),
   appId: (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:500166558232:web:88e9a2f3556a3a3361396d").trim(),
