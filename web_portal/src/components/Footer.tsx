@@ -37,11 +37,9 @@ export default function Footer() {
         </div>
 
         {/* Bottom Tagline */}
-        <div className="mt-16 pt-8 border-t border-white/5 text-center">
            <p className="text-[9px] font-medium text-white/10 italic">
-              "Beauty of writing is the tongue of the hand."
+              &quot;Beauty of writing is the tongue of the hand.&quot;
            </p>
-        </div>
       </div>
     </footer>
   );

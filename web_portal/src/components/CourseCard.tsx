@@ -113,7 +113,7 @@ export default function CourseCard({ course }: CourseCardProps) {
             <div className="flex items-center justify-between pt-2">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full border-2 border-primary/30 p-0.5 overflow-hidden">
-                  <img src={formatImageUrl(teacherPic)} className="w-full h-full object-cover rounded-full" />
+                  <img src={formatImageUrl(teacherPic)} alt={teacherName} className="w-full h-full object-cover rounded-full" />
                 </div>
                 <div>
                   <p className="text-[8px] text-primary font-black uppercase tracking-widest">
