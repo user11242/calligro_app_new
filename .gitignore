@@ -54,6 +54,9 @@ promo_v*/
 *.m4v
 
 # TEMPORARY & TEST DATA
+.env
+scripts/
+serviceAccountKey.json
 pop_calls.txt
 test_*.dart
 *.code-workspace

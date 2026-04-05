@@ -71,7 +71,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
           context,
           title: "Validation Timeout",
           message: "The purchase was successful but the server is taking too long to verify. Please refresh the page.",
-          type: MessengerType.warning,
+          type: MessengerType.info,
         );
       }
     });
@@ -92,6 +92,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
       if (success && mounted) {
         _safetyTimer?.cancel();
         setState(() => _isProcessing = false);
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -281,7 +282,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                       children: [
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -302,9 +303,9 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                         // 💰 DEBUG LOGS BUTTON
                         Container(
                           decoration: BoxDecoration(
-                            color: AppColors.accentGold.withOpacity(0.2),
+                            color: AppColors.accentGold.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.accentGold.withOpacity(0.3)),
+                            border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
                           ),
                           child: TextButton.icon(
                             onPressed: _showDebugLogs,
@@ -315,7 +316,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                         const Spacer(),
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -354,7 +355,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         blurRadius: 30,
                         offset: const Offset(0, 15),
                       ),
@@ -379,7 +380,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                         Positioned.fill(
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.4),
+                              color: Colors.black.withValues(alpha: 0.4),
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
@@ -451,13 +452,13 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                         colors: [
-                                          Colors.white.withOpacity(0.18),
-                                          Colors.white.withOpacity(0.08),
+                                          Colors.white.withValues(alpha: 0.18),
+                                          Colors.white.withValues(alpha: 0.08),
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(32),
                                       border: Border.all(
-                                        color: Colors.white.withOpacity(0.25),
+                                        color: Colors.white.withValues(alpha: 0.25),
                                       ),
                                     ),
                                     child: Row(
@@ -541,7 +542,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                                 l10n.instructor.toUpperCase(),
                                                 style: TextStyle(
                                                   color: AppColors.accentGold
-                                                      .withOpacity(0.95),
+                                                      .withValues(alpha: 0.95),
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.w900,
                                                   letterSpacing: 1.5,
@@ -571,10 +572,10 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.5),
+                                  color: Colors.black.withValues(alpha: 0.5),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.15),
+                                    color: Colors.white.withValues(alpha: 0.15),
                                   ),
                                 ),
                                 child: Text(
@@ -607,7 +608,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                               borderRadius: BorderRadius.circular(14),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -668,7 +669,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                               decoration: BoxDecoration(
                                 border: Border.symmetric(
                                   horizontal: BorderSide(
-                                    color: Colors.white.withOpacity(0.05),
+                                    color: Colors.white.withValues(alpha: 0.05),
                                   ),
                                 ),
                               ),
@@ -703,7 +704,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                     AutoTranslatedText(
                       widget.courseData['courseDescription'] ?? '',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 16,
                         height: 1.8,
                       ),
@@ -721,10 +722,10 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.accentGold.withOpacity(0.1),
+                        color: AppColors.accentGold.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.accentGold.withOpacity(0.2),
+                          color: AppColors.accentGold.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(
@@ -739,7 +740,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                             child: Text(
                               l10n.sessionTimeZoneNote,
                               style: TextStyle(
-                                color: AppColors.accentGold.withOpacity(0.9),
+                                color: AppColors.accentGold.withValues(alpha: 0.9),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -753,10 +754,10 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF1E1E1E),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -781,7 +782,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                               Container(
                                 height: 48,
                                 width: 1,
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
                               Expanded(
                                 child: _buildGridItem(
@@ -819,7 +820,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                               Container(
                                 height: 48,
                                 width: 1,
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
                               Expanded(
                                 child: _buildGridItem(
@@ -886,7 +887,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AppColors.primary.withOpacity(0),
+                    AppColors.primary.withValues(alpha: 0),
                     AppColors.primary,
                     AppColors.primary,
                   ],
@@ -939,7 +940,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                       ),
                       elevation: 15,
                       shadowColor: (isEnrolled ? Colors.green : AppColors.accentGold)
-                          .withOpacity(0.4),
+                          .withValues(alpha: 0.4),
                     ),
                     child: _isProcessing
                         ? const SizedBox(
@@ -1018,7 +1019,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.4),
+            color: Colors.white.withValues(alpha: 0.4),
             fontSize: 9,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.2,
@@ -1032,7 +1033,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
     return Container(
       height: 30,
       width: 1,
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
     );
   }
 
@@ -1040,7 +1041,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
     return Row(
       children: [
         if (icon != null) ...[
-          Icon(icon, color: AppColors.accentGold.withOpacity(0.6), size: 20),
+          Icon(icon, color: AppColors.accentGold.withValues(alpha: 0.6), size: 20),
           const SizedBox(width: 12),
         ],
         Text(
@@ -1053,7 +1054,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
           ),
         ),
         const SizedBox(width: 20),
-        Expanded(child: Divider(color: AppColors.accentGold.withOpacity(0.2))),
+        Expanded(child: Divider(color: AppColors.accentGold.withValues(alpha: 0.2))),
       ],
     );
   }
@@ -1066,9 +1067,9 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.03),
+          color: Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Text(
           l10n.curriculumTbd,
@@ -1092,9 +1093,9 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.03),
+            color: Colors.white.withValues(alpha: 0.03),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: Row(
             children: [
@@ -1149,9 +1150,9 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.03),
+          color: Colors.white.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Text(
           l10n.noToolsListed,
@@ -1182,10 +1183,10 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
           decoration: BoxDecoration(
             color: const Color(0xFF252525),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -1197,7 +1198,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
               Container(
                 padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: AppColors.accentGold.withOpacity(0.15),
+                  color: AppColors.accentGold.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(toolIcon, color: AppColors.accentGold, size: 14),
@@ -1236,7 +1237,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                   fontSize: 9,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,
@@ -1269,7 +1270,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.accentGold.withOpacity(0.1),
+            color: AppColors.accentGold.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: AppColors.accentGold, size: 18),
@@ -1279,7 +1280,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
           child: RichText(
             text: TextSpan(
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),

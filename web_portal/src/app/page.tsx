@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
@@ -190,9 +191,7 @@ export default function Home() {
           </div>
       </section>
 
-      <footer className="py-20 text-center border-t border-white/5">
-         <p className="text-[10px] font-black uppercase tracking-[5px] text-white/20">Calligro Academy Portal &copy; 2026</p>
-      </footer>
+      <Footer />
     </main>
   );
 }

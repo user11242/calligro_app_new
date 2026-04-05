@@ -14,6 +14,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calligro_app/features/student/pages/purchase_success_page.dart';
 import 'dart:async';
 import 'package:calligro_app/core/message/app_messenger.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class CourseCheckoutPage extends StatefulWidget {
   final String courseId;
@@ -31,24 +32,83 @@ class CourseCheckoutPage extends StatefulWidget {
 
 class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
   bool _isProcessing = false;
-  late StreamSubscription<PurchaseStatus> _subscription;
+  late StreamSubscription<PurchaseResult> _subscription;
 
   @override
   void initState() {
     super.initState();
-    _subscription = IAPService().purchaseStream.listen((status) {
-      if (status == PurchaseStatus.purchased || status == PurchaseStatus.restored) {
-        _enrollStudent();
-      } else if (status == PurchaseStatus.error) {
+    _subscription = IAPService().purchaseStream.listen((result) {
+      if (result.status == PurchaseStatus.purchased || result.status == PurchaseStatus.restored) {
+        _handleServerValidation(result);
+      } else if (result.status == PurchaseStatus.error || result.status == PurchaseStatus.canceled) {
+        _safetyTimer?.cancel();
+        if (mounted) setState(() => _isProcessing = false);
+        if (result.status == PurchaseStatus.error) {
+          AppMessenger.showSnackBar(
+            context,
+            title: AppLocalizations.of(context)!.error,
+            message: result.error ?? "Payment failed. Please try again.",
+            type: MessengerType.error,
+          );
+        }
+      }
+    });
+  }
+
+  Timer? _safetyTimer;
+
+  Future<void> _handleServerValidation(PurchaseResult result) async {
+    _safetyTimer?.cancel();
+    
+    // Safety timer for server response
+    _safetyTimer = Timer(const Duration(seconds: 20), () {
+      if (mounted && _isProcessing) {
         setState(() => _isProcessing = false);
         AppMessenger.showSnackBar(
           context,
-          title: AppLocalizations.of(context)!.error,
-          message: "Payment failed. Please try again.",
-          type: MessengerType.error,
+          title: "Waiting for Server",
+          message: "The payment succeeded, but the server is taking a moment to unlock your course. Please check your dashboard in a minute.",
+          type: MessengerType.info,
         );
       }
     });
+
+    try {
+      final String? receipt = result.receipt;
+      if (receipt == null) throw "Receipt data missing.";
+
+      debugPrint("📡 [Checkout] Calling verifyPurchase Cloud Function...");
+      final callable = FirebaseFunctions.instance.httpsCallable('verifyPurchase');
+      final validationResult = await callable.call({
+        'receiptData': receipt,
+        'courseId': widget.courseId,
+        'productId': result.productId,
+      });
+
+      final bool success = validationResult.data['success'] ?? false;
+      if (success && mounted) {
+        _safetyTimer?.cancel();
+        setState(() => _isProcessing = false);
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PurchaseSuccessPage(
+              courseId: widget.courseId,
+              courseData: widget.courseData,
+            ),
+          ),
+        );
+      } else {
+        throw validationResult.data['message'] ?? "Validation failed.";
+      }
+    } catch (e) {
+      _safetyTimer?.cancel();
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        AppMessenger.showSnackBar(context, title: "Security Error", message: e.toString(), type: MessengerType.error);
+      }
+    }
   }
 
   @override
@@ -114,6 +174,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Could not launch $url")),
         );
@@ -143,7 +204,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.accentGold.withOpacity(0.1),
+                color: AppColors.accentGold.withValues(alpha: 0.1),
               ),
             ).animate().fadeIn(duration: 1000.ms).scale(),
           ),
@@ -175,7 +236,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              AppColors.primary.withOpacity(0.8),
+                              AppColors.primary.withValues(alpha: 0.8),
                               AppColors.primary,
                             ],
                           ),
@@ -208,7 +269,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                       Text(
                         teacherName,
                         style: TextStyle(
-                          color: AppColors.accentGold.withOpacity(0.8),
+                          color: AppColors.accentGold.withValues(alpha: 0.8),
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -238,7 +299,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                             Text(
                               l10n.price.toUpperCase(),
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.4),
+                                color: Colors.white.withValues(alpha: 0.4),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 2,
@@ -265,9 +326,9 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             _buildSmallTextButton(l10n.termsOfUse, () => _launchUrl('https://calligro.com/terms')),
-                            Text(" • ", style: TextStyle(color: Colors.white.withOpacity(0.2))),
+                            Text(" • ", style: TextStyle(color: Colors.white.withValues(alpha: 0.2))),
                             _buildSmallTextButton(l10n.privacyPolicy, () => _launchUrl('https://calligro.com/privacy')),
-                            Text(" • ", style: TextStyle(color: Colors.white.withOpacity(0.2))),
+                            Text(" • ", style: TextStyle(color: Colors.white.withValues(alpha: 0.2))),
                             _buildSmallTextButton(l10n.restorePurchases, () {
                               // TODO: Implement restore
                             }),
@@ -296,7 +357,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AppColors.primary.withOpacity(0),
+                    AppColors.primary.withValues(alpha: 0),
                     AppColors.primary,
                   ],
                 ),
@@ -309,7 +370,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 8,
-                  shadowColor: AppColors.accentGold.withOpacity(0.3),
+                  shadowColor: AppColors.accentGold.withValues(alpha: 0.3),
                 ),
                 child: _isProcessing
                     ? const SizedBox(
@@ -337,9 +398,9 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: child,
         ),
@@ -373,7 +434,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
         child: Text(
           text,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.4),
+            color: Colors.white.withValues(alpha: 0.4),
             fontSize: 11,
             decoration: TextDecoration.underline,
           ),

@@ -175,11 +175,3 @@ class IAPService {
     _logController.close();
   }
 }
-
-
-  void dispose() {
-    _subscription.cancel();
-    _purchaseController.close();
-    _logController.close();
-  }
-}

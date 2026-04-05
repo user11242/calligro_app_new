@@ -27,6 +27,13 @@ export default function CheckoutPage() {
         setError("You must be logged in to join.");
         return;
       }
+
+      // 🛡️ SECURITY: Only allow direct join for FREE courses
+      if (course?.price && Number(course.price) > 0) {
+        setError("Please complete the payment to join this course.");
+        return;
+      }
+
       setJoining(true);
 
       // Perform enrollment via TRANSACTION to match Mobile App exactly
@@ -60,13 +67,12 @@ export default function CheckoutPage() {
             courseName: courseData.courseName || courseData.courseTitle || courseData.title || 'Untitled Course',
             amount: grossAmount,
             currency: 'USD',
-            source: 'web_portal',
+            source: 'web_portal_quick',
             status: 'completed',
             createdAt: serverTimestamp(),
-            // Calculated Shares (60/15/25)
-            teacherShare: grossAmount * 0.60,
-            academyProfit: grossAmount * 0.25,
-            storeFee: grossAmount * 0.15,
+            teacherShare: 0, 
+            academyProfit: 0,
+            storeFee: 0,
           });
         }
       });
@@ -99,16 +105,18 @@ export default function CheckoutPage() {
         const user = auth.currentUser;
         if (user && courseData.enrolledStudents?.includes(user.uid)) {
           setIsEnrolled(true);
-          setError("You are already enrolled in this course.");
+          // Don't set error, just show "Already Enrolled" in UI
           return;
         }
 
-        // 2. Create Checkout Session
-        const { checkoutId } = await createCheckoutSession(courseData.price.toString());
-        setCheckoutId(checkoutId);
+        // 2. Create Checkout Session (Only if paid)
+        if (courseData.price && Number(courseData.price) > 0) {
+          const { checkoutId } = await createCheckoutSession(courseData.price.toString());
+          setCheckoutId(checkoutId);
+        }
       } catch (err) {
         console.error(err);
-        setError("Failed to initialize payment");
+        setError("Failed to initialize payment system. Please try refreshing.");
       } finally {
         setLoading(false);
       }
@@ -156,27 +164,37 @@ export default function CheckoutPage() {
                         <span className="text-3xl font-black font-outfit gold-text">${Number(course.price).toFixed(2)}</span>
                     </div>
 
-                    {/* Quick Join Button */}
-                    <button 
-                        onClick={handleQuickJoin}
-                        disabled={joining}
-                        className="w-full mt-8 py-4 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-[2px] text-xs rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                    >
-                        {joining ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <CheckCircle2 className="w-4 h-4 text-primary" />
-                        )}
-                        <AutoTranslatedText text="Join Course Directly" />
-                    </button>
+                    {/* Quick Join Button (Only for FREE) */}
+                    {!isEnrolled && (course.price === 0 || Number(course.price) === 0) && (
+                        <button 
+                            onClick={handleQuickJoin}
+                            disabled={joining}
+                            className="w-full mt-8 py-4 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-[2px] text-xs rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                        >
+                            {joining ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <CheckCircle2 className="w-4 h-4 text-primary" />
+                            )}
+                            <AutoTranslatedText text="Join Course Directly" />
+                        </button>
+                    )}
                 </div>
 
                 {isEnrolled && (
-                    <div className="bg-green-500/10 border border-green-500/20 p-6 rounded-[24px] flex items-center gap-4">
-                        <CheckCircle2 className="w-6 h-6 text-green-500" />
+                    <div className="bg-primary/10 border border-primary/20 p-8 rounded-[32px] flex flex-col items-center gap-6 text-center">
+                        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+                          <CheckCircle2 className="w-8 h-8 text-primary" />
+                        </div>
                         <div>
-                            <p className="text-white font-bold">You are already enrolled!</p>
-                            <Link href={`/courses/${id}/classroom`} className="text-primary text-sm hover:underline">Go to Classroom</Link>
+                            <h3 className="text-white text-xl font-black font-outfit mb-2">You are already enrolled!</h3>
+                            <p className="text-white/40 text-sm mb-6">You have full access to all lectures and materials.</p>
+                            <Link 
+                              href={`/courses/${id}/classroom`} 
+                              className="inline-block py-4 px-8 bg-primary text-black font-black uppercase tracking-[2px] text-xs rounded-2xl hover:scale-105 transition-transform"
+                            >
+                              Go to Classroom
+                            </Link>
                         </div>
                     </div>
                 )}
@@ -196,20 +214,28 @@ export default function CheckoutPage() {
             {/* Right: HyperPay Widget */}
             <div className="relative">
                 {checkoutId ? (
-                   <>
-                    <Script 
-                        src={`https://test.oppwa.com/v1/paymentWidgets.js?checkoutId=${checkoutId}&entityId=8ac7a4c77092892901709403328e3532`}
-                        strategy="afterInteractive"
-                    />
+                   <div key={checkoutId}> {/* Re-render container when checkoutId changes */}
                     <div className="glass p-8 rounded-[40px] border-white/5 bg-[#121212] min-h-[400px]">
                         <h2 className="text-center text-xs font-black uppercase tracking-[3px] mb-8 text-white/60">Select Payment Method</h2>
                         <form action={`/courses/${id}/checkout/result`} className="paymentWidgets" data-brands="VISA MASTER"></form>
                     </div>
-                   </>
+                    {/* Inject script only when container is ready */}
+                    <script 
+                      dangerouslySetInnerHTML={{
+                        __html: `
+                          (function() {
+                            var s = document.createElement('script');
+                            s.src = "https://test.oppwa.com/v1/paymentWidgets.js?checkoutId=${checkoutId}&entityId=8ac7a4c77092892901709403328e3532";
+                            document.body.appendChild(s);
+                          })();
+                        `
+                      }}
+                    />
+                   </div>
                 ) : (
                     <div className="glass p-8 rounded-[40px] border-white/5 bg-[#121212] flex flex-col items-center justify-center min-h-[400px]">
                          <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
-                         <p className="text-white/20 text-xs font-black uppercase tracking-[2px]">Loading Widget...</p>
+                         <p className="text-white/20 text-xs font-black uppercase tracking-[2px]">Initializing Checkout Session...</p>
                     </div>
                 )}
             </div>
