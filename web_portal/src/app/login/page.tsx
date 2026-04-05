@@ -1,14 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth, db } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { LogIn, Mail, Lock, AlertCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import AutoTranslatedText from "@/components/AutoTranslatedText";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,13 +17,51 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // Handle the result of Google redirect sign-in on page load
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (!result) return;
+        const user = result.user;
+
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (!userDoc.exists()) {
+          await auth.signOut();
+          setError("Access denied. No student record found. Please register via the Calligro mobile app first.");
+          return;
+        }
+
+        const userData = userDoc.data();
+        const role = userData?.role || "student";
+
+        if (role === "teacher") {
+          await auth.signOut();
+          setError("Access denied. Teachers must use the Calligro Mobile App.");
+          return;
+        }
+
+        if (role === "admin") {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/courses");
+        }
+      } catch (err: any) {
+        if (err.code !== "auth/no-current-user") {
+          setError(err.message || "Google Sign-In failed.");
+        }
+      }
+    };
+
+    handleRedirectResult();
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // Check if user exists and check role
       const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
       if (!userDoc.exists()) {
         await auth.signOut();
@@ -57,48 +95,13 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const { setPersistence, browserLocalPersistence } = await import("firebase/auth");
-      await setPersistence(auth, browserLocalPersistence);
-      
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Check if user exists and check role
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) {
-        await auth.signOut();
-        setError("Access denied. No student record found. Please ensure you have registered and completed your profile on the Calligro mobile app.");
-        setLoading(false);
-        return;
-      }
-
-      const userData = userDoc.data();
-      const role = userData?.role || "student";
-
-      if (role === "teacher") {
-        await auth.signOut();
-        setError("Access denied. Teachers must use the Calligro Mobile App for management. The web portal is for students and admins only.");
-        setLoading(false);
-        return;
-      }
-
-      if (role === "admin") {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/courses");
-      }
+      await signInWithRedirect(auth, provider);
+      // Page will redirect to Google and come back — result handled in useEffect above
     } catch (err: any) {
       console.error("Google Auth Error:", err);
-      if (err.code === "auth/popup-closed-by-user") {
-        setError("Sign-in cancelled. Please complete the Google login.");
-      } else if (err.code === "auth/internal-error" || err.message?.includes("missing initial state")) {
-        setError("Browser error: Please enable third-party cookies or disable 'Prevent Cross-Site Tracking' in your settings to use Google Login on localhost.");
-      } else {
-        setError(err.message || "Google Sign-In failed.");
-      }
+      setError(err.message || "Google Sign-In failed.");
       setLoading(false);
     }
   };
