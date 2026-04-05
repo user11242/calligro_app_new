@@ -1,13 +1,13 @@
 "use server";
 
 export async function createCheckoutSession(amount: string, currency: string = "USD") {
-  // Test Credentials (to be replaced by ENV variables)
-  const ENTITY_ID = "8ac7a4c77092892901709403328e3532";
-  const ACCESS_TOKEN = "OGFjN2E0Yzc3MDkyODkyOTAxNzA5NDAzMzI4ZTM1MzJ8SjJmNzlWdU43Ng==";
-  const URL = "https://test.oppwa.com/v1/checkouts";
+  // Credentials sourced from ENV variables for security
+  const ENTITY_ID = process.env.HYPERPAY_ENTITY_ID;
+  const ACCESS_TOKEN = process.env.HYPERPAY_ACCESS_TOKEN;
+  const URL = process.env.HYPERPAY_URL || "https://test.oppwa.com/v1/checkouts";
 
   const data = new URLSearchParams();
-  data.append("entityId", ENTITY_ID);
+  data.append("entityId", ENTITY_ID!);
   data.append("amount", amount);
   data.append("currency", currency);
 
