@@ -1,35 +1,47 @@
 "use server";
+import { createCheckout } from "@lemonsqueezy/lemonsqueezy.js";
+import { initLemonSqueezy } from "@/lib/lemonsqueezy";
 
-export async function createCheckoutSession(amount: string, currency: string = "USD") {
-  // Credentials sourced from ENV variables for security
-  const ENTITY_ID = process.env.HYPERPAY_ENTITY_ID;
-  const ACCESS_TOKEN = process.env.HYPERPAY_ACCESS_TOKEN;
-  const URL = process.env.HYPERPAY_URL || "https://test.oppwa.com/v1/checkouts";
-
-  const data = new URLSearchParams();
-  data.append("entityId", ENTITY_ID!);
-  data.append("amount", amount);
-  data.append("currency", currency);
-
+/**
+ * Creates a Lemon Squeezy checkout session for a specific course.
+ * @param variantId The Lemon Squeezy Variant ID for the course.
+ * @param userId The ID of the student purchasing the course.
+ * @param courseId The Firestore document ID of the course.
+ * @param userEmail The email of the student for pre-filling the checkout.
+ */
+export async function createCheckoutSession(
+  variantId: string,
+  userId: string,
+  courseId: string,
+  userEmail: string
+) {
   try {
-    const response = await fetch(URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: data.toString(),
-    });
+    initLemonSqueezy();
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        console.error("HyperPay API Error:", errorData);
-        throw new Error("Failed to initialize payment session");
+    const storeId = process.env.LEMONSQUEEZY_STORE_ID;
+    if (!storeId) {
+      throw new Error("Missing LEMONSQUEEZY_STORE_ID environment variable");
     }
 
-    const result = await response.json();
-    console.log("HyperPay Checkout Success:", result);
-    return { checkoutId: result.id };
+    const { data, error } = await createCheckout(storeId, variantId, {
+      checkoutData: {
+        email: userEmail,
+        custom: {
+          user_id: userId,
+          course_id: courseId,
+        },
+      },
+      productOptions: {
+        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://calligro.digital"}/courses/${courseId}/success`,
+      },
+    });
+
+    if (error) {
+      console.error("Lemon Squeezy API Error:", error);
+      throw new Error(error.message || "Failed to create checkout session");
+    }
+
+    return { checkoutUrl: data?.data.attributes.url };
   } catch (error) {
     console.error("Payment action error:", error);
     throw error;

@@ -162,7 +162,7 @@ export default function CourseDetailsPage() {
              <div className="absolute bottom-8 left-8 right-8 flex justify-center">
                 <div className="glass-gold px-8 py-4 rounded-[32px] flex items-center gap-6 border-white/20">
                     <div className="w-12 h-12 rounded-full border-2 border-primary overflow-hidden">
-                      <img src={formatImageUrl(teacher?.photoUrl || course.teacherProfilePic)} className="w-full h-full object-cover" />
+                      <img src={formatImageUrl(teacher?.photoUrl || course.teacherProfilePic)} alt={teacher?.name || course.teacherName || "Instructor"} className="w-full h-full object-cover" />
                     </div>
                     <div>
                       <h4 className="font-black font-outfit text-xl leading-none mb-1 flex items-center gap-2">

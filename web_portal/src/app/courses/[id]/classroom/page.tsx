@@ -203,12 +203,14 @@ export default function ClassroomPage() {
 
     loadJitsiScript();
 
+    const container = jitsiContainerRef.current;
+    
     return () => {
       if (jitsiApiRef.current) {
         jitsiApiRef.current.dispose();
       }
-      if (jitsiContainerRef.current) {
-        jitsiContainerRef.current.innerHTML = "";
+      if (container) {
+        container.innerHTML = "";
       }
     };
   }, [course, user]);

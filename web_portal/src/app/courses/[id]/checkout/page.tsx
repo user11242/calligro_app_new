@@ -1,24 +1,61 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { db, auth } from "@/lib/firebase";
 import { doc, getDoc, runTransaction, collection, serverTimestamp } from "firebase/firestore";
 import Navbar from "@/components/Navbar";
-import { Loader2, ShieldCheck, ArrowLeft, CreditCard, CheckCircle2 } from "lucide-react";
+import { Loader2, ShieldCheck, ArrowLeft, CreditCard, CheckCircle2, Zap } from "lucide-react";
 import Link from "next/link";
 import { createCheckoutSession } from "@/app/actions/payment";
 import AutoTranslatedText from "@/components/AutoTranslatedText";
-import Script from "next/script";
 
 export default function CheckoutPage() {
   const { id } = useParams();
   const [course, setCourse] = useState<any>(null);
-  const [checkoutId, setCheckoutId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  const handlePayment = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        setError("You must be logged in to purchase.");
+        return;
+      }
+
+      setJoining(true);
+      setError(null);
+
+      // 1. Get Variant ID (Should be in course doc or mapping)
+      // For now, we expect it in the course document, or fallback to a test ID
+      const variantId = course.lemonsqueezyVariantId;
+      if (!variantId) {
+        throw new Error("This course is not yet linked to a Lemon Squeezy product. Please contact the Academy.");
+      }
+
+      // 2. Create Checkout Session
+      const { checkoutUrl } = await createCheckoutSession(
+        variantId,
+        user.uid,
+        id as string,
+        user.email || ""
+      );
+
+      if (!checkoutUrl) {
+        throw new Error("Failed to generate checkout URL");
+      }
+
+      // 3. Redirect to Lemon Squeezy
+      window.location.href = checkoutUrl;
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to initiate payment. Please try again.");
+      setJoining(false);
+    }
+  };
 
   const handleQuickJoin = async () => {
     try {
@@ -28,7 +65,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 🛡️ SECURITY: Only allow direct join for FREE courses
       if (course?.price && Number(course.price) > 0) {
         setError("Please complete the payment to join this course.");
         return;
@@ -36,7 +72,6 @@ export default function CheckoutPage() {
 
       setJoining(true);
 
-      // Perform enrollment via TRANSACTION to match Mobile App exactly
       await runTransaction(db, async (transaction) => {
         const courseRef = doc(db, "courses", id as string);
         const transactionRef = doc(collection(db, "transactions"));
@@ -50,13 +85,11 @@ export default function CheckoutPage() {
         if (!enrolledStudents.includes(user.uid)) {
           enrolledStudents.push(user.uid);
           
-          // 1. Update Course (Students + Count)
           transaction.update(courseRef, {
             enrolledStudents: enrolledStudents,
             enrolledCount: enrolledStudents.length
           });
 
-          // 2. Record Financial Transaction (EXACT fields from App)
           const grossAmount = Number(courseData.price) || 0;
           transaction.set(transactionRef, {
             studentId: user.uid,
@@ -77,7 +110,7 @@ export default function CheckoutPage() {
         }
       });
 
-      router.push(`/courses/${id}/checkout/result?resourcePath=manual_success`);
+      router.push(`/courses/${id}/classroom`);
     } catch (err) {
       console.error(err);
       setError("Failed to enroll student. Please check permissions or contact support.");
@@ -91,7 +124,6 @@ export default function CheckoutPage() {
 
     const initCheckout = async () => {
       try {
-        // 1. Fetch Course Details
         const docRef = doc(db, "courses", id as string);
         const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
@@ -101,22 +133,14 @@ export default function CheckoutPage() {
         const courseData = { id: docSnap.id, ...docSnap.data() as any };
         setCourse(courseData);
 
-        // check if already enrolled
         const user = auth.currentUser;
         if (user && courseData.enrolledStudents?.includes(user.uid)) {
           setIsEnrolled(true);
-          // Don't set error, just show "Already Enrolled" in UI
           return;
-        }
-
-        // 2. Create Checkout Session (Only if paid)
-        if (courseData.price && Number(courseData.price) > 0) {
-          const { checkoutId } = await createCheckoutSession(courseData.price.toString());
-          setCheckoutId(checkoutId);
         }
       } catch (err) {
         console.error(err);
-        setError("Failed to initialize payment system. Please try refreshing.");
+        setError("Failed to load course details. Please try refreshing.");
       } finally {
         setLoading(false);
       }
@@ -128,7 +152,7 @@ export default function CheckoutPage() {
   if (loading) return (
     <div className="min-h-screen bg-secondary-dark flex flex-col items-center justify-center gap-4">
       <Loader2 className="w-10 h-10 text-primary animate-spin" />
-      <p className="text-white/40 font-black uppercase tracking-widest text-xs">Initializing Secure Payment...</p>
+      <p className="text-white/40 font-black uppercase tracking-widest text-xs">Initializing Secure Checkout...</p>
     </div>
   );
 
@@ -150,10 +174,9 @@ export default function CheckoutPage() {
         </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-            {/* Left: Course Summary */}
             <div className="space-y-8">
-                <div className="glass-gold p-8 rounded-[32px] border-white/10">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[4px] mb-4">You are enrolling in</p>
+                <div className="glass-premium p-8 rounded-[32px] border-white/10">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-[4px] mb-4">Checkout Summary</p>
                     <h1 className="text-3xl font-black font-outfit text-white mb-2">{course.courseName || course.courseTitle}</h1>
                     <p className="text-white/40 text-sm font-medium">Instructor: {course.teacherName}</p>
                     
@@ -164,18 +187,13 @@ export default function CheckoutPage() {
                         <span className="text-3xl font-black font-outfit gold-text">${Number(course.price).toFixed(2)}</span>
                     </div>
 
-                    {/* Quick Join Button (Only for FREE) */}
                     {!isEnrolled && (course.price === 0 || Number(course.price) === 0) && (
                         <button 
                             onClick={handleQuickJoin}
                             disabled={joining}
                             className="w-full mt-8 py-4 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-[2px] text-xs rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                         >
-                            {joining ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <CheckCircle2 className="w-4 h-4 text-primary" />
-                            )}
+                            {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 text-primary" />}
                             <AutoTranslatedText text="Join Course Directly" />
                         </button>
                     )}
@@ -187,13 +205,14 @@ export default function CheckoutPage() {
                           <CheckCircle2 className="w-8 h-8 text-primary" />
                         </div>
                         <div>
-                            <h3 className="text-white text-xl font-black font-outfit mb-2">You are already enrolled!</h3>
-                            <p className="text-white/40 text-sm mb-6">You have full access to all lectures and materials.</p>
+                            <h3 className="text-white text-xl font-black font-outfit mb-2">You&apos;re already enrolled!</h3>
+                            <p className="text-white/40 text-sm mb-6">Enjoy your learning journey at Calligro Academy.</p>
                             <Link 
-                              href={`/courses/${id}/classroom`} 
-                              className="inline-block py-4 px-8 bg-primary text-black font-black uppercase tracking-[2px] text-xs rounded-2xl hover:scale-105 transition-transform"
+                               href={`/courses/${id}/classroom`} 
+                               className="btn-gold px-8 py-4 inline-flex items-center gap-2"
                             >
-                              Go to Classroom
+                               <Zap className="w-4 h-4" />
+                               Enter Classroom
                             </Link>
                         </div>
                     </div>
@@ -202,78 +221,51 @@ export default function CheckoutPage() {
                 <div className="space-y-4 px-4">
                     <div className="flex items-center gap-4 text-white/40 text-sm font-bold">
                         <ShieldCheck className="w-5 h-5 text-primary" />
-                        Secure 256-bit SSL Encrypted Payment
+                        Secure Checkout via Lemon Squeezy
                     </div>
                     <div className="flex items-center gap-4 text-white/40 text-sm font-bold">
                         <CreditCard className="w-5 h-5 text-primary" />
-                        Powered by HyperPay
+                        Global Payments Support
                     </div>
                 </div>
             </div>
 
-            {/* Right: HyperPay Widget */}
             <div className="relative">
-                {checkoutId ? (
-                   <div key={checkoutId}> {/* Re-render container when checkoutId changes */}
-                    <div className="glass p-8 rounded-[40px] border-white/5 bg-[#121212] min-h-[400px]">
-                        <h2 className="text-center text-xs font-black uppercase tracking-[3px] mb-8 text-white/60">Select Payment Method</h2>
-                        <form action={`/courses/${id}/checkout/result`} className="paymentWidgets" data-brands="VISA MASTER"></form>
-                    </div>
-                    {/* Inject script only when container is ready */}
-                    <script 
-                      dangerouslySetInnerHTML={{
-                        __html: `
-                          (function() {
-                            var s = document.createElement('script');
-                            s.src = "https://test.oppwa.com/v1/paymentWidgets.js?checkoutId=${checkoutId}&entityId=8ac7a4c77092892901709403328e3532";
-                            document.body.appendChild(s);
-                          })();
-                        `
-                      }}
-                    />
-                   </div>
-                ) : (
-                    <div className="glass p-8 rounded-[40px] border-white/5 bg-[#121212] flex flex-col items-center justify-center min-h-[400px]">
-                         <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
-                         <p className="text-white/20 text-xs font-black uppercase tracking-[2px]">Initializing Checkout Session...</p>
+                {!isEnrolled && course.price > 0 && (
+                    <div className="glass-premium p-10 rounded-[40px] border-white/5 bg-[#121212] flex flex-col items-center">
+                        <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-8 border border-primary/20">
+                            <CreditCard className="w-10 h-10 text-primary" />
+                        </div>
+                        <h2 className="text-center text-xs font-black uppercase tracking-[3px] mb-4 text-white/60">Secure Payment</h2>
+                        <p className="text-white/40 text-center text-xs mb-10 leading-relaxed">
+                            Click below to complete your enrollment safely using Apple Pay, Google Pay, or Credit Card.
+                        </p>
+                        
+                        <button
+                            onClick={handlePayment}
+                            disabled={joining}
+                            className="w-full py-5 bg-primary text-black font-black uppercase tracking-[3px] text-xs rounded-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-[0_0_30px_rgba(212,175,55,0.2)]"
+                        >
+                            {joining ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                                <>
+                                    <Zap className="w-5 h-5" />
+                                    Secure Checkout
+                                </>
+                            )}
+                        </button>
+                        
+                        <div className="mt-8 flex gap-4 opacity-20">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-3" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-5" />
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-4" />
+                        </div>
                     </div>
                 )}
             </div>
         </div>
       </div>
-
-      <style jsx global>{`
-        .wpwl-form {
-            background: transparent !important;
-            border: none !important;
-            color: white !important;
-        }
-        .wpwl-label {
-            color: rgba(255,255,255,0.6) !important;
-            font-size: 12px !important;
-            text-transform: uppercase !important;
-            font-weight: 900 !important;
-            letter-spacing: 1px !important;
-        }
-        .wpwl-control {
-            background: rgba(255,255,255,0.05) !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
-            border-radius: 12px !important;
-            color: white !important;
-            padding: 12px !important;
-        }
-        .wpwl-button-pay {
-            background: #D4AF37 !important;
-            color: #1F1F1F !important;
-            border: none !important;
-            border-radius: 16px !important;
-            font-weight: 900 !important;
-            text-transform: uppercase !important;
-            letter-spacing: 2px !important;
-            padding: 16px !important;
-            margin-top: 24px !important;
-        }
-      `}</style>
     </main>
   );
 }
