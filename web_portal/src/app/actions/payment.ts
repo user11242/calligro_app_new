@@ -16,12 +16,16 @@ export async function createCheckoutSession(
   userEmail: string
 ) {
   try {
+    console.log("Initiating Lemon Squeezy checkout...");
     initLemonSqueezy();
 
     const storeId = process.env.LEMONSQUEEZY_STORE_ID;
     if (!storeId) {
-      throw new Error("Missing LEMONSQUEEZY_STORE_ID environment variable");
+      console.error("DEBUG: LEMONSQUEEZY_STORE_ID is missing");
+      throw new Error("Missing Store Configuration. Please check Vercel environment variables.");
     }
+
+    console.log(`DEBUG: Creating checkout for Store: ${storeId}, Variant: ${variantId}`);
 
     const { data, error } = await createCheckout(storeId, variantId, {
       checkoutData: {
@@ -37,13 +41,18 @@ export async function createCheckoutSession(
     });
 
     if (error) {
-      console.error("Lemon Squeezy API Error:", error);
+      console.error("Lemon Squeezy API Error Details:", JSON.stringify(error, null, 2));
       throw new Error(error.message || "Failed to create checkout session");
     }
 
-    return { checkoutUrl: data?.data.attributes.url };
-  } catch (error) {
-    console.error("Payment action error:", error);
-    throw error;
+    const checkoutUrl = data?.data.attributes.url;
+    if (!checkoutUrl) {
+      throw new Error("Checkout URL not found in API response");
+    }
+
+    return { checkoutUrl };
+  } catch (error: any) {
+    console.error("Payment action error [Trace]:", error.message || error);
+    throw new Error(error.message || "Internal Payment Error");
   }
 }

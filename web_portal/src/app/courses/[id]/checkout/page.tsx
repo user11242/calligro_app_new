@@ -51,8 +51,14 @@ export default function CheckoutPage() {
       // 3. Redirect to Lemon Squeezy
       window.location.href = checkoutUrl;
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to initiate payment. Please try again.");
+      console.error("Payment Error:", err);
+      // If the error message mentions missing config, give a concrete hint
+      const msg = err.message || "";
+      if (msg.includes("Missing Store Configuration") || msg.includes("environment variable")) {
+        setError("Error: Payments are not configured properly on Vercel yet. Please ensure LEMONSQUEEZY_API_KEY and LEMONSQUEEZY_STORE_ID are set.");
+      } else {
+        setError(err.message || "Failed to initiate payment. Please try again.");
+      }
       setJoining(false);
     }
   };
