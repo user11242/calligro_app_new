@@ -16,18 +16,21 @@ export async function createCheckoutSession(
   userEmail: string
 ) {
   try {
-    console.log("Initiating Lemon Squeezy checkout...");
+    console.log("Lemon Squeezy: Starting createCheckoutSession...");
     initLemonSqueezy();
 
-    const storeId = process.env.LEMONSQUEEZY_STORE_ID;
+    const rawStoreId = process.env.LEMONSQUEEZY_STORE_ID;
+    const storeId = rawStoreId?.trim();
+    
     if (!storeId) {
-      console.error("DEBUG: LEMONSQUEEZY_STORE_ID is missing");
-      throw new Error("Missing Store Configuration. Please check Vercel environment variables.");
+      console.error("Lemon Squeezy: STORE_ID is missing from environment");
+      throw new Error("Payment configuration is missing (Store ID). Please check Vercel settings.");
     }
 
-    console.log(`DEBUG: Creating checkout for Store: ${storeId}, Variant: ${variantId}`);
+    const cleanVariantId = variantId.trim();
+    console.log(`Lemon Squeezy: Creating checkout for Store [${storeId}] and Variant [${cleanVariantId}]`);
 
-    const { data, error } = await createCheckout(storeId, variantId, {
+    const { data, error, statusCode } = await createCheckout(storeId, cleanVariantId, {
       checkoutData: {
         email: userEmail,
         custom: {
@@ -38,21 +41,25 @@ export async function createCheckoutSession(
       productOptions: {
         redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://calligro.digital"}/courses/${courseId}/success`,
       },
+      testMode: true, // Force test mode for now while store is in review
     });
 
     if (error) {
-      console.error("Lemon Squeezy API Error Details:", JSON.stringify(error, null, 2));
-      throw new Error(error.message || "Failed to create checkout session");
+      console.error("Lemon Squeezy: API Error Response:", JSON.stringify(error, null, 2));
+      console.error(`Lemon Squeezy: HTTP Status Code: ${statusCode}`);
+      throw new Error(error.message || "Lemon Squeezy API rejected the checkout request.");
     }
 
     const checkoutUrl = data?.data.attributes.url;
     if (!checkoutUrl) {
-      throw new Error("Checkout URL not found in API response");
+      console.error("Lemon Squeezy: Response missing URL", JSON.stringify(data, null, 2));
+      throw new Error("The payment provider did not return a checkout URL.");
     }
 
+    console.log("Lemon Squeezy: Checkout session created successfully.");
     return { checkoutUrl };
   } catch (error: any) {
-    console.error("Payment action error [Trace]:", error.message || error);
-    throw new Error(error.message || "Internal Payment Error");
+    console.error("Lemon Squeezy: Server Action Failure:", error.message || error);
+    throw new Error(error.message || "An unexpected error occurred during checkout initialization.");
   }
 }
