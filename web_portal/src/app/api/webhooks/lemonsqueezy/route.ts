@@ -3,13 +3,22 @@ import crypto from "crypto";
 import * as admin from "firebase-admin";
 
 // Initialize Firebase Admin SDK (Only if credentials exist)
-const getDb = () => {
-  if (!admin.apps.length) {
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+// Initialize Firebase Admin SDK safely
+function getDb() {
+  if (admin.apps.length === 0) {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
 
-    if (projectId && clientEmail && privateKey) {
+    if (!projectId || !clientEmail || !privateKey) {
+      const missing = [];
+      if (!projectId) missing.push("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
+      if (!clientEmail) missing.push("FIREBASE_CLIENT_EMAIL");
+      if (!privateKey) missing.push("FIREBASE_PRIVATE_KEY");
+      throw new Error(`Firebase Admin credentials missing: ${missing.join(", ")}`);
+    }
+
+    try {
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId,
@@ -17,12 +26,16 @@ const getDb = () => {
           privateKey,
         }),
       });
-    } else {
-      console.warn("Firebase Admin credentials missing. Skipping initialization.");
+      console.log("Firebase Admin initialized successfully.");
+    } catch (error: any) {
+      if (!/already exists/.test(error.message)) {
+        console.error("Firebase initialization error", error);
+        throw error;
+      }
     }
   }
   return admin.firestore();
-};
+}
 
 export async function POST(req: Request) {
   try {
