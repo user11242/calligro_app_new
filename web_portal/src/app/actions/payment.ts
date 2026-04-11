@@ -72,19 +72,22 @@ export async function createCheckoutSession(
 
     if (error) {
       console.error("Lemon Squeezy API Error:", JSON.stringify(error, null, 2));
-      throw new Error(error.message || `LS API Error ${statusCode}`);
+      return { checkoutUrl: null, error: `Lemon Squeezy: ${error.message || `API Error ${statusCode}`}` };
     }
 
     const checkoutUrl = data?.data.attributes.url;
     if (!checkoutUrl) {
-      throw new Error("No URL returned from Lemon Squeezy.");
+      return { checkoutUrl: null, error: "No URL returned from Lemon Squeezy product creation." };
     }
 
     console.log("Lemon Squeezy: Automated checkout session created.");
-    return { checkoutUrl };
+    return { checkoutUrl, error: null };
   } catch (error: any) {
     console.error("Lemon Squeezy Server Action Failure:", error.message || error);
-    throw new Error(error.message || "Unable to initialize secure checkout. Please try again later.");
+    return { 
+      checkoutUrl: null, 
+      error: error.message || "Unable to initialize secure checkout. Please ensure server environment variables are set." 
+    };
   }
 }
 

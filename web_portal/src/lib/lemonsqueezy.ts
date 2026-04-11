@@ -7,8 +7,7 @@ import { lemonSqueezySetup } from "@lemonsqueezy/lemonsqueezy.js";
 export function initLemonSqueezy() {
   const apiKey = process.env.LEMONSQUEEZY_API_KEY;
   if (!apiKey) {
-    console.error("Missing LEMONSQUEEZY_API_KEY environment variable");
-    return;
+    throw new Error("LEMONSQUEEZY_API_KEY is not configured on the server.");
   }
 
   lemonSqueezySetup({

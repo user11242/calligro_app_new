@@ -128,7 +128,7 @@ export default function CourseDetailsPage() {
         "Calligro Academy Digital Excellence"
       ].join("\n");
 
-      const { checkoutUrl } = await createCheckoutSession(
+      const result = await createCheckoutSession(
         course.lemonSqueezyVariantId,
         user.uid,
         id as string,
@@ -139,8 +139,14 @@ export default function CourseDetailsPage() {
         [bannerUrl || "", teacherUrl || ""].filter(Boolean)
       );
 
-      if (!checkoutUrl) throw new Error("Failed to generate checkout URL");
-      window.location.href = checkoutUrl;
+      if (result.error) {
+        setError(result.error);
+        setJoining(false);
+        return;
+      }
+
+      if (!result.checkoutUrl) throw new Error("Failed to generate checkout URL");
+      window.location.href = result.checkoutUrl;
     } catch (err: any) {
       console.error("Payment Error:", err);
       setError(err.message || "Failed to initiate payment. Please try again.");
