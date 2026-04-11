@@ -2,15 +2,19 @@
 // Firebase Functions v2 with Brevo (Sendinblue)
 // --------------------
 const { https, setGlobalOptions } = require("firebase-functions/v2");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const SibApiV3Sdk = require("sib-api-v3-sdk");
+const crypto = require("crypto");
 
 // --------------------
 // Define Secret
 // --------------------
 const brevoApiKey = defineSecret("BREVO_API_KEY");
+const lemonsqueezyApiKey = defineSecret("LEMONSQUEEZY_API_KEY");
+const lemonsqueezyStoreId = defineSecret("LEMONSQUEEZY_STORE_ID");
+const lemonsqueezyWebhookSecret = defineSecret("LEMONSQUEEZY_WEBHOOK_SECRET");
 
 // --------------------
 // Initialize Firebase Admin
@@ -304,9 +308,9 @@ exports.createCalligroClassroom = onCall(async (request) => {
     // Generate a cryptographically secure, random Room ID
     // Format: Calligro-[SanitizedName]-[LongRandomSuffix]
     // 16 chars of randomness provides high security and global uniqueness
-    const randomSuffix = Math.random().toString(36).substring(2, 10) + 
-                         Math.random().toString(36).substring(2, 10);
-    
+    const randomSuffix = Math.random().toString(36).substring(2, 10) +
+      Math.random().toString(36).substring(2, 10);
+
     // Only allow A-Z, a-z, 0-9. If the title is Arabic, it becomes empty, so we fallback to "Class"
     let sanitizedName = courseName.replace(/[^a-zA-Z0-9]/g, "").substring(0, 15);
     if (!sanitizedName) {
@@ -314,7 +318,7 @@ exports.createCalligroClassroom = onCall(async (request) => {
     }
 
     const roomId = `Calligro-${sanitizedName}-${randomSuffix}`;
-    
+
     // Generate a random 10-character password for extra security
     // This allows enrolled students to join automatically via the app
     // but blocks unauthorized users who copy the Chrome link.
@@ -331,6 +335,149 @@ exports.createCalligroClassroom = onCall(async (request) => {
     console.error("Error in createCalligroClassroom:", error);
     throw new HttpsError("internal", error.message || "Failed to create classroom.");
   }
+});
+
+// --------------------
+// Firestore Trigger: Sync Course to Lemon Squeezy
+// --------------------
+exports.syncCourseToLemonSqueezy = onDocumentCreated({
+  document: "courses/{courseId}",
+  secrets: [lemonsqueezyApiKey, lemonsqueezyStoreId]
+}, async (event) => {
+  try {
+    const courseId = event.params.courseId;
+    const course = event.data.data();
+
+    if (!course || course.lemonsqueezyVariantId) {
+      console.log(`Skipping sync for course ${courseId}: Already synced or no data.`);
+      return null;
+    }
+
+    const apiKey = lemonsqueezyApiKey.value();
+    const storeId = lemonsqueezyStoreId.value();
+
+    const courseName = course.courseName || course.courseTitle || "Untitled Course";
+    const teacherName = course.teacherName || "Master Instructor";
+    const originalPrice = Number(course.price || 0);
+    const discountedPriceCents = Math.round((originalPrice * 100) / 2);
+
+    console.log(`🚀 Syncing course ${courseId} to Lemon Squeezy as Variant under Master Product (952985) at 50% price: $${originalPrice / 2}`);
+
+    // 1. Create Variant under Master Product
+    const masterProductId = "952985";
+    try {
+      const variantResponse = await fetch("https://api.lemonsqueezy.com/v1/variants", {
+        method: "POST",
+        headers: {
+          "Accept": "application/vnd.api+json",
+          "Content-Type": "application/vnd.api+json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          data: {
+            type: "variants",
+            attributes: {
+              name: `${courseName} - ${teacherName}`,
+              price: discountedPriceCents,
+              is_subscription: false
+            },
+            relationships: {
+              product: {
+                data: { type: "products", id: masterProductId }
+              }
+            }
+          }
+        })
+      });
+
+      const variantData = await variantResponse.json();
+      if (!variantResponse.ok) {
+        console.warn(`⚠️ LS Variant API issue (${variantResponse.status}): ${JSON.stringify(variantData)}. Automated checkout will use fallbacks.`);
+      } else {
+        const variantId = variantData.data.id;
+        console.log(`✅ LS Variant Created: ${variantId}`);
+        
+        await admin.firestore().collection("courses").doc(courseId).update({
+          lemonsqueezyVariantId: variantId,
+        });
+      }
+    } catch (err) {
+      console.error("❌ variant creation error:", err.message);
+    }
+
+    // 2. Mark as payment-ready (enables Web Portal automation)
+    await admin.firestore().collection("courses").doc(courseId).update({
+      lemonsqueezyProductId: masterProductId,
+      syncedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log(`🏆 Course ${courseId} is now payment-ready for automation.`);
+
+
+  } catch (error) {
+    console.error("❌ syncCourseToLemonSqueezy Error:", error.message || error);
+  }
+  return null;
+});
+
+// --------------------
+// Firestore Trigger: Update Lemon Squeezy on Course Change
+// --------------------
+exports.updateLemonSqueezyCourse = onDocumentUpdated({
+  document: "courses/{courseId}",
+  secrets: [lemonsqueezyApiKey, lemonsqueezyStoreId]
+}, async (event) => {
+  try {
+    const courseId = event.params.courseId;
+    const before = event.data.before.data();
+    const after = event.data.after.data();
+
+    if (!after.lemonsqueezyProductId || !after.lemonsqueezyVariantId) return null;
+
+    const priceChanged = before.price !== after.price;
+    const nameChanged = (before.courseName !== after.courseName) || (before.courseTitle !== after.courseTitle);
+    const teacherChanged = before.teacherName !== after.teacherName;
+    const bannerChanged = before.courseBanner !== after.courseBanner;
+
+    if (!priceChanged && !nameChanged && !teacherChanged && !bannerChanged) return null;
+
+    const apiKey = lemonsqueezyApiKey.value();
+    const variantId = after.lemonsqueezyVariantId;
+
+    const courseName = after.courseName || after.courseTitle || "Untitled Course";
+    const teacherName = after.teacherName || "Master Instructor";
+    const originalPrice = Number(after.price || 0);
+    const discountedPriceCents = Math.round((originalPrice * 100) / 2);
+
+    console.log(`🔄 Syncing updates for course ${courseId} (Variant ${variantId}) to Lemon Squeezy...`);
+
+    // Update Variant (Name or Price)
+    if (nameChanged || teacherChanged || priceChanged) {
+      await fetch(`https://api.lemonsqueezy.com/v1/variants/${variantId}`, {
+        method: "PATCH",
+        headers: {
+          "Accept": "application/vnd.api+json",
+          "Content-Type": "application/vnd.api+json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          data: {
+            type: "variants",
+            id: variantId,
+            attributes: {
+              name: `${courseName} - ${teacherName}`,
+              price: discountedPriceCents
+            }
+          }
+        })
+      });
+      console.log(`✅ LS Variant ${variantId} updated.`);
+    }
+
+  } catch (error) {
+    console.error("❌ updateLemonSqueezyCourse Error:", error.message || error);
+  }
+  return null;
 });
 
 // --------------------
@@ -353,8 +500,8 @@ exports.verifyPurchase = onCall(async (request) => {
 
     // 2. Apple Receipt Validation (Using Node 22 fetch)
     // In Production, you should check Production URL first. For Sandbox, use the sandbox URL.
-    const APPLE_VERIFY_URL = "https://sandbox.itunes.apple.com/verifyReceipt"; 
-    
+    const APPLE_VERIFY_URL = "https://sandbox.itunes.apple.com/verifyReceipt";
+
     const response = await fetch(APPLE_VERIFY_URL, {
       method: "POST",
       body: JSON.stringify({ "receipt-data": receiptData }),
@@ -385,13 +532,13 @@ exports.verifyPurchase = onCall(async (request) => {
     // 5. Fetch Metadata for Rich Auditing (User, Course, Teacher)
     const userSnap = await admin.firestore().collection("users").doc(uid).get();
     const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
-    
+
     const userData = userSnap.data() || {};
     const courseData = courseSnap.data() || {};
 
     // 6. Atomic Update: Create Order + Enroll Student
     const batch = admin.firestore().batch();
-    
+
     // Create Detailed Audit Record
     batch.set(admin.firestore().collection("orders").doc(transactionId), {
       uid,
@@ -418,16 +565,84 @@ exports.verifyPurchase = onCall(async (request) => {
     await batch.commit();
     console.log(`🏆 Successfully Enrolled User ${uid} in Course ${courseId}`);
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       transactionId,
-      message: "Purchase verified and course unlocked." 
+      message: "Purchase verified and course unlocked."
     };
 
   } catch (error) {
     console.error("verifyPurchase Error:", error);
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", error.message || "Failed to verify purchase.");
+  }
+});
+
+// --------------------
+// HTTPS Function: Lemon Squeezy Webhook (Enrollment)
+// --------------------
+exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSecret] }, async (req, res) => {
+  try {
+    const signature = req.get("X-Signature");
+    const secret = lemonsqueezyWebhookSecret.value();
+    
+    if (!signature || !secret) {
+      console.warn("⚠️ Webhook missing signature or secret.");
+      return res.status(401).send("Unauthorized");
+    }
+
+    const hmac = crypto.createHmac("sha256", secret);
+    const digest = hmac.update(req.rawBody).digest("hex");
+
+    if (signature !== digest) {
+      console.error("❌ Invalid signature for Lemon Squeezy webhook");
+      return res.status(401).send("Invalid signature");
+    }
+
+    const event = req.body;
+    const eventName = event?.meta?.event_name;
+
+    console.log(`📡 Lemon Squeezy Webhook received: ${eventName}`);
+
+    if (eventName === "order_created") {
+      const customData = event.meta.custom_data;
+      const userId = customData?.user_id || customData?.userId;
+      const courseId = customData?.course_id || customData?.courseId;
+
+      if (!userId || !courseId) {
+        console.warn("⚠️ Webhook meta missing user_id or course_id", customData);
+        return res.status(200).send("No enrollment data found");
+      }
+
+      console.log(`🏆 Enrolling Student: ${userId} in Course: ${courseId}`);
+
+      // 1. Update Course Document (Atomic)
+      await admin.firestore().collection("courses").doc(String(courseId)).update({
+        enrolledStudents: admin.firestore.FieldValue.arrayUnion(userId),
+        enrolledCount: admin.firestore.FieldValue.increment(1)
+      });
+
+      // 2. Create Audit/Order Log
+      await admin.firestore().collection("orders").doc(String(event.data.id)).set({
+        uid: userId,
+        courseId,
+        orderId: event.data.id,
+        amount: event.data.attributes.total,
+        currency: event.data.attributes.currency,
+        status: event.data.attributes.status,
+        customerName: event.data.attributes.user_name || "Academy Student",
+        customerEmail: event.data.attributes.user_email || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        source: "lemonsqueezy_webhook"
+      });
+
+      console.log(`✅ Enrollment completed for ${userId}`);
+    }
+    
+    return res.status(200).send("Webhook received");
+  } catch (err) {
+    console.error("❌ Webhook processing error:", err.message);
+    return res.status(500).send("Internal Server Error");
   }
 });
 
