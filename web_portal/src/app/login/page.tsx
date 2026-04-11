@@ -173,7 +173,7 @@ export default function LoginPage() {
             className="border-t border-white/5 pt-8"
           >
             <p className="text-white/20 text-sm font-medium leading-relaxed">
-              "Calligraphy is the geometry of the soul expressed through the body."
+              &quot;Calligraphy is the geometry of the soul expressed through the body.&quot;
             </p>
             <p className="text-white/10 text-xs mt-2 font-bold uppercase tracking-widest">— Ibn Muqla</p>
           </motion.div>

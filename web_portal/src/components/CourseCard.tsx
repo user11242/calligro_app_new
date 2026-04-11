@@ -1,6 +1,7 @@
 "use client";
 import { motion } from "framer-motion";
 import { Users, Star, Clock, Calendar, CheckCircle2, ChevronRight } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { formatImageUrl } from "@/lib/utils";
 import AutoTranslatedText from "./AutoTranslatedText";
@@ -52,10 +53,12 @@ export default function CourseCard({ course }: CourseCardProps) {
       <Link href={`/courses/${course.id}`}>
         {/* Inner Bordered Card with Media */}
         <div className="absolute inset-0 rounded-[48px] overflow-hidden bg-[#050505] border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] z-0">
-          <img 
-            src={formatImageUrl(course.courseBanner)} 
+          <Image 
+            src={formatImageUrl(course.courseBanner) || "/images/placeholder.png"} 
             alt={title}
-            className="w-full h-full object-cover transition-transform duration-[2500ms] group-hover:scale-110 ease-out"
+            fill
+            className="object-cover transition-transform duration-[2500ms] group-hover:scale-110 ease-out"
+            priority={false}
           />
           {/* Multi-layered Gradients for Modern Depth */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent opacity-95" />
@@ -142,9 +145,11 @@ export default function CourseCard({ course }: CourseCardProps) {
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white/20 p-0.5 group-hover:border-primary/40 transition-colors shadow-lg">
-                    <img 
-                      src={formatImageUrl(teacherPic)} 
+                    <Image 
+                      src={formatImageUrl(teacherPic) || "/images/placeholder.png"} 
                       alt={teacherName} 
+                      width={56}
+                      height={56}
                       className="w-full h-full object-cover rounded-full grayscale-[50%] group-hover:grayscale-0 transition-all duration-700" 
                     />
                   </div>

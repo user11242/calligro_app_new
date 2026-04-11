@@ -7,6 +7,7 @@ import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, query, limit, getDocs, orderBy } from "firebase/firestore";
 import AutoTranslatedText from "@/components/AutoTranslatedText";
+import Image from "next/image";
 import { Star, ArrowRight, Play, Layout, Users, Sparkles } from "lucide-react";
 import { formatImageUrl } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -207,10 +208,12 @@ export default function Home() {
                   <Link href={`/courses/${course.id}`} className="flex flex-col h-full">
                     {/* Course Banner */}
                     <div className="relative aspect-square w-full overflow-hidden">
-                      <img 
-                        src={formatImageUrl(course.courseBanner)} 
-                        alt={course.courseName}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2000ms] ease-out"
+                      <Image 
+                        src={formatImageUrl(course.courseBanner) || "/images/placeholder.png"} 
+                        alt={course.courseName || "Course Banner"}
+                        fill
+                        className="object-cover transition-transform duration-[2500ms] group-hover:scale-110 ease-out"
+                        priority={false}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-transparent opacity-90" />
                       

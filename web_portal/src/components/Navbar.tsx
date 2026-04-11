@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -83,14 +84,12 @@ export default function Navbar() {
               <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white overflow-hidden border-2 border-white/20 shadow-xl group/avatar">
                   {userPhoto ? (
-                    <img 
-                      src={userPhoto} 
+                    <Image 
+                      src={userPhoto || "/images/placeholder.png"} 
                       alt="User" 
+                      width={40}
+                      height={40}
                       className="w-full h-full object-cover transition-all duration-500"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        setUserPhoto("");
-                      }}
                     />
                   ) : (
                     <UserIcon className="w-4 h-4" />
@@ -161,7 +160,13 @@ export default function Navbar() {
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white overflow-hidden border-2 border-white/20">
                       {userPhoto ? (
-                        <img src={userPhoto} alt="User" className="w-full h-full object-cover" />
+                        <Image 
+                          src={userPhoto || "/images/placeholder.png"} 
+                          alt="User" 
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover" 
+                        />
                       ) : (
                         <UserIcon className="w-4 h-4" />
                       )}

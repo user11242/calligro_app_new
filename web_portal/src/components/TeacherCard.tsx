@@ -1,6 +1,7 @@
 "use client";
 import { CheckCircle2, BookOpen, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useTranslation } from "@/hooks/useTranslation";
 import AutoTranslatedText from "./AutoTranslatedText";
 
@@ -37,9 +38,11 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
           {/* Avatar Section */}
           <div className="relative mb-6">
             <div className="w-32 h-32 rounded-3xl overflow-hidden border-2 border-white/10 p-1 group-hover:border-primary/40 transition-all duration-700 transform group-hover:rotate-3">
-              <img 
-                src={formatImageUrl(teacher.photoUrl)} 
+              <Image 
+                src={formatImageUrl(teacher.photoUrl) || "/images/placeholder.png"} 
                 alt={teacher.name}
+                width={128}
+                height={128}
                 className="w-full h-full object-cover rounded-2xl grayscale-[50%] group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-115"
               />
             </div>
