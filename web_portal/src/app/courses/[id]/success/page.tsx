@@ -79,19 +79,19 @@ export default function SuccessPage() {
 
             <div className="flex flex-col sm:flex-row gap-6 w-full">
                <Link 
-                  href={`/courses/${id}/classroom`}
-                  className="flex-1 py-5 bg-primary text-black font-black uppercase tracking-[3px] text-xs rounded-2xl hover:scale-[1.05] transition-all flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(212,175,55,0.2)]"
+                  href={`/courses/${id}`}
+                  className="flex-1 py-5 bg-primary text-black font-black uppercase tracking-[3px] text-xs rounded-2xl hover:scale-[1.05] transition-all flex items-center justify-center gap-3 shadow-[0_20px_40px_-10px_rgba(212,175,55,0.4)] border-2 border-primary group"
                >
-                  <Zap className="w-4 h-4" />
-                  <AutoTranslatedText text="Start Learning Now" />
-                  <ArrowRight className="w-4 h-4" />
+                  <Zap className="w-4 h-4 group-hover:animate-bounce" />
+                  <AutoTranslatedText text="Explore Course Dashboard" />
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                </Link>
                
                <Link 
                   href="/courses"
                   className="flex-1 py-5 bg-white/5 border border-white/10 text-white font-black uppercase tracking-[3px] text-xs rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center"
                >
-                  <AutoTranslatedText text="View More Courses" />
+                  <AutoTranslatedText text="Discover More Art" />
                </Link>
             </div>
           </div>
