@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "Enroll in world-class calligraphy courses, join live sessions, and master the ancient art with modern experts.",
   icons: {
     icon: "/assets/images/Logo.png",
+    shortcut: "/assets/images/Logo.png",
+    apple: "/assets/images/Logo.png",
   },
 };
 
