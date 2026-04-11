@@ -1,13 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { db, auth } from "@/lib/firebase";
 import { doc, getDoc, runTransaction, collection, serverTimestamp } from "firebase/firestore";
 import Navbar from "@/components/Navbar";
-import { Loader2, ShieldCheck, ArrowLeft, CreditCard, CheckCircle2, Zap } from "lucide-react";
+import { Loader2, ShieldCheck, ArrowLeft, CreditCard, CheckCircle2, Zap, Layout } from "lucide-react";
 import Link from "next/link";
 import { createCheckoutSession } from "@/app/actions/payment";
 import AutoTranslatedText from "@/components/AutoTranslatedText";
+import { useTranslation } from "@/hooks/useTranslation";
+
+// Override firebase import to use local initialized app
+import { db as libDb, auth as libAuth } from "@/lib/firebase";
 
 export default function CheckoutPage() {
   const { id } = useParams();
@@ -17,10 +20,11 @@ export default function CheckoutPage() {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { t } = useTranslation();
 
   const handlePayment = async () => {
     try {
-      const user = auth.currentUser;
+      const user = libAuth.currentUser;
       if (!user) {
         setError("You must be logged in to purchase.");
         return;
@@ -29,30 +33,29 @@ export default function CheckoutPage() {
       setJoining(true);
       setError(null);
 
-      // 1. Get Variant ID (Should be in course doc or mapping)
-      // For now, we expect it in the course document, or fallback to a test ID
-      const variantId = course.lemonsqueezyVariantId;
-      if (!variantId) {
-        throw new Error("This course is not yet linked to a Lemon Squeezy product. Please contact the Academy.");
-      }
+      const studentPriceCents = Math.round((Number(course.price || 0) * 100) / 2);
+      const courseName = course.courseName || course.courseTitle || "Untitled Course";
+      const bannerUrl = course.courseBanner || course.thumbnailUrl;
 
-      // 2. Create Checkout Session
       const { checkoutUrl } = await createCheckoutSession(
-        variantId,
+        course.lemonSqueezyVariantId,
         user.uid,
         id as string,
-        user.email || ""
+        user.email || "",
+        courseName,
+        studentPriceCents,
+        `Masterclass by ${course.teacherName || 'Master Instructor'}`,
+        bannerUrl
       );
+
 
       if (!checkoutUrl) {
         throw new Error("Failed to generate checkout URL");
       }
 
-      // 3. Redirect to Lemon Squeezy
       window.location.href = checkoutUrl;
     } catch (err: any) {
       console.error("Payment Error:", err);
-      // If the error message mentions missing config, give a concrete hint
       const msg = err.message || "";
       if (msg.includes("Missing Store Configuration") || msg.includes("environment variable")) {
         setError("Error: Payments are not configured properly on Vercel yet. Please ensure LEMONSQUEEZY_API_KEY and LEMONSQUEEZY_STORE_ID are set.");
@@ -63,40 +66,96 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleQuickJoin = async () => {
+  const handleAdminBypass = async () => {
+    // Only allow in development
+    if (process.env.NODE_ENV !== "development") return;
+
     try {
-      const user = auth.currentUser;
+      const user = libAuth.currentUser;
       if (!user) {
         setError("You must be logged in to join.");
         return;
       }
 
-      if (course?.price && Number(course.price) > 0) {
+      setJoining(true);
+
+      await runTransaction(libDb, async (transaction) => {
+        const courseRef = doc(libDb, "courses", id as string);
+        const transactionRef = doc(collection(libDb, "transactions"));
+
+        const courseSnap = await transaction.get(courseRef);
+        if (!courseSnap.exists()) throw new Error("Course not found");
+
+        const courseData = courseSnap.data()!;
+        const enrolledStudents = Array.isArray(courseData.enrolledStudents) ? [...courseData.enrolledStudents] : [];
+
+        if (!enrolledStudents.includes(user.uid)) {
+          enrolledStudents.push(user.uid);
+
+          transaction.update(courseRef, {
+            enrolledStudents: enrolledStudents,
+            enrolledCount: enrolledStudents.length
+          });
+
+          transaction.set(transactionRef, {
+            studentId: user.uid,
+            studentName: user.displayName || user.email?.split('@')[0] || 'Student',
+            teacherId: courseData.teacherId || '',
+            teacherName: courseData.teacherName || 'Unknown Teacher',
+            courseId: id as string,
+            courseName: courseData.courseName || courseData.courseTitle || courseData.title || 'Untitled Course',
+            amount: 0,
+            currency: 'USD',
+            source: 'admin_bypass',
+            status: 'completed',
+            createdAt: serverTimestamp(),
+          });
+        }
+      });
+
+      router.push(`/courses/${id}/classroom`);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to bypass. Please check permissions.");
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleQuickJoin = async () => {
+    try {
+      const user = libAuth.currentUser;
+      if (!user) {
+        setError("You must be logged in to join.");
+        return;
+      }
+
+      if (course?.price && (Number(course.price) / 2) > 0) {
         setError("Please complete the payment to join this course.");
         return;
       }
 
       setJoining(true);
 
-      await runTransaction(db, async (transaction) => {
-        const courseRef = doc(db, "courses", id as string);
-        const transactionRef = doc(collection(db, "transactions"));
+      await runTransaction(libDb, async (transaction) => {
+        const courseRef = doc(libDb, "courses", id as string);
+        const transactionRef = doc(collection(libDb, "transactions"));
 
         const courseSnap = await transaction.get(courseRef);
         if (!courseSnap.exists()) throw new Error("Course not found");
-        
+
         const courseData = courseSnap.data()!;
         const enrolledStudents = Array.isArray(courseData.enrolledStudents) ? [...courseData.enrolledStudents] : [];
 
         if (!enrolledStudents.includes(user.uid)) {
           enrolledStudents.push(user.uid);
-          
+
           transaction.update(courseRef, {
             enrolledStudents: enrolledStudents,
             enrolledCount: enrolledStudents.length
           });
 
-          const grossAmount = Number(courseData.price) || 0;
+          const grossAmount = (Number(courseData.price) / 2) || 0;
           transaction.set(transactionRef, {
             studentId: user.uid,
             studentName: user.displayName || user.email?.split('@')[0] || 'Student',
@@ -109,7 +168,7 @@ export default function CheckoutPage() {
             source: 'web_portal_quick',
             status: 'completed',
             createdAt: serverTimestamp(),
-            teacherShare: 0, 
+            teacherShare: 0,
             academyProfit: 0,
             storeFee: 0,
           });
@@ -130,7 +189,7 @@ export default function CheckoutPage() {
 
     const initCheckout = async () => {
       try {
-        const docRef = doc(db, "courses", id as string);
+        const docRef = doc(libDb, "courses", id as string);
         const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
           setError("Course not found");
@@ -139,7 +198,7 @@ export default function CheckoutPage() {
         const courseData = { id: docSnap.id, ...docSnap.data() as any };
         setCourse(courseData);
 
-        const user = auth.currentUser;
+        const user = libAuth.currentUser;
         if (user && courseData.enrolledStudents?.includes(user.uid)) {
           setIsEnrolled(true);
           return;
@@ -156,120 +215,151 @@ export default function CheckoutPage() {
   }, [id]);
 
   if (loading) return (
-    <div className="min-h-screen bg-secondary-dark flex flex-col items-center justify-center gap-4">
-      <Loader2 className="w-10 h-10 text-primary animate-spin" />
-      <p className="text-white/40 font-black uppercase tracking-widest text-xs">Initializing Secure Checkout...</p>
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-6">
+      <Loader2 className="w-12 h-12 text-primary animate-spin" />
+      <p className="text-white/40 font-black uppercase tracking-[0.3em] text-xs ">{t("checkout.loading")}</p>
     </div>
   );
 
   if (error || !course) return (
-    <div className="min-h-screen bg-secondary-dark flex flex-col items-center justify-center gap-6">
-      <p className="text-red-400 font-bold">{error || "Something went wrong"}</p>
-      <Link href={`/courses/${id}`} className="text-primary hover:underline">Back to Course</Link>
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-6 p-6 text-center">
+      <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/20">
+        <ShieldCheck className="w-10 h-10 text-red-500" />
+      </div>
+      <p className="text-red-400 font-bold max-w-xl text-lg">{error || "Something went wrong"}</p>
+      <Link href={`/courses/${id}`} className="btn-gold mt-4 py-4 px-10 border border-white/10 hover:bg-white/5 transition-all text-sm font-black tracking-widest text-[#050505] uppercase">
+        {t("checkout.cancel")}
+      </Link>
     </div>
   );
 
   return (
-    <main className="min-h-screen bg-secondary-dark pb-32">
+    <main className="min-h-screen academy-bg pb-32">
       <Navbar />
-      
-      <div className="pt-32 px-6 max-w-4xl mx-auto">
-        <Link href={`/courses/${id}`} className="inline-flex items-center gap-2 text-white/40 hover:text-primary transition-colors mb-12 text-sm font-bold uppercase tracking-widest">
-            <ArrowLeft className="w-4 h-4" />
-            Cancel & Return
+
+      <div className="pt-32 px-6 max-w-5xl mx-auto">
+        <Link href={`/courses/${id}`} className="inline-flex items-center gap-3 text-white/50 hover:text-primary transition-colors mb-12 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] group">
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          {t("checkout.cancel")}
         </Link>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-            <div className="space-y-8">
-                <div className="glass-premium p-8 rounded-[32px] border-white/10">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[4px] mb-4">Checkout Summary</p>
-                    <h1 className="text-3xl font-black font-outfit text-white mb-2">{course.courseName || course.courseTitle}</h1>
-                    <p className="text-white/40 text-sm font-medium">Instructor: {course.teacherName}</p>
-                    
-                    <div className="mt-8 pt-8 border-t border-white/5 flex justify-between items-end">
-                        <span className="text-white/40 text-xs font-black uppercase tracking-widest">
-                            <AutoTranslatedText text="Total Tuition" />
-                        </span>
-                        <span className="text-3xl font-black font-outfit gold-text">${Number(course.price).toFixed(2)}</span>
-                    </div>
+        {/* Abstract Glow Layer */}
+        <div className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/5 blur-[150px] rounded-full pointer-events-none" />
 
-                    {!isEnrolled && (course.price === 0 || Number(course.price) === 0) && (
-                        <button 
-                            onClick={handleQuickJoin}
-                            disabled={joining}
-                            className="w-full mt-8 py-4 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-[2px] text-xs rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                        >
-                            {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4 text-primary" />}
-                            <AutoTranslatedText text="Join Course Directly" />
-                        </button>
-                    )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24 relative z-10 w-full items-start">
+          <div className="space-y-10">
+            <div className="glass-premium p-10 md:p-12 rounded-[48px] border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] backdrop-blur-3xl bg-[#0a0a0a]">
+              <div className="flex items-center gap-4 mb-8">
+                <Layout className="w-5 h-5 text-primary" />
+                <p className="text-xs font-black text-primary uppercase tracking-[0.3em] -[0_0_8px_rgba(238,229,147,0.3)]">{t("checkout.summary")}</p>
+              </div>
+
+              <h1 className="text-3xl md:text-5xl font-black font-outfit text-white mb-4 leading-tight">
+                <AutoTranslatedText text={course.courseName || course.courseTitle} />
+              </h1>
+              <p className="text-white/50 text-base md:text-lg font-medium">{t("checkout.instructor")} <AutoTranslatedText text={course.teacherName} /></p>
+
+              <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between md:items-end gap-4">
+                <div className="flex flex-col">
+                  <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
+                    {t("checkout.total")}
+                  </span>
+                  <span className="text-white/20 text-sm font-bold line-through px-1">${Number(course.price).toFixed(0)}</span>
                 </div>
-
-                {isEnrolled && (
-                    <div className="bg-primary/10 border border-primary/20 p-8 rounded-[32px] flex flex-col items-center gap-6 text-center">
-                        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-                          <CheckCircle2 className="w-8 h-8 text-primary" />
-                        </div>
-                        <div>
-                            <h3 className="text-white text-xl font-black font-outfit mb-2">You&apos;re already enrolled!</h3>
-                            <p className="text-white/40 text-sm mb-6">Enjoy your learning journey at Calligro Academy.</p>
-                            <Link 
-                               href={`/courses/${id}/classroom`} 
-                               className="btn-gold px-8 py-4 inline-flex items-center gap-2"
-                            >
-                               <Zap className="w-4 h-4" />
-                               Enter Classroom
-                            </Link>
-                        </div>
-                    </div>
-                )}
-
-                <div className="space-y-4 px-4">
-                    <div className="flex items-center gap-4 text-white/40 text-sm font-bold">
-                        <ShieldCheck className="w-5 h-5 text-primary" />
-                        Secure Checkout via Lemon Squeezy
-                    </div>
-                    <div className="flex items-center gap-4 text-white/40 text-sm font-bold">
-                        <CreditCard className="w-5 h-5 text-primary" />
-                        Global Payments Support
-                    </div>
+                <div className="flex flex-col items-end">
+                  <span className="bg-primary/20 text-primary px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border border-primary/20">50% Academy Grant</span>
+                  <span className="text-5xl md:text-6xl font-black font-outfit gold-text leading-none">${(Number(course.price) / 2).toFixed(0)}</span>
                 </div>
+              </div>
+
+              {!isEnrolled && (course.price === 0 || Number(course.price) === 0) && (
+                <button
+                  onClick={handleQuickJoin}
+                  disabled={joining}
+                  className="w-full mt-10 py-5 bg-white/[0.03] hover:bg-white/10 text-white font-black uppercase tracking-[0.2em] text-xs rounded-[24px] border border-white/10 transition-all flex items-center justify-center gap-4 disabled:opacity-50 shadow-inner"
+                >
+                  {joining ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5 text-primary -[0_0_8px_rgba(238,229,147,0.4)]" />}
+                  {t("checkout.join_direct")}
+                </button>
+              )}
             </div>
 
-            <div className="relative">
-                {!isEnrolled && course.price > 0 && (
-                    <div className="glass-premium p-10 rounded-[40px] border-white/5 bg-[#121212] flex flex-col items-center">
-                        <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-8 border border-primary/20">
-                            <CreditCard className="w-10 h-10 text-primary" />
-                        </div>
-                        <h2 className="text-center text-xs font-black uppercase tracking-[3px] mb-4 text-white/60">Secure Payment</h2>
-                        <p className="text-white/40 text-center text-xs mb-10 leading-relaxed">
-                            Click below to complete your enrollment safely using Apple Pay, Google Pay, or Credit Card.
-                        </p>
-                        
-                        <button
-                            onClick={handlePayment}
-                            disabled={joining}
-                            className="w-full py-5 bg-primary text-black font-black uppercase tracking-[3px] text-xs rounded-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3 disabled:opacity-50 shadow-[0_0_30px_rgba(212,175,55,0.2)]"
-                        >
-                            {joining ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <>
-                                    <Zap className="w-5 h-5" />
-                                    Secure Checkout
-                                </>
-                            )}
-                        </button>
-                        
-                        <div className="mt-8 flex gap-4 opacity-20">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-3" />
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-5" />
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-4" />
-                        </div>
-                    </div>
-                )}
+            {isEnrolled && (
+              <div className="bg-primary/5 border border-primary/20 p-12 rounded-[48px] flex flex-col items-center gap-6 text-center backdrop-blur-md">
+                <div className="w-20 h-20 bg-primary/10 rounded-[32px] flex items-center justify-center border border-primary/30 shadow-[0_0_30px_rgba(238,229,147,0.2)]">
+                  <CheckCircle2 className="w-10 h-10 text-primary -[0_0_8px_currentColor]" />
+                </div>
+                <div>
+                  <h3 className="text-white text-3xl font-black font-outfit mb-3">{t("checkout.enrolled")}</h3>
+                  <p className="text-white/50 text-base mb-8 max-w-sm mx-auto">{t("checkout.enrolled_desc")}</p>
+                  <Link
+                    href={`/courses/${id}/classroom`}
+                    className="btn-gold w-full text-base py-5 flex items-center justify-center gap-3 shadow-[0_20px_50px_-10px_rgba(238,229,147,0.3)]  hover:animate-none"
+                  >
+                    <Zap className="w-5 h-5" />
+                    {t("checkout.enter_classroom")}
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-6 px-4">
+              <div className="flex items-center gap-5 text-white/50 text-sm font-bold">
+                <ShieldCheck className="w-6 h-6 text-primary" />
+                {t("checkout.secure_lemon")}
+              </div>
+              <div className="flex items-center gap-5 text-white/50 text-sm font-bold">
+                <CreditCard className="w-6 h-6 text-primary" />
+                {t("checkout.global_support")}
+              </div>
             </div>
+          </div>
+
+          <div className="relative">
+            {!isEnrolled && course.price > 0 && (
+              <div className="glass-premium p-10 md:p-14 rounded-[48px] border-t border-white/10 border-x border-white/5 bg-[#0a0a0a] flex flex-col items-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
+                <div className="w-24 h-24 bg-primary/10 rounded-[32px] flex items-center justify-center mb-8 border border-primary/20 shadow-[0_0_40px_rgba(238,229,147,0.15)]">
+                  <CreditCard className="w-10 h-10 text-primary -[0_0_8px_currentColor]" />
+                </div>
+                <h2 className="text-center text-sm font-black uppercase tracking-[0.3em] mb-4 text-white/90">{t("checkout.secure_payment")}</h2>
+                <p className="text-white/40 text-center text-sm md:text-base mb-12 leading-relaxed max-w-xs">
+                  {t("checkout.secure_desc")}
+                </p>
+
+                <button
+                  onClick={handlePayment}
+                  disabled={joining}
+                  className="btn-gold w-full py-6 text-sm flex items-center justify-center gap-4 disabled:opacity-50 shadow-[0_20px_50px_-10px_rgba(238,229,147,0.3)]"
+                >
+                  {joining ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <>
+                      <Zap className="w-6 h-6" />
+                      {t("checkout.secure_button")}
+                    </>
+                  )}
+                </button>
+
+                {process.env.NODE_ENV === "development" && (
+                  <button
+                    onClick={handleAdminBypass}
+                    disabled={joining}
+                    className="w-full mt-4 py-4 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-[24px] border border-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {joining ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-green-500" />}
+                    [ TESTING: ADMIN BYPASS ]
+                  </button>
+                )}
+
+                <div className="mt-12 flex gap-6 grayscale opacity-20 hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" className="h-4" />
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-6" />
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-5" />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </main>

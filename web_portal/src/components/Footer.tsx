@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
-import AutoTranslatedText from "./AutoTranslatedText";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const { t } = useTranslation();
 
   return (
     <footer className="relative py-24 px-6 border-t border-white/5 overflow-hidden">
@@ -25,13 +26,13 @@ export default function Footer() {
           {/* Right: Legal Links */}
           <div className="flex flex-wrap justify-center md:justify-end gap-x-10 gap-y-4">
              <Link href="/terms" className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-primary transition-colors">
-                <AutoTranslatedText text="Terms of Use" />
+                {t("footer.terms")}
              </Link>
              <Link href="/privacy" className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-primary transition-colors">
-                <AutoTranslatedText text="Privacy Policy" />
+                {t("footer.privacy")}
              </Link>
              <Link href="mailto:support@calligro.com" className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-primary transition-colors">
-                <AutoTranslatedText text="Contact Support" />
+                {t("Contact Support")}
              </Link>
           </div>
         </div>

@@ -3,20 +3,22 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 238, 229, 147; /* #EEE593 */
-  --background-start-rgb: 31, 31, 31; /* #1F1F1F */
-  --background-end-rgb: 18, 18, 18;
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 5, 5, 5;
+  --background-end-rgb: 0, 0, 0;
+  --gold-primary: #f2e293;
+  --gold-dark: #b89b3f;
 }
 
 body {
-  color: #EEE593;
-  background: #121212;
+  color: #FFFFFF;
+  background: #111111;
   min-height: 100vh;
 }
 
 .academy-bg {
-  background: #121212;
   position: relative;
+  overflow: hidden;
 }
 
 @layer utilities {
@@ -25,40 +27,62 @@ body {
   }
 }
 
+/* Premium Gold Text */
 .gold-text {
-  @apply bg-clip-text text-transparent bg-gold-gradient;
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(135deg, #FFEF96 0%, #D4AF37 50%, #B8860B 100%);
 }
 
-.gold-glow {
-  text-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
-}
 
-/* Removed star-particles and floating-orbs to simplify the UI */
-
+/* Standard Glass */
 .glass {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(20, 20, 20, 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
+/* Apple-style Premium Glass */
 .glass-premium {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.02);
 }
 
+/* Animated Gold Border */
 .border-gold {
+  position: relative;
+  background: #111111;
+  background-clip: padding-box;
   border: 1px solid transparent;
-  background: linear-gradient(#121212, #121212) padding-box,
-              var(--gold-gradient) border-box;
+}
+.border-gold::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: -1;
+  margin: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #FFEF96, #B8860B);
 }
 
+/* High-End Button */
 .btn-gold {
-  @apply relative overflow-hidden bg-gold-gradient text-secondary-dark font-black py-4 px-10 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-primary/20 hover:shadow-primary/40 uppercase tracking-widest text-xs;
+  @apply relative overflow-hidden text-black font-black py-4 px-10 rounded-full transition-all duration-300 transform hover:scale-[1.03] active:scale-[0.97] uppercase tracking-[0.15em] text-xs;
+  background: linear-gradient(135deg, #FFEF96 0%, #D4AF37 100%);
+  box-shadow: 0 10px 30px -10px rgba(212, 175, 55, 0.5), 
+              inset 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+.btn-gold:hover {
+  box-shadow: 0 15px 40px -10px rgba(212, 175, 55, 0.7), 
+              inset 0 2px 0 rgba(255, 255, 255, 0.5);
 }
 
+/* Form Inputs Cinematic */
 .input-glass {
-  @apply w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-primary/50 transition-all font-medium;
+  @apply w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-primary/60 transition-all font-medium focus:ring-4 focus:ring-primary/10 shadow-inner;
 }
