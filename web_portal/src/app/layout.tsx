@@ -8,6 +8,9 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 export const metadata: Metadata = {
   title: "Calligro Academy | Master the Art of Arabic Calligraphy",
   description: "Enroll in world-class calligraphy courses, join live sessions, and master the ancient art with modern experts.",
+  icons: {
+    icon: "/assets/images/Logo.png",
+  },
 };
 
 import { LocaleProvider } from "@/context/LocaleContext";
