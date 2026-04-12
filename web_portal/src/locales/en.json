@@ -105,5 +105,6 @@
   "teachers.title": "TEACHERS",
   "teachers.subtitle": "Master the Art under the guidance of world-renowned calligraphers.",
   "teachers.syncing": "Syncing Master Profiles...",
-  "teachers.no_results": "No instructors found."
+  "teachers.no_results": "No instructors found.",
+  "course.enrolled": "Enrolled"
 }

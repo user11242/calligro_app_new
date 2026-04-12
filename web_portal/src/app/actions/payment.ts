@@ -37,11 +37,30 @@ export async function createCheckoutSession(
       throw new Error("Payment configuration missing: LEMONSQUEEZY_STORE_ID is not set.");
     }
 
-    // Use specific variant if available, otherwise fallback to Master Variant (1500080)
-    const masterVariantId = process.env.LEMONSQUEEZY_VARIANT_ID?.trim() || "1500080"; 
+    // Select the variant ID based on the mode
+    const mode = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'test';
+    const masterVariantId = mode === 'live' 
+      ? process.env.LEMONSQUEEZY_LIVE_VARIANT_ID?.trim() 
+      : process.env.LEMONSQUEEZY_TEST_VARIANT_ID?.trim();
+      
+    if (!masterVariantId) {
+      throw new Error(`LEMONSQUEEZY_${mode.toUpperCase()}_VARIANT_ID is not set.`);
+    }
+
     const cleanVariantId = (variantId?.trim() || masterVariantId).trim();
 
-    console.log(`Lemon Squeezy: Creating session. Variant: ${cleanVariantId}, Price: $${(amountCents / 100).toFixed(2)}`);
+    console.log(`Lemon Squeezy: Creating ${mode.toUpperCase()} session. Variant: ${cleanVariantId}, Price: $${(amountCents / 100).toFixed(2)}`);
+
+    console.log(`Lemon Squeezy: [DEBUG] Sending Description: "${description}"`);
+    console.log(`Lemon Squeezy: [DEBUG] Full Payload:`, JSON.stringify({
+      storeId,
+      variantId: cleanVariantId,
+      productOptions: {
+        name: courseName,
+        description: description,
+      },
+      testMode: mode === 'test'
+    }, null, 2));
 
     const { data, error, statusCode } = await createCheckout(storeId, cleanVariantId, {
       checkoutData: {
@@ -61,14 +80,18 @@ export async function createCheckoutSession(
       productOptions: {
         name: courseName,
         description: description || "Calligro Digital Masterclass",
-        media: validMedia,
+        ...(validMedia.length > 0 ? { media: validMedia } : {}),
         redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://calligro.digital"}/courses/${courseId}/success`,
         receiptButtonText: "Enter Classroom",
         receiptLinkUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://calligro.digital"}/courses/${courseId}/classroom`,
       },
       customPrice: amountCents,
-      testMode: true, 
+      testMode: mode === 'test', 
     });
+
+    if (data) {
+      console.log(`Lemon Squeezy: [DEBUG] Generated URL: ${data.data.attributes.url}`);
+    }
 
     if (error) {
       console.error("Lemon Squeezy API Error:", JSON.stringify(error, null, 2));

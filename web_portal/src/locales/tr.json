@@ -83,5 +83,6 @@
   "course.starts_in": "Başlıyor",
   "course.days": "Gün",
   "course.master": "Usta",
-  "course.joined": "KATILDI"
+  "course.joined": "KATILDI",
+  "course.enrolled": "Kayıt Olundu"
 }

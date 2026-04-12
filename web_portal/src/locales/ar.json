@@ -105,5 +105,6 @@
   "teachers.title": "المعلمون",
   "teachers.subtitle": "احترف الفن تحت إشراف نخبة من كبار الخطاطين العالميين.",
   "teachers.syncing": "جاري مزامنة بيانات الخطاطين...",
-  "teachers.no_results": "لم يتم العثور على معلمين."
+  "teachers.no_results": "لم يتم العثور على معلمين.",
+  "course.enrolled": "تم الالتحاق"
 }

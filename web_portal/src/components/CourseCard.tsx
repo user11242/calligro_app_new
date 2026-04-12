@@ -81,11 +81,20 @@ export default function CourseCard({ course }: CourseCardProps) {
 
           {/* Left Block (Physical Left in RTL): Level & Price Stack */}
           <div className="flex flex-col items-start gap-4 pt-10">
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 px-5 py-2 rounded-2xl shadow-xl">
-              <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">
-                <AutoTranslatedText text={level} />
-              </span>
-            </div>
+            {isEnrolled ? (
+              <div className="bg-green-500/20 backdrop-blur-xl border border-green-500/30 px-5 py-2 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.2)] flex items-center gap-2 animate-pulse">
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-green-400">
+                  {t("course.enrolled")}
+                </span>
+              </div>
+            ) : (
+              <div className="bg-white/10 backdrop-blur-xl border border-white/20 px-5 py-2 rounded-2xl shadow-xl">
+                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-white/90">
+                  <AutoTranslatedText text={level} />
+                </span>
+              </div>
+            )}
 
             <div className="flex flex-col mt-2">
               <div className="relative w-fit mb-1">

@@ -37,6 +37,8 @@ export default function CheckoutPage() {
       const courseName = course.courseName || course.courseTitle || "Untitled Course";
       const bannerUrl = course.courseBanner || course.thumbnailUrl;
 
+      const structuredDescription = "Your enrollment is processed instantly. After checkout, you will be automatically redirected to your student dashboard to start learning immediately.";
+
       const { checkoutUrl } = await createCheckoutSession(
         course.lemonSqueezyVariantId,
         user.uid,
@@ -44,7 +46,7 @@ export default function CheckoutPage() {
         user.email || "",
         courseName,
         studentPriceCents,
-        `Masterclass by ${course.teacherName || 'Master Instructor'}`,
+        structuredDescription,
         bannerUrl
       );
 

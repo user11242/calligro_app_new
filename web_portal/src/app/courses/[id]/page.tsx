@@ -115,19 +115,9 @@ export default function CourseDetailsPage() {
       const bannerUrl = formatImageUrl(course.courseBanner || course.thumbnailUrl);
       const teacherUrl = formatImageUrl(teacher?.photoUrl || course.teacherProfilePic);
 
-      // Construct a rich description with Unicode dividers and bold-like separators
-      const richDescription = [
-        `👨‍🏫 Masterclass by ${course.teacherName || 'Instructor'}`,
-        `🏆 Level: ${mapLevel(course.selectedCategory)}`,
-        "────────────────────",
-        "✅ Full Lifetime Access",
-        "✅ HD Video Content & Downloads",
-        "✅ Direct Academy Enrollment",
-        "✅ Verified Certificate",
-        "────────────────────",
-        "Calligro Academy Digital Excellence"
-      ].join("\n");
-
+      // Use the clean, simplified description to allow dashboard media to show
+      const cleanDescription = "Your enrollment is processed instantly. After checkout, you will be automatically redirected to your student dashboard to start learning immediately.";
+      
       const result = await createCheckoutSession(
         course.lemonSqueezyVariantId,
         user.uid,
@@ -135,8 +125,8 @@ export default function CourseDetailsPage() {
         user.email || "",
         courseName,
         studentPriceCents,
-        richDescription,
-        [bannerUrl || "", teacherUrl || ""].filter(Boolean)
+        cleanDescription,
+        [] // Pass empty array to favor Dashboard images
       );
 
       if (result.error) {
