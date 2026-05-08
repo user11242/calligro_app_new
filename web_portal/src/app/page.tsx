@@ -5,261 +5,351 @@ import Footer from "@/components/Footer";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, query, limit, getDocs, orderBy } from "firebase/firestore";
-import AutoTranslatedText from "@/components/AutoTranslatedText";
+import { collection, query, limit, getDocs, orderBy, where } from "firebase/firestore";
 import Image from "next/image";
 import { Star, ArrowRight, Play, Layout, Users, Sparkles } from "lucide-react";
 import { formatImageUrl } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Home() {
-  const [courses, setCourses] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { t } = useTranslation();
+  const [mounted, setMounted] = useState(false);
+  const { t, locale } = useTranslation();
 
   useEffect(() => {
-    const fetchPopular = async () => {
+    setMounted(true);
+    const fetchMasters = async () => {
       try {
-        const q = query(collection(db, "courses"), orderBy("enrolledCount", "desc"), limit(3));
+        // Fetch teachers from the 'users' collection
+        const q = query(
+          collection(db, "users"), 
+          where("role", "==", "teacher"),
+          limit(3)
+        );
         const snap = await getDocs(q);
-        setCourses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setTeachers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (err) {
         console.error("Home fetch error:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchPopular();
+    fetchMasters();
   }, []);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { 
-      opacity: 1,
-      transition: { staggerChildren: 0.15, delayChildren: 0.2 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.8 } }
-  };
+  if (!mounted) return <div className="min-h-screen bg-[#0a0a0a]" />;
 
   return (
     <main className="academy-bg min-h-screen font-sans">
       <Navbar />
 
-      {/* ═══════ Parchment Scroll Hero Section ═══════ */}
-      <section className="relative pt-8 md:pt-16 pb-20 px-4 sm:px-6 max-w-[90rem] mx-auto z-10 w-full">
-         <div className="relative w-full rounded-[32px] md:rounded-[60px] overflow-hidden shadow-[0_40px_100px_-20px_rgba(238,179,75,0.08)]" 
-              style={{ background: 'linear-gradient(165deg, #f5f0e8 0%, #ece4d4 40%, #e8dcc8 100%)' }}>
-             
-             {/* Decorative Ink Brush Strokes SVG */}
-             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                 <svg width="100%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-                     <path d="M-50,0 Q150,120 50,350 T400,700" stroke="#d4c4a0" strokeWidth="200" strokeLinecap="round" fill="none" opacity="0.25" />
-                     <path d="M800,50 Q600,300 900,600" stroke="#c8b68a" strokeWidth="150" strokeLinecap="round" fill="none" opacity="0.15" />
-                     <path d="M400,-80 Q700,200 500,500" stroke="#bfa976" strokeWidth="80" strokeLinecap="round" fill="none" opacity="0.1" />
-                 </svg>
-                 {/* Subtle paper texture dots */}
-                 <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #3a2a10 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-             </div>
-
-             {/* Content Container */}
-             <div className="relative z-10 flex flex-col items-center text-center px-6 sm:px-12 md:px-20 py-20 md:py-32 lg:py-40">
-                 
-                 {/* Top Badge */}
-                 <motion.div 
-                     initial={{ opacity: 0, y: 20 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     className="inline-flex items-center gap-3 px-6 py-2.5 rounded-full border-2 border-[#8a7450]/30 bg-[#8a7450]/10 backdrop-blur-sm mb-12"
-                 >
-                     <Sparkles className="w-4 h-4 text-[#8a7450]" />
-                     <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-[#8a7450]">Calligro Web Portal</span>
-                 </motion.div>
-
-                 {/* Main Headline */}
-                 <motion.h1 
-                     initial={{ opacity: 0, y: 30 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ delay: 0.1, duration: 0.8 }}
-                     className="text-5xl sm:text-7xl md:text-8xl lg:text-[110px] font-black font-outfit leading-[0.92] tracking-tighter text-[#1a1208] select-none mb-8"
-                 >
-                     {t("hero.title")} <br />
-                     <span className="relative inline-block" style={{ color: '#8a6914' }}>
-                         Calligraphy.
-                         {/* Hand-drawn underline */}
-                         <svg className="absolute w-[105%] h-4 md:h-6 -bottom-2 md:-bottom-4 left-[-2%]" viewBox="0 0 200 20" preserveAspectRatio="none">
-                             <path d="M5,12 C30,4 60,18 100,8 C140,-2 170,16 195,10" stroke="#8a6914" strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.6"/>
-                             <path d="M10,15 C50,8 90,19 130,6 C160,0 180,14 192,11" stroke="#8a6914" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.3"/>
-                         </svg>
-                     </span>
-                 </motion.h1>
-                 
-                 {/* Subtitle */}
-                 <motion.p 
-                     initial={{ opacity: 0 }}
-                     animate={{ opacity: 1 }}
-                     transition={{ delay: 0.3, duration: 0.8 }}
-                     className="text-lg md:text-2xl text-[#5a4a2a]/70 leading-relaxed font-medium max-w-3xl mb-16"
-                 >
-                     {t("hero.subtitle")}
-                 </motion.p>
-
-                 {/* ── 50% Grant Seal ── */}
-                 <motion.div 
-                     initial={{ scale: 0.7, opacity: 0 }}
-                     animate={{ scale: 1, opacity: 1 }}
-                     transition={{ type: "spring", stiffness: 120, damping: 14, delay: 0.35 }}
-                     className="relative mb-16"
-                 >
-                     <div className="relative w-48 h-48 sm:w-56 sm:h-56 md:w-72 md:h-72 mx-auto">
-                         <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-lg" xmlns="http://www.w3.org/2000/svg">
-                             {/* Outer organic ink splat */}
-                             <path d="M100,8 C130,5 155,2 175,20 C195,38 198,65 195,90 C192,115 200,140 185,160 C170,180 140,190 110,193 C80,196 50,200 28,185 C6,170 -2,140 2,115 C6,90 18,70 32,50 C46,30 70,11 100,8 Z" fill="#1a1208" />
-                             {/* Inner ring */}
-                             <path d="M100,22 C125,19 147,14 162,28 C177,42 182,62 180,85 C178,108 184,130 172,148 C160,166 138,174 112,177 C86,180 60,184 42,172 C24,160 14,138 16,115 C18,92 28,72 40,55 C52,38 75,25 100,22 Z" stroke="#eeb34b" strokeWidth="2" strokeDasharray="6 4" fill="none" opacity="0.5"/>
-                         </svg>
-                         {/* Text Inside */}
-                         <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
-                             <span className="text-6xl sm:text-7xl md:text-[100px] font-black font-outfit tracking-tighter leading-none text-[#eeb34b] drop-shadow-sm" style={{ textShadow: '0 2px 10px rgba(238,179,75,0.3)' }}>50%</span>
-                             <span className="text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-[0.25em] text-[#eeb34b]/80 mt-1 md:mt-2">منحة أكاديمية</span>
-                         </div>
-                     </div>
-                 </motion.div>
-
-                 {/* Grant Description */}
-                 <motion.p 
-                     initial={{ opacity: 0, y: 10 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ delay: 0.5 }}
-                     className="text-base md:text-lg text-[#5a4a2a]/60 max-w-xl mb-12 leading-relaxed"
-                 >
-                     سجّل الآن واحصل تلقائيًا على منحة أكاديمية تغطي ٥٠٪ من رسوم الدورة عبر البوابة.
-                 </motion.p>
-
-                 {/* CTAs */}
-                 <motion.div 
-                     initial={{ opacity: 0, y: 20 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ delay: 0.55 }}
-                     className="flex flex-col sm:flex-row gap-5 items-center"
-                 >
-                     <Link href="/courses">
-                         <button className="group flex items-center justify-center gap-4 px-14 py-5 rounded-full text-sm font-black uppercase tracking-[0.15em] bg-[#1a1208] text-[#f5f0e8] hover:bg-[#2a1f10] transition-all shadow-xl hover:shadow-2xl">
-                             {t("hero.cta.join")}
-                             <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform duration-300" />
-                         </button>
-                     </Link>
-                     <Link href="/download">
-                         <button className="px-14 py-5 rounded-full text-sm font-black uppercase tracking-[0.15em] text-[#5a4a2a] border-2 border-[#8a7450]/30 hover:bg-[#8a7450]/10 hover:border-[#8a7450]/50 transition-all">
-                             {t("hero.cta.app")}
-                         </button>
-                     </Link>
-                 </motion.div>
-             </div>
-
-             {/* Bottom decorative torn-edge SVG */}
-             <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
-                 <svg viewBox="0 0 1440 60" preserveAspectRatio="none" className="w-full h-8 md:h-12" fill="var(--bg-color, #000000)">
-                     <path d="M0,60 L0,30 C120,45 240,10 360,25 C480,40 600,5 720,20 C840,35 960,8 1080,22 C1200,36 1320,12 1440,28 L1440,60 Z" style={{ fill: '#0a0a0a' }}/>
-                 </svg>
-             </div>
-         </div>
+      {/* ═══════ Cinematic Full-Width Hero ═══════ */}
+      <section className="relative w-full overflow-hidden">
+        <div className="relative w-full h-screen">
+          <Image
+            src={
+              locale === "en" ? "/assets/images/web-hero-en.png" : 
+              locale === "tr" ? "/assets/images/web-hero-tr.png" : 
+              "/assets/images/web-hero.jpeg"
+            }
+            alt="Calligro Hero"
+            fill
+            className="object-cover object-top"
+            priority
+          />
+          {/* Content Overlay - Positioned on the right side under the 50% text */}
+          <div className="absolute left-6 right-6 md:left-auto md:right-32 bottom-12 md:bottom-24 flex flex-col z-20" dir="ltr">
+            <motion.div 
+               initial={{ opacity: 0, y: 30 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 1 }}
+               className="max-w-xl flex flex-col items-center md:items-end"
+            >
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-center w-full sm:w-auto">
+                <Link href="/courses" className="w-full sm:w-auto">
+                  <button className="group flex items-center justify-center gap-4 w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 rounded-full text-xs md:text-sm font-black uppercase tracking-widest bg-primary text-black hover:scale-105 transition-all shadow-2xl">
+                    {t("hero.cta.join")}
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                  </button>
+                </Link>
+                <Link href="/download" className="w-full sm:w-auto">
+                  <button className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 rounded-full text-xs md:text-sm font-black uppercase tracking-widest text-white border-2 border-white/20 hover:bg-white/10 backdrop-blur-md transition-all">
+                    {t("hero.cta.app")}
+                  </button>
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </div>
       </section>
 
-      {/* Modern Trending Section */}
+      {/* ═══════ Advanced Modern About Section ═══════ */}
+      <section className="relative py-32 px-6 overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none z-0">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              opacity: [0.1, 0.2, 0.1],
+              rotate: [0, 90, 0]
+            }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            className="absolute -top-[20%] -left-[10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1.2, 1, 1.2],
+              opacity: [0.1, 0.15, 0.1],
+              rotate: [0, -90, 0]
+            }}
+            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+            className="absolute top-[40%] -right-[10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px]"
+          />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center mb-24">
+            <motion.span 
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-xs font-black text-primary uppercase tracking-[0.4em] mb-6 inline-block"
+            >
+              {t("home.about.title")}
+            </motion.span>
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-5xl md:text-7xl font-black font-outfit tracking-tighter text-white mb-8 leading-none"
+            >
+              {t("home.about.subtitle")}
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="text-lg md:text-xl text-white/50 max-w-3xl mx-auto font-medium leading-relaxed"
+            >
+              {t("home.about.desc")}
+            </motion.p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+            {/* Mission Card */}
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              whileHover={{ y: -10 }}
+              className="lg:col-span-7 glass-premium p-10 md:p-14 rounded-[48px] border border-white/10 bg-black/40 backdrop-blur-3xl flex flex-col justify-between group overflow-hidden relative"
+            >
+              <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity">
+                <Sparkles className="w-48 h-48 text-primary" />
+              </div>
+              <div>
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 mb-10 group-hover:scale-110 transition-transform">
+                  <Layout className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-3xl md:text-4xl font-black font-outfit text-white mb-6 tracking-tight uppercase">
+                  {t("home.about.mission")}
+                </h3>
+                <p className="text-white/60 text-lg leading-relaxed max-w-xl">
+                  {t("home.about.mission_desc")}
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Vision Card */}
+            <motion.div 
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              whileHover={{ y: -10 }}
+              className="lg:col-span-5 glass-premium p-10 md:p-14 rounded-[48px] border border-white/10 bg-primary/[0.03] backdrop-blur-3xl flex flex-col group overflow-hidden relative"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30 mb-10 group-hover:rotate-12 transition-transform">
+                <Users className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-3xl md:text-4xl font-black font-outfit text-white mb-6 tracking-tight uppercase">
+                {t("home.about.vision")}
+              </h3>
+              <p className="text-white/60 text-lg leading-relaxed">
+                {t("home.about.vision_desc")}
+              </p>
+            </motion.div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              whileHover={{ scale: 1.02 }}
+              className="glass-premium p-10 rounded-[40px] border border-white/5 bg-white/[0.02] hover:border-primary/40 transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-8 border border-white/10 group-hover:bg-primary group-hover:text-black transition-all">
+                <Play className="w-5 h-5" />
+              </div>
+              <h4 className="text-xl font-black text-white mb-4 uppercase tracking-tight">
+                {t("home.about.feature1.title")}
+              </h4>
+              <p className="text-white/40 text-sm leading-relaxed">
+                {t("home.about.feature1.desc")}
+              </p>
+            </motion.div>
+
+            {/* Feature 2 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ scale: 1.02 }}
+              className="glass-premium p-10 rounded-[40px] border border-white/5 bg-white/[0.02] hover:border-primary/40 transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-8 border border-white/10 group-hover:bg-primary group-hover:text-black transition-all">
+                <Users className="w-5 h-5" />
+              </div>
+              <h4 className="text-xl font-black text-white mb-4 uppercase tracking-tight">
+                {t("home.about.feature2.title")}
+              </h4>
+              <p className="text-white/40 text-sm leading-relaxed">
+                {t("home.about.feature2.desc")}
+              </p>
+            </motion.div>
+
+            {/* Feature 3 */}
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              whileHover={{ scale: 1.02 }}
+              className="glass-premium p-10 rounded-[40px] border border-white/5 bg-white/[0.02] hover:border-primary/40 transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-8 border border-white/10 group-hover:bg-primary group-hover:text-black transition-all">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <h4 className="text-xl font-black text-white mb-4 uppercase tracking-tight">
+                {t("home.about.feature3.title")}
+              </h4>
+              <p className="text-white/40 text-sm leading-relaxed">
+                {t("home.about.feature3.desc")}
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ Modern Teachers Section ═══════ */}
       <section className="relative py-32 px-6 max-w-7xl mx-auto z-10">
         <motion.div
            initial={{ opacity: 0, y: 20 }}
            whileInView={{ opacity: 1, y: 0 }}
            viewport={{ once: true }}
-           className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8"
+           className="flex flex-col md:flex-row justify-between items-end mb-24 gap-8"
         >
           <div className="text-start">
             <p className="text-[10px] md:text-xs font-black text-primary uppercase tracking-[0.3em] mb-4">{t("home.trending")}</p>
-            <h2 className="text-4xl md:text-6xl font-black font-outfit tracking-tight">
-              {t("home.popular")}
+            <h2 className="text-3xl md:text-5xl lg:text-7xl font-black font-outfit tracking-tighter text-white leading-none">
+              {t("teachers.title")}
             </h2>
           </div>
-          <Link href="/courses" className="glass-premium px-8 py-4 rounded-full text-xs font-black uppercase tracking-[0.15em] text-white/70 hover:text-primary transition-all border-white/10 shadow-lg flex items-center gap-2 group">
+          <Link href="/teachers" className="glass-premium px-10 py-5 rounded-full text-xs font-black uppercase tracking-[0.2em] text-white/80 hover:text-primary transition-all border-white/10 shadow-xl flex items-center gap-4 group">
             {t("home.enter_library")}
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
           </Link>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <AnimatePresence mode="wait">
             {loading ? (
-               Array(3).fill(0).map((_, i) => (
-                <div key={i} className="glass-premium rounded-[40px] aspect-[4/5]  bg-white/5 border-white/5" />
-               ))
+              <motion.div 
+                key="skeletons"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-12 col-span-full"
+              >
+                {Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="glass-premium rounded-[64px] aspect-[4/5] bg-white/5 border-white/5 animate-pulse" />
+                ))}
+              </motion.div>
             ) : (
-              courses.map((course, i) => (
-                <motion.div
-                  key={course.id}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.15, duration: 0.8 }}
-                  whileHover={{ y: -15, scale: 1.02 }}
-                  className="glass-premium rounded-[48px] overflow-hidden group cursor-pointer border-t border-white/10 border-x border-white/5 hover:border-primary/30 transition-all duration-500 flex flex-col h-full bg-[#0a0a0a] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]"
-                >
-                  <Link href={`/courses/${course.id}`} className="flex flex-col h-full">
-                    {/* Course Banner */}
-                    <div className="relative aspect-square w-full overflow-hidden">
-                      <Image 
-                        src={formatImageUrl(course.courseBanner) || "/images/placeholder.png"} 
-                        alt={course.courseName || "Course Banner"}
-                        fill
-                        className="object-cover transition-transform duration-[2500ms] group-hover:scale-110 ease-out"
-                        priority={false}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-black/40 to-transparent opacity-90" />
+              <motion.div 
+                key="content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-12 col-span-full"
+              >
+                {teachers.map((teacher, i) => (
+                  <motion.div
+                    key={teacher.id}
+                    initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                    whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.2, duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
+                    whileHover={{ y: -20 }}
+                    className="group relative"
+                  >
+                    {/* Decorative Background Glow */}
+                    <div className="absolute inset-0 bg-primary/5 rounded-[64px] blur-2xl group-hover:bg-primary/10 transition-colors duration-500" />
+                    
+                    <div className="relative glass-premium rounded-[64px] p-10 border border-white/10 bg-black/40 backdrop-blur-3xl overflow-hidden flex flex-col items-center text-center h-full shadow-2xl">
                       
-                      <div className="absolute top-6 right-6">
-                         <span className="glass-premium px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-[#0a0a0a] bg-primary">
-                            {course.selectedCategory || "Art"}
-                         </span>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-10 flex flex-col flex-grow relative -mt-10 backdrop-blur-3xl bg-black/40 rounded-t-[48px] border-t border-white/10">
-                        <div className="flex items-center gap-2 mb-6">
-                            <Star className="w-4 h-4 text-primary fill-primary" />
-                            <span className="text-sm font-black text-white/90">4.9</span>
-                            <span className="text-white/20 mx-2">|</span>
-                            <Users className="w-4 h-4 text-primary/60" />
-                            <span className="text-xs font-bold text-white/50 tracking-wider uppercase font-outfit">{course.enrolledCount || 0} {t("home.students")}</span>
+                      {/* Teacher Image with Premium Frame */}
+                      <div className="relative w-48 h-48 mb-10">
+                        <div className="absolute inset-0 rounded-full border-2 border-primary/20 group-hover:border-primary transition-colors duration-500 animate-[spin_10s_linear_infinite] group-hover:animate-[spin_4s_linear_infinite] border-dashed" />
+                        <div className="absolute inset-2 rounded-full border border-white/10" />
+                        <div className="absolute inset-4 rounded-full overflow-hidden border-4 border-[#0a0a0a] shadow-2xl">
+                          <Image 
+                            src={formatImageUrl(teacher.photoUrl || teacher.profileImage) || "/assets/images/Logo.png"} 
+                            alt={teacher.name || "Teacher"}
+                            fill
+                            className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-110 group-hover:scale-100"
+                          />
                         </div>
-
-                        <h3 className="text-3xl font-black font-outfit mb-4 text-white group-hover:gold-text transition-all duration-500 leading-tight">
-                           <AutoTranslatedText text={course.courseName || course.courseTitle} />
-                        </h3>
                         
-                        <div className="flex-grow">
-                           <p className="text-white/40 text-sm font-medium line-clamp-2 leading-relaxed mb-8">
-                              <AutoTranslatedText text={course.courseDescription || "Master the foundations of classical Arabic scripts."} />
-                           </p>
+                        {/* Certified Badge */}
+                        <div className="absolute -bottom-2 right-4 bg-primary text-black p-2 rounded-full shadow-xl border-4 border-[#0a0a0a] group-hover:scale-110 transition-transform">
+                          <Sparkles className="w-5 h-5" />
                         </div>
+                      </div>
 
-                        <div className="flex justify-between items-center pt-8 border-t border-white/5">
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold text-white/30 line-through">${Number(course.price).toFixed(0)}</span>
-                                <span className="text-3xl font-black font-outfit text-primary">${(Number(course.price) / 2).toFixed(0)}</span>
-                            </div>
-                            <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary group-hover:scale-110 transition-all duration-300">
-                                <ArrowRight className="w-6 h-6 text-primary group-hover:text-black transition-colors" />
-                            </div>
+                      <h3 className="text-3xl font-black font-outfit text-white mb-8 tracking-tight group-hover:gold-text transition-all">
+                        {teacher.name || "Anonymous Master"}
+                      </h3>
+
+                      {/* Stats Row */}
+                      <div className="grid grid-cols-2 gap-8 w-full py-8 border-y border-white/5 mb-10">
+                        <div className="flex flex-col items-center">
+                          <span className="text-2xl font-black text-white font-outfit">{teacher.followerCount || 0}</span>
+                          <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">{t("course.students")}</span>
                         </div>
+                        <div className="flex flex-col items-center border-l border-white/10">
+                          <div className="flex items-center gap-1">
+                            <Star className="w-4 h-4 text-primary fill-primary" />
+                            <span className="text-2xl font-black text-white font-outfit">{Number(teacher.rating || 5.0).toFixed(1)}</span>
+                          </div>
+                          <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">{t("course.rating")}</span>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <Link href={`/teachers/${teacher.id}`} className="w-full py-5 rounded-3xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-[0.2em] text-[10px] hover:bg-primary hover:text-black hover:border-primary transition-all shadow-inner">
+                        {t("course.learn_more")}
+                      </Link>
                     </div>
-                  </Link>
-                </motion.div>
-              ))
+                  </motion.div>
+                ))}
+              </motion.div>
             )}
           </AnimatePresence>
-        </div>
       </section>
 
       <Footer />

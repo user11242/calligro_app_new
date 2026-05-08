@@ -38,7 +38,7 @@ class _ArtistGalleryPageState extends State<ArtistGalleryPage> {
               onPressed: () => Navigator.pop(context),
             ),
             title: Text(
-              widget.artist.name,
+              widget.artist.localizedName(context),
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),

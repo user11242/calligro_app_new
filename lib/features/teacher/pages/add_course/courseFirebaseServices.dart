@@ -34,10 +34,11 @@ class CourseFirebaseService {
     throw Exception('User not logged in');
   }
 
-  // Save the course data to Firestore
-  Future<void> saveCourse(Map<String, dynamic> courseData) async {
+  // Save the course data to Firestore and return the generated course ID
+  Future<String> saveCourse(Map<String, dynamic> courseData) async {
     try {
-      await _firestore.collection('courses').add(courseData);
+      final docRef = await _firestore.collection('courses').add(courseData);
+      return docRef.id;
     } catch (e) {
       throw Exception('Error saving course: $e');
     }

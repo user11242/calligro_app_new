@@ -2,11 +2,20 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Loader2, ShieldAlert, ArrowLeft, ShieldCheck, Video, Users, UserCheck } from "lucide-react";
 import Link from "next/link";
+
+// 🛡️ SECURITY: Hash function to obfuscate room names
+async function hashRoomName(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 declare global {
   interface Window {
@@ -47,8 +56,16 @@ export default function ClassroomPage() {
   useEffect(() => {
     if (!id || !user) return;
 
-    const fetchCourse = async () => {
+    const fetchCourseAndUser = async () => {
       try {
+        let realName = user.displayName;
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+           const userData = userDocSnap.data();
+           realName = userData.name || userData.displayName || realName;
+        }
+
         const docRef = doc(db, "courses", id as string);
         const docSnap = await getDoc(docRef);
 
@@ -62,8 +79,36 @@ export default function ClassroomPage() {
           } else if (!data.calligroMeetLink && !data.googleMeetLink) {
             setError("No classroom link found for this course.");
           } else {
-            setCourse(data);
+            // 🔐 SECURITY FIX: Try to load credentials from private subcollection first
+            // This prevents publicly-readable course doc from leaking the password
+            let classroomPassword = data.classroomPassword || null;
+            let calligroMeetLink = data.calligroMeetLink || null;
+            let googleMeetLink = data.googleMeetLink || null;
+
+            try {
+              const privateRef = doc(db, "courses", id as string, "private", "meetingConfig");
+              const privateSnap = await getDoc(privateRef);
+              if (privateSnap.exists()) {
+                const privateData = privateSnap.data();
+                // Private subcollection values take priority
+                classroomPassword = privateData.classroomPassword ?? classroomPassword;
+                calligroMeetLink = privateData.calligroMeetLink ?? calligroMeetLink;
+                googleMeetLink = privateData.googleMeetLink ?? googleMeetLink;
+              }
+            } catch (err) {
+              console.warn("Private credentials fetch failed, using course doc fallback:", err);
+            }
+
+            setCourse({
+              ...data,
+              // Override with secure values
+              classroomPassword,
+              calligroMeetLink,
+              googleMeetLink,
+              currentUserRealName: realName || "Student",
+            });
           }
+
         } else {
           setError("Course not found.");
         }
@@ -75,38 +120,90 @@ export default function ClassroomPage() {
       }
     };
 
-    fetchCourse();
+    fetchCourseAndUser();
   }, [id, user]);
 
   useEffect(() => {
     if (!course || !jitsiContainerRef.current) return;
 
+    // 🛡️ Fix #7: Rate limiting — 5 second cooldown on re-entry
+    const COOLDOWN_KEY = `calligro_meet_cooldown_${id}`;
+    const lastExit = sessionStorage.getItem(COOLDOWN_KEY);
+    if (lastExit) {
+      const elapsed = Date.now() - parseInt(lastExit);
+      if (elapsed < 5000) {
+        setError(`Please wait ${Math.ceil((5000 - elapsed) / 1000)} seconds before rejoining the classroom.`);
+        setLoading(false);
+        return;
+      }
+    }
+
+    let heartbeatInterval: NodeJS.Timeout | null = null;
+    const presenceDocRef = doc(db, "courses", id as string, "meetingPresence", user.uid);
+
     const loadJitsiScript = () => {
       if (window.JitsiMeetExternalAPI) {
-        initJitsi();
+        startJitsi();
         return;
       }
 
       const script = document.createElement("script");
       script.src = "https://meet.element.io/external_api.js";
       script.async = true;
-      script.onload = initJitsi;
+      script.onload = startJitsi;
       script.onerror = () => {
         const script2 = document.createElement("script");
         script2.src = "https://jitsi.riot.im/external_api.js";
-        script2.onload = initJitsi;
+        script2.onload = startJitsi;
         document.body.appendChild(script2);
       };
       document.body.appendChild(script);
     };
 
-    const initJitsi = () => {
-      const domain = "meet.element.io";
-      
-      // 🛡️ 10000% SECURITY: Use a 'Private Hashed' room name that is unguessable by outsiders
-      // We combine the base link with a secret suffix only the portal/app knows.
+    const startJitsi = async () => {
+      // 🛡️ Fix #3: Check Firestore heartbeat for duplicate session
+      try {
+        const presenceSnap = await getDoc(presenceDocRef);
+        if (presenceSnap.exists()) {
+          const data = presenceSnap.data();
+          const lastBeat = data.lastHeartbeat?.toDate?.();
+          // If there was a heartbeat in the last 35 seconds, someone is actively in the meeting
+          if (lastBeat && (Date.now() - lastBeat.getTime()) < 35000) {
+            setError("Your account is already active in this meeting from another device. If you just disconnected, please wait 30 seconds and try again.");
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Presence check failed, proceeding:", err);
+      }
+
+      // 🛡️ Fix #1: Hash the room name so it can never be guessed from the calligroMeetLink
       const baseRoom = course.calligroMeetLink || course.googleMeetLink;
-      const roomName = `Calligro_Private_${baseRoom}_SECURE_`;
+      const today = new Date().toISOString().split('T')[0]; // Daily rotation
+      const rawSeed = `Calligro_${id}_${baseRoom}_${today}_SecureSalt2026`;
+      const hashedRoom = await hashRoomName(rawSeed);
+      const roomName = `CG_${hashedRoom.substring(0, 40)}`;
+
+      const domain = "meet.element.io";
+      const isTeacher = course?.teacherId === user?.uid;
+      // 🛡️ Fix #3: Embed UID in display name for unforgeable duplicate detection
+      const myDisplayName = `${course.currentUserRealName}${isTeacher ? " (Admin)" : ""}`;
+      const myUniqueTag = `[${user.uid.substring(0, 8)}]`; // Short UID tag for Jitsi
+      const jitsiDisplayName = `${myDisplayName} ${myUniqueTag}`;
+
+      const teacherButtons = [
+        'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
+        'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
+        'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
+        'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
+        'tileview', 'videobackgroundblur', 'download', 'help',
+        'security', 'participants-pane'
+      ];
+
+      const studentButtons = [
+        'microphone', 'camera', 'chat', 'raisehand', 'tileview', 'hangup', 'fullscreen', 'participants-pane'
+      ];
 
       const options = {
         roomName: roomName,
@@ -114,21 +211,34 @@ export default function ClassroomPage() {
         height: "100%",
         parentNode: jitsiContainerRef.current,
         userInfo: {
-          displayName: user?.displayName || "Student",
+          displayName: jitsiDisplayName,
           email: user?.email || "",
         },
         configOverwrite: {
           prejoinPageEnabled: false,
           prejoinConfig: { enabled: false }, 
-          startWithAudioMuted: user?.uid !== course?.teacherId,
-          startWithVideoMuted: user?.uid !== course?.teacherId,
+          startWithAudioMuted: true,
+          startWithVideoMuted: true,
           disableInviteFunctions: true,
           doNotStoreRoom: true,
           enableWelcomePage: false,
           lobbyModeEnabled: false, 
-          toolbarButtons: [
-            'microphone', 'camera', 'chat', 'raisehand', 'tileview', 'hangup', 'fullscreen'
-          ],
+          toolbarButtons: isTeacher ? teacherButtons : studentButtons,
+          disableRemoteMute: !isTeacher,
+          remoteVideoMenu: {
+              disableKick: !isTeacher,
+              disableGrantModerator: true
+          },
+          // 🛡️ Hide the room name from Jitsi's UI so users can't copy it
+          hideConferenceSubject: true,
+          hideConferenceTimer: false,
+          subject: ' ',
+        },
+        interfaceConfigOverwrite: {
+          HIDE_INVITE_MORE_HEADER: true,
+          INVITATION_POWERED_BY: false,
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
         },
       };
 
@@ -138,45 +248,78 @@ export default function ClassroomPage() {
       const updateParticipantList = () => {
         if (!api) return;
         
-        // 🛠️ Get both local and remote participants
         const remoteInfo = api.getParticipantsInfo();
         
-        const isTeacher = course?.teacherId === user?.uid;
-        
-        // Jitsi's getParticipantsInfo often omits the local user. 
-        // We ensure the local user is ALWAYS displayed in the sidebar.
         const localParticipant: Participant = {
             id: 'local-session-host',
-            displayName: user?.displayName || "You",
+            displayName: myDisplayName,
             role: isTeacher ? 'moderator' : 'participant', 
             avatar: user?.photoURL
         };
 
         const participantMap = new Map<string, Participant>();
-        // Add local user first
-        participantMap.set(localParticipant.displayName, localParticipant);
+        participantMap.set(myDisplayName, localParticipant);
 
         remoteInfo.forEach((p: any) => {
-            const name = p.displayName || "Anonymous";
-            const existing = participantMap.get(name);
+            const rawName = p.displayName || p.formattedDisplayName || "Anonymous";
+            if (rawName === jitsiDisplayName) return;
             
-            // Check if this remote participant is actually the teacher
-            const isRemoteTeacher = course?.teacherId === p.participantId || name === course?.teacherName; 
+            // Strip UID tags from display names for clean sidebar
+            const cleanName = rawName.replace(/\s*\[[a-f0-9]{8}\]$/i, '');
+            const isRemoteTeacher = course?.teacherId === p.participantId; 
 
-            if (!existing || (p.role === 'moderator' && existing.role !== 'moderator')) {
-                participantMap.set(name, {
-                    id: p.participantId,
-                    displayName: name,
-                    role: (p.participantId === course?.teacherId) ? 'moderator' : p.role || "participant",
-                    avatar: p.avatarURL
-                });
-            }
+            participantMap.set(rawName, {
+                id: p.participantId,
+                displayName: cleanName,
+                role: isRemoteTeacher ? 'moderator' : p.role || "participant",
+                avatar: p.avatarURL
+            });
         });
 
         setParticipants(Array.from(participantMap.values()));
       };
 
-      api.addEventListener('videoConferenceJoined', () => {
+      api.addEventListener('videoConferenceJoined', async (event: any) => {
+        const localId = event.id;
+        const allParticipants = api.getParticipantsInfo();
+        
+        // 🛡️ Fix #3: UID-based duplicate detection (unforgeable)
+        const remoteParticipants = allParticipants.filter((p: any) => p.participantId !== localId);
+        const isDuplicate = remoteParticipants.some((p: any) => {
+          const name = p.displayName || p.formattedDisplayName || "";
+          return name.includes(myUniqueTag);
+        });
+        
+        if (isDuplicate) {
+            api.dispose();
+            setError("Your account is already active in this meeting from another device. If you just disconnected, please wait 30 seconds and try again.");
+            return;
+        }
+
+        // 🛡️ Fix #3: Start Firestore heartbeat (write presence every 25 seconds)
+        try {
+          await setDoc(presenceDocRef, {
+            uid: user.uid,
+            name: course.currentUserRealName,
+            lastHeartbeat: serverTimestamp(),
+            joinedAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.warn("Failed to write presence:", err);
+        }
+
+        heartbeatInterval = setInterval(async () => {
+          try {
+            await setDoc(presenceDocRef, {
+              uid: user.uid,
+              name: course.currentUserRealName,
+              lastHeartbeat: serverTimestamp(),
+            }, { merge: true });
+          } catch (err) {
+            console.warn("Heartbeat failed:", err);
+          }
+        }, 25000);
+
         // Force an update when joined to show the local user immediately
         updateParticipantList();
         
@@ -206,6 +349,13 @@ export default function ClassroomPage() {
     const container = jitsiContainerRef.current;
     
     return () => {
+      // 🛡️ Fix #7: Set cooldown timestamp on exit
+      sessionStorage.setItem(COOLDOWN_KEY, Date.now().toString());
+      
+      // 🛡️ Fix #3: Clean up heartbeat and presence
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      deleteDoc(presenceDocRef).catch(() => {});
+      
       if (jitsiApiRef.current) {
         jitsiApiRef.current.dispose();
       }

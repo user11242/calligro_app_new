@@ -41,6 +41,104 @@ class _RegisterFormState extends State<RegisterForm> {
   bool isConfirmPasswordObscured = true;
   String _initialCountryCode = "US";
   bool _acceptedTerms = false;
+  final List<String> selectedLanguages = [];
+  final List<String> _languagesList = [
+    "Arabic",
+    "English",
+    "Turkish",
+    "Other"
+  ];
+
+  void _addCustomLanguageDialog() {
+    final List<String> availableOthers = [
+      "Urdu",
+      "Malay",
+      "Bengali",
+      "Farsi",
+      "French",
+      "Hausa",
+      "Swahili",
+      "Somali",
+      "Kurdish",
+      "Albanian"
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          Localizations.localeOf(context).languageCode == 'ar' ? "اختر لغة أخرى" : "Select Other Language",
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: availableOthers.map((lang) {
+              String labelText = lang;
+              if (lang == "Bengali") labelText = "বাংলা";
+              if (lang == "Urdu") labelText = "اردو";
+              if (lang == "Farsi") labelText = "فارسی";
+              if (lang == "Kurdish") labelText = "کوردي";
+
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    final otherIdx = _languagesList.indexOf("Other");
+                    if (otherIdx != -1) {
+                      if (!_languagesList.contains(lang)) {
+                        _languagesList.insert(otherIdx, lang);
+                      }
+                    } else {
+                      if (!_languagesList.contains(lang)) {
+                        _languagesList.add(lang);
+                      }
+                    }
+                    if (!selectedLanguages.contains(lang)) {
+                      selectedLanguages.add(lang);
+                    }
+                  });
+                  Navigator.pop(context);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGold.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.accentGold.withOpacity(0.4),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    labelText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              Localizations.localeOf(context).languageCode == 'ar' ? "إلغاء" : "Cancel",
+              style: const TextStyle(color: Colors.white60),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Timer? _nameDebounce;
   Timer? _emailDebounce;
@@ -419,6 +517,7 @@ class _RegisterFormState extends State<RegisterForm> {
         acceptedTerms: _acceptedTerms,
         language: widget.initialLanguage,
         fcmToken: _fcmToken,
+        spokenLanguages: selectedLanguages,
       ),
     );
 
@@ -598,6 +697,67 @@ class _RegisterFormState extends State<RegisterForm> {
               isSuccess: _portfolioError == null && portfolioController.text.isNotEmpty,
               isLoading: false,
               onPaste: _pastePortfolio,
+            ),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                l10n.localeName == 'ar' ? 'اللغات المنطوقة' : 'Spoken Languages',
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _languagesList.map((lang) {
+                final isSel = selectedLanguages.contains(lang);
+                String labelText = lang;
+                if (lang == "Arabic") labelText = "العربية";
+                if (lang == "Turkish") labelText = "Türkçe";
+                if (lang == "Bengali") labelText = "বাংলা";
+                if (lang == "Urdu") labelText = "اردو";
+                if (lang == "Farsi") labelText = "فارسی";
+                if (lang == "Kurdish") labelText = "کوردی";
+                if (lang == "Other") {
+                  labelText = Localizations.localeOf(context).languageCode == 'ar' ? "+ أخرى" : "+ Other";
+                }
+
+                return InkWell(
+                  onTap: () {
+                    if (lang == "Other") {
+                      _addCustomLanguageDialog();
+                    } else {
+                      setState(() {
+                        if (isSel) {
+                          selectedLanguages.remove(lang);
+                        } else {
+                          if (!selectedLanguages.contains(lang)) selectedLanguages.add(lang);
+                        }
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: (isSel && lang != "Other") ? AppColors.accentGold : AppColors.accentGold.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: (isSel && lang != "Other") ? AppColors.accentGold : AppColors.accentGold.withOpacity(0.4),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Text(
+                      labelText,
+                      style: TextStyle(
+                        color: (isSel && lang != "Other") ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ],
           const SizedBox(height: 10),

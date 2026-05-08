@@ -147,7 +147,7 @@ class IAPService {
                  purchase.status == PurchaseStatus.restored) {
         _addLog("SUCCESS for ${purchase.productID}. Capturing receipt...");
         
-        final String? receipt = purchase.verificationData.localVerificationData;
+        final String receipt = purchase.verificationData.localVerificationData;
         
         _purchaseController.add(PurchaseResult(
           status: purchase.status,

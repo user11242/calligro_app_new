@@ -19,6 +19,7 @@ class EmailAuthService {
     String? phone,
     String? portfolio,
     String? language,
+    List<String>? spokenLanguages,
   }) async {
     if (password != confirmPassword) return "Passwords do not match.";
  
@@ -47,6 +48,7 @@ class EmailAuthService {
         photoUrl: '', // Teachers upload photo later in profile
         authProvider: 'email', // ✅ Explicitly set provider
         language: language ?? 'en',
+        spokenLanguages: spokenLanguages ?? const [],
       );
  
       debugPrint("DEBUG: Starting document batch write for $uid");

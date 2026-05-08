@@ -181,7 +181,7 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final DateTime twoWeeksFromNow = DateTime.now().add(
-      const Duration(days: 7),
+      const Duration(days: 14),
     );
 
     // Calculate the maximum end date (3 months from the start date)

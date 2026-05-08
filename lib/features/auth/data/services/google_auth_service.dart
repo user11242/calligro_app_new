@@ -163,6 +163,7 @@ class GoogleAuthService {
     required bool acceptedTerms,
     String? phone,
     String? portfolio,
+    List<String>? spokenLanguages,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return "Not signed in";
@@ -185,6 +186,7 @@ class GoogleAuthService {
         photoUrl: finalPhotoUrl,
         phone: phone ?? "",
         portfolio: portfolio,
+        spokenLanguages: spokenLanguages ?? const [],
         createdAt: DateTime.now(),
         authProvider: 'google', // ✅ Explicitly set provider
         language: ui.PlatformDispatcher.instance.locale.languageCode, // ✅ Capture language

@@ -14,6 +14,7 @@ class VerificationWizardPage extends StatefulWidget {
   final bool acceptedTerms;
   final String? language;
   final String? fcmToken;
+  final List<String>? spokenLanguages;
 
   const VerificationWizardPage({
     super.key,
@@ -26,6 +27,7 @@ class VerificationWizardPage extends StatefulWidget {
     required this.acceptedTerms,
     this.language,
     this.fcmToken,
+    this.spokenLanguages,
   });
 
   @override
@@ -115,6 +117,7 @@ class _VerificationWizardPageState extends State<VerificationWizardPage> {
       portfolio: widget.portfolio,
       acceptedTerms: widget.acceptedTerms,
       language: widget.language,
+      spokenLanguages: widget.spokenLanguages,
     );
 
     if (!mounted) return;

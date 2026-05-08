@@ -223,11 +223,13 @@ class _CourseDetailsStepState extends State<CourseDetailsStep> {
       );
       return;
     }
-    if (widget.curriculumSteps.isEmpty) {
+    if (widget.curriculumSteps.length < 5) {
       AppMessenger.showSnackBar(
         context,
         title: AppLocalizations.of(context)!.required,
-        message: AppLocalizations.of(context)!.pleaseAddOneStep,
+        message: AppLocalizations.of(context)!.localeName == 'ar' 
+          ? 'يرجى إضافة 5 نتائج تعلم على الأقل.' 
+          : 'Please add at least 5 learning outcomes.',
         type: MessengerType.info,
       );
       return;
@@ -396,8 +398,8 @@ class _CourseDetailsStepState extends State<CourseDetailsStep> {
 
                 const SizedBox(height: 30),
 
-                // --- SECTION 2: CURRICULUM ---
-                _buildSectionHeader(AppLocalizations.of(context)!.courseTimeline),
+                // --- SECTION 2: LEARNING OUTCOMES ---
+                _buildSectionHeader(AppLocalizations.of(context)!.localeName == 'ar' ? 'نتائج التعلم' : 'Learning Outcomes'),
                 const SizedBox(height: 10),
 
                 // Input Area (UPDATED WITH SHADOW)
@@ -420,7 +422,7 @@ class _CourseDetailsStepState extends State<CourseDetailsStep> {
                           controller: _customCurriculumController,
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            hintText: AppLocalizations.of(context)!.addStepHint,
+                            hintText: AppLocalizations.of(context)!.localeName == 'ar' ? 'أضف نتيجة تعلم' : 'Add learning outcome...',
                             hintStyle: const TextStyle(color: Colors.grey),
                             filled: true,
                             fillColor:
@@ -526,7 +528,9 @@ class _CourseDetailsStepState extends State<CourseDetailsStep> {
                         color: Colors.redAccent.withOpacity(0.05),
                       ),
                       child: Text(
-                        AppLocalizations.of(context)!.startAddingSteps,
+                        AppLocalizations.of(context)!.localeName == 'ar' 
+                          ? 'ابدأ بإضافة نتائج التعلم لبناء دورتك.' 
+                          : 'Start adding learning outcomes to build your course.',
                         style: const TextStyle(color: Colors.redAccent),
                       ),
                     ),

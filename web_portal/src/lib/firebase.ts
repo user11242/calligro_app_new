@@ -5,7 +5,7 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   // We force fixed values here because of persistent hidden character issues in the environment variables
-  apiKey: "AIzaSyCgj1z12glctRJ-LjD8ebyZLDfFf_EDhwM",
+  apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCgj1z12glctRJ-LjD8ebyZLDfFf_EDhwM").trim(),
   authDomain: (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "calligro-bcfb2.firebaseapp.com").trim(),
   projectId: "calligro-bcfb2",
   storageBucket: (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "calligro-bcfb2.firebasestorage.app").trim(),

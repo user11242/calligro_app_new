@@ -4,7 +4,6 @@ import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import Navbar from "@/components/Navbar";
 import CourseCard from "@/components/CourseCard";
-import AutoTranslatedText from "@/components/AutoTranslatedText";
 import { Search, SlidersHorizontal, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -158,7 +157,7 @@ export default function CoursesPage() {
                 onClick={() => { setSearch(""); setSelectedCategory("All"); }}
                 className="text-primary text-sm font-black uppercase tracking-widest hover:underline"
               >
-                Clear all filters
+                {t("portal.clear_filters")}
               </button>
             </div>
           )}

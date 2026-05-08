@@ -3,7 +3,6 @@ import { CheckCircle2, BookOpen, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "@/hooks/useTranslation";
-import AutoTranslatedText from "./AutoTranslatedText";
 
 interface TeacherCardProps {
   teacher: {
@@ -56,17 +55,12 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
             <h3 className="text-2xl font-black font-outfit uppercase tracking-tighter text-white group-hover:text-primary transition-colors duration-500">
               {teacher.name}
             </h3>
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 group-hover:text-primary/60 transition-colors">
-                {t("course.master")}
-              </span>
-            </div>
           </div>
 
           {/* Bio / Stats */}
           {teacher.bio && (
             <p className="text-white/40 text-sm line-clamp-2 mb-6 px-4 leading-relaxed">
-              <AutoTranslatedText text={teacher.bio} />
+              {teacher.bio}
             </p>
           )}
 

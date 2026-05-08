@@ -16,28 +16,28 @@ export default function Footer() {
               Calligro
             </Link>
             <p className="text-[9px] font-black uppercase tracking-[4px] text-white/30">
-               Academy Portal &copy; {currentYear}
+               {t("footer.academy_portal")} &copy; {currentYear}
             </p>
           </div>
 
           {/* Right: Categorized Links */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-12 gap-y-6">
             <div className="space-y-3">
-              <h3 className="text-[10px] font-black uppercase tracking-[2px] text-white/40">Academic</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[2px] text-white/40">{t("footer.academic")}</h3>
               <ul className="space-y-1.5 flex flex-col">
-                <Link href="/courses" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">Courses</Link>
-                <Link href="/teachers" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">Teachers</Link>
+                <Link href="/courses" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("nav.courses")}</Link>
+                <Link href="/teachers" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("nav.teachers")}</Link>
               </ul>
             </div>
             <div className="space-y-3">
-              <h3 className="text-[10px] font-black uppercase tracking-[2px] text-white/40">Support</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[2px] text-white/40">{t("footer.support")}</h3>
               <ul className="space-y-1.5 flex flex-col">
-                <Link href="/login" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">Portal</Link>
-                <Link href="mailto:support@calligro.com" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">Contact</Link>
+                <Link href="/login" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.portal")}</Link>
+                <Link href="mailto:support@calligro.com" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.contact")}</Link>
               </ul>
             </div>
             <div className="space-y-3">
-              <h3 className="text-[10px] font-black uppercase tracking-[2px] text-white/40">Legal</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[2px] text-white/40">{t("footer.legal_title")}</h3>
               <ul className="space-y-1.5 flex flex-col">
                 <Link href="/terms" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.terms")}</Link>
                 <Link href="/privacy" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.privacy")}</Link>
@@ -49,10 +49,10 @@ export default function Footer() {
         {/* Bottom Tagline */}
         <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-[10px] font-medium text-white/20 italic font-serif">
-            &quot;Beauty of writing is the tongue of the hand.&quot;
+            {t("footer.tagline")}
           </p>
           <div className="flex items-center gap-4 text-[9px] font-black text-white/10 tracking-[5px] uppercase">
-             Mastery • Excellence • Tradition
+             {t("footer.values")}
           </div>
         </div>
       </div>

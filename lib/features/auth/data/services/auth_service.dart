@@ -92,6 +92,7 @@ class AuthService {
     String? phone,
     String? portfolio,
     String? language,
+    List<String>? spokenLanguages,
   }) {
     // ✅ No need to pass 'this'. EmailAuthService handles the saving now.
     return _emailAuth.register(
@@ -104,6 +105,7 @@ class AuthService {
       phone: phone,
       portfolio: portfolio,
       language: language,
+      spokenLanguages: spokenLanguages,
     );
   }
 
@@ -118,6 +120,7 @@ class AuthService {
     bool acceptedTerms = true,
     String? phone,
     String? portfolio,
+    List<String>? spokenLanguages,
   }) {
     // ✅ No need to pass 'this'. GoogleAuthService handles the saving now.
     return _googleAuth.createGoogleUserWithRole(
@@ -125,6 +128,7 @@ class AuthService {
       phone: phone,
       portfolio: portfolio,
       acceptedTerms: acceptedTerms,
+      spokenLanguages: spokenLanguages,
     );
   }
 

@@ -6,7 +6,6 @@ import Navbar from "@/components/Navbar";
 import { Loader2, ShieldCheck, ArrowLeft, CreditCard, CheckCircle2, Zap, Layout } from "lucide-react";
 import Link from "next/link";
 import { createCheckoutSession } from "@/app/actions/payment";
-import AutoTranslatedText from "@/components/AutoTranslatedText";
 import { useTranslation } from "@/hooks/useTranslation";
 
 // Override firebase import to use local initialized app
@@ -26,7 +25,7 @@ export default function CheckoutPage() {
     try {
       const user = libAuth.currentUser;
       if (!user) {
-        setError("You must be logged in to purchase.");
+        setError(t("checkout.login_error"));
         return;
       }
 
@@ -37,7 +36,7 @@ export default function CheckoutPage() {
       const courseName = course.courseName || course.courseTitle || "Untitled Course";
       const bannerUrl = course.courseBanner || course.thumbnailUrl;
 
-      const structuredDescription = "Your enrollment is processed instantly. After checkout, you will be automatically redirected to your student dashboard to start learning immediately.";
+      const structuredDescription = t("course.payment_desc");
 
       const { checkoutUrl } = await createCheckoutSession(
         course.lemonSqueezyVariantId,
@@ -60,7 +59,7 @@ export default function CheckoutPage() {
       console.error("Payment Error:", err);
       const msg = err.message || "";
       if (msg.includes("Missing Store Configuration") || msg.includes("environment variable")) {
-        setError("Error: Payments are not configured properly on Vercel yet. Please ensure LEMONSQUEEZY_API_KEY and LEMONSQUEEZY_STORE_ID are set.");
+        setError(t("checkout.config_error"));
       } else {
         setError(err.message || "Failed to initiate payment. Please try again.");
       }
@@ -101,7 +100,7 @@ export default function CheckoutPage() {
 
           transaction.set(transactionRef, {
             studentId: user.uid,
-            studentName: user.displayName || user.email?.split('@')[0] || 'Student',
+            studentName: user.displayName || user.email?.split('@')[0] || t("nav.student_login").split(' ')[0],
             teacherId: courseData.teacherId || '',
             teacherName: courseData.teacherName || 'Unknown Teacher',
             courseId: id as string,
@@ -160,7 +159,7 @@ export default function CheckoutPage() {
           const grossAmount = (Number(courseData.price) / 2) || 0;
           transaction.set(transactionRef, {
             studentId: user.uid,
-            studentName: user.displayName || user.email?.split('@')[0] || 'Student',
+            studentName: user.displayName || user.email?.split('@')[0] || t("nav.student_login").split(' ')[0],
             teacherId: courseData.teacherId || '',
             teacherName: courseData.teacherName || 'Unknown Teacher',
             courseId: id as string,
@@ -257,9 +256,9 @@ export default function CheckoutPage() {
               </div>
 
               <h1 className="text-3xl md:text-5xl font-black font-outfit text-white mb-4 leading-tight">
-                <AutoTranslatedText text={course.courseName || course.courseTitle} />
+                {course.courseName || course.courseTitle}
               </h1>
-              <p className="text-white/50 text-base md:text-lg font-medium">{t("checkout.instructor")} <AutoTranslatedText text={course.teacherName} /></p>
+              <p className="text-white/50 text-base md:text-lg font-medium">{t("checkout.instructor")} {course.teacherName}</p>
 
               <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between md:items-end gap-4">
                 <div className="flex flex-col">
@@ -269,7 +268,7 @@ export default function CheckoutPage() {
                   <span className="text-white/20 text-sm font-bold line-through px-1">${Number(course.price).toFixed(0)}</span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="bg-primary/20 text-primary px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border border-primary/20">50% Academy Grant</span>
+                  <span className="bg-primary/20 text-primary px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border border-primary/20">{t("checkout.grant")}</span>
                   <span className="text-5xl md:text-6xl font-black font-outfit gold-text leading-none">${(Number(course.price) / 2).toFixed(0)}</span>
                 </div>
               </div>
@@ -350,7 +349,7 @@ export default function CheckoutPage() {
                     className="w-full mt-4 py-4 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-[24px] border border-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                   >
                     {joining ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-green-500" />}
-                    [ TESTING: ADMIN BYPASS ]
+                    [ {t("course.admin_bypass")} ]
                   </button>
                 )}
 

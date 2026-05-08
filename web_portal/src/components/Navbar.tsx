@@ -7,13 +7,24 @@ import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { MoveRight, Globe, LogOut, User as UserIcon, Menu, X } from "lucide-react";
 import { useLocale } from "@/context/LocaleContext";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function Navbar() {
   const { locale, setLocale, isRTL } = useLocale();
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [userPhoto, setUserPhoto] = useState<string>("");
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -22,10 +33,11 @@ export default function Navbar() {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          setUserName(data.displayName || user.displayName || "Student");
-          setUserPhoto(data.photoURL || user.photoURL || "");
+          // Mobile app uses 'name' and 'photoUrl', web portal was using 'displayName' and 'photoURL'
+          setUserName(data.name || data.displayName || user.displayName || "User");
+          setUserPhoto(data.photoUrl || data.photoURL || user.photoURL || "");
         } else {
-          setUserName(user.displayName || "Student");
+          setUserName(user.displayName || "User");
           setUserPhoto(user.photoURL || "");
         }
       } else {
@@ -41,37 +53,35 @@ export default function Navbar() {
     window.location.href = "/";
   };
 
-  const labels = {
-    en: { courses: "Courses", teachers: "Teachers", about: "About", login: "Student Login", logout: "Logout" },
-    ar: { courses: "الدورات", teachers: "المعلمون", about: "عنا", login: "دخول الطلاب", logout: "تسجيل الخروج" },
-    tr: { courses: "Kurslar", teachers: "Öğretmenler", about: "Hakkımızda", login: "Öğrenci Girişi", logout: "Çıkış Yap" },
-  }[locale];
-
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-lg border-b border-white/10">
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      scrolled 
+        ? "bg-primary shadow-lg border-b border-white/10" 
+        : "bg-transparent"
+    }`}>
       <div 
-        className={`max-w-[1400px] mx-auto px-6 md:px-10 py-4 md:py-5 flex items-center justify-between md:justify-start gap-4 md:gap-12 w-full group ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}
+        className={`max-w-[1400px] mx-auto px-4 md:px-10 py-4 md:py-5 flex items-center justify-between md:justify-start gap-4 lg:gap-12 w-full group ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}
       >
-        <Link href="/" className="text-xl md:text-2xl font-black text-white font-outfit tracking-tighter flex-shrink-0">
+        <Link href="/" className="text-xl lg:text-2xl font-black text-white font-outfit tracking-tighter flex-shrink-0">
           CALLIGRO
         </Link>
         
         {/* Desktop Navigation */}
-        <div className={`hidden md:flex items-center gap-8 text-sm font-bold text-white/90 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
-          <Link href="/courses" className="hover:text-white transition-colors">{labels.courses}</Link>
-          <Link href="/teachers" className="hover:text-white transition-colors">{labels.teachers}</Link>
-          <Link href="/about" className="hover:text-white transition-colors">{labels.about}</Link>
+        <div className={`hidden md:flex items-center gap-4 lg:gap-8 text-[10px] lg:text-sm font-bold text-white/90 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+          <Link href="/courses" className="hover:text-white transition-colors whitespace-nowrap">{t("nav.courses")}</Link>
+          <Link href="/teachers" className="hover:text-white transition-colors whitespace-nowrap">{t("nav.teachers")}</Link>
+          <Link href="/about" className="hover:text-white transition-colors whitespace-nowrap">{t("nav.about")}</Link>
         </div>
 
         {/* Desktop Actions */}
-        <div className={`hidden md:flex items-center gap-8 flex-1 justify-end ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div className={`hidden md:flex items-center gap-4 lg:gap-8 flex-1 justify-end ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
           {/* Language Switcher */}
-          <div className={`flex items-center gap-3 border-white/20 ${isRTL ? 'border-r pr-10' : 'border-l pl-10'}`}>
+          <div className={`flex items-center gap-2 lg:gap-3 border-white/20 ${isRTL ? 'border-r pr-4 lg:pr-10' : 'border-l pl-4 lg:pl-10'}`}>
             <Globe className="w-4 h-4 text-white" />
             <select 
               value={locale} 
               onChange={(e) => setLocale(e.target.value as any)}
-              className="bg-transparent text-xs font-black uppercase tracking-widest text-white focus:outline-none cursor-pointer hover:text-white/80 transition-colors"
+              className="bg-transparent text-[10px] font-black uppercase tracking-widest text-white focus:outline-none cursor-pointer hover:text-white/80 transition-colors"
             >
               <option value="en" className="bg-white font-sans tracking-normal text-black">English</option>
               <option value="ar" className="bg-white font-sans tracking-normal text-black">العربية</option>
@@ -80,9 +90,9 @@ export default function Navbar() {
           </div>
 
           {user ? (
-            <div className={`flex items-center gap-6 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white overflow-hidden border-2 border-white/20 shadow-xl group/avatar">
+            <div className={`flex items-center gap-4 lg:gap-6 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className={`flex items-center gap-2 lg:gap-3 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className="w-8 lg:w-10 h-8 lg:h-10 rounded-full bg-white/20 flex items-center justify-center text-white overflow-hidden border-2 border-white/20 shadow-xl group/avatar">
                   {userPhoto ? (
                     <Image 
                       src={userPhoto || "/images/placeholder.png"} 
@@ -95,23 +105,23 @@ export default function Navbar() {
                     <UserIcon className="w-4 h-4" />
                   )}
                 </div>
-                <span className="text-sm font-bold text-white font-outfit uppercase tracking-wider max-w-[120px] truncate">
+                <span className="text-[10px] lg:text-sm font-bold text-white font-outfit uppercase tracking-wider max-w-[80px] lg:max-w-[120px] truncate">
                   {userName}
                 </span>
               </div>
               <button 
                 onClick={handleLogout}
                 className="text-white hover:text-red-500 transition-colors bg-white/10 p-2 rounded-full"
-                title={labels.logout}
+                title={t("nav.logout")}
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3 h-3 lg:w-4 lg:h-4" />
               </button>
             </div>
           ) : (
             <Link href="/login">
-              <button className={`text-sm font-bold flex items-center gap-2 group text-white hover:text-white/80 transition-all ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
-                {labels.login}
-                <MoveRight className={`w-4 h-4 group-hover:translate-x-1 transition-transform ${isRTL ? 'rotate-180' : ''}`} />
+              <button className={`text-[10px] lg:text-sm font-bold flex items-center gap-2 group text-white hover:text-white/80 transition-all whitespace-nowrap ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+                {t("nav.student_login")}
+                <MoveRight className={`w-3 h-3 lg:w-4 lg:h-4 group-hover:translate-x-1 transition-transform ${isRTL ? 'rotate-180' : ''}`} />
               </button>
             </Link>
           )}
@@ -129,12 +139,12 @@ export default function Navbar() {
       {/* Mobile Menu Overlay */}
       {isOpen && (
           <div
-            className="fixed top-24 left-4 right-4 z-[49] bg-primary rounded-[32px] p-8 md:hidden shadow-2xl pointer-events-auto"
+            className="fixed top-24 left-4 right-4 z-[49] bg-[#0a0a0a]/95 backdrop-blur-3xl border border-white/10 rounded-[32px] p-8 md:hidden shadow-2xl pointer-events-auto"
           >
             <div className="flex flex-col gap-6 text-center text-white">
-              <Link href="/courses" className="text-lg font-bold hover:text-white/80 transition-colors" onClick={() => setIsOpen(false)}>{labels.courses}</Link>
-              <Link href="/teachers" className="text-lg font-bold hover:text-white/80 transition-colors" onClick={() => setIsOpen(false)}>{labels.teachers}</Link>
-              <Link href="/about" className="text-lg font-bold hover:text-white/80 transition-colors" onClick={() => setIsOpen(false)}>{labels.about}</Link>
+              <Link href="/courses" className="text-lg font-bold hover:text-white/80 transition-colors" onClick={() => setIsOpen(false)}>{t("nav.courses")}</Link>
+              <Link href="/teachers" className="text-lg font-bold hover:text-white/80 transition-colors" onClick={() => setIsOpen(false)}>{t("nav.teachers")}</Link>
+              <Link href="/about" className="text-lg font-bold hover:text-white/80 transition-colors" onClick={() => setIsOpen(false)}>{t("nav.about")}</Link>
               
               <div className="h-[1px] bg-white/5 my-2" />
               
@@ -180,13 +190,13 @@ export default function Navbar() {
                     className="flex items-center gap-2 text-white bg-red-500/20 px-4 py-2 rounded-full font-bold"
                   >
                     <LogOut className="w-4 h-4" />
-                    {labels.logout}
+                    {t("nav.logout")}
                   </button>
                 </div>
               ) : (
                 <Link href="/login" onClick={() => setIsOpen(false)}>
                   <button className="bg-white text-primary w-full py-3 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-white/90 transition-colors">
-                    {labels.login}
+                    {t("nav.student_login")}
                     <MoveRight className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
                   </button>
                 </Link>

@@ -716,7 +716,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     }
 
     children.addAll([
-      _buildSectionTitle(l10n.curriculum, Icons.map),
+      _buildSectionTitle(l10n.localeName == 'ar' ? 'نتائج التعلم' : 'Learning Outcomes', Icons.map),
       const SizedBox(height: 16),
       _buildCurriculumTimeline(),
     ]);

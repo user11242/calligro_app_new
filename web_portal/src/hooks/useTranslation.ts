@@ -16,7 +16,7 @@ export function useTranslation() {
   const { locale } = useLocale();
 
   // If the locale is invalid, default to english
-  const language: Language = locale === "ar" ? "ar" : "en";
+  const language: Language = (translations[locale as Language]) ? (locale as Language) : "en";
   const dict = translations[language];
 
   // The 't' function takes a translation key and returns the translated string

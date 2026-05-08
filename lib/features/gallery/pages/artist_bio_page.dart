@@ -45,7 +45,7 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     final l10n = AppLocalizations.of(context)!;
     
     // --- SMART FALLBACKS FOR HISTORICAL MASTERS ---
-    String displayName = widget.artist.name;
+    String displayName = widget.artist.localizedName(context);
     String displayBio = widget.artist.bio;
     String? displayBirth = widget.artist.birthDate;
     String? displayDeath = widget.artist.deathDate;
@@ -56,7 +56,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     if (widget.artist.name.contains("احمد") && widget.artist.name.contains("الكامل") || 
         widget.artist.name.contains("أحمد") && widget.artist.name.contains("الكامل")) {
       
-      displayName = "أحمد كامل أكديك";
+      final Map<String, String> nameTr = {
+        'ar': "أحمد كامل أكديك",
+        'en': "Ahmed Kamil Akdik",
+        'tr': "Ahmet Kamil Akdik"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.ahmadKamelBio;
       }
@@ -70,7 +75,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
              widget.artist.name.contains("Hasan") && widget.artist.name.contains("Riza") ||
              widget.artist.name.contains("Rizâ")) {
       
-      displayName = "حسن رضا أفندي";
+      final Map<String, String> nameTr = {
+        'ar': "حسن رضا أفندي",
+        'en': "Hasan Rida Efendi",
+        'tr': "Hasan Rıza Efendi"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.hasanRidaBio;
       }
@@ -84,7 +94,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
              widget.artist.name.contains("بقّال") ||
              widget.artist.name.contains("Bakkal") ||
              widget.artist.name.contains("Ârif")) {
-      displayName = "أحمد عارف أفندي (بقّال عارف)";
+      final Map<String, String> nameTr = {
+        'ar': "أحمد عارف أفندي (بقّال عارف)",
+        'en': "Arif Efendi (Bakkal Arif)",
+        'tr': "Bakkal Arif Efendi"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.bakkalarif_bio;
       }
@@ -96,7 +111,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     else if ((widget.artist.name.contains("زُهدي") || widget.artist.name.contains("زهدي") ||
               widget.artist.name.contains("Zühdî") || widget.artist.name.contains("Zuhdi")) &&
              widget.artist.name.contains("إسماعيل") || widget.artist.name.contains("اسماعيل")) {
-      displayName = "إسماعيل زُهدي أفندي";
+      final Map<String, String> nameTr = {
+        'ar': "إسماعيل زُهدي أفندي",
+        'en': "Ismail Zuhdi Efendi",
+        'tr': "İsmâil Zühdi Efendi"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.ismailzuhdi_bio;
       }
@@ -107,7 +127,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 5. Ismail Hakki Altunbezer Check
     else if (widget.artist.name.contains("حقي") || widget.artist.name.contains("ألطونبزر") ||
              widget.artist.name.contains("Altunbezer") || widget.artist.name.contains("Hakkı")) {
-      displayName = "إسماعيل حقي ألطونبزر";
+      final Map<String, String> nameTr = {
+        'ar': "إسماعيل حقي ألطونبزر",
+        'en': "Ismail Hakki Altunbezer",
+        'tr': "İsmail Hakkı Altunbezer"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.ismailhakki_bio;
       }
@@ -118,7 +143,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 6. Hafiz Osman Check
     else if ((widget.artist.name.contains("الحافظ") && widget.artist.name.contains("عثمان")) ||
              (widget.artist.name.contains("Hâfız") && widget.artist.name.contains("Osman"))) {
-      displayName = "الحافظ عثمان";
+      final Map<String, String> nameTr = {
+        'ar': "الحافظ عثمان",
+        'en': "Hafiz Osman",
+        'tr': "Hafız Osman"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.hafizothman_bio;
       }
@@ -129,7 +159,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 7. Halim Özyazıcı Check
     else if (widget.artist.name.contains("حليم") || widget.artist.name.contains("Halim") ||
              widget.artist.name.contains("Özyazıcı")) {
-      displayName = "حليم أوزيازجي";
+      final Map<String, String> nameTr = {
+        'ar': "حليم أوزيازجي",
+        'en': "Halim Ozyazici",
+        'tr': "Halim Özyazıcı"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.halim_bio;
       }
@@ -140,7 +175,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 8. Sheikh Hamdullah al-Amasi Check
     else if (widget.artist.name.contains("حمدالله") || widget.artist.name.contains("حمد الله") ||
              widget.artist.name.contains("Hamdullah") || widget.artist.name.contains("Hamdullâh")) {
-      displayName = "الشيخ حمد الله الأماسي";
+      final Map<String, String> nameTr = {
+        'ar': "الشيخ حمد الله الأماسي",
+        'en': "Sheikh Hamdullah al-Amasi",
+        'tr': "Şeyh Hamdullah"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.hamdullah_bio;
       }
@@ -151,7 +191,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 9. Sami Efendi Check
     else if (widget.artist.name.contains("سامي") || widget.artist.name.contains("Sâmi") ||
              widget.artist.name.contains("Sami")) {
-      displayName = "سامي أفندي";
+      final Map<String, String> nameTr = {
+        'ar': "سامي أفندي",
+        'en': "Sami Efendi",
+        'tr': "Sami Efendi"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.samiefendi_bio;
       }
@@ -162,7 +207,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 10. Shafiq Bey Check
     else if (widget.artist.name.contains("شفيق") || widget.artist.name.contains("Şefik") ||
              widget.artist.name.contains("Shafiq")) {
-      displayName = "شفيق بك";
+      final Map<String, String> nameTr = {
+        'ar': "شفيق بك",
+        'en': "Shafiq Bey",
+        'tr': "Şefik Bey"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.shafiqbey_bio;
       }
@@ -173,7 +223,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 11. Mehmed Şevkî Efendi Check
     else if (widget.artist.name.contains("شوقي") || widget.artist.name.contains("شوقي") ||
              widget.artist.name.contains("Şevkî") || widget.artist.name.contains("Shawqi")) {
-      displayName = "محمد شوقي أفندي";
+      final Map<String, String> nameTr = {
+        'ar': "محمد شوقي أفندي",
+        'en': "Mehmed Sevki Efendi",
+        'tr': "Mehmed Şevki Efendi"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.shawqiefendi_bio;
       }
@@ -184,7 +239,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 12. Mehmed Nâzîf Bey Check  
     else if (widget.artist.name.contains("نظيف") || widget.artist.name.contains("ناظف") ||
              widget.artist.name.contains("Nâzîf") || widget.artist.name.contains("Nazif")) {
-      displayName = "محمد ناظف بك";
+      final Map<String, String> nameTr = {
+        'ar': "محمد ناظف بك",
+        'en': "Mehmed Nazif Bey",
+        'tr': "Mehmed Nazif Bey"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.nazifbey_bio;
       }
@@ -195,7 +255,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
     // 13. Yaqut al-Mustaasimi Check
     else if (widget.artist.name.contains("ياقوت") || widget.artist.name.contains("المستعصمي") ||
              widget.artist.name.contains("Yâkût") || widget.artist.name.contains("Yaqut")) {
-      displayName = "ياقوت المستعصمي";
+      final Map<String, String> nameTr = {
+        'ar': "ياقوت المستعصمي",
+        'en': "Yaqut al-Musta'simi",
+        'tr': "Yâkût el-Müsta'sımî"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.yaqut_bio;
       }
@@ -208,7 +273,12 @@ class _ArtistBioPageState extends State<ArtistBioPage> {
              widget.artist.name.contains("مصطفى") && widget.artist.name.contains("عزّت") ||
              widget.artist.name.contains("Mustafa") && widget.artist.name.contains("Izzat") ||
              widget.artist.name.contains("İzzet")) {
-      displayName = "مصطفى عزّت (قاضي عسكر)";
+      final Map<String, String> nameTr = {
+        'ar': "مصطفى عزّت (قاضي عسكر)",
+        'en': "Mustafa Izzat (Kadiasker)",
+        'tr': "Kazasker Mustafa İzzet"
+      };
+      displayName = nameTr[Localizations.localeOf(context).languageCode] ?? nameTr['ar']!;
       if (displayBio.isEmpty || displayBio == "Classical Calligraphy") {
         displayBio = l10n.mustafazzat_bio;
       }

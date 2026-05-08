@@ -1426,7 +1426,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                artist.name,
+                                artist.localizedName(context),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
@@ -1519,7 +1519,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
             ),
             const SizedBox(height: 12),
             Text(
-              teacher['name'] ?? 'Artist',
+              (teacher['name']?.toString() ?? 'Artist').localizedName(context),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,

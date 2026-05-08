@@ -17,6 +17,7 @@ class UserModel {
   final String? portfolio; // Nullable (only for teachers)
   final String status; // pending | approved
   final String language; // ✅ Added for localization
+  final List<String> spokenLanguages; // ✅ Added for teachers
 
   // --- LEGAL ---
   final bool acceptedTerms;
@@ -44,6 +45,7 @@ class UserModel {
     this.acceptedTerms = false,
     this.portfolio,
     this.language = 'en', // Default to English
+    this.spokenLanguages = const [], // Default empty list
     this.followersCount = 0,
     this.followingCount = 0,
     this.postCount = 0,
@@ -71,6 +73,7 @@ class UserModel {
       photoUrl: map['photoUrl'] ?? '',
       portfolio: map['portfolio'],
       language: map['language'] ?? 'en',
+      spokenLanguages: List<String>.from(map['spokenLanguages'] ?? []),
 
       followersCount: map['followersCount'] ?? 0,
       followingCount: map['followingCount'] ?? 0,
@@ -105,6 +108,7 @@ class UserModel {
       "photoUrl": photoUrl,
       "portfolio": portfolio,
       "language": language, // ✅ Persist language
+      "spokenLanguages": spokenLanguages, // ✅ Spoken languages
 
       // State
       "acceptedTerms": acceptedTerms,

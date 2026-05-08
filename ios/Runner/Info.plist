@@ -42,6 +42,12 @@
 	<string>We need access to your camera to let you take a photo of your masterpiece.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need access to your microphone if you want to record a video.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We may need your location to help you find nearby teachers or community members.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We may need your location to help you find nearby teachers or community members.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>We may need your location to help you find nearby teachers or community members.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need access to your photo library to let you select a masterpiece to upload.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

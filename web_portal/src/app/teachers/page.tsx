@@ -37,7 +37,7 @@ export default function TeachersPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col gap-6 mb-16">
             <div className="space-y-4">
-              <h1 className="text-5xl md:text-7xl font-bold font-outfit uppercase tracking-tighter leading-none italic">
+              <h1 className="text-4xl md:text-6xl lg:text-8xl font-bold font-outfit uppercase tracking-tighter leading-none italic">
                 {t("teachers.title")}
               </h1>
               <p className="text-white/40 max-w-lg text-lg leading-relaxed">

@@ -300,18 +300,15 @@ exports.createCalligroClassroom = onCall(async (request) => {
       throw new HttpsError("unauthenticated", "Must be logged in.");
     }
 
-    const { courseName } = request.data;
+    const { courseName, courseId } = request.data;
     if (!courseName) {
       throw new HttpsError("invalid-argument", "courseName is required.");
     }
 
     // Generate a cryptographically secure, random Room ID
-    // Format: Calligro-[SanitizedName]-[LongRandomSuffix]
-    // 16 chars of randomness provides high security and global uniqueness
     const randomSuffix = Math.random().toString(36).substring(2, 10) +
       Math.random().toString(36).substring(2, 10);
 
-    // Only allow A-Z, a-z, 0-9. If the title is Arabic, it becomes empty, so we fallback to "Class"
     let sanitizedName = courseName.replace(/[^a-zA-Z0-9]/g, "").substring(0, 15);
     if (!sanitizedName) {
       sanitizedName = "LiveClass";
@@ -320,11 +317,29 @@ exports.createCalligroClassroom = onCall(async (request) => {
     const roomId = `Calligro-${sanitizedName}-${randomSuffix}`;
 
     // Generate a random 10-character password for extra security
-    // This allows enrolled students to join automatically via the app
-    // but blocks unauthorized users who copy the Chrome link.
     const password = Math.random().toString(36).substring(2, 12);
 
     console.log(`✅ Branded Jitsi Room Created: ${roomId} with Password: ${password}`);
+
+    // 🔐 SECURITY FIX: If courseId is provided, write credentials to private subcollection
+    // so they are NOT publicly readable from the main course document
+    if (courseId) {
+      try {
+        await admin.firestore()
+          .collection("courses")
+          .doc(String(courseId))
+          .collection("private")
+          .doc("meetingConfig")
+          .set({
+            calligroMeetLink: roomId,
+            classroomPassword: password,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        console.log(`🔐 Meeting credentials stored in private subcollection for course ${courseId}`);
+      } catch (err) {
+        console.warn("⚠️ Could not write to private subcollection:", err.message);
+      }
+    }
 
     return {
       link: roomId,

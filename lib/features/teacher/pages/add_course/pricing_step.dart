@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/theme/colors.dart';
-import 'package:calligro_app/features/auth/widgets/auth_text_field.dart';
 import 'package:calligro_app/core/utils/course_utils.dart';
 import '../../../../core/message/app_messenger.dart';
 import 'package:calligro_app/features/auth/pages/terms_and_conditions_page.dart';

@@ -44,6 +44,7 @@ class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
   String fullPhoneNumber = "";
   String _initialCountryCode = "JO";
   bool _isStepsInitialized = false;
+  final List<String> _selectedLanguages = [];
 
   String? _portfolioError;
 
@@ -141,6 +142,13 @@ class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
             errorText: _portfolioError,
             onChanged: _validatePortfolio,
             onPaste: _pastePortfolio,
+            selectedLanguages: _selectedLanguages,
+            onLanguagesChanged: (langs) {
+              setState(() {
+                _selectedLanguages.clear();
+                _selectedLanguages.addAll(langs);
+              });
+            },
           );
         case 5:
           return const StepTeacherFinish();
@@ -304,6 +312,7 @@ class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
       phone: fullPhoneNumber,
       portfolio: selectedRole == 'teacher' ? portfolioController.text : null,
       acceptedTerms: true,
+      spokenLanguages: selectedRole == 'teacher' ? _selectedLanguages : null,
     );
 
     if (!mounted) return;

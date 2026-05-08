@@ -468,7 +468,7 @@ class _GalleryPageState extends State<GalleryPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          artist.name,
+                          artist.localizedName(context),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,

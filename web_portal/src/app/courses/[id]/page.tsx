@@ -14,7 +14,6 @@ import {
 import Link from "next/link";
 import { createCheckoutSession } from "@/app/actions/payment";
 import { formatImageUrl } from "@/lib/utils";
-import AutoTranslatedText from "@/components/AutoTranslatedText";
 import { getFlagFromPhoneNumber } from "@/lib/countryUtils";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -116,7 +115,7 @@ export default function CourseDetailsPage() {
       const teacherUrl = formatImageUrl(teacher?.photoUrl || course.teacherProfilePic);
 
       // Use the clean, simplified description to allow dashboard media to show
-      const cleanDescription = "Your enrollment is processed instantly. After checkout, you will be automatically redirected to your student dashboard to start learning immediately.";
+      const cleanDescription = t("course.payment_desc");
       
       const result = await createCheckoutSession(
         course.lemonSqueezyVariantId,
@@ -170,7 +169,7 @@ export default function CourseDetailsPage() {
           });
           transaction.set(transactionRef, {
             studentId: user.uid,
-            studentName: user.displayName || user.email?.split('@')[0] || 'Student',
+            studentName: user.displayName || user.email?.split('@')[0] || t("nav.student_login").split(' ')[0],
             teacherId: courseData.teacherId || '',
             courseId: id as string,
             amount: 0,
@@ -205,8 +204,8 @@ export default function CourseDetailsPage() {
 
   if (!course) return (
     <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-6">
-      <p className="text-white/40">Course not found.</p>
-      <Link href="/courses" className="btn-gold">Back to Academy</Link>
+      <p className="text-white/40">{t("course.not_found")}</p>
+      <Link href="/courses" className="btn-gold">{t("course.back")}</Link>
     </div>
   );
 
@@ -256,7 +255,7 @@ export default function CourseDetailsPage() {
                 {/* Course Name - Higher, Smaller, No Italic */}
                 <div className="space-y-6">
                   <h1 className="text-3xl md:text-5xl lg:text-7xl font-black font-outfit text-white uppercase tracking-tighter leading-[0.85] max-w-5xl [text-shadow:0_10px_40px_rgba(0,0,0,0.6)]">
-                    <AutoTranslatedText text={course.courseName || course.courseTitle || "Untitled Course"} />
+                    {course.courseName || course.courseTitle || "Untitled Course"}
                   </h1>
                   <div className="h-1 w-24 bg-primary mx-auto rounded-full shadow-[0_0_20px_#EEE593] opacity-60" />
                 </div>
@@ -291,7 +290,7 @@ export default function CourseDetailsPage() {
                         </div>
                       </div>
                       <span className="text-xl font-black text-white tracking-tighter font-outfit uppercase">
-                        <AutoTranslatedText text={teacher?.name || course.teacherName} />
+                        {teacher?.name || course.teacherName}
                       </span>
                     </div>
                   </div>
@@ -365,7 +364,7 @@ export default function CourseDetailsPage() {
               <div className="flex-grow h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
             </div>
             <p className="text-lg md:text-xl text-white/50 leading-[1.8] font-medium whitespace-pre-wrap text-start px-2">
-              <AutoTranslatedText text={course.courseDescription || course.description || "No description available."} />
+              {course.courseDescription || course.description || "No description available."}
             </p>
           </motion.section>
 
@@ -484,7 +483,7 @@ export default function CourseDetailsPage() {
                     </div>
                     <div className="flex-grow">
                       <h4 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
-                        <AutoTranslatedText text={title} />
+                        {title}
                       </h4>
                       <p className="text-[10px] text-white/20 font-black mt-2 uppercase tracking-[0.3em]">
                         {t("course.mastery_session")}
@@ -531,7 +530,7 @@ export default function CourseDetailsPage() {
                       <ToolIcon className="w-6 h-6" />
                     </div>
                     <span className="font-black text-white/90 tracking-tight text-lg">
-                      <AutoTranslatedText text={tool.name} />
+                      {tool.name}
                     </span>
                   </motion.div>
                 );
@@ -601,7 +600,7 @@ export default function CourseDetailsPage() {
                   <Video className="w-5 h-5 text-primary" />
                 </div>
                 <span className="text-white/70 text-sm font-bold tracking-tight">
-                  <AutoTranslatedText text="لقاء خاص عبر Calligro Meet" />
+                  {t("course.meet_feature")}
                 </span>
               </div>
               <div className="flex items-center gap-6 group/feature">

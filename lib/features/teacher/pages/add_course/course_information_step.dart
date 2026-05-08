@@ -9,7 +9,9 @@ class CourseInformationPage extends StatefulWidget {
   final TextEditingController courseDescriptionController;
   final TextEditingController numberOfStudentsController;
   final String? selectedCategory;
+  final String? selectedAgeGroup;
   final ValueChanged<String?> onCategoryChanged;
+  final ValueChanged<String?> onAgeGroupChanged;
   final void Function(String writingType, String? calligraphyStyle) onNext;
 
   const CourseInformationPage({
@@ -18,7 +20,9 @@ class CourseInformationPage extends StatefulWidget {
     required this.courseDescriptionController,
     required this.numberOfStudentsController,
     required this.selectedCategory,
+    required this.selectedAgeGroup,
     required this.onCategoryChanged,
+    required this.onAgeGroupChanged,
     required this.onNext,
   });
 
@@ -49,6 +53,23 @@ class _CourseInformationPageState extends State<CourseInformationPage> {
     l10n.muhaqqaq,
     l10n.rayhani,
   ];
+
+  String _getAgeGroupLabel(String ageGroup, String locale) {
+    if (ageGroup == '7-10') {
+      if (locale == 'ar') return '7-10 سنوات';
+      if (locale == 'tr') return '7-10 Yaş Arası';
+      return '7-10 Years Old';
+    } else if (ageGroup == '11-16') {
+      if (locale == 'ar') return '11-16 سنة';
+      if (locale == 'tr') return '11-16 Yaş Arası';
+      return '11-16 Years Old';
+    } else if (ageGroup == '17+') {
+      if (locale == 'ar') return '17+ سنة';
+      if (locale == 'tr') return '17+ Yaş';
+      return '17+ Years Old';
+    }
+    return ageGroup;
+  }
 
   bool get _isNameEnabled {
     if (_selectedWritingType == null) return false;
@@ -196,6 +217,11 @@ class _CourseInformationPageState extends State<CourseInformationPage> {
 
     if (widget.selectedCategory == null) {
       _showMessage(l10n.pleaseSelectCategory);
+      return;
+    }
+
+    if (widget.selectedAgeGroup == null) {
+      _showMessage('Please select an age group');
       return;
     }
 
@@ -469,6 +495,53 @@ class _CourseInformationPageState extends State<CourseInformationPage> {
                     fontFamily: 'Urbanist',
                   ),
                   decoration: _buildInputDecoration(null, Icons.category),
+                ),
+              ),
+
+              // DROPDOWN #4 - Age Category
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: DropdownButtonFormField<String>(
+                  initialValue: widget.selectedAgeGroup,
+                  dropdownColor: dropdownMenuColor,
+                  borderRadius: BorderRadius.circular(16),
+                  elevation: 10,
+                  hint: Text(
+                    Localizations.localeOf(context).languageCode == 'ar'
+                        ? 'اختر الفئة العمرية'
+                        : Localizations.localeOf(context).languageCode == 'tr'
+                            ? 'Yaş Grubunu Seçin'
+                            : 'Choose Age Group',
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontFamily: 'Urbanist',
+                    ),
+                  ),
+                  onChanged: (value) {
+                    widget.onAgeGroupChanged(value);
+                  },
+                  isExpanded: true,
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
+                  items: [
+                    DropdownMenuItem(
+                      value: '7-10',
+                      child: Text(_getAgeGroupLabel('7-10', Localizations.localeOf(context).languageCode)),
+                    ),
+                    DropdownMenuItem(
+                      value: '11-16',
+                      child: Text(_getAgeGroupLabel('11-16', Localizations.localeOf(context).languageCode)),
+                    ),
+                    DropdownMenuItem(
+                      value: '17+',
+                      child: Text(_getAgeGroupLabel('17+', Localizations.localeOf(context).languageCode)),
+                    ),
+                  ],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontFamily: 'Urbanist',
+                  ),
+                  decoration: _buildInputDecoration(null, Icons.child_care_rounded),
                 ),
               ),
 

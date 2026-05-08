@@ -17,6 +17,7 @@ class CourseSummaryPage extends StatefulWidget {
   final String teacherProfilePic;
   final String courseBanner; // Added banner
   final String courseType;
+  final String ageCategory;
   final int maxStudents;
   final String courseDescription;
   final DateTime startDate;
@@ -41,6 +42,7 @@ class CourseSummaryPage extends StatefulWidget {
     required this.teacherProfilePic,
     required this.courseBanner, // Added to constructor
     required this.courseType,
+    required this.ageCategory,
     required this.maxStudents,
     required this.courseDescription,
     required this.startDate,
@@ -97,6 +99,24 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
       default:
         return day;
     }
+  }
+
+  String _getLocalizedAgeCategory(BuildContext context, String age) {
+    final locale = Localizations.localeOf(context).languageCode;
+    if (age == '7-10') {
+      if (locale == 'ar') return '7-10 سنوات';
+      if (locale == 'tr') return '7-10 Yaş Arası';
+      return '7-10 Years Old';
+    } else if (age == '11-16') {
+      if (locale == 'ar') return '11-16 سنة';
+      if (locale == 'tr') return '11-16 Yaş Arası';
+      return '11-16 Years Old';
+    } else if (age == '17+') {
+      if (locale == 'ar') return '17+ سنة';
+      if (locale == 'tr') return '17+ Yaş';
+      return '17+ Years Old';
+    }
+    return age;
   }
 
   String _getLocalizedCourseType(BuildContext context, String type) {
@@ -316,6 +336,14 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   _buildTopBadge(
+                                    _getLocalizedAgeCategory(
+                                      context,
+                                      widget.ageCategory,
+                                    ),
+                                    Colors.orangeAccent.withOpacity(0.9),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildTopBadge(
                                     "\$${widget.price}",
                                     Colors.white.withOpacity(0.2),
                                     isGlass: true,
@@ -526,7 +554,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
                 // --- CURRICULUM SECTION ---
                 if (widget.curriculumSteps.isNotEmpty) ...[
                   _buildSectionHeader(
-                    AppLocalizations.of(context)!.courseTimeline,
+                    AppLocalizations.of(context)!.localeName == 'ar' ? 'نتائج التعلم' : 'Learning Outcomes',
                   ),
                   Container(
                     padding: const EdgeInsets.all(24),

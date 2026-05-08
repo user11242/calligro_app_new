@@ -562,37 +562,76 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                         Positioned(
                           top: 20,
                           left: 20,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: BackdropFilter(
-                              filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                  ),
-                                ),
-                                child: Text(
-                                  _getLocalizedLevel(
-                                    context,
-                                    widget.courseData['selectedCategory'] ??
-                                        'Beginner',
-                                  ).toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.5,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: BackdropFilter(
+                                  filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.15),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _getLocalizedLevel(
+                                        context,
+                                        widget.courseData['selectedCategory'] ??
+                                            'Beginner',
+                                      ).toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
+                              if (widget.courseData['ageCategory'] != null) ...[
+                                const SizedBox(width: 8),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: BackdropFilter(
+                                    filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.5),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.15),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _getLocalizedAgeCategory(
+                                          context,
+                                          widget.courseData['ageCategory']?.toString() ?? '',
+                                        ).toUpperCase(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         Positioned(
@@ -850,7 +889,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                     ),
                     const SizedBox(height: 40),
                     _buildPremiumHeader(
-                      l10n.curriculum.toUpperCase(),
+                      l10n.localeName == 'ar' ? 'نتائج التعلم' : 'Learning Outcomes'.toUpperCase(),
                       icon: Icons.auto_stories_outlined,
                     ),
                     const SizedBox(height: 24),
@@ -1299,6 +1338,24 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
         ),
       ],
     );
+  }
+
+  String _getLocalizedAgeCategory(BuildContext context, String age) {
+    final locale = Localizations.localeOf(context).languageCode;
+    if (age == '7-10') {
+      if (locale == 'ar') return '7-10 سنوات';
+      if (locale == 'tr') return '7-10 Yaş Arası';
+      return '7-10 Years Old';
+    } else if (age == '11-16') {
+      if (locale == 'ar') return '11-16 سنة';
+      if (locale == 'tr') return '11-16 Yaş Arası';
+      return '11-16 Years Old';
+    } else if (age == '17+') {
+      if (locale == 'ar') return '17+ سنة';
+      if (locale == 'tr') return '17+ Yaş';
+      return '17+ Years Old';
+    }
+    return age;
   }
 
   String _getLocalizedLevel(BuildContext context, String category) {

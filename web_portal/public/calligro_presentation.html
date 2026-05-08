@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>كاليكرو - عرض تقديمي للمعلمين</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#D4AF37;--gold-light:#FFEF96;--dark:#0a0a0a;--dark2:#1a1a1a;--dark3:#2a2a2a}
+body{font-family:'Cairo',sans-serif;background:var(--dark);color:#fff;overflow:hidden;height:100vh;width:100vw}
+.slide{position:absolute;top:0;left:0;width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px 80px;opacity:0;transform:translateX(-60px);transition:all .7s cubic-bezier(.4,0,.2,1);pointer-events:none;overflow:hidden}
+.slide.active{opacity:1;transform:translateX(0);pointer-events:all}
+.slide-bg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0}
+.slide-content{position:relative;z-index:2;width:100%;max-width:1200px;text-align:center}
+.badge{display:inline-block;padding:8px 28px;border-radius:50px;font-size:14px;font-weight:700;letter-spacing:2px;margin-bottom:24px;background:linear-gradient(135deg,var(--gold-light),var(--gold));color:#000}
+h1{font-size:clamp(40px,5vw,72px);font-weight:900;line-height:1.3;margin-bottom:20px}
+h2{font-size:clamp(32px,4vw,56px);font-weight:900;line-height:1.3;margin-bottom:16px}
+h3{font-size:clamp(24px,3vw,36px);font-weight:700;line-height:1.4;margin-bottom:12px}
+p{font-size:clamp(16px,1.8vw,22px);color:rgba(255,255,255,.7);line-height:1.8;max-width:900px;margin:0 auto}
+.gold-text{background:linear-gradient(135deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.glow{position:absolute;border-radius:50%;filter:blur(120px);opacity:.3;pointer-events:none}
+.glow-gold{background:var(--gold)}
+.glow-amber{background:#ff8c00}
+
+/* Grid layouts */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px;text-align:right}
+.compare-card{padding:40px;border-radius:24px;border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(20px)}
+.compare-card.before{background:rgba(180,30,30,.15);border-color:rgba(180,30,30,.3)}
+.compare-card.after{background:rgba(212,175,55,.1);border-color:rgba(212,175,55,.3)}
+.compare-card h3{font-size:28px;margin-bottom:20px}
+.compare-card ul{list-style:none;padding:0}
+.compare-card ul li{padding:12px 0;font-size:18px;color:rgba(255,255,255,.8);border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px}
+.compare-card ul li::before{content:'';width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.compare-card.before ul li::before{background:#e74c3c}
+.compare-card.after ul li::before{background:var(--gold)}
+
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px;text-align:right}
+.feature-card{padding:32px;border-radius:20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);transition:transform .3s}
+.feature-card:hover{transform:translateY(-4px)}
+.feature-icon{font-size:40px;margin-bottom:16px}
+.feature-card h4{font-size:20px;font-weight:700;margin-bottom:8px;color:var(--gold-light)}
+.feature-card p{font-size:15px;color:rgba(255,255,255,.6);margin:0}
+
+.stats-row{display:flex;justify-content:center;gap:60px;margin-top:40px}
+.stat{text-align:center}
+.stat-num{font-size:52px;font-weight:900;background:linear-gradient(135deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-label{font-size:16px;color:rgba(255,255,255,.5);margin-top:4px}
+
+/* Navigation */
+.nav-dots{position:fixed;left:30px;top:50%;transform:translateY(-50%);z-index:100;display:flex;flex-direction:column;gap:10px}
+.nav-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.2);cursor:pointer;transition:all .3s;border:none}
+.nav-dot.active{background:var(--gold);transform:scale(1.4)}
+.slide-counter{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);z-index:100;font-size:14px;color:rgba(255,255,255,.3);letter-spacing:4px}
+.arrow-hint{position:fixed;bottom:30px;right:40px;z-index:100;font-size:13px;color:rgba(255,255,255,.25);letter-spacing:1px}
+
+/* CTA */
+.cta-btn{display:inline-block;margin-top:30px;padding:18px 50px;border-radius:50px;font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--gold-light),var(--gold));color:#000;text-decoration:none;transition:transform .3s,box-shadow .3s;border:none;cursor:pointer;font-family:'Cairo',sans-serif}
+.cta-btn:hover{transform:scale(1.05);box-shadow:0 0 40px rgba(212,175,55,.4)}
+
+/* Animations */
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:.5}}
+.float{animation:float 4s ease-in-out infinite}
+.pulse{animation:pulse 3s ease-in-out infinite}
+
+/* Logo */
+.logo-container{width:160px;height:160px;margin:0 auto 30px;border-radius:30px;overflow:hidden;border:2px solid rgba(212,175,55,.3);box-shadow:0 0 60px rgba(212,175,55,.2)}
+.logo-container img{width:100%;height:100%;object-fit:cover}
+</style>
+</head>
+<body>
+
+<!-- Slide 1: Cover -->
+<div class="slide active" id="s0">
+  <div class="slide-bg">
+    <div class="glow glow-gold" style="width:500px;height:500px;top:-100px;right:-100px"></div>
+    <div class="glow glow-amber pulse" style="width:400px;height:400px;bottom:-100px;left:-50px"></div>
+  </div>
+  <div class="slide-content">
+    <div class="logo-container float">
+      <img src="flutter_projects/calligro_app/web_portal/public/assets/images/Logo_zoomed.png" alt="Calligro" onerror="this.parentElement.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#1a1a1a;font-size:48px;font-weight:900&quot;><span style=&quot;background:linear-gradient(135deg,#FFEF96,#D4AF37);-webkit-background-clip:text;-webkit-text-fill-color:transparent&quot;>C</span></div>'">
+    </div>
+    <div class="badge">أكاديمية الخط العربي</div>
+    <h1>مرحباً بكم في <span class="gold-text">كاليكرو</span></h1>
+    <p>المنصة الرقمية الأولى لتعليم فن الخط العربي الأصيل<br>حيث يلتقي التراث بالتكنولوجيا</p>
+  </div>
+</div>
+
+<!-- Slide 2: The Problem -->
+<div class="slide" id="s1">
+  <div class="slide-bg">
+    <div class="glow" style="width:400px;height:400px;top:10%;left:20%;background:#e74c3c;opacity:.1"></div>
+  </div>
+  <div class="slide-content">
+    <div class="badge" style="background:rgba(231,76,60,.2);color:#e74c3c">التحدي</div>
+    <h2>واقع تعليم الخط العربي <span style="color:#e74c3c">اليوم</span></h2>
+    <p>يواجه معلمو الخط العربي تحديات كبيرة في الوصول للطلاب وتنظيم دوراتهم وتحقيق دخل مستدام من فنهم الثمين</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-num" style="-webkit-text-fill-color:#e74c3c">٧٠٪</div><div class="stat-label">من المعلمين لا يملكون حضوراً رقمياً</div></div>
+      <div class="stat"><div class="stat-num" style="-webkit-text-fill-color:#e74c3c">محدود</div><div class="stat-label">عدد الطلاب في الفصول التقليدية</div></div>
+      <div class="stat"><div class="stat-num" style="-webkit-text-fill-color:#e74c3c">٠٪</div><div class="stat-label">أدوات رقمية متخصصة للخط</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 3: Before vs After -->
+<div class="slide" id="s2">
+  <div class="slide-bg">
+    <div class="glow glow-gold" style="width:400px;height:400px;bottom:-50px;right:30%"></div>
+  </div>
+  <div class="slide-content">
+    <div class="badge">المقارنة</div>
+    <h2>قبل كاليكرو <span class="gold-text">vs</span> بعد كاليكرو</h2>
+    <div class="compare-grid">
+      <div class="compare-card before">
+        <h3 style="color:#e74c3c">❌ قبل كاليكرو</h3>
+        <ul>
+          <li>تعليم محلي محدود بمدينتك فقط</li>
+          <li>جدولة يدوية مرهقة للحصص</li>
+          <li>لا يوجد ملف تعريفي احترافي</li>
+          <li>صعوبة تحصيل الرسوم من الطلاب</li>
+          <li>عدد طلاب محدود جداً</li>
+          <li>لا توجد أدوات تفاعلية للتعليم</li>
+        </ul>
+      </div>
+      <div class="compare-card after">
+        <h3 style="color:var(--gold-light)">✅ بعد كاليكرو</h3>
+        <ul>
+          <li>تعليم عالمي — طلاب من كل مكان</li>
+          <li>جدولة تلقائية ذكية للدورات</li>
+          <li>صفحة شخصية احترافية مميزة</li>
+          <li>نظام دفع آمن ومتكامل عالمياً</li>
+          <li>عدد غير محدود من الطلاب</li>
+          <li>فصول تفاعلية مباشرة بتقنية حديثة</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4: Platform Features -->
+<div class="slide" id="s3">
+  <div class="slide-bg">
+    <div class="glow glow-gold" style="width:500px;height:500px;top:-150px;left:50%"></div>
+  </div>
+  <div class="slide-content">
+    <div class="badge">المنصة</div>
+    <h2>ماذا نوفر <span class="gold-text">لك؟</span></h2>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon">🎓</div><h4>لوحة تحكم متكاملة</h4><p>إدارة دوراتك وطلابك وأرباحك من مكان واحد</p></div>
+      <div class="feature-card"><div class="feature-icon">📱</div><h4>تطبيق جوال احترافي</h4><p>تطبيق iOS و Android بتصميم عالمي للطلاب والمعلمين</p></div>
+      <div class="feature-card"><div class="feature-icon">🌐</div><h4>بوابة ويب متطورة</h4><p>موقع إلكتروني احترافي يعرض دوراتك للعالم</p></div>
+      <div class="feature-card"><div class="feature-icon">💳</div><h4>نظام دفع عالمي</h4><p>Apple Pay و Google Pay وبطاقات الائتمان</p></div>
+      <div class="feature-card"><div class="feature-icon">🔔</div><h4>إشعارات ذكية</h4><p>تنبيهات فورية للطلاب بمواعيد الحصص والتحديثات</p></div>
+      <div class="feature-card"><div class="feature-icon">🏆</div><h4>معرض أعمالك</h4><p>عرض إبداعاتك في معرض رقمي احترافي</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 5: Revenue -->
+<div class="slide" id="s4">
+  <div class="slide-bg">
+    <div class="glow glow-gold" style="width:500px;height:500px;top:20%;right:-100px"></div>
+    <div class="glow glow-amber pulse" style="width:300px;height:300px;bottom:10%;left:10%"></div>
+  </div>
+  <div class="slide-content">
+    <div class="badge">الأرباح</div>
+    <h2>كيف <span class="gold-text">تربح</span> مع كاليكرو؟</h2>
+    <p>نظام شفاف وعادل يضمن لك أعلى عائد من دوراتك</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-num">٥٠٪</div><div class="stat-label">خصم للطلاب عبر الموقع</div></div>
+      <div class="stat"><div class="stat-num">عالمي</div><div class="stat-label">وصول لطلاب من كل العالم</div></div>
+      <div class="stat"><div class="stat-num">فوري</div><div class="stat-label">تحويل الأرباح بشكل مباشر</div></div>
+    </div>
+    <div style="margin-top:50px;padding:30px;border-radius:20px;background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.2);max-width:700px;margin-left:auto;margin-right:auto">
+      <p style="color:var(--gold-light);font-size:20px;font-weight:700;margin-bottom:8px">💰 مثال عملي</p>
+      <p style="font-size:17px">دورة بسعر ١٠٠$ × ٣٠ طالب = <span class="gold-text" style="font-size:24px;font-weight:900">٣,٠٠٠$</span> لدورة واحدة فقط!</p>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 6: Vision -->
+<div class="slide" id="s5">
+  <div class="slide-bg">
+    <div class="glow glow-gold" style="width:600px;height:600px;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  </div>
+  <div class="slide-content">
+    <div class="badge">الرؤية</div>
+    <h2>رؤيتنا <span class="gold-text">المستقبلية</span></h2>
+    <p style="font-size:24px;color:rgba(255,255,255,.8);margin-bottom:40px">أن نكون المنصة الأولى عالمياً في تعليم فن الخط العربي الأصيل</p>
+    <div class="features-grid" style="grid-template-columns:repeat(3,1fr);gap:20px">
+      <div class="feature-card" style="text-align:center"><div class="feature-icon">🌍</div><h4>انتشار عالمي</h4><p>نهدف للوصول لملايين الطلاب حول العالم</p></div>
+      <div class="feature-card" style="text-align:center"><div class="feature-icon">🤝</div><h4>مجتمع متكامل</h4><p>بناء أكبر مجتمع رقمي لعشاق الخط العربي</p></div>
+      <div class="feature-card" style="text-align:center"><div class="feature-icon">🏅</div><h4>شهادات معتمدة</h4><p>شهادات إتمام معتمدة من كاليكرو أكاديمي</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 7: CTA -->
+<div class="slide" id="s6">
+  <div class="slide-bg">
+    <div class="glow glow-gold pulse" style="width:600px;height:600px;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+  </div>
+  <div class="slide-content">
+    <div class="logo-container float" style="width:120px;height:120px;border-radius:24px">
+      <img src="flutter_projects/calligro_app/web_portal/public/assets/images/Logo_zoomed.png" alt="C" onerror="this.parentElement.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#1a1a1a;font-size:40px;font-weight:900&quot;><span style=&quot;background:linear-gradient(135deg,#FFEF96,#D4AF37);-webkit-background-clip:text;-webkit-text-fill-color:transparent&quot;>C</span></div>'">
+    </div>
+    <h1>انضم إلى <span class="gold-text">كاليكرو</span> اليوم</h1>
+    <p style="font-size:22px;margin-bottom:10px">كن جزءاً من مستقبل تعليم الخط العربي</p>
+    <p style="font-size:18px;color:var(--gold-light);margin-bottom:30px">فنّك يستحق أن يصل للعالم 🌟</p>
+    <button class="cta-btn" onclick="alert('تواصل معنا عبر التطبيق أو الموقع!')">ابدأ رحلتك الآن</button>
+    <p style="margin-top:30px;font-size:14px;color:rgba(255,255,255,.3)">www.calligro.com</p>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="nav-dots" id="dots"></div>
+<div class="slide-counter" id="counter">١ / ٧</div>
+<div class="arrow-hint">← → للتنقل بين الشرائح</div>
+
+<script>
+const slides=document.querySelectorAll('.slide');
+const dotsC=document.getElementById('dots');
+const counter=document.getElementById('counter');
+let cur=0;
+const toAr=n=>'٠١٢٣٤٥٦٧٨٩'.split('')[n]||n;
+
+slides.forEach((_,i)=>{
+  const d=document.createElement('button');
+  d.className='nav-dot'+(i===0?' active':'');
+  d.onclick=()=>go(i);
+  dotsC.appendChild(d);
+});
+
+function go(n){
+  if(n<0||n>=slides.length||n===cur)return;
+  slides[cur].classList.remove('active');
+  dotsC.children[cur].classList.remove('active');
+  cur=n;
+  slides[cur].classList.add('active');
+  dotsC.children[cur].classList.add('active');
+  counter.textContent=toAr(cur+1)+' / '+toAr(slides.length);
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft')go(cur+1);
+  else if(e.key==='ArrowRight')go(cur-1);
+  else if(e.key===' ')go(cur+1);
+});
+
+let tx=0;
+document.addEventListener('touchstart',e=>tx=e.touches[0].clientX);
+document.addEventListener('touchend',e=>{
+  const d=tx-e.changedTouches[0].clientX;
+  if(Math.abs(d)>50)d>0?go(cur+1):go(cur-1);
+});
+</script>
+</body>
+</html>
