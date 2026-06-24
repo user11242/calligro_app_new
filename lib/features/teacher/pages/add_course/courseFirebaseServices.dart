@@ -24,6 +24,7 @@ class CourseFirebaseService {
             // FIXED: Fetches 'photoUrl' (Teacher Identity) from your database
             'teacherProfilePic': data['photoUrl'] ?? '',
             'hasPayoutInfo': data.containsKey('payoutSettings'),
+            'earningPercentage': ((data['commissionRate'] ?? 0.60) * 100).toDouble(),
           };
         }
         throw Exception('Teacher details not found');

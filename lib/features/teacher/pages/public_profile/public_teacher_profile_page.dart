@@ -334,35 +334,39 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
               ),
               const SizedBox(width: 10),
               if (userRole == 'teacher')
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8.0,
-                    vertical: 4.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentGold.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8.0),
-                    border: Border.all(color: AppColors.accentGold, width: 1),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.assignment_ind,
-                        color: AppColors.accentGold,
-                        size: 14.0,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                        vertical: 4.0,
                       ),
-                      const SizedBox(width: 5.0),
-                      Text(
-                        AppLocalizations.of(context)!.teacher,
-                        style: const TextStyle(
-                          color: AppColors.accentGold,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12.0,
-                        ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentGold.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8.0),
+                        border: Border.all(color: AppColors.accentGold, width: 1),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.assignment_ind,
+                            color: AppColors.accentGold,
+                            size: 14.0,
+                          ),
+                          const SizedBox(width: 5.0),
+                          Text(
+                            AppLocalizations.of(context)!.teacher,
+                            style: const TextStyle(
+                              color: AppColors.accentGold,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -376,9 +380,22 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
             reviewCount: userData['reviewCount'] ?? 0,
             isCompact: false,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          // Spoken Languages Section
+          () {
+            final List<String> languages = List<String>.from(userData['spokenLanguages'] ?? []);
+            if (languages.isNotEmpty) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: _buildLanguagesSection(languages),
+              );
+            }
+            return const SizedBox.shrink();
+          }(),
+
           // Bio Section (Instagram Style)
           if ((userData['bio'] ?? "").toString().isNotEmpty) ...[
+            const SizedBox(height: 8),
             Text(
               userData['bio'],
               maxLines: 4, // Shows max 4 lines (Instagram standard)
@@ -392,7 +409,7 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
             ),
             const SizedBox(height: 12),
           ],
-          const SizedBox(height: 20),
+
           Row(
             children: [
               Expanded(
@@ -409,6 +426,104 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
           const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  Widget _buildLanguagesSection(List<String> languages) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.accentGold.withAlpha(25),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.translate_rounded,
+                size: 14,
+                color: AppColors.accentGold,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              AppLocalizations.of(context)!.spokenLanguages.toUpperCase(),
+              style: TextStyle(
+                color: AppColors.accentGold.withOpacity(0.9),
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: languages.map((lang) {
+            String labelText = lang;
+            if (lang == "Arabic") labelText = "العربية";
+            if (lang == "English") labelText = "English";
+            if (lang == "Turkish") labelText = "Türkçe";
+            if (lang == "Bengali") labelText = "বাংলা";
+            if (lang == "Urdu") labelText = "اردو";
+            if (lang == "Farsi") labelText = "فارسی";
+            if (lang == "Kurdish") labelText = "کوردي";
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withAlpha(25),
+                    Colors.white.withAlpha(10),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withAlpha(20),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(50),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accentGold,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    labelText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

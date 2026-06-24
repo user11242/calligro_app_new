@@ -56,6 +56,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   List<String> selectedDays = [];
   List<dynamic> requiredTools = [];
   List<String> curriculumSteps = []; // Added to store curriculum
+  String? ageCategory; // Added to store student age category
 
   // Analysis Variables
   Map<String, List<DateTime>> sessionDates = {};
@@ -66,7 +67,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
 
   // Dynamic Scheduling State
   Map<String, dynamic>? _rescheduledData;
-  String? _teacherStatusMessage;
   bool _isSavingReschedule = false;
 
   // Translation State
@@ -153,6 +153,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                 ?.map((e) => e.toString())
                 .toList() ??
             [];
+        ageCategory = widget.courseData['ageCategory'];
       });
     }
   }
@@ -195,6 +196,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                   ?.map((e) => e.toString())
                   .toList() ??
               [];
+          ageCategory = data['ageCategory'];
         });
 
         _calculateSessionBreakdown();
@@ -328,8 +330,36 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       }
 
       try {
+        // 🛡️ SECURITY FIX: Check for duplicate session using heartbeat
+        final presenceSnap = await FirebaseFirestore.instance
+            .collection('courses')
+            .doc(widget.courseId)
+            .collection('meetingPresence')
+            .doc(user?.uid)
+            .get();
+
+        if (presenceSnap.exists) {
+          final data = presenceSnap.data();
+          if (data != null && data.containsKey('lastHeartbeat')) {
+            final lastBeat = (data['lastHeartbeat'] as Timestamp?)?.toDate();
+            if (lastBeat != null && DateTime.now().difference(lastBeat).inSeconds < 35) {
+              if (mounted) {
+                AppMessenger.showSnackBar(
+                  context,
+                  title: "Session Active",
+                  message: "Your account is already active in this meeting from another device. Please wait 30 seconds if you just disconnected.",
+                  type: MessengerType.error,
+                );
+              }
+              return; // Block entry
+            }
+          }
+        }
+
         // Adding a timeout because Jitsi can sometimes hang on simulators
         await JitsiMeetService().joinMeeting(
+          courseId: widget.courseId,
+          userId: user?.uid ?? "",
           roomName: calligroMeetLink!, // Using the branded field
           userName: userName,
           userEmail: userEmail,
@@ -1039,34 +1069,67 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: levelColor.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: levelColor.withOpacity(0.3),
-                        blurRadius: 10,
-                        spreadRadius: 2,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: levelColor.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: levelColor.withOpacity(0.3),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        CourseUtils.getLocalizedLevel(
+                          context,
+                          courseLevel,
+                        ).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                    if (ageCategory != null && ageCategory!.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          CourseUtils.getLocalizedAge(
+                            context,
+                            ageCategory,
+                          ).toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                  child: Text(
-                    CourseUtils.getLocalizedLevel(
-                      context,
-                      courseLevel,
-                    ).toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -1507,8 +1570,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         children: [
           _buildDynamicSchedulingCard(),
           const SizedBox(height: 32),
-          _buildTeacherMessageCard(),
-          const SizedBox(height: 32),
           _buildSectionTitle(
             isTeacher
                 ? AppLocalizations.of(context)!.toolsRequirements
@@ -1592,17 +1653,46 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         .listen((snapshot) {
       if (snapshot.exists && mounted) {
         final data = snapshot.data() as Map<String, dynamic>;
+        
+        // Auto-expire reschedule if it was for a previous day
+        var rescheduleData = data['rescheduledSession'];
+        if (rescheduleData != null && rescheduleData['originalDate'] != null) {
+          final originalDate = (rescheduleData['originalDate'] as Timestamp).toDate();
+          final now = DateTime.now();
+          if (originalDate.year != now.year || originalDate.month != now.month || originalDate.day != now.day) {
+            rescheduleData = null; // Ignore it, it's expired
+          }
+        }
+
         setState(() {
-          _rescheduledData = data['rescheduledSession'];
-          _teacherStatusMessage = data['teacherStatusMessage'];
+          _rescheduledData = rescheduleData;
         });
       }
     });
   }
 
+  bool _isSessionToday() {
+    if (selectedDays.isEmpty) return false;
+    
+    // Check if the course is currently active
+    if (startDate == null || endDate == null) return false;
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final startDay = DateTime(startDate!.year, startDate!.month, startDate!.day);
+    final endDay = DateTime(endDate!.year, endDate!.month, endDate!.day);
+    
+    if (today.isBefore(startDay)) return false; // Course hasn't started yet
+    if (today.isAfter(endDay)) return false;   // Course has already ended
+
+    final todayName = DateFormat('EEEE').format(now);
+    return selectedDays.contains(todayName);
+  }
+
   Widget _buildDynamicSchedulingCard() {
     final bool isTeacher = userRole == 'teacher';
     final hasReschedule = _rescheduledData != null;
+    final bool isSessionToday = _isSessionToday();
 
     if (!isTeacher && !hasReschedule) return const SizedBox.shrink();
 
@@ -1630,7 +1720,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
               ),
               const SizedBox(width: 12),
               Text(
-                hasReschedule ? "SESSION RESCHEDULED" : "TODAY'S SCHEDULE",
+                hasReschedule ? AppLocalizations.of(context)!.sessionRescheduled : AppLocalizations.of(context)!.todaysSchedule,
                 style: TextStyle(
                   color: hasReschedule ? Colors.orangeAccent : Colors.white60,
                   fontSize: 12,
@@ -1643,7 +1733,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
           const SizedBox(height: 20),
           if (hasReschedule) ...[
             Text(
-              "The teacher has moved today's session.",
+              AppLocalizations.of(context)!.teacherMovedSession,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -1652,20 +1742,48 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
             ),
             const SizedBox(height: 8),
             Text(
-              "New Time: ${DateFormat.jm().format((_rescheduledData!['newStartTime'] as Timestamp).toDate())}",
+              "${AppLocalizations.of(context)!.newTime} ${DateFormat.jm(Localizations.localeOf(context).toString()).format((_rescheduledData!['newStartTime'] as Timestamp).toDate())}",
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ] else
-            const Text(
-              "Session is on time as planned.",
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+             Text(
+              AppLocalizations.of(context)!.sessionOnTime,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
           if (isTeacher) ...[
+            if (!isSessionToday && !hasReschedule) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orangeAccent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orangeAccent.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)!.cannotRescheduleNotMeetingDay,
+                        style: const TextStyle(
+                          color: Colors.orangeAccent, 
+                          fontSize: 13, 
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _showRescheduleDialog,
+                onPressed: (isSessionToday || hasReschedule) ? _showRescheduleDialog : null,
                 icon: Icon(
                   hasReschedule ? Icons.edit_calendar : Icons.more_time,
                   size: 18,
@@ -1673,9 +1791,11 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                 label: _isSavingReschedule 
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                     : Text(
-                        hasReschedule ? "Update Reschedule" : "Reschedule Today",
+                        hasReschedule ? AppLocalizations.of(context)!.updateReschedule : AppLocalizations.of(context)!.rescheduleToday,
                       ),
                 style: ElevatedButton.styleFrom(
+                  disabledBackgroundColor: Colors.white.withOpacity(0.05),
+                  disabledForegroundColor: Colors.white30,
                   backgroundColor:
                       hasReschedule ? Colors.orangeAccent : AppColors.accentGold,
                   foregroundColor: Colors.black,
@@ -1689,70 +1809,11 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
             if (hasReschedule)
               TextButton(
                 onPressed: _cancelReschedule,
-                child: const Text(
-                  "Cancel Reschedule",
-                  style: TextStyle(color: Colors.redAccent),
+                child: Text(
+                  AppLocalizations.of(context)!.cancelReschedule,
+                  style: const TextStyle(color: Colors.redAccent),
                 ),
               ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTeacherMessageCard() {
-    final bool isTeacher = userRole == 'teacher';
-    if (!isTeacher && (_teacherStatusMessage == null || _teacherStatusMessage!.isEmpty)) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.accentGold.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.accentGold.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.chat_bubble_outline_rounded, color: AppColors.accentGold),
-              SizedBox(width: 12),
-              Text(
-                "TEACHER'S MESSAGE",
-                style: TextStyle(
-                  color: AppColors.accentGold,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            _teacherStatusMessage ?? "No message from the teacher for today.",
-            style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
-          ),
-          if (isTeacher) ...[
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                onPressed: _showTeacherMessageDialog,
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text("Update Message"),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.accentGold,
-                  backgroundColor: AppColors.accentGold.withOpacity(0.1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
           ],
         ],
       ),
@@ -1763,6 +1824,25 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(selectedTime ?? DateTime.now()),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.accentGold, 
+              onPrimary: Colors.black, 
+              surface: AppColors.primary, 
+              onSurface: Colors.white, 
+            ),
+            dialogBackgroundColor: AppColors.primary,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accentGold, 
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -1780,9 +1860,37 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
             'newEndTime': Timestamp.fromDate(newEndTime),
           }
         });
-        _showMessage("Success", "Session rescheduled. Students will see the update.", MessengerType.success);
+
+        // Add Notification Logic
+        final dynamic studentsRaw = widget.courseData['enrolledStudents'];
+        final List<String> enrolledStudentIds = (studentsRaw is List)
+            ? List<String>.from(studentsRaw.whereType<String>())
+            : [];
+            
+        if (enrolledStudentIds.isNotEmpty) {
+          final courseName = _getLocalizedCourseName(context, widget.courseData);
+          final formattedTime = DateFormat.jm(Localizations.localeOf(context).toString()).format(newStartTime);
+          final title = AppLocalizations.of(context)!.sessionRescheduled;
+          final message = "${AppLocalizations.of(context)!.teacherMovedSession} '$courseName'. ${AppLocalizations.of(context)!.newTime} $formattedTime";
+
+          final batch = FirebaseFirestore.instance.batch();
+          for (var studentId in enrolledStudentIds) {
+            final notifRef = FirebaseFirestore.instance.collection('users').doc(studentId).collection('notifications').doc();
+            batch.set(notifRef, {
+              'title': title,
+              'message': message,
+              'createdAt': FieldValue.serverTimestamp(),
+              'isRead': false,
+              'type': 'reschedule',
+              'courseId': widget.courseId,
+            });
+          }
+          await batch.commit();
+        }
+
+        _showMessage(AppLocalizations.of(context)!.success, AppLocalizations.of(context)!.sessionRescheduledSuccess, MessengerType.success);
       } catch (e) {
-        _showMessage("Error", "Failed to reschedule: $e", MessengerType.error);
+        _showMessage(AppLocalizations.of(context)!.error, "${AppLocalizations.of(context)!.error}: $e", MessengerType.error);
       }
       setState(() => _isSavingReschedule = false);
     }
@@ -1794,44 +1902,11 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).update({
         'rescheduledSession': FieldValue.delete(),
       });
-      _showMessage("Cancelled", "Session is back to original schedule.", MessengerType.info);
+      _showMessage(AppLocalizations.of(context)!.success, AppLocalizations.of(context)!.sessionBackToNormal, MessengerType.info);
     } catch (e) {
-      _showMessage("Error", "Failed to cancel: $e", MessengerType.error);
+      _showMessage(AppLocalizations.of(context)!.error, "${AppLocalizations.of(context)!.error}: $e", MessengerType.error);
     }
     setState(() => _isSavingReschedule = false);
-  }
-
-  Future<void> _showTeacherMessageDialog() async {
-    final controller = TextEditingController(text: _teacherStatusMessage);
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.primary,
-        title: const Text("Teacher Status Message", style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: "e.g. I will be 15 mins late. Please review the previous lesson.",
-            hintStyle: TextStyle(color: Colors.white30),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).update({
-                'teacherStatusMessage': controller.text,
-              });
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildSectionTitle(String title, IconData icon) {

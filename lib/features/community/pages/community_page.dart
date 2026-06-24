@@ -44,8 +44,8 @@ class _CommunityPageState extends State<CommunityPage>
   String _selectedFilter = ''; // Initialized in didChangeDependencies
 
   // 1. ADD THIS VARIABLE: Store the stream here
-  // 1. ADD THIS VARIABLE: Store the stream here
   Stream<QuerySnapshot>? _postsStream;
+  Stream<QuerySnapshot>? _pinnedPostsStream; // Add Pinned stream
   List<String> _savedPostIds = []; // Local cache of saved IDs for UI state
   StreamSubscription<QuerySnapshot>? _savedPostsSubscription; // Real-time listener
 
@@ -84,6 +84,7 @@ class _CommunityPageState extends State<CommunityPage>
       _fetchUserRole(_currentUser!.uid);
       _subscribeToSavedPosts(); // Real-time subscription
     }
+    _pinnedPostsStream = _communityService.getPinnedPostsStream();
 
     // Listener removed: Auth state is handled globally by AuthWrapper.
   }
@@ -545,6 +546,89 @@ class _CommunityPageState extends State<CommunityPage>
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
+            // Pinned Posts Section
+            StreamBuilder<QuerySnapshot>(
+              stream: _pinnedPostsStream,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+                final pinnedPosts = snapshot.data!.docs;
+                
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final postData = pinnedPosts[index].data() as Map<String, dynamic>;
+                    final postId = pinnedPosts[index].id;
+                    final postUserId = postData['userId'] ?? '';
+
+                    return StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(postUserId)
+                          .snapshots()
+                          .handleError((e) => null),
+                      builder: (context, userSnapshot) {
+                        String displayUserName = postData['userName'] ?? 'Anonymous';
+                        String displayUserImage = postData['userImageUrl'] ?? '';
+                        String displayUserRole = postData['userRole'] ?? 'student';
+
+                        if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
+                          final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                          if (userData['name'] != null) displayUserName = userData['name'];
+                          if (userData['photoUrl'] != null) displayUserImage = userData['photoUrl'];
+                          if (userData['role'] != null) displayUserRole = userData['role'];
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: PostCard(
+                            postId: postId,
+                            userId: postUserId,
+                            currentLoggedInUserId: _currentUser?.uid ?? '',
+                            isGuest: isGuest,
+                            userName: displayUserName,
+                            userImageUrl: displayUserImage,
+                            userRole: displayUserRole,
+                            caption: postData['caption'] ?? '',
+                            imageUrls: List<String>.from(postData['imageUrls'] ?? []),
+                            timestamp: postData['timestamp'] as Timestamp?,
+                            onProfileTap: (tappedUserId, role) => _navigateToProfile(context, tappedUserId, role),
+                            likesCount: postData['likesCount'] ?? 0,
+                            likes: Map<String, dynamic>.from(postData['likes'] ?? {}),
+                            commentsCount: postData['commentsCount'] ?? 0,
+                            isSaved: _savedPostIds.contains(postId),
+                            isEdited: postData['isEdited'] ?? false,
+                            isPinned: postData['isPinned'] ?? true, // It is pinned
+                            onToggleSave: () async {
+                                final isCurrentlySaved = _savedPostIds.contains(postId);
+                                setState(() {
+                                    if (isCurrentlySaved) _savedPostIds.remove(postId);
+                                    else _savedPostIds.add(postId);
+                                });
+                                try {
+                                    await _communityService.toggleSavePost(
+                                        postId: postId,
+                                        currentUserId: _currentUser?.uid ?? '',
+                                        isSaved: isCurrentlySaved
+                                    );
+                                } catch (e) {
+                                    if (mounted) {
+                                        setState(() {
+                                            if (isCurrentlySaved) _savedPostIds.add(postId);
+                                            else _savedPostIds.remove(postId);
+                                        });
+                                    }
+                                }
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  }, childCount: pinnedPosts.length),
+                );
+              },
+            ),
+
             // 6. USE THE STORED STREAM HERE
             StreamBuilder<QuerySnapshot>(
               key: ValueKey<String>(_selectedFilter),
@@ -593,13 +677,22 @@ class _CommunityPageState extends State<CommunityPage>
                   );
                 }
 
-                final posts = snapshot.data!.docs;
+                // Filter out pinned posts so they aren't duplicated in the main feed
+                final nonPinnedPosts = snapshot.data!.docs.where((doc) {
+                   final data = doc.data() as Map<String, dynamic>;
+                   return data['isPinned'] != true;
+                }).toList();
+
+                if (nonPinnedPosts.isEmpty && snapshot.data!.docs.isNotEmpty) {
+                    // All fetched posts were pinned, which is handled by the pinned section above
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
 
                 return SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final postData =
-                        posts[index].data() as Map<String, dynamic>;
-                    final postId = posts[index].id;
+                        nonPinnedPosts[index].data() as Map<String, dynamic>;
+                    final postId = nonPinnedPosts[index].id;
                     final postUserId = postData['userId'] ?? '';
 
                     return StreamBuilder<DocumentSnapshot>(
@@ -656,6 +749,7 @@ class _CommunityPageState extends State<CommunityPage>
                             commentsCount: postData['commentsCount'] ?? 0,
                             isSaved: _savedPostIds.contains(postId), // Pass saved status
                             isEdited: postData['isEdited'] ?? false,
+                            isPinned: postData['isPinned'] ?? false,
                             onToggleSave: () async {
                                 // Optimistic update
                                 final isCurrentlySaved = _savedPostIds.contains(postId);
@@ -696,7 +790,7 @@ class _CommunityPageState extends State<CommunityPage>
                         );
                       },
                     );
-                  }, childCount: posts.length),
+                  }, childCount: nonPinnedPosts.length),
                 );
               },
             ),

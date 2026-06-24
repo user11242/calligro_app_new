@@ -400,26 +400,48 @@ class _StyledCourseCard extends StatelessWidget {
     }
   }
 
+  String _getLocalizedAge(BuildContext context, String? age) {
+    if (age == null || age.isEmpty) return "N/A";
+    final locale = Localizations.localeOf(context).languageCode;
+    if (age == '7-10') {
+      if (locale == 'ar') return '7-10 سنوات';
+      if (locale == 'tr') return '7-10 Yaş';
+      return '7-10 Years';
+    } else if (age == '11-16') {
+      if (locale == 'ar') return '11-16 سنة';
+      if (locale == 'tr') return '11-16 Yaş';
+      return '11-16 Years';
+    } else if (age == '17+') {
+      if (locale == 'ar') return '17+ سنة';
+      if (locale == 'tr') return '17+ Yaş';
+      return '17+ Years';
+    }
+    return age;
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusInfo = _getCourseDisplayStatus(context);
     final String title = CourseUtils.getLocalizedCourseName(context, courseData);
     final String bannerUrl = courseData['courseBanner'] ?? '';
+    final String ageRange = _getLocalizedAge(context, courseData['ageCategory']);
     
     final dynamic studentsRaw = courseData['enrolledStudents'];
     final int studentCount = (studentsRaw is List) ? studentsRaw.length : (studentsRaw is num ? studentsRaw.toInt() : 0);
     final int maxStudents = courseData['maxStudents'] ?? 0;
+    final double enrollmentProgress = (studentCount / (maxStudents > 0 ? maxStudents : 1)).clamp(0.0, 1.0);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      height: 260,
+      margin: const EdgeInsets.only(bottom: 28),
+      height: 320, // Slightly taller to accommodate more info
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.6),
+            blurRadius: 30,
+            spreadRadius: -10,
+            offset: const Offset(0, 15),
           ),
         ],
       ),
@@ -431,22 +453,28 @@ class _StyledCourseCard extends StatelessWidget {
             onTap: onTap,
             child: Stack(
               children: [
-                // Banner with adjusted height and zoom effect
+                // 1. Premium Background Image
                 Positioned.fill(
                   child: bannerUrl.startsWith('http')
                       ? SmartImage(
                           imageUrl: bannerUrl,
                           fit: BoxFit.cover,
                           borderRadius: BorderRadius.circular(32),
-                          placeholder: Container(color: Colors.white10),
-                          errorWidget: const Icon(Icons.error),
                         )
                       : bannerUrl.startsWith('assets')
                           ? Image.asset(bannerUrl, fit: BoxFit.cover)
-                          : Container(color: Colors.white10),
+                          : Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [AppColors.cardBackground, AppColors.primary],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                            ),
                 ),
                 
-                // Multi-layered Gradient for depth
+                // 2. Artistic Gradient Overlays (Much darker at the bottom for readability)
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
@@ -454,127 +482,123 @@ class _StyledCourseCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withOpacity(0.1),
-                          Colors.black.withOpacity(0.3),
-                          Colors.black.withOpacity(0.95),
+                          Colors.black.withOpacity(0.4),
+                          Colors.black.withOpacity(0.6),
+                          Colors.black.withOpacity(0.8),
+                          Colors.black.withAlpha(255),
                         ],
-                        stops: const [0.0, 0.4, 0.9],
+                        stops: const [0.0, 0.4, 0.7, 1.0],
                       ),
                     ),
                   ),
                 ),
 
-                // Content Overlay
+                // 3. Status Badge (Top Left)
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  child: _buildPremiumStatusBadge(statusInfo),
+                ),
+
+                // 4. Main Content Area (Bottom)
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: ClipRRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.4),
-                              Colors.black.withOpacity(0.7),
-                            ],
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.3),
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Title with high contrast
+                        AutoTranslatedText(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            height: 1.1,
                           ),
-                          border: Border(
-                            top: BorderSide(
-                              color: Colors.white.withOpacity(0.15),
-                              width: 1,
-                            ),
-                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
+                        const SizedBox(height: 20),
+                        
+                        // Glass Stats Row (Updated with Age)
+                        Row(
                           children: [
-                            // Title & Status Badge
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: AutoTranslatedText(
-                                    title,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 0.5,
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                _buildStatusBadge(statusInfo),
-                              ],
+                            _buildGlassStat(
+                              context,
+                              Icons.calendar_month_rounded,
+                              startDate != null && endDate != null
+                                  ? "${DateFormat('dd/MM', Localizations.localeOf(context).toString()).format(startDate!)} - ${DateFormat('dd/MM', Localizations.localeOf(context).toString()).format(endDate!)}"
+                                  : "TBD",
                             ),
-                            const SizedBox(height: 18),
-                            
-                            // Glass Info Row (Pills)
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _buildInfoPill(
-                                    context,
-                                    Icons.calendar_month_rounded,
-                                    startDate != null && endDate != null
-                                        ? "${DateFormat('dd/MM', Localizations.localeOf(context).toString()).format(startDate!)} - ${DateFormat('dd/MM', Localizations.localeOf(context).toString()).format(endDate!)}"
-                                        : "TBD",
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildInfoPill(
-                                    context,
-                                    Icons.access_time_filled_rounded,
-                                    _formatTimeRange(context, courseData['startTime'], courseData['endTime']),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildInfoPill(
-                                    context,
-                                    Icons.group_rounded,
-                                    "$studentCount/$maxStudents",
-                                    iconColor: studentCount >= maxStudents ? Colors.redAccent : AppColors.accentGold,
-                                  ),
-                                ],
-                              ),
+                            _buildStatDivider(),
+                            _buildGlassStat(
+                              context,
+                              Icons.access_time_filled_rounded,
+                              _formatTimeRange(context, courseData['startTime'], courseData['endTime']),
                             ),
-                            const SizedBox(height: 20),
-                            
-                            // Progress & Labels
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  AppLocalizations.of(context)!.enrolledStudentsCount(studentCount),
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.6),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                Text(
-                                  "${((studentCount / (maxStudents > 0 ? maxStudents : 1)) * 100).toInt()}%",
-                                  style: const TextStyle(
-                                    color: AppColors.accentGold,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            _buildPremiumProgressBar(studentCount, maxStudents),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            _buildGlassStat(
+                              context,
+                              Icons.face_retouching_natural_rounded, // Better icon for age/students
+                              ageRange,
+                            ),
+                            _buildStatDivider(),
+                            _buildGlassStat(
+                              context,
+                              Icons.group_rounded,
+                              "$studentCount/$maxStudents",
+                              highlight: studentCount >= maxStudents,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Progress Section
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              AppLocalizations.of(context)!.enrolledStudentsCount(studentCount),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7), // Increased visibility
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            Text(
+                              "${(enrollmentProgress * 100).toInt()}%",
+                              style: const TextStyle(
+                                color: AppColors.accentGold,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        _buildGlowProgressBar(enrollmentProgress),
+                      ],
                     ),
                   ),
                 ),
@@ -586,29 +610,64 @@ class _StyledCourseCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(Map<String, dynamic> status) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: (status['color'] as Color).withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: (status['color'] as Color).withOpacity(0.4),
-          width: 1,
+  Widget _buildPremiumStatusBadge(Map<String, dynamic> status) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: (status['color'] as Color).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: (status['color'] as Color).withOpacity(0.4),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(status['icon'] as IconData, color: status['color'] as Color, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                (status['text'] as String).toUpperCase(),
+                style: TextStyle(
+                  color: status['color'] as Color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildGlassStat(BuildContext context, IconData icon, String label, {bool highlight = false}) {
+    return Expanded(
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(status['icon'] as IconData, color: status['color'] as Color, size: 12),
-          const SizedBox(width: 4),
-          Text(
-            (status['text'] as String).toUpperCase(),
-            style: TextStyle(
-              color: status['color'] as Color,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.8,
+          Icon(
+            icon,
+            color: highlight ? Colors.redAccent : AppColors.accentGold,
+            size: 14,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.1,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -616,32 +675,12 @@ class _StyledCourseCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoPill(BuildContext context, IconData icon, String label, {Color? iconColor}) {
+  Widget _buildStatDivider() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: iconColor ?? AppColors.accentGold, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+      height: 16,
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      color: Colors.white.withOpacity(0.15),
     );
   }
 
@@ -653,18 +692,17 @@ class _StyledCourseCard extends StatelessWidget {
     if (end is Timestamp) endTime = end.toDate();
     if (startTime != null && endTime != null) {
       final locale = Localizations.localeOf(context).toString();
-      return "${DateFormat('h:mm a', locale).format(startTime)} - ${DateFormat('h:mm a', locale).format(endTime)}";
+      return "${DateFormat('h:mm', locale).format(startTime)} - ${DateFormat('h:mm a', locale).format(endTime)}";
     }
     return "TBD";
   }
 
-  Widget _buildPremiumProgressBar(int current, int max) {
-    final double progress = (current / (max > 0 ? max : 1)).clamp(0.0, 1.0);
+  Widget _buildGlowProgressBar(double progress) {
     return Container(
-      height: 6,
+      height: 8,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Stack(
@@ -674,17 +712,18 @@ class _StyledCourseCard extends StatelessWidget {
             widthFactor: progress,
             child: Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   colors: [
-                    AppColors.accentGold.withOpacity(0.6),
+                    Color(0xFFE5B800),
                     AppColors.accentGold,
+                    Color(0xFFFFEB99),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.accentGold.withOpacity(0.4),
-                    blurRadius: 8,
+                    color: AppColors.accentGold.withOpacity(0.6),
+                    blurRadius: 12,
                     spreadRadius: 1,
                   ),
                 ],

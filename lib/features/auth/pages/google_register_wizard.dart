@@ -294,6 +294,17 @@ class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
     if (selectedRole == "teacher" && _step == 4) {
       _validatePortfolio(portfolioController.text);
       if (_portfolioError != null) return false;
+
+      // ✅ Check if at least one language is selected
+      if (_selectedLanguages.isEmpty) {
+        AppMessenger.showSnackBar(
+          context,
+          title: l10n.required,
+          message: l10n.pleaseSelectAtLeastOneLanguage,
+          type: MessengerType.error,
+        );
+        return false;
+      }
     }
     if (_isFinalStep() && !_acceptedTerms) {
       AppMessenger.showSnackBar(context, title: l10n.termsRequired, message: l10n.acceptTermsToFinish, type: MessengerType.error);

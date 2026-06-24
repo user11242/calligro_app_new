@@ -55,7 +55,8 @@ class ProfilePostsSection extends StatelessWidget {
         // Limit to 3 posts for the preview
         final previewPosts = allPosts.take(3).toList();
 
-        return Column(
+        return ListView(
+          padding: const EdgeInsets.only(bottom: 80.0), // Padding to avoid bottom nav bar cutoffs
           children: [
             const SizedBox(height: 32),
             ...previewPosts.map((doc) {

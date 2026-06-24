@@ -45,8 +45,10 @@ export default function Home() {
       <Navbar />
 
       {/* ═══════ Cinematic Full-Width Hero ═══════ */}
-      <section className="relative w-full overflow-hidden">
-        <div className="relative w-full h-screen">
+      <section className="relative w-full overflow-hidden bg-[#161616]">
+        {/* Match the container's aspect ratio exactly to the generated images to completely eliminate zooming/cropping */}
+        <div className="relative w-full aspect-[9/16] md:aspect-[4/3] lg:aspect-auto lg:h-[100dvh]">
+          {/* Desktop Image */}
           <Image
             src={
               locale === "en" ? "/assets/images/web-hero-en.png" : 
@@ -55,32 +57,79 @@ export default function Home() {
             }
             alt="Calligro Hero"
             fill
-            className="object-cover object-top"
+            className="hidden lg:block object-cover object-center"
             priority
           />
-          {/* Content Overlay - Positioned on the right side under the 50% text */}
-          <div className="absolute left-6 right-6 md:left-auto md:right-32 bottom-12 md:bottom-24 flex flex-col z-20" dir="ltr">
-            <motion.div 
-               initial={{ opacity: 0, y: 30 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ duration: 1 }}
-               className="max-w-xl flex flex-col items-center md:items-end"
-            >
-              <div className="flex flex-col sm:flex-row gap-3 md:gap-4 items-center w-full sm:w-auto">
-                <Link href="/courses" className="w-full sm:w-auto">
-                  <button className="group flex items-center justify-center gap-4 w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 rounded-full text-xs md:text-sm font-black uppercase tracking-widest bg-primary text-black hover:scale-105 transition-all shadow-2xl">
-                    {t("hero.cta.join")}
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
-                  </button>
-                </Link>
-                <Link href="/download" className="w-full sm:w-auto">
-                  <button className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 rounded-full text-xs md:text-sm font-black uppercase tracking-widest text-white border-2 border-white/20 hover:bg-white/10 backdrop-blur-md transition-all">
-                    {t("hero.cta.app")}
-                  </button>
-                </Link>
-              </div>
-            </motion.div>
-          </div>
+          {/* Tablet Image */}
+          <Image
+            src={
+              locale === "en" ? "/assets/images/web-hero-en-tablet.png" : 
+              locale === "tr" ? "/assets/images/web-hero-tr-tablet.png" : 
+              "/assets/images/web-hero-ar-tablet.png"
+            }
+            alt="Calligro Hero"
+            fill
+            className="hidden md:block lg:hidden object-cover object-center"
+            priority
+          />
+          {/* Mobile Image */}
+          <Image
+            src={
+              locale === "en" ? "/assets/images/web-hero-en-mobile.png" : 
+              locale === "tr" ? "/assets/images/web-hero-tr-mobile.png" : 
+              "/assets/images/web-hero-ar-mobile.png"
+            }
+            alt="Calligro Hero"
+            fill
+            className="block md:hidden object-cover object-center"
+            priority
+          />
+        </div>
+
+        {/* ════ Mobile & Tablet CTA Buttons (Normal flow to prevent overlapping text) ════ */}
+        <div className="lg:hidden w-full px-6 pt-6 pb-12 flex flex-col items-center z-20 relative bg-gradient-to-b from-[#161616] to-[#0a0a0a]" dir="ltr">
+          <motion.div 
+             initial={{ opacity: 0, y: 30 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 1 }}
+             className="w-full max-w-sm flex flex-col gap-4"
+          >
+            <Link href="/courses" className="w-full">
+              <button className="group flex items-center justify-center gap-4 w-full px-8 py-5 rounded-full text-sm font-black uppercase tracking-widest bg-primary text-black hover:scale-105 transition-transform shadow-[0_0_30px_rgba(255,215,0,0.15)]">
+                {t("hero.cta.join")}
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+              </button>
+            </Link>
+            <Link href="/download" className="w-full">
+              <button className="w-full px-8 py-5 rounded-full text-sm font-black uppercase tracking-widest text-white border-2 border-white/20 hover:bg-white/10 backdrop-blur-md transition-all">
+                {t("hero.cta.app")}
+              </button>
+            </Link>
+          </motion.div>
+        </div>
+
+        {/* ════ Desktop CTA Buttons (Absolutely positioned over image) ════ */}
+        <div className="hidden lg:flex absolute right-32 bottom-24 flex-col z-20" dir="ltr">
+          <motion.div 
+             initial={{ opacity: 0, y: 30 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 1 }}
+             className="max-w-xl flex flex-col items-end"
+          >
+            <div className="flex flex-row gap-4 items-center">
+              <Link href="/courses">
+                <button className="group flex items-center justify-center gap-4 px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest bg-primary text-black hover:scale-105 transition-transform shadow-2xl">
+                  {t("hero.cta.join")}
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                </button>
+              </Link>
+              <Link href="/download">
+                <button className="px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest text-white border-2 border-white/20 hover:bg-white/10 backdrop-blur-md transition-all">
+                  {t("hero.cta.app")}
+                </button>
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
 

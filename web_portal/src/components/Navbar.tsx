@@ -68,9 +68,9 @@ export default function Navbar() {
         
         {/* Desktop Navigation */}
         <div className={`hidden md:flex items-center gap-4 lg:gap-8 text-[10px] lg:text-sm font-bold text-white/90 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
-          <Link href="/courses" className="hover:text-white transition-colors whitespace-nowrap">{t("nav.courses")}</Link>
-          <Link href="/teachers" className="hover:text-white transition-colors whitespace-nowrap">{t("nav.teachers")}</Link>
-          <Link href="/about" className="hover:text-white transition-colors whitespace-nowrap">{t("nav.about")}</Link>
+          <Link href="/courses" className="nav-link whitespace-nowrap">{t("nav.courses")}</Link>
+          <Link href="/teachers" className="nav-link whitespace-nowrap">{t("nav.teachers")}</Link>
+          <Link href="/about" className="nav-link whitespace-nowrap">{t("nav.about")}</Link>
         </div>
 
         {/* Desktop Actions */}
@@ -105,7 +105,7 @@ export default function Navbar() {
                     <UserIcon className="w-4 h-4" />
                   )}
                 </div>
-                <span className="text-[10px] lg:text-sm font-bold text-white font-outfit uppercase tracking-wider max-w-[80px] lg:max-w-[120px] truncate">
+                <span className="text-[10px] lg:text-sm font-bold text-white font-outfit uppercase tracking-wider max-w-[150px] lg:max-w-[300px] truncate">
                   {userName}
                 </span>
               </div>

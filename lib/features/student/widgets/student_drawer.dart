@@ -6,8 +6,6 @@ import '../../auth/data/services/auth_service.dart';
 import '../../student/pages/settings/student_settings_page.dart';
 import '../../teacher/pages/settings/help_center_page.dart';
 import '../pages/student_my_courses_page.dart';
-import '../pages/student_payments_page.dart';
-import '../pages/student_history_page.dart';
 import '../pages/gallery_page.dart';
 import '../../../core/utils/guest_guard.dart';
 import '../../../core/widgets/profile_avatar.dart';
@@ -49,24 +47,6 @@ class StudentDrawer extends StatelessWidget {
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentMyCoursesPage()));
-                    },
-                  ),
-                  _buildDrawerMenuItem(
-                    context,
-                    icon: Icons.payments_outlined,
-                    title: l10n.payments,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentPaymentsPage()));
-                    },
-                  ),
-                  _buildDrawerMenuItem(
-                    context,
-                    icon: Icons.history_rounded,
-                    title: l10n.history,
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentHistoryPage()));
                     },
                   ),
                   _buildDrawerMenuItem(

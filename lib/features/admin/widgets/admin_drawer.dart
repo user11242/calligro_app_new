@@ -4,6 +4,7 @@ import 'package:calligro_app/features/admin/pages/admin_users_management_page.da
 import 'package:calligro_app/features/admin/pages/admin_pending_teachers.dart';
 import 'package:calligro_app/features/admin/pages/admin_courses_mgmt.dart';
 import 'package:calligro_app/features/admin/pages/admin_community_mgmt.dart';
+import 'package:calligro_app/features/admin/pages/admin_active_teachers_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 
 class AdminDrawer extends StatelessWidget {
@@ -88,6 +89,14 @@ class AdminDrawer extends StatelessWidget {
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (context) => AdminPendingTeachersPage()));
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.monetization_on_rounded,
+                  title: l10n.teachersCommissions,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminActiveTeachersPage()));
                   },
                 ),
 

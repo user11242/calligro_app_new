@@ -104,6 +104,11 @@
   "course.master": "Master",
   "course.joined": "JOINED",
   "course.enrolled": "Enrolled",
+  "course.off": "OFF",
+  "course.age_range": "Ages",
+  "course.upcoming": "Upcoming",
+  "course.active": "Active",
+  "course.ended": "Ended",
 
   "days.monday": "Monday",
   "days.tuesday": "Tuesday",

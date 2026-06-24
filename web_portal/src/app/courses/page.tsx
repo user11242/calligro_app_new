@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "@/components/Navbar";
 import CourseCard from "@/components/CourseCard";
 import { Search, SlidersHorizontal, Loader2 } from "lucide-react";
@@ -14,9 +15,17 @@ export default function CoursesPage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { t } = useTranslation();
 
   const categories = ["All", "Beginner", "Intermediate", "Advanced"];
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const q = query(collection(db, "courses"), orderBy("createdAt", "desc"));
@@ -33,6 +42,20 @@ export default function CoursesPage() {
   }, []);
 
   const filteredCourses = courses.filter(c => {
+    // Hide started courses from non-enrolled students
+    if (c.startDate) {
+      const start = c.startDate.toDate ? c.startDate.toDate() : new Date(c.startDate);
+      if (!isNaN(start.getTime())) {
+        const now = new Date();
+        const enrolledStudents = Array.isArray(c.enrolledStudents) ? c.enrolledStudents : [];
+        const isEnrolled = currentUser ? enrolledStudents.includes(currentUser.uid) : false;
+        
+        if (now.getTime() > start.getTime() && !isEnrolled) {
+          return false;
+        }
+      }
+    }
+
     const searchTerm = search.toLowerCase();
     const matchesSearch = 
       (c.courseName?.toLowerCase().includes(searchTerm) ||

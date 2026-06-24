@@ -213,6 +213,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final bool canFinish = !_isLoading && classroomData != null;
 
     return Scaffold(
@@ -372,8 +373,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
                     _buildGridCard(
                       icon: Icons.timer_rounded,
                       label: AppLocalizations.of(context)!.time,
-                      value: widget
-                          .selectedTimeFormatted, // No longer splitting, show fullAM/PM
+                      value: "${widget.selectedTimeFormatted} - ${widget.selectedEndTimeFormatted}",
                       accentColor: Colors.purpleAccent,
                     ),
                   ],
@@ -554,7 +554,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
                 // --- CURRICULUM SECTION ---
                 if (widget.curriculumSteps.isNotEmpty) ...[
                   _buildSectionHeader(
-                    AppLocalizations.of(context)!.localeName == 'ar' ? 'نتائج التعلم' : 'Learning Outcomes',
+                    l10n.learningOutcomes,
                   ),
                   Container(
                     padding: const EdgeInsets.all(24),
@@ -739,7 +739,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
               value,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 16, // Reduced from 20 to fit time range
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -774,7 +774,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              "This is how your course will look to students. All details are set and ready for publication!",
+              AppLocalizations.of(context)!.coursePreviewNote,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.7),
@@ -794,9 +794,9 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
-                  "Got it",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                child: Text(
+                  AppLocalizations.of(context)!.gotIt,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -835,6 +835,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
   }
 
   Widget _buildClassroomCard() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -863,18 +864,18 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Calligro Classroom", // Branded Name
-                      style: TextStyle(
+                    Text(
+                      l10n.calligroMeet, // Branded Name
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      "Secured Branded AI Engine",
-                      style: TextStyle(
+                    Text(
+                      l10n.calligroMeetSubtext,
+                      style: const TextStyle(
                         color: Colors.white54,
                         fontSize: 13,
                       ),
@@ -902,18 +903,18 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
                   color: Colors.greenAccent.withOpacity(0.2),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.verified_rounded,
                     color: Colors.greenAccent,
                     size: 20,
                   ),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Text(
-                    "Classroom Ready",
-                    style: TextStyle(
+                    l10n.classroomReady,
+                    style: const TextStyle(
                       color: Colors.greenAccent,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -926,7 +927,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
             TextButton.icon(
               onPressed: _triggerMeetGeneration,
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text("Retry"),
+              label: Text(l10n.retry),
               style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
             ),
         ],

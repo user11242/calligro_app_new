@@ -220,8 +220,21 @@ class CommunityService {
         break;
     }
 
-    return query.snapshots().handleError((e) {
+    return query.limit(20).snapshots().handleError((e) {
       // Swallow permission errors
+    });
+  }
+
+  // ------------------------------------------------------------------------
+  // 4b. Read Pinned Posts
+  // ------------------------------------------------------------------------
+  Stream<QuerySnapshot> getPinnedPostsStream() {
+    return _firestore
+        .collection('community_posts')
+        .where('isPinned', isEqualTo: true)
+        .snapshots()
+        .handleError((e) {
+      // Swallow errors
     });
   }
 
@@ -502,6 +515,23 @@ class CommunityService {
       return [];
     }
   }
+
+  // ------------------------------------------------------------------------
+  // 8b. Pin / Unpin Post (Admin Only)
+  // ------------------------------------------------------------------------
+  Future<void> togglePinPost({
+    required String postId,
+    required bool isPinned,
+  }) async {
+    final DocumentReference postRef = _firestore
+        .collection('community_posts')
+        .doc(postId);
+
+    await postRef.update({
+      'isPinned': isPinned,
+    });
+  }
+
   // ------------------------------------------------------------------------
   // 9. Replies
   // ------------------------------------------------------------------------

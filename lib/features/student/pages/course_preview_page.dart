@@ -132,10 +132,8 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
     if (user == null) return;
 
     try {
-      await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).update({
-        'enrolledStudents': FieldValue.arrayUnion([user.uid]),
-        'enrolledCount': FieldValue.increment(1),
-      });
+      final callable = FirebaseFunctions.instance.httpsCallable('enrollInFreeCourse');
+      await callable.call({'courseId': widget.courseId});
 
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -202,61 +200,6 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
     }
   }
 
-  void _showDebugLogs() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "💰 IAP DEBUG LOGS",
-                  style: TextStyle(color: AppColors.accentGold, fontWeight: FontWeight.w900),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Colors.white54),
-                ),
-              ],
-            ),
-            const Divider(color: Colors.white24),
-            Expanded(
-              child: StreamBuilder<List<String>>(
-                stream: IAPService().logStream,
-                initialData: const [],
-                builder: (context, snapshot) {
-                  final logs = snapshot.data ?? [];
-                  if (logs.isEmpty) {
-                    return const Center(child: Text("No logs yet...", style: TextStyle(color: Colors.white24)));
-                  }
-                  return ListView.builder(
-                    itemCount: logs.length,
-                    itemBuilder: (context, index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        logs[index],
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -300,19 +243,6 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // 💰 DEBUG LOGS BUTTON
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.accentGold.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
-                          ),
-                          child: TextButton.icon(
-                            onPressed: _showDebugLogs,
-                            icon: const Icon(Icons.bug_report, color: AppColors.accentGold, size: 16),
-                            label: const Text("DEBUG", style: TextStyle(color: AppColors.accentGold, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
                         const Spacer(),
                         Container(
                           decoration: BoxDecoration(
@@ -349,7 +279,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
               // 2. CINEMATIC BANNER
               SliverToBoxAdapter(
                 child: Container(
-                  height: 380,
+                  height: 460,
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(32),
@@ -366,6 +296,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
+                        // Background Image
                         Hero(
                           tag: widget.heroTag ?? 'course_img_${widget.courseId}',
                           child: bannerUrl.startsWith('assets')
@@ -377,179 +308,233 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                 errorWidget: const Icon(Icons.error),
                               ),
                         ),
+
+                        // Deep cinematic gradient
                         Positioned.fill(
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.4),
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 80,
-                          left: 20,
-                          right: 20,
-                          child: Container(
-                            alignment: Alignment.center,
-                            child: AutoTranslatedText(
-                              CourseUtils.getLocalizedCourseName(context, widget.courseData),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                height: 1.2,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black54,
-                                    blurRadius: 12,
-                                    offset: Offset(0, 3),
-                                  ),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.1),
+                                  Colors.black.withValues(alpha: 0.3),
+                                  Colors.black.withValues(alpha: 0.85),
+                                  Colors.black.withValues(alpha: 0.95),
                                 ],
+                                stops: const [0.0, 0.3, 0.65, 1.0],
                               ),
                             ),
                           ),
                         ),
+
+                        // Price badge — top right
                         Positioned(
-                          bottom: 24,
-                          left: 20,
-                          right: 20,
+                          top: 16,
+                          right: 16,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentGold,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.accentGold.withValues(alpha: 0.35),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              isFree ? l10n.free.toUpperCase() : "\$${price.toStringAsFixed(0)}",
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 17,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Bottom content — course title + teacher info + metadata chips
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
                           child: StreamBuilder<DocumentSnapshot>(
                             stream: FirebaseFirestore.instance
                                 .collection('users')
                                 .doc(teacherId)
                                 .snapshots(),
                             builder: (context, snapshot) {
-                              String name =
-                                  widget.courseData['teacherName'] ?? 'Master Artist';
-                              String photo =
-                                  widget.courseData['teacherProfilePic'] ?? '';
+                              String name = widget.courseData['teacherName'] ?? 'Master Artist';
+                              String photo = widget.courseData['teacherProfilePic'] ?? '';
+                              Map<String, dynamic> teacherData = {};
 
-                              if (snapshot.hasData &&
-                                  snapshot.data != null &&
-                                  snapshot.data!.exists) {
-                                final data =
-                                    snapshot.data!.data()
-                                        as Map<String, dynamic>;
-                                name = data['name'] ?? name;
-                                photo = data['photoUrl'] ?? photo;
+                              if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
+                                teacherData = snapshot.data!.data() as Map<String, dynamic>;
+                                name = teacherData['name'] ?? name;
+                                photo = teacherData['photoUrl'] ?? photo;
                               }
 
+                              final double avgRating = RatingUtils.calculateAverageRating(
+                                teacherData['totalStars'] ?? 0,
+                                teacherData['reviewCount'] ?? 0,
+                              );
+                              final String flag = CountryUtils.getFlagFromPhoneNumber(
+                                teacherData['phone'] ?? teacherData['phoneNumber'],
+                              );
+                              final List<String> languages = List<String>.from(teacherData['spokenLanguages'] ?? []);
+
                               return ClipRRect(
-                                borderRadius: BorderRadius.circular(32),
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(32),
+                                  bottomRight: Radius.circular(32),
+                                ),
                                 child: BackdropFilter(
-                                  filter: ui.ImageFilter.blur(
-                                    sigmaX: 18,
-                                    sigmaY: 18,
-                                  ),
+                                  filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
-                                    ),
+                                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
                                         colors: [
-                                          Colors.white.withValues(alpha: 0.18),
-                                          Colors.white.withValues(alpha: 0.08),
+                                          Colors.black.withValues(alpha: 0.3),
+                                          Colors.black.withValues(alpha: 0.6),
                                         ],
                                       ),
-                                      borderRadius: BorderRadius.circular(32),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.25),
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: Colors.white.withValues(alpha: 0.08),
+                                          width: 0.5,
+                                        ),
                                       ),
                                     ),
-                                    child: Row(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(1.5),
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: AppColors.accentGold,
-                                              width: 1.5,
-                                            ),
-                                          ),
-                                          child: ProfileAvatar(
-                                            radius: 24,
-                                            imageUrl: photo,
-                                            backgroundColor: Colors.grey[900],
+                                        // Course Title
+                                        Text(CourseUtils.getLocalizedCourseName(context, widget.courseData),
+                                          textAlign: TextAlign.start,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w900,
+                                            height: 1.2,
+                                            letterSpacing: -0.3,
                                           ),
                                         ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Row(
+
+                                        const SizedBox(height: 14),
+
+                                        // Teacher Row
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(1.5),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                border: Border.all(color: AppColors.accentGold, width: 1.5),
+                                              ),
+                                              child: ProfileAvatar(
+                                                radius: 22,
+                                                imageUrl: photo,
+                                                backgroundColor: Colors.grey[900],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Text(
-                                                    name,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 20,
-                                                      fontWeight: FontWeight.w900,
-                                                      letterSpacing: 0.2,
-                                                      shadows: [
-                                                        Shadow(
-                                                          color: Colors.black45,
-                                                          blurRadius: 4,
-                                                          offset: Offset(0, 1),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  if (snapshot.hasData &&
-                                                      snapshot.data!.exists)
-                                                    () {
-                                                      final userData =
-                                                          snapshot.data!.data()
-                                                              as Map<String, dynamic>;
-                                                      final phone =
-                                                          userData['phone'] ??
-                                                          userData['phoneNumber']
-                                                              as String?;
-                                                      final flag =
-                                                          CountryUtils
-                                                              .getFlagFromPhoneNumber(
-                                                                phone,
-                                                              );
-                                                      if (flag.isNotEmpty) {
-                                                        return Padding(
-                                                          padding:
-                                                              const EdgeInsets.only(
-                                                                left: 8.0,
-                                                              ),
-                                                          child: Text(
-                                                            flag,
-                                                            style: const TextStyle(
-                                                              fontSize: 20,
-                                                            ),
+                                                  Row(
+                                                    children: [
+                                                      Flexible(
+                                                        child: Text(
+                                                          name,
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 18,
+                                                            fontWeight: FontWeight.w700,
                                                           ),
-                                                        );
-                                                      }
-                                                      return const SizedBox
-                                                          .shrink();
-                                                    }() ??
-                                                    const SizedBox.shrink(),
+                                                        ),
+                                                      ),
+                                                      if (flag.isNotEmpty) ...[
+                                                        const SizedBox(width: 6),
+                                                        Text(flag, style: const TextStyle(fontSize: 16)),
+                                                      ],
+                                                    ],
+                                                  ),
                                                 ],
                                               ),
-                                              Text(
-                                                l10n.instructor.toUpperCase(),
-                                                style: TextStyle(
-                                                  color: AppColors.accentGold
-                                                      .withValues(alpha: 0.95),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w900,
-                                                  letterSpacing: 1.5,
+                                            ),
+                                            // Rating pill
+                                            if (avgRating > 0)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.accentGold.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.star_rounded, color: AppColors.accentGold, size: 16),
+                                                    const SizedBox(width: 3),
+                                                    Text(
+                                                      RatingUtils.formatRating(avgRating),
+                                                      style: const TextStyle(
+                                                        color: AppColors.accentGold,
+                                                        fontSize: 15,
+                                                        fontWeight: FontWeight.w900,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                            ],
-                                          ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 14),
+
+                                        // Metadata chips row — Level + Age + Languages
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            _buildMetaChip(
+                                              Icons.signal_cellular_alt_rounded,
+                                              _getLocalizedLevel(context, widget.courseData['selectedCategory'] ?? 'Beginner'),
+                                            ),
+                                            if (widget.courseData['ageCategory'] != null)
+                                              _buildMetaChip(
+                                                Icons.face_rounded,
+                                                _getLocalizedAgeCategory(context, widget.courseData['ageCategory']?.toString() ?? ''),
+                                              ),
+                                            if (languages.isNotEmpty)
+                                              _buildMetaChip(
+                                                Icons.translate_rounded,
+                                                "${l10n.spokenLanguages}: ${languages.take(3).map((lang) {
+                                                  if (lang == "Arabic") return "العربية";
+                                                  if (lang == "English") return "EN";
+                                                  if (lang == "Turkish") return "TR";
+                                                  if (lang == "Bengali") return "BN";
+                                                  if (lang == "Urdu") return "UR";
+                                                  if (lang == "Farsi") return "FA";
+                                                  if (lang == "Kurdish") return "KU";
+                                                  return lang;
+                                                }).join(' · ')}",
+                                              ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -557,110 +542,6 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                 ),
                               );
                             },
-                          ),
-                        ),
-                        Positioned(
-                          top: 20,
-                          left: 20,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: BackdropFilter(
-                                  filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.15),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      _getLocalizedLevel(
-                                        context,
-                                        widget.courseData['selectedCategory'] ??
-                                            'Beginner',
-                                      ).toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (widget.courseData['ageCategory'] != null) ...[
-                                const SizedBox(width: 8),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: BackdropFilter(
-                                    filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.5),
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.15),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        _getLocalizedAgeCategory(
-                                          context,
-                                          widget.courseData['ageCategory']?.toString() ?? '',
-                                        ).toUpperCase(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: 20,
-                          right: 20,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentGold,
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              isFree ? l10n.free.toUpperCase() : "\$$price",
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 18,
-                              ),
-                            ),
                           ),
                         ),
                       ],
@@ -1365,6 +1246,33 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
     if (cat.contains('intermediate')) return l10n.intermediate;
     if (cat.contains('advanced')) return l10n.advanced;
     return category;
+  }
+
+  Widget _buildMetaChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppColors.accentGold, size: 15),
+          const SizedBox(width: 7),
+          Text(
+            text,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _getLocalizedDays(BuildContext context, List<dynamic>? days) {

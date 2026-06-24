@@ -110,7 +110,7 @@ class FinanceService {
   }
 
   getPayouts(callback: (payouts: any[]) => void) {
-    const q = query(collection(db, "withdrawal_requests"), where("status", "==", "completed"));
+    const q = query(collection(db, "withdrawal_requests"), orderBy("createdAt", "desc"));
     return onSnapshot(q, (snapshot) => {
       const payouts = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -118,6 +118,24 @@ class FinanceService {
       }));
       callback(payouts);
     });
+  }
+
+  async approveWithdrawal(payoutId: string, teacherName: string, amount: number) {
+    const payoutRef = doc(db, "withdrawal_requests", payoutId);
+    
+    // 1. Mark as completed
+    await updateDoc(payoutRef, {
+      status: "completed",
+      updatedAt: serverTimestamp()
+    });
+
+    // 2. Log as an admin expense to keep accounting accurate
+    await this.addExpense(
+      amount,
+      `Payout to ${teacherName}`,
+      new Date().toISOString().split("T")[0],
+      "payout"
+    );
   }
 
   // --- TEACHER TIERS ---

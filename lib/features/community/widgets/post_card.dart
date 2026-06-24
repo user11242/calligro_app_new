@@ -34,6 +34,7 @@ class PostCard extends StatefulWidget {
   final bool isSaved; // New field
   final bool isGuest; // New flag
   final bool isEdited; // New field
+  final bool isPinned; // New field for admin pinning
   final VoidCallback onToggleSave; // New callback
 
   const PostCard({
@@ -54,6 +55,7 @@ class PostCard extends StatefulWidget {
     required this.isSaved,
     required this.isGuest,
     required this.isEdited,
+    this.isPinned = false,
     required this.onToggleSave,
   });
 
@@ -378,6 +380,32 @@ class _PostCardState extends State<PostCard>
     }
   }
 
+  Future<void> _togglePin() async {
+    try {
+      await _communityService.togglePinPost(
+        postId: widget.postId,
+        isPinned: !widget.isPinned,
+      );
+      if (mounted) {
+        AppMessenger.showSnackBar(
+          context,
+          title: AppLocalizations.of(context)!.success,
+          message: widget.isPinned ? "Post unpinned." : "Post pinned to top.",
+          type: MessengerType.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppMessenger.showSnackBar(
+          context,
+          title: AppLocalizations.of(context)!.error,
+          message: "Failed to pin post: ${e.toString()}",
+          type: MessengerType.error,
+        );
+      }
+    }
+  }
+
   Widget _buildReactionStack() {
     return SizedBox(
       width: 50,
@@ -519,6 +547,14 @@ class _PostCardState extends State<PostCard>
                                     ),
                                   ),
                                 ],
+                                if (widget.isPinned) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.push_pin,
+                                    color: AppColors.accentGold,
+                                    size: 14,
+                                  ),
+                                ],
                               ],
                             ),
                           ],
@@ -548,9 +584,31 @@ class _PostCardState extends State<PostCard>
                           _deletePost();
                         } else if (v == 'edit') {
                           _editPost();
+                        } else if (v == 'pin') {
+                          _togglePin();
                         }
                       },
                       itemBuilder: (ctx) => [
+                        if (_currentUserRole == 'admin')
+                          PopupMenuItem(
+                            value: 'pin',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  widget.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                                  color: AppColors.accentGold,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  widget.isPinned ? "Unpin Post" : "Pin Post", // Can localize later
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         if (isPostAuthor)
                           PopupMenuItem(
                             value: 'edit',

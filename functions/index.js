@@ -26,7 +26,7 @@ setGlobalOptions({ maxInstances: 10, region: "us-central1" });
 // Utility: Generate OTP
 // --------------------
 function generateOtp() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 999999).toString();
 }
 
 // --------------------
@@ -70,10 +70,21 @@ exports.sendEmailOtp = https.onRequest({ secrets: [brevoApiKey] }, async (req, r
     const email = req.body.email;
     if (!email) return res.status(400).send({ success: false, error: "Email required" });
 
+    const docRef = admin.firestore().collection("emailOtps").doc(email);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      if (data.createdAt && Date.now() - data.createdAt.toMillis() < 60000) {
+        return res.status(429).send({ success: false, error: "Please wait 60 seconds before requesting another OTP." });
+      }
+    }
+
     const otp = generateOtp();
     const expiresAt = admin.firestore.Timestamp.fromDate(new Date(Date.now() + 10 * 60 * 1000));
+    const createdAt = admin.firestore.FieldValue.serverTimestamp();
 
-    await admin.firestore().collection("emailOtps").doc(email).set({ otp, expiresAt });
+    await docRef.set({ otp, expiresAt, createdAt });
 
     // 🔑 Setup Brevo client
     const defaultClient = SibApiV3Sdk.ApiClient.instance;
@@ -89,7 +100,7 @@ exports.sendEmailOtp = https.onRequest({ secrets: [brevoApiKey] }, async (req, r
 
     await apiInstance.sendTransacEmail(sendSmtpEmail);
 
-    console.log(`✅ OTP sent to ${email}: ${otp}`);
+    console.log(`✅ OTP sent to ${email}`);
     return res.status(200).send({ success: true });
   } catch (err) {
     console.error("sendEmailOtp error:", err.response?.body || err.message);
@@ -232,11 +243,11 @@ exports.deleteOwnAccount = onCall(async (request) => {
 // HTTPS Callable: Reset Password with OTP
 // --------------------
 exports.resetPasswordWithOtp = onCall(async (request) => {
-  const { email, newPassword } = request.data;
+  const { email, otp, newPassword } = request.data;
 
   // Validate inputs
-  if (!email || !newPassword) {
-    throw new HttpsError("invalid-argument", "Email and new password are required.");
+  if (!email || !otp || !newPassword) {
+    throw new HttpsError("invalid-argument", "Email, OTP, and new password are required.");
   }
 
   if (newPassword.length < 6) {
@@ -244,13 +255,29 @@ exports.resetPasswordWithOtp = onCall(async (request) => {
   }
 
   try {
-    // Get user by email
+    // 1. Verify OTP
+    const docRef = admin.firestore().collection("emailOtps").doc(email);
+    const doc = await docRef.get();
+    
+    if (!doc.exists) {
+      throw new HttpsError("permission-denied", "No verification code found for this email.");
+    }
+
+    const data = doc.data();
+    if (data.otp !== otp || data.expiresAt.toMillis() < Date.now()) {
+      throw new HttpsError("permission-denied", "Invalid or expired verification code.");
+    }
+
+    // 2. Get user by email
     const userRecord = await admin.auth().getUserByEmail(email);
 
-    // Update the user's password
+    // 3. Update the user's password
     await admin.auth().updateUser(userRecord.uid, {
       password: newPassword,
     });
+
+    // 4. Cleanup OTP
+    await docRef.delete();
 
     console.log(`Successfully reset password for user: ${email}`);
 
@@ -261,6 +288,7 @@ exports.resetPasswordWithOtp = onCall(async (request) => {
   } catch (error) {
     console.error("Error resetting password:", error);
 
+    if (error instanceof HttpsError) throw error;
     if (error.code === "auth/user-not-found") {
       throw new HttpsError("not-found", "No user found with this email.");
     }
@@ -319,7 +347,7 @@ exports.createCalligroClassroom = onCall(async (request) => {
     // Generate a random 10-character password for extra security
     const password = Math.random().toString(36).substring(2, 12);
 
-    console.log(`✅ Branded Jitsi Room Created: ${roomId} with Password: ${password}`);
+    console.log(`✅ Branded Jitsi Room Created: ${roomId} with Password: [REDACTED]`);
 
     // 🔐 SECURITY FIX: If courseId is provided, write credentials to private subcollection
     // so they are NOT publicly readable from the main course document
@@ -505,37 +533,86 @@ exports.verifyPurchase = onCall(async (request) => {
       throw new HttpsError("unauthenticated", "Must be logged in to verify purchase.");
     }
 
-    const { receiptData, courseId, productId } = request.data;
+    const { receiptData, purchaseToken, courseId, productId, platform = 'ios' } = request.data;
     if (!receiptData || !courseId) {
       throw new HttpsError("invalid-argument", "receiptData and courseId are required.");
     }
 
     const uid = request.auth.uid;
-    console.log(`📡 Validating purchase for User: ${uid}, Course: ${courseId}`);
+    console.log(`📡 Validating purchase for User: ${uid}, Course: ${courseId}, Platform: ${platform}`);
 
-    // 2. Apple Receipt Validation (Using Node 22 fetch)
-    // In Production, you should check Production URL first. For Sandbox, use the sandbox URL.
-    const APPLE_VERIFY_URL = "https://sandbox.itunes.apple.com/verifyReceipt";
+    let transactionId;
+    let purchasedProductId;
 
-    const response = await fetch(APPLE_VERIFY_URL, {
-      method: "POST",
-      body: JSON.stringify({ "receipt-data": receiptData }),
-    });
+    if (platform === 'android') {
+      console.log(`ℹ️ Validating Android Purchase Token...`);
+      
+      const packageName = "com.yazan.calligro";
+      const { google } = require('googleapis');
+      
+      const auth = new google.auth.GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/androidpublisher']
+      });
+      const androidpublisher = google.androidpublisher({
+        version: 'v3',
+        auth: auth
+      });
 
-    const result = await response.json();
+      try {
+        const response = await androidpublisher.purchases.products.get({
+          packageName: packageName,
+          productId: productId,
+          token: purchaseToken || receiptData
+        });
 
-    if (result.status !== 0) {
-      console.error(`❌ Apple Validation Failed. Status: ${result.status}`);
-      throw new HttpsError("permission-denied", `Apple validation failed with status ${result.status}`);
+        // 0: Purchased, 1: Canceled, 2: Pending
+        if (response.data.purchaseState !== 0) {
+          throw new Error(`Google Play purchase state is ${response.data.purchaseState}`);
+        }
+        
+        transactionId = response.data.orderId || (purchaseToken || receiptData);
+        purchasedProductId = productId;
+        console.log(`✅ Google Play Verified: ${purchasedProductId} (Tx: ${transactionId})`);
+      } catch (err) {
+        console.error("❌ Google Play Validation Failed:", err);
+        throw new HttpsError("permission-denied", "Google Play validation failed: " + err.message);
+      }
+    } else {
+      // 2. Apple Receipt Validation
+      // Check Production first, then Sandbox if needed
+      const PROD_URL = "https://buy.itunes.apple.com/verifyReceipt";
+      const SANDBOX_URL = "https://sandbox.itunes.apple.com/verifyReceipt";
+
+      let response = await fetch(PROD_URL, {
+        method: "POST",
+        body: JSON.stringify({ "receipt-data": receiptData }),
+      });
+
+      let result = await response.json();
+
+      // Status 21007 means this is a sandbox receipt, but was sent to production
+      if (result.status === 21007) {
+        console.log("ℹ️ Sandbox receipt detected, retrying with sandbox URL...");
+        response = await fetch(SANDBOX_URL, {
+          method: "POST",
+          body: JSON.stringify({ "receipt-data": receiptData }),
+        });
+        result = await response.json();
+      }
+
+      if (result.status !== 0) {
+        console.error(`❌ Apple Validation Failed. Status: ${result.status}`);
+        throw new HttpsError("permission-denied", `Apple validation failed with status ${result.status}`);
+      }
+
+      // 3. Extract & Validate Receipt Info
+      const receipt = result.receipt;
+      const inApp = receipt.in_app[0]; // Get the latest transaction
+      transactionId = inApp.transaction_id;
+      purchasedProductId = inApp.product_id;
+
+      console.log(`✅ Apple Verified: ${purchasedProductId} (Tx: ${transactionId})`);
     }
-
-    // 3. Extract & Validate Receipt Info
-    const receipt = result.receipt;
-    const inApp = receipt.in_app[0]; // Get the latest transaction
-    const transactionId = inApp.transaction_id;
-    const purchasedProductId = inApp.product_id;
-
-    console.log(`✅ Apple Verified: ${purchasedProductId} (Tx: ${transactionId})`);
 
     // 4. Idempotency Check (Prevent duplicate processing)
     const orderDoc = await admin.firestore().collection("orders").doc(transactionId).get();
@@ -551,10 +628,27 @@ exports.verifyPurchase = onCall(async (request) => {
     const userData = userSnap.data() || {};
     const courseData = courseSnap.data() || {};
 
-    // 6. Atomic Update: Create Order + Enroll Student
+    // Fetch Teacher to get precise commission rate
+    let commissionRate = 0.0; // Default fallback if no teacher
+    if (courseData.teacherId) {
+      const teacherSnap = await admin.firestore().collection("users").doc(courseData.teacherId).get();
+      if (teacherSnap.exists) {
+        const teacherData = teacherSnap.data() || {};
+        if (teacherData.commissionRate !== undefined) {
+          commissionRate = teacherData.commissionRate;
+        } else {
+          throw new HttpsError("failed-precondition", "Teacher commission rate is not set by admin yet.");
+        }
+      }
+    }
+
+    const pricePaid = courseData.price || 0;
+    const teacherShare = pricePaid * commissionRate;
+
+    // 6. Atomic Update: Create Order + Transaction + Enroll Student
     const batch = admin.firestore().batch();
 
-    // Create Detailed Audit Record
+    // Create Detailed Audit Record (Orders - Legacy/Audit)
     batch.set(admin.firestore().collection("orders").doc(transactionId), {
       uid,
       studentName: userData.name || "Unknown Student",
@@ -566,15 +660,37 @@ exports.verifyPurchase = onCall(async (request) => {
       teacherName: courseData.teacherName || "Unknown Teacher",
       productId: purchasedProductId,
       transactionId,
-      price: courseData.price || 0,
+      price: pricePaid,
+      teacherShare: teacherShare,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       environment: result.environment || "sandbox",
+    });
+
+    // Create Immutable Transaction Record for Finance Dashboards
+    const newTxRef = admin.firestore().collection("transactions").doc();
+    batch.set(newTxRef, {
+      amount: pricePaid,
+      teacherShare: teacherShare,
+      teacherId: courseData.teacherId || "",
+      teacherName: courseData.teacherName || "Unknown Teacher",
+      courseId: courseId,
+      courseName: courseData.courseName || "Unknown Course",
+      studentId: uid,
+      studentName: userData.name || "Unknown Student",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: "completed",
+      source: "app"
     });
 
     // Enroll in Course
     batch.update(admin.firestore().collection("courses").doc(courseId), {
       enrolledStudents: admin.firestore.FieldValue.arrayUnion(uid),
       enrolledCount: admin.firestore.FieldValue.increment(1),
+    });
+
+    // Update User Profile
+    batch.update(admin.firestore().collection("users").doc(uid), {
+      enrolledCourses: admin.firestore.FieldValue.arrayUnion(courseId),
     });
 
     await batch.commit();
@@ -631,27 +747,77 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
 
       console.log(`🏆 Enrolling Student: ${userId} in Course: ${courseId}`);
 
-      // 1. Update Course Document (Atomic)
-      await admin.firestore().collection("courses").doc(String(courseId)).update({
+      // Fetch Course & Teacher to get precise commission rate
+      const courseSnap = await admin.firestore().collection("courses").doc(String(courseId)).get();
+      const courseData = courseSnap.data() || {};
+      
+      let commissionRate = 0; // Default fallback to 0 for safety
+      if (courseData.teacherId) {
+        const teacherSnap = await admin.firestore().collection("users").doc(courseData.teacherId).get();
+        if (teacherSnap.exists) {
+          const teacherData = teacherSnap.data() || {};
+          if (teacherData.commissionRate !== undefined) {
+            commissionRate = teacherData.commissionRate;
+          } else {
+            console.error(`🚨 CRITICAL: Teacher ${courseData.teacherId} has no commissionRate set. Defaulting to 0.`);
+          }
+        }
+      }
+
+      // Lemon Squeezy total is in cents (e.g. 5000 for $50.00). Convert to dollars.
+      const pricePaid = (event.data.attributes.total || 0) / 100;
+      const teacherShare = pricePaid * commissionRate;
+      
+      const batch = admin.firestore().batch();
+
+      // 1. Update Course Document
+      batch.update(admin.firestore().collection("courses").doc(String(courseId)), {
         enrolledStudents: admin.firestore.FieldValue.arrayUnion(userId),
         enrolledCount: admin.firestore.FieldValue.increment(1)
       });
 
-      // 2. Create Audit/Order Log
-      await admin.firestore().collection("orders").doc(String(event.data.id)).set({
+      // 2. Create Audit/Order Log (Unified with verifyPurchase format)
+      batch.set(admin.firestore().collection("orders").doc(String(event.data.id)), {
         uid: userId,
-        courseId,
-        orderId: event.data.id,
-        amount: event.data.attributes.total,
-        currency: event.data.attributes.currency,
-        status: event.data.attributes.status,
-        customerName: event.data.attributes.user_name || "Academy Student",
-        customerEmail: event.data.attributes.user_email || "",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        source: "lemonsqueezy_webhook"
+        studentName: event.data.attributes.user_name || "Academy Student",
+        studentEmail: event.data.attributes.user_email || "",
+        courseId: String(courseId),
+        courseName: courseData.courseName || "Unknown Course",
+        courseArabicName: courseData.courseArabicName || "",
+        teacherId: courseData.teacherId || "",
+        teacherName: courseData.teacherName || "Unknown Teacher",
+        productId: String(event.data.attributes.first_order_item?.product_id || courseId),
+        transactionId: String(event.data.id),
+        price: pricePaid,
+        teacherShare: teacherShare,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        environment: "production",
       });
 
-      console.log(`✅ Enrollment completed for ${userId}`);
+      // 3. Create Immutable Transaction Record for Finance Dashboards
+      const newTxRef = admin.firestore().collection("transactions").doc();
+      batch.set(newTxRef, {
+        amount: pricePaid,
+        teacherShare: teacherShare,
+        teacherId: courseData.teacherId || "",
+        teacherName: courseData.teacherName || "Unknown Teacher",
+        courseId: String(courseId),
+        courseName: courseData.courseName || "Unknown Course",
+        studentId: userId,
+        studentName: event.data.attributes.user_name || "Academy Student",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "completed",
+        source: "web"
+      });
+
+      // 4. Update User Profile
+      batch.update(admin.firestore().collection("users").doc(userId), {
+        enrolledCourses: admin.firestore.FieldValue.arrayUnion(String(courseId))
+      });
+
+      await batch.commit();
+
+      console.log(`✅ Enrollment & Transaction completed for ${userId}`);
     }
     
     return res.status(200).send("Webhook received");
@@ -660,6 +826,83 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
     return res.status(500).send("Internal Server Error");
   }
 });
+
+// --------------------
+// Callable Function: Enroll in Free Course
+// --------------------
+exports.enrollInFreeCourse = onCall(
+  {
+    region: "us-central1",
+    enforceAppCheck: false,
+  },
+  async (request) => {
+    try {
+      const auth = request.auth;
+      if (!auth) {
+        throw new HttpsError("unauthenticated", "You must be logged in to enroll.");
+      }
+
+      const { courseId } = request.data;
+      if (!courseId) {
+        throw new HttpsError("invalid-argument", "courseId is required.");
+      }
+
+      const uid = auth.uid;
+
+      // Ensure course exists and is free
+      const courseRef = admin.firestore().collection("courses").doc(String(courseId));
+      const courseSnap = await courseRef.get();
+      if (!courseSnap.exists) {
+        throw new HttpsError("not-found", "Course not found.");
+      }
+
+      const courseData = courseSnap.data();
+      const price = Number(courseData.price || 0);
+      
+      if (price > 0) {
+        throw new HttpsError("permission-denied", "Cannot enroll in paid course for free.");
+      }
+
+      // Perform atomic enrollment
+      const batch = admin.firestore().batch();
+
+      batch.update(courseRef, {
+        enrolledStudents: admin.firestore.FieldValue.arrayUnion(uid),
+        enrolledCount: admin.firestore.FieldValue.increment(1)
+      });
+
+      // Create a zero-dollar transaction log
+      const userRef = admin.firestore().collection("users").doc(uid);
+      const userSnap = await userRef.get();
+      const userData = userSnap.data() || {};
+      
+      const transactionRef = admin.firestore().collection("transactions").doc();
+      batch.set(transactionRef, {
+        studentId: uid,
+        studentName: userData.name || "Academy Student",
+        teacherId: courseData.teacherId || "",
+        teacherName: courseData.teacherName || "Unknown Teacher",
+        courseId: courseId,
+        courseName: courseData.courseName || courseData.courseTitle || courseData.title || "Untitled Course",
+        amount: 0,
+        currency: "USD",
+        source: "free_enrollment",
+        status: "completed",
+        teacherShare: 0,
+        academyProfit: 0,
+        storeFee: 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+
+      return { success: true, message: "Enrolled successfully in free course." };
+    } catch (error) {
+      console.error("enrollInFreeCourse error:", error);
+      throw new HttpsError("internal", error.message || "An unexpected error occurred.");
+    }
+  }
+);
 
 // --------------------
 // Import Notifications

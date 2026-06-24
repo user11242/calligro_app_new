@@ -37,6 +37,7 @@ dependencies:
   intl: ^0.20.2
   in_app_purchase: ^3.2.0  # ✅ REQUIRED for App Store/Play Store digital goods
   jitsi_meet_flutter_sdk: ^11.6.0
+  crypto: ^3.0.3
   
   # OTHER PACKAGES
   phone_number: ^2.0.1

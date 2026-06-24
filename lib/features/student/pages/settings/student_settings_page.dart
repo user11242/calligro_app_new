@@ -13,6 +13,7 @@ import '../../../teacher/pages/settings/help_center_page.dart';
 import '../../../teacher/pages/settings/security_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:calligro_app/core/services/iap_service.dart';
 
 class StudentSettingsPage extends StatefulWidget {
   const StudentSettingsPage({super.key});
@@ -356,6 +357,44 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
                 onTap: () {
                   _showAboutDialog(context);
                 },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Subtle Restore Purchases Button
+              Center(
+                child: TextButton(
+                  onPressed: () async {
+                    try {
+                      await IAPService().restorePurchases();
+                      if (context.mounted) {
+                        AppMessenger.showSnackBar(
+                          context,
+                          title: AppLocalizations.of(context)!.success ?? 'Success',
+                          message: "Purchases restored successfully",
+                          type: MessengerType.success,
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        AppMessenger.showSnackBar(
+                          context,
+                          title: AppLocalizations.of(context)!.error ?? 'Error',
+                          message: e.toString(),
+                          type: MessengerType.error,
+                        );
+                      }
+                    }
+                  },
+                  child: Text(
+                    AppLocalizations.of(context)!.restorePurchases ?? "Restore Purchases",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      decoration: TextDecoration.underline,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
               ),
 
               const SizedBox(height: 40),

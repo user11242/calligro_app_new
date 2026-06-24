@@ -30,21 +30,21 @@ service cloud.firestore {
       allow get: if true; 
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && request.resource.data.uid == request.auth.uid && resource.data.uid == request.auth.uid;
-      allow delete: if isAdmin() || (isSignedIn() && (resource == null || resource.data.uid == request.auth.uid));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
     }
 
     match /locked_emails/{email} {
       allow get: if true;
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && request.resource.data.uid == request.auth.uid && resource.data.uid == request.auth.uid;
-      allow delete: if isAdmin() || (isSignedIn() && (resource == null || resource.data.uid == request.auth.uid));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
     }
 
     match /locked_phones/{phone} {
       allow get: if true;
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && request.resource.data.uid == request.auth.uid && resource.data.uid == request.auth.uid;
-      allow delete: if isAdmin() || (isSignedIn() && (resource == null || resource.data.uid == request.auth.uid));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
     }
 
     // =========================================================
@@ -66,7 +66,7 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         isAdmin() || 
         (isOwner(userId) && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']) ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'commissionRate']) ||
           (!resource.data.keys().hasAny(['role']) && request.resource.data.role in ['student', 'teacher'])
         )) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount', 'followingCount', 'totalStars', 'reviewCount'])
@@ -149,10 +149,14 @@ service cloud.firestore {
 
       match /assignments/{assignmentId} {
         allow read: if true;
-        allow write: if isSignedIn() && get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid;
+        allow create, delete: if isSignedIn() && get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid;
+        allow update: if isSignedIn() && (
+          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submissionCount'])
+        );
         
         match /submissions/{submissionId} {
-          allow create: if isSignedIn() && request.auth.uid == submissionId;
+          allow create, delete: if isSignedIn() && request.auth.uid == submissionId;
           allow update: if isSignedIn() && (
              request.auth.uid == submissionId || 
              get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid
@@ -203,8 +207,14 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.userId) || isAdmin();
       allow update: if isSignedIn() && (
         isOwner(resource.data.userId) || 
-        request.resource.data.userId == request.auth.uid || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likesCount', 'commentsCount'])
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likesCount', 'commentsCount']) &&
+          (
+            // Logic for likesCount: must only change by 1
+            request.resource.data.likesCount == resource.data.likesCount + 1 ||
+            request.resource.data.likesCount == resource.data.likesCount - 1
+          )
+        )
       );
 
       match /comments/{commentId} {
@@ -222,7 +232,7 @@ service cloud.firestore {
 
         match /replies/{replyId} {
           allow read: if isSignedIn();
-          allow create: if isSignedIn();
+          allow create: if isOwner(request.resource.data.userId);
           allow update: if isOwner(request.resource.data.userId);
           allow delete: if isSignedIn() && (
             isOwner(resource.data.userId) || 
@@ -273,12 +283,26 @@ service cloud.firestore {
         resource.data.teacherId == request.auth.uid || 
         isAdmin()
       );
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.source == 'admin_bypass'; // Transactions must only be created by secure Cloud Functions or bypass
     }
 
     match /{path=**}/comments/{commentId} {
       allow read: if true;
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // =========================================================
+    // 🛡️ SECURITY & SYSTEM
+    // =========================================================
+    match /emailOtps/{email} {
+      allow read, write: if false; // Only accessed via Admin SDK in Cloud Functions
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (
+        resource.data.uid == request.auth.uid || isAdmin()
+      );
+      allow write: if false; // Only Cloud Functions write to orders
     }
   }
 }

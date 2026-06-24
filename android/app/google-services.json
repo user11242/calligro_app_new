@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:500166558232:android:9549878d6a0a0aa861396d",
         "android_client_info": {
-          "package_name": "com.example.calligro_app"
+          "package_name": "com.yazan.calligro_app"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "500166558232-43btqgmq0fr51v6psje9vnm1flc66286.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.calligro_app",
+            "package_name": "com.yazan.calligro_app",
             "certificate_hash": "2122d61dc90bbbb0a49fedf6b311c285b50fc44e"
           }
         },
@@ -25,7 +25,7 @@
           "client_id": "500166558232-gvffubev0gu5no6i5pf1hq4sa4pkqvdh.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.calligro_app",
+            "package_name": "com.yazan.calligro_app",
             "certificate_hash": "d6ec012d24f21c0f52715b8b4778e20f736ff733"
           }
         },
@@ -33,7 +33,7 @@
           "client_id": "500166558232-m84dss3an1cjvp1ghaehb50k1i05o6eu.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.calligro_app",
+            "package_name": "com.yazan.calligro_app",
             "certificate_hash": "62b35127ea9cb8ee37c14bc5e952b3bcf42da259"
           }
         },

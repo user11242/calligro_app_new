@@ -15,6 +15,7 @@ import 'package:calligro_app/features/student/pages/purchase_success_page.dart';
 import 'dart:async';
 import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:io' show Platform;
 
 class CourseCheckoutPage extends StatefulWidget {
   final String courseId;
@@ -81,8 +82,10 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
       final callable = FirebaseFunctions.instance.httpsCallable('verifyPurchase');
       final validationResult = await callable.call({
         'receiptData': receipt,
+        'purchaseToken': result.serverReceipt,
         'courseId': widget.courseId,
         'productId': result.productId,
+        'platform': Platform.isAndroid ? 'android' : 'ios',
       });
 
       final bool success = validationResult.data['success'] ?? false;
@@ -122,10 +125,8 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
     if (user == null) return;
 
     try {
-      await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).update({
-        'enrolledStudents': FieldValue.arrayUnion([user.uid]),
-        'enrolledCount': FieldValue.increment(1),
-      });
+      final callable = FirebaseFunctions.instance.httpsCallable('enrollInFreeCourse');
+      await callable.call({'courseId': widget.courseId});
 
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -254,8 +255,7 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // --- Course Info ---
-                      AutoTranslatedText(
-                        CourseUtils.getLocalizedCourseName(context, widget.courseData),
+                      Text(CourseUtils.getLocalizedCourseName(context, widget.courseData),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 28,

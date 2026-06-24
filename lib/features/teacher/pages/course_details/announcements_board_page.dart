@@ -71,7 +71,7 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
       backgroundColor: AppColors.primary,
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)!.classBoard,
+          AppLocalizations.of(context)!.classUpdates,
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
@@ -83,19 +83,69 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
       ),
       body: Column(
         children: [
+          // Explanatory Message
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.accentGold.withOpacity(0.15), Colors.transparent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.accentGold.withOpacity(0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGold.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.campaign_rounded, color: AppColors.accentGold, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)!.classUpdates,
+                        style: const TextStyle(
+                          color: AppColors.accentGold,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        AppLocalizations.of(context)!.classUpdatesDesc,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // --- 1. TEACHER COMPOSER (Top Section) ---
           if (widget.isTeacher)
             Container(
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.cardBackground,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white10),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,12 +153,12 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
                 Text(
                   AppLocalizations.of(context)!.newAnnouncement,
                   style: const TextStyle(
-                    color: AppColors.accentGold,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 15,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 TextField(
                   controller: _messageController,
                   style: const TextStyle(color: Colors.white),
@@ -117,15 +167,15 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
                     hintText: AppLocalizations.of(context)!.writeSomethingToClass,
                     hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.05),
+                    fillColor: Colors.black26,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
                     ),
                     contentPadding: const EdgeInsets.all(16),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -139,22 +189,23 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
                               color: Colors.black,
                             ),
                           )
-                        : const Icon(Icons.send, color: Colors.black, size: 18),
+                        : const Icon(Icons.send_rounded, color: Colors.black, size: 20),
                     label: Text(
                       _isPosting 
-                        ? AppLocalizations.of(context)!.publishing.toUpperCase()
-                        : AppLocalizations.of(context)!.publishNow.toUpperCase(),
+                        ? AppLocalizations.of(context)!.publishing
+                        : AppLocalizations.of(context)!.publishNow,
                       style: const TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
+                        fontSize: 15,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accentGold,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
                 ),

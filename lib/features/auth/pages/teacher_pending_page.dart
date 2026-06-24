@@ -180,7 +180,7 @@ class _TeacherPendingPageState extends State<TeacherPendingPage>
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Animated Pulse Icon
+              // Static Hourglass Icon with Pulse
               AnimatedBuilder(
                 animation: _pulseAnimation,
                 builder: (context, child) {
@@ -235,20 +235,50 @@ class _TeacherPendingPageState extends State<TeacherPendingPage>
               ),
               const SizedBox(height: 56),
 
-              const CircularProgressIndicator(
-                color: AppColors.accentGold,
-                strokeWidth: 2.5,
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                l10n.teacherPendingPageNote,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textLight.withAlpha(150),
-                  fontStyle: FontStyle.italic,
-                  height: 1.5,
+              // Professional Info Card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.07),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: AppColors.accentGold.withOpacity(0.8),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          l10n.info.toUpperCase(),
+                          style: TextStyle(
+                            color: AppColors.accentGold.withOpacity(0.8),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      l10n.teacherPendingPageNote,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textLight.withOpacity(0.8),
+                        height: 1.6,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

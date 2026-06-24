@@ -29,6 +29,7 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
   final TextEditingController _wuCityController = TextEditingController();
   final TextEditingController _wuPhoneController = TextEditingController();
   final TextEditingController _wuPurposeController = TextEditingController();
+  final TextEditingController _paypalEmailController = TextEditingController();
 
   @override
   void initState() {
@@ -44,6 +45,7 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
     _wuCityController.dispose();
     _wuPhoneController.dispose();
     _wuPurposeController.dispose();
+    _paypalEmailController.dispose();
     super.dispose();
   }
 
@@ -77,6 +79,10 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
           _wuCityController.text = wu['city'] ?? '';
           _wuPhoneController.text = wu['phone'] ?? '';
           _wuPurposeController.text = wu['purpose'] ?? '';
+
+          // Load PayPal
+          final paypal = data['paypal'] ?? {};
+          _paypalEmailController.text = paypal['email'] ?? '';
         });
       }
     } catch (e) {
@@ -149,6 +155,8 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
         return 'CliQ';
       case 'western':
         return AppLocalizations.of(context)!.westernUnion;
+      case 'paypal':
+        return AppLocalizations.of(context)!.paypal;
       default:
         return key;
     }
@@ -176,6 +184,11 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
                 'city': _wuCityController.text.trim(),
                 'phone': _wuPhoneController.text.trim(),
                 'purpose': _wuPurposeController.text.trim(),
+              }
+            : null,
+        'paypal': _selectedMethod == 'paypal'
+            ? {
+                'email': _paypalEmailController.text.trim(),
               }
             : null,
       };
@@ -287,6 +300,13 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
                             child: _buildMethodCard(
                               value: "western",
                               assetPath: "assets/backgrounds/union.png",
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildMethodCard(
+                              value: "paypal",
+                              assetPath: "assets/backgrounds/paypal.png",
                             ),
                           ),
                         ],
@@ -448,6 +468,26 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
               hint: AppLocalizations.of(context)!.optional,
               isRequired: false,
               textCapitalization: TextCapitalization.sentences,
+            ),
+          ],
+        );
+
+      case 'paypal':
+        return Column(
+          key: const ValueKey('paypal'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              AppLocalizations.of(context)!.paypal,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              label: AppLocalizations.of(context)!.paypalEmail,
+              controller: _paypalEmailController,
+              icon: Icons.email_outlined,
+              hint: "e.g. yourname@paypal.com",
+              isRequired: true,
+              keyboardType: TextInputType.emailAddress,
             ),
           ],
         );

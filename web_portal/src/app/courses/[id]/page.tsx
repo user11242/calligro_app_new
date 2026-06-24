@@ -180,9 +180,9 @@ export default function CourseDetailsPage() {
         }
       });
       setIsEnrolled(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Bypass failed.");
+      setError(`Bypass failed: ${err.message}`);
     } finally {
       setJoining(false);
     }
@@ -485,9 +485,6 @@ export default function CourseDetailsPage() {
                       <h4 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
                         {title}
                       </h4>
-                      <p className="text-[10px] text-white/20 font-black mt-2 uppercase tracking-[0.3em]">
-                        {t("course.mastery_session")}
-                      </p>
                     </div>
                     <Lock className="w-6 h-6 text-white/10 group-hover:text-primary/40 transition-colors shrink-0" />
                   </motion.div>

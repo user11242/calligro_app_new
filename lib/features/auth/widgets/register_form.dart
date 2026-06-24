@@ -463,6 +463,17 @@ class _RegisterFormState extends State<RegisterForm> {
         hasEmptyFields = true;
       }
       _validatePortfolio(portfolioController.text);
+
+      // ✅ Validation for Spoken Languages
+      if (selectedLanguages.isEmpty) {
+        AppMessenger.showSnackBar(
+          context,
+          title: l10n.required,
+          message: l10n.pleaseSelectAtLeastOneLanguage,
+          type: MessengerType.error,
+        );
+        return;
+      }
     }
 
     if (hasEmptyFields || _nameError != null || _emailError != null || _passwordError != null || _confirmError != null || (selectedRole == "teacher" && (_phoneError != null || _portfolioError != null))) {

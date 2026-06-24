@@ -31,6 +31,7 @@ import '../../gallery/services/gallery_service.dart';
 import '../../gallery/models/gallery_artist.dart';
 import '../../gallery/pages/artist_bio_page.dart';
 import '../../gallery/pages/artist_gallery_page.dart';
+import '../../rating/widgets/course_completion_rating_dialog.dart';
 
 class StudentHomePage extends StatefulWidget {
   final bool isGuestMode;
@@ -68,6 +69,59 @@ class _StudentHomePageState extends State<StudentHomePage> {
     _teachersStream = _service.getTeachersStream();
     _featuredCoursesStream = _service.getFeaturedCourses();
     _precacheGalleryImages();
+    _checkForUnratedCompletedCourses();
+  }
+
+  Future<void> _checkForUnratedCompletedCourses() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || widget.isGuestMode) return;
+
+    try {
+      final coursesSnapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .where('enrolledStudents', arrayContains: user.uid)
+          .get();
+
+      final now = DateTime.now();
+
+      for (final doc in coursesSnapshot.docs) {
+        final data = doc.data();
+        final endDateData = data['endDate'];
+        if (endDateData == null) continue;
+
+        DateTime endDate;
+        if (endDateData is Timestamp) {
+          endDate = endDateData.toDate();
+        } else if (endDateData is DateTime) {
+          endDate = endDateData;
+        } else {
+          continue;
+        }
+
+        if (now.isAfter(endDate)) {
+          final reviewQuery = await FirebaseFirestore.instance
+              .collection('reviews')
+              .where('courseId', isEqualTo: doc.id)
+              .where('studentId', isEqualTo: user.uid)
+              .limit(1)
+              .get();
+
+          if (reviewQuery.docs.isEmpty) {
+            if (mounted) {
+              showCourseCompletionRatingDialog(
+                context: context,
+                courseId: doc.id,
+                courseName: CourseUtils.getLocalizedCourseName(context, data),
+                teacherId: data['teacherId'] ?? '',
+              );
+              break; 
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error checking for unrated courses: $e");
+    }
   }
 
   void _precacheGalleryImages() {
@@ -624,8 +678,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
               ],
             ),
             const SizedBox(height: 16),
-            AutoTranslatedText(
-              CourseUtils.getLocalizedCourseName(context, course),
+            Text(CourseUtils.getLocalizedCourseName(context, course),
               style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1053,8 +1106,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                               padding: const EdgeInsets.only(bottom: 8),
                               child: _buildEnrolledStatusBadge(),
                             ),
-                          AutoTranslatedText(
-                            CourseUtils.getLocalizedCourseName(context, course),
+                          Text(CourseUtils.getLocalizedCourseName(context, course),
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
@@ -1575,7 +1627,41 @@ class _StudentHomePageState extends State<StudentHomePage> {
                ),
              );
            }
-           final courses = snapshot.data!;
+           
+           final currentUser = FirebaseAuth.instance.currentUser;
+           final courses = snapshot.data!.where((course) {
+             final dynamic studentsRaw = course['enrolledStudents'];
+             final List<dynamic> enrolledStudents = (studentsRaw is List) ? studentsRaw : [];
+             final bool isEnrolled = currentUser != null && enrolledStudents.contains(currentUser.uid);
+
+             if (course['startDate'] != null) {
+               DateTime? start;
+               if (course['startDate'] is Timestamp) {
+                 start = (course['startDate'] as Timestamp).toDate();
+               } else if (course['startDate'] is DateTime) {
+                 start = course['startDate'];
+               }
+               
+               if (start != null) {
+                 final now = DateTime.now();
+                 // Hide started courses from non-enrolled students
+                 if (now.isAfter(start) && !isEnrolled) {
+                   return false; 
+                 }
+               }
+             }
+             return true;
+           }).toList();
+
+           if (courses.isEmpty) {
+             return Center(
+               child: Text(
+                 "No courses found",
+                 style: TextStyle(color: Colors.white.withOpacity(0.5)),
+               ),
+             );
+           }
+
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             scrollDirection: Axis.horizontal,

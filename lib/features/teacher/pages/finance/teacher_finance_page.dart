@@ -21,8 +21,10 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
   double _pendingBalance = 0.0;
   double _availableBalance = 0.0;
   double _totalEarnings = 0.0;
+  double _totalWithdrawn = 0.0;
   String? _selectedMethod;
   String _teacherName = 'Teacher';
+  double? _commissionRate;
 
   @override
   void initState() {
@@ -32,9 +34,53 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
 
   Future<void> _fetchBalances() async {
     try {
+      // 1. Fetch User Settings & Commission Rate First
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUserId)
+          .get();
+
+      String? selectedMethod;
+      String teacherName = 'Teacher';
+      double? commissionRate;
+
+      if (userDoc.exists) {
+        final userData = userDoc.data()!;
+        teacherName = userData['name'] ?? 'Teacher';
+
+        if (userData.containsKey('commissionRate')) {
+          commissionRate = (userData['commissionRate'] as num).toDouble();
+        }
+
+        if (userData.containsKey('payoutSettings')) {
+          final settings = userData['payoutSettings'] as Map<String, dynamic>;
+          selectedMethod = settings['selectedMethod'];
+        }
+      }
+
+      // 2. Fetch Courses to map end dates
       final coursesQuery = await FirebaseFirestore.instance
           .collection('courses')
           .where('teacherId', isEqualTo: _currentUserId)
+          .get();
+
+      Map<String, DateTime?> courseEndDates = {};
+      for (var doc in coursesQuery.docs) {
+        final data = doc.data();
+        DateTime? endDate;
+        if (data['endDate'] != null) {
+          endDate = (data['endDate'] is Timestamp)
+              ? (data['endDate'] as Timestamp).toDate().toLocal()
+              : null;
+        }
+        courseEndDates[doc.id] = endDate;
+      }
+
+      // 3. Fetch Transactions and Calculate Earnings
+      final txQuery = await FirebaseFirestore.instance
+          .collection('transactions')
+          .where('teacherId', isEqualTo: _currentUserId)
+          .where('status', isEqualTo: 'completed')
           .get();
 
       double pending = 0.0;
@@ -44,23 +90,14 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
       final now = DateTime.now();
       final safetyWindow = now.subtract(const Duration(hours: 48));
 
-      for (var doc in coursesQuery.docs) {
+      for (var doc in txQuery.docs) {
         final data = doc.data();
-        final double price = (data['price'] ?? 0.0).toDouble();
-        final int count =
-            data['enrolledCount'] ??
-            (data['enrolledStudents'] as List?)?.length ??
-            0;
-        final double teacherShare = price * count * 0.65;
-
-        DateTime? endDate;
-        if (data['endDate'] != null) {
-          endDate = (data['endDate'] is Timestamp)
-              ? (data['endDate'] as Timestamp).toDate().toLocal()
-              : null;
-        }
+        final double teacherShare = (data['teacherShare'] ?? 0.0).toDouble();
+        final String courseId = data['courseId'] ?? '';
 
         total += teacherShare;
+
+        DateTime? endDate = courseEndDates[courseId];
 
         if (endDate == null || endDate.isAfter(safetyWindow)) {
           pending += teacherShare;
@@ -69,32 +106,33 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
         }
       }
 
-      // Fetch Payout Settings
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUserId)
+      // 4. Fetch Withdrawals
+      final withdrawalsQuery = await FirebaseFirestore.instance
+          .collection('withdrawal_requests')
+          .where('teacherId', isEqualTo: _currentUserId)
           .get();
-
-      String? selectedMethod;
-      String teacherName = 'Teacher';
-
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        teacherName = userData['name'] ?? 'Teacher';
-
-        if (userData.containsKey('payoutSettings')) {
-          final settings = userData['payoutSettings'] as Map<String, dynamic>;
-          selectedMethod = settings['selectedMethod'];
+          
+      double totalWithdrawn = 0.0;
+      for (var doc in withdrawalsQuery.docs) {
+        final data = doc.data();
+        if (data['status'] != 'rejected') {
+          totalWithdrawn += (data['amount'] ?? data['netAmount'] ?? data['requestedAmount'] ?? 0.0).toDouble();
         }
       }
+      
+      // Subtract withdrawn from available
+      available -= totalWithdrawn;
+      if (available < 0) available = 0;
 
       if (mounted) {
         setState(() {
           _pendingBalance = pending;
           _availableBalance = available;
           _totalEarnings = total;
+          _totalWithdrawn = totalWithdrawn;
           _selectedMethod = selectedMethod;
           _teacherName = teacherName;
+          _commissionRate = commissionRate; // Store for UI
           _isLoading = false;
         });
       }
@@ -166,6 +204,8 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
                           _buildTotalEarningsHero(l10n),
                           const SizedBox(height: 24),
                           _buildBalanceSplitCards(l10n),
+                          const SizedBox(height: 16),
+                          _buildWithdrawnCard(l10n),
                           const SizedBox(height: 32),
                           _buildWithdrawSection(l10n),
                           const SizedBox(height: 32),
@@ -225,31 +265,63 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
             ),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.accentGold.withAlpha(30),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.trending_up,
-                  color: AppColors.accentGold,
-                  size: 14,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold.withAlpha(30),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  "All Time",
-                  style: TextStyle(
-                    color: AppColors.accentGold.withAlpha(204),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.trending_up,
+                      color: AppColors.accentGold,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "All Time",
+                      style: TextStyle(
+                        color: AppColors.accentGold.withAlpha(204),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withAlpha(30),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.star,
+                      color: AppColors.secondary,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "${l10n.commissionLabel}: ${_commissionRate != null ? (_commissionRate! * 100).toStringAsFixed(0) : l10n.pending}%",
+                      style: TextStyle(
+                        color: AppColors.secondary.withAlpha(204),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -277,6 +349,15 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildWithdrawnCard(AppLocalizations l10n) {
+    return _buildGlassStatCard(
+      "Total Withdrawn",
+      "\$${_totalWithdrawn.toStringAsFixed(0)}",
+      Colors.greenAccent,
+      Icons.account_balance_wallet_outlined,
     );
   }
 

@@ -7,12 +7,14 @@ import 'package:calligro_app/features/auth/pages/terms_and_conditions_page.dart'
 
 class CoursePricePage extends StatefulWidget {
   final TextEditingController priceController;
+  final double teacherEarningPercentage;
   final Function onNext;
   final Function onBack;
 
   const CoursePricePage({
     super.key,
     required this.priceController,
+    required this.teacherEarningPercentage,
     required this.onNext,
     required this.onBack,
   });
@@ -27,7 +29,7 @@ class _CoursePricePageState extends State<CoursePricePage> {
   double _price = 0.0;
 
   // Define the master tiers
-  final List<int> _priceTiers = [50, 60, 70, 80, 90, 100];
+  final List<int> _priceTiers = [100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200];
 
   @override
   void initState() {
@@ -344,77 +346,71 @@ class _CoursePricePageState extends State<CoursePricePage> {
   }
 
   Widget _buildPriceBreakdown() {
-    final teacherShare = _price * 0.60;
-    final feesShare = _price * 0.15;
-    final calligroShare = _price * 0.25;
+    final teacherShare = _price * (widget.teacherEarningPercentage / 100);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.accentGold.withOpacity(0.15),
+            AppColors.accentGold.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: AppColors.accentGold.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.accentGold.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            AppLocalizations.of(context)!.earningsBreakdown,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.accentGold.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: AppColors.accentGold,
+              size: 28,
             ),
           ),
-          const SizedBox(height: 20),
-          _buildBreakdownRow(
-            label: AppLocalizations.of(context)!.teacherEarnings,
-            amount: teacherShare,
-            isHighlight: true,
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(color: Colors.white10),
-          ),
-          _buildBreakdownRow(
-            label: AppLocalizations.of(context)!.storeFees,
-            amount: feesShare,
-          ),
-          const SizedBox(height: 12),
-          _buildBreakdownRow(
-            label: AppLocalizations.of(context)!.calligroPlatform,
-            amount: calligroShare,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "${AppLocalizations.of(context)!.teacherEarnings} (${AppLocalizations.of(context)!.perStudent})",
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "${widget.teacherEarningPercentage}%",
+                  style: const TextStyle(
+                    color: AppColors.accentGold,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBreakdownRow({
-    required String label,
-    required double amount,
-    bool isHighlight = false,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: isHighlight ? Colors.white : Colors.white60,
-            fontSize: 15,
-            fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        Text(
-          "\$${amount.toStringAsFixed(2)}",
-          style: TextStyle(
-            color: isHighlight ? AppColors.accentGold : Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
     );
   }
 }

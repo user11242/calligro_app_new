@@ -341,7 +341,13 @@ class AdminService {
         final message = status == 'completed' 
             ? 'Your withdrawal request has been processed successfully.' 
             : 'Your withdrawal request was rejected. Note: ${adminNote ?? "No reason provided"}';
-        
+        await _firestore.collection('users').doc(teacherId).collection('notifications').add({
+          'title': title,
+          'body': message,
+          'type': 'payout_status',
+          'read': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       }
     }
   }

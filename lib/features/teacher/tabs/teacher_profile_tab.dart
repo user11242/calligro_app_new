@@ -242,6 +242,9 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
             String displayPhotoUrl = widget.userProfileImage;
             num displayTotalStars = 0;
             num displayReviewCount = 0;
+            List<String> languages = [];
+
+            double? displayCommissionRate;
 
             if (userDoc != null && userDoc.exists) {
               final userData = userDoc.data() as Map<String, dynamic>;
@@ -255,6 +258,10 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
               if (userData['name'] != null) displayName = userData['name'];
               if (userData['photoUrl'] != null) {
                 displayPhotoUrl = userData['photoUrl'];
+              }
+              languages = List<String>.from(userData['spokenLanguages'] ?? []);
+              if (userData.containsKey('commissionRate')) {
+                displayCommissionRate = (userData['commissionRate'] as num).toDouble();
               }
             }
 
@@ -276,6 +283,8 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                       photoUrl: displayPhotoUrl,
                       totalStars: displayTotalStars,
                       reviewCount: displayReviewCount,
+                      languages: languages,
+                      commissionRate: displayCommissionRate,
                     ),
                   ),
                   SliverPersistentHeader(
@@ -610,6 +619,8 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
     required String photoUrl,
     required num totalStars,
     required num reviewCount,
+    required List<String> languages,
+    double? commissionRate,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
@@ -711,6 +722,69 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              if (commissionRate != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 4.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6.0),
+                    border: Border.all(color: Colors.blueAccent, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.percent,
+                        color: Colors.blueAccent,
+                        size: 14.0,
+                      ),
+                      const SizedBox(width: 5.0),
+                      Text(
+                        "${AppLocalizations.of(context)!.commissionLabel}: ${(commissionRate * 100).toStringAsFixed(0)}%",
+                        style: const TextStyle(
+                          color: Colors.blueAccent,
+                          fontSize: 11.0,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 4.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6.0),
+                    border: Border.all(color: Colors.orange, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.hourglass_empty,
+                        color: Colors.orange,
+                        size: 14.0,
+                      ),
+                      const SizedBox(width: 5.0),
+                      const Text(
+                        "Waiting for admin to set commission",
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 11.0,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -723,6 +797,12 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
             reviewCount: reviewCount.toInt(),
             isCompact: false,
           ),
+
+          // Spoken Languages Section
+          if (languages.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildLanguagesSection(languages),
+          ],
 
           // 3. Bio Section (Instagram Style)
           if (bio.isNotEmpty) ...[
@@ -743,6 +823,104 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
           const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  Widget _buildLanguagesSection(List<String> languages) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.accentGold.withAlpha(25),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.translate_rounded,
+                size: 14,
+                color: AppColors.accentGold,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              AppLocalizations.of(context)!.spokenLanguages.toUpperCase(),
+              style: TextStyle(
+                color: AppColors.accentGold.withOpacity(0.9),
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: languages.map((lang) {
+            String labelText = lang;
+            if (lang == "Arabic") labelText = "العربية";
+            if (lang == "English") labelText = "English";
+            if (lang == "Turkish") labelText = "Türkçe";
+            if (lang == "Bengali") labelText = "বাংলা";
+            if (lang == "Urdu") labelText = "اردو";
+            if (lang == "Farsi") labelText = "فارسی";
+            if (lang == "Kurdish") labelText = "کوردي";
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withAlpha(25),
+                    Colors.white.withAlpha(10),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withAlpha(20),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(50),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppColors.accentGold,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    labelText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

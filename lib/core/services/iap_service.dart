@@ -5,10 +5,17 @@ import 'package:flutter/foundation.dart';
 class PurchaseResult {
   final PurchaseStatus status;
   final String? receipt;
+  final String? serverReceipt;
   final String? productId;
   final String? error;
 
-  PurchaseResult({required this.status, this.receipt, this.productId, this.error});
+  PurchaseResult({
+    required this.status,
+    this.receipt,
+    this.serverReceipt,
+    this.productId,
+    this.error,
+  });
 }
 
 class IAPService {
@@ -131,6 +138,16 @@ class IAPService {
     }
   }
 
+  Future<void> restorePurchases() async {
+    _addLog("Attempting to restore purchases...");
+    try {
+      await _iap.restorePurchases();
+    } catch (e) {
+      _addLog("Restore Error: $e");
+      rethrow;
+    }
+  }
+
   void _listenToPurchaseUpdated(List<PurchaseDetails> purchaseDetailsList) async {
     for (var purchase in purchaseDetailsList) {
       _addLog("Status Update: ${purchase.productID} -> ${purchase.status}");
@@ -148,10 +165,12 @@ class IAPService {
         _addLog("SUCCESS for ${purchase.productID}. Capturing receipt...");
         
         final String receipt = purchase.verificationData.localVerificationData;
+        final String serverReceipt = purchase.verificationData.serverVerificationData;
         
         _purchaseController.add(PurchaseResult(
           status: purchase.status,
           receipt: receipt,
+          serverReceipt: serverReceipt,
           productId: purchase.productID,
         ));
 

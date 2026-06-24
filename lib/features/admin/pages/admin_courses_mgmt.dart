@@ -4,6 +4,8 @@ import 'package:calligro_app/core/theme/colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
+import 'dart:ui';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminCoursesMgmt extends StatefulWidget {
   const AdminCoursesMgmt({super.key});
@@ -266,6 +268,12 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
                       ),
                     ),
                   ),
+                  // Status Badge (Bottom Left)
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    child: _buildPremiumStatusBadge(_getCourseDisplayStatus(context, course['startDate'], course['endDate'])),
+                  ),
                 ],
               ),
               
@@ -392,6 +400,77 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Map<String, dynamic> _getCourseDisplayStatus(BuildContext context, dynamic start, dynamic end) {
+    DateTime? startDate;
+    DateTime? endDate;
+    if (start is Timestamp) startDate = start.toDate();
+    if (end is Timestamp) endDate = end.toDate();
+
+    if (startDate == null || endDate == null) {
+      return {'text': 'Status Unknown', 'color': Colors.grey, 'icon': Icons.help_outline};
+    }
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final startDay = DateTime(startDate.year, startDate.month, startDate.day);
+    final endDay = DateTime(endDate.year, endDate.month, endDate.day);
+
+    if (today.isBefore(startDay)) {
+      return {
+        'text': AppLocalizations.of(context)!.upcoming,
+        'color': AppColors.accentGold,
+        'icon': Icons.schedule_rounded
+      };
+    } else if (today.isAfter(endDay)) {
+      return {
+        'text': AppLocalizations.of(context)!.ended,
+        'color': Colors.redAccent,
+        'icon': Icons.event_available_rounded
+      };
+    } else {
+      return {
+        'text': AppLocalizations.of(context)!.active,
+        'color': Colors.greenAccent,
+        'icon': Icons.bolt_rounded
+      };
+    }
+  }
+
+  Widget _buildPremiumStatusBadge(Map<String, dynamic> status) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: (status['color'] as Color).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: (status['color'] as Color).withOpacity(0.4),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(status['icon'] as IconData, color: status['color'] as Color, size: 12),
+              const SizedBox(width: 4),
+              Text(
+                (status['text'] as String).toUpperCase(),
+                style: TextStyle(
+                  color: status['color'] as Color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

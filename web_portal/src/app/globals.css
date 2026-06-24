@@ -86,3 +86,18 @@ body {
 .input-glass {
   @apply w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-primary/60 transition-all font-medium focus:ring-4 focus:ring-primary/10 shadow-inner;
 }
+
+/* Premium Hover Underline */
+.nav-link {
+  @apply relative py-1 transition-colors duration-300;
+}
+
+.nav-link::after {
+  content: '';
+  @apply absolute bottom-0 left-0 w-full h-[2px] bg-white scale-x-0 transition-transform duration-300 origin-center;
+}
+
+.nav-link:hover::after {
+  @apply scale-x-100;
+}
+

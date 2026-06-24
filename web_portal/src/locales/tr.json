@@ -103,7 +103,12 @@
   "course.days": "Gün",
   "course.master": "Üstat",
   "course.joined": "KATILDI",
-  "course.enrolled": "Kaydedildi",
+  "course.enrolled": "Kayıtlı",
+  "course.off": "İNDİRİM",
+  "course.age_range": "Yaşlar",
+  "course.upcoming": "Yakında",
+  "course.active": "Aktif",
+  "course.ended": "Sona Erdi",
 
   "days.monday": "Pazartesi",
   "days.tuesday": "Salı",

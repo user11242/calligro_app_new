@@ -59,6 +59,7 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
   String teacherName = '';
   String teacherProfilePic = '';
   bool _hasPayoutInfo = false;
+  double _teacherEarningPercentage = 60.0;
 
   @override
   void initState() {
@@ -74,6 +75,7 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
         teacherName = teacherDetails['teacherName']!;
         teacherProfilePic = teacherDetails['teacherProfilePic'] ?? '';
         _hasPayoutInfo = teacherDetails['hasPayoutInfo'] ?? false;
+        _teacherEarningPercentage = teacherDetails['earningPercentage'] ?? 60.0;
       });
     } catch (e) {
       _showMessage(AppLocalizations.of(context)!.error, AppLocalizations.of(context)!.errorFetchingUserData(e.toString()), MessengerType.error);
@@ -286,31 +288,6 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
               style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
             ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              // Manual Check Button
-              await _fetchTeacherDetails();
-              if (_hasPayoutInfo) {
-                if (mounted) Navigator.pop(context); // Close dialog
-                _saveCourseToFirebase(meetData);
-              } else {
-                _showMessage(
-                  AppLocalizations.of(context)!.info,
-                  AppLocalizations.of(context)!.actionRequiredPayout,
-                  MessengerType.info,
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.1),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-            ),
-            child: Text(
-              AppLocalizations.of(context)!.checkVerification,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
         ],
       ),
     );
@@ -476,6 +453,7 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
       // Step 4: Price
       CoursePricePage(
         priceController: _priceController,
+        teacherEarningPercentage: _teacherEarningPercentage,
         onNext: _goToNextStep,
         onBack: () {
           setState(() => _currentStep--);

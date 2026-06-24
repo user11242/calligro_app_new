@@ -84,8 +84,7 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
             separatorBuilder: (context, index) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
               final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              return _SubmissionCard(data: data)
+              return _SubmissionCard(doc: doc)
                   .animate().fadeIn(duration: 400.ms, delay: (index * 100).ms).slideY(begin: 0.1, end: 0);
             },
           );
@@ -97,8 +96,8 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
 
 
 class _SubmissionCard extends StatefulWidget {
-  final Map<String, dynamic> data;
-  const _SubmissionCard({required this.data});
+  final QueryDocumentSnapshot doc;
+  const _SubmissionCard({required this.doc});
 
   @override
   State<_SubmissionCard> createState() => _SubmissionCardState();
@@ -107,9 +106,18 @@ class _SubmissionCard extends StatefulWidget {
 class _SubmissionCardState extends State<_SubmissionCard> {
   bool _isExpanded = false;
 
+  Future<void> _toggleSeen(bool currentValue) async {
+    try {
+      await widget.doc.reference.update({'seenByTeacher': !currentValue});
+    } catch (e) {
+      debugPrint("Error updating seen status: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final data = widget.data;
+    final data = widget.doc.data() as Map<String, dynamic>;
+    final bool isSeen = data['seenByTeacher'] ?? false;
     final submittedAt = (data['submittedAt'] as Timestamp?)?.toDate();
     final timeStr = submittedAt != null
         ? DateFormat('MMM d, h:mm a', Localizations.localeOf(context).toString()).format(submittedAt)
@@ -121,7 +129,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
       decoration: BoxDecoration(
         color: AppColors.cardBackground.withOpacity(0.7),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: isSeen ? Colors.green.withOpacity(0.3) : Colors.white.withOpacity(0.08)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
@@ -131,7 +139,22 @@ class _SubmissionCardState extends State<_SubmissionCard> {
             tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             onExpansionChanged: (expanded) => setState(() => _isExpanded = expanded),
             leading: _buildAvatar(photoUrl, studentName),
-            title: Text(studentName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+            title: Row(
+              children: [
+                Expanded(child: Text(studentName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16))),
+                if (isSeen)
+                  Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: const Icon(Icons.check_circle, color: Colors.greenAccent, size: 14),
+                  ),
+              ],
+            ),
             subtitle: Text(timeStr, style: const TextStyle(color: Colors.white38, fontSize: 11)),
             trailing: AnimatedRotation(
               turns: _isExpanded ? 0.5 : 0.0,
@@ -167,6 +190,40 @@ class _SubmissionCardState extends State<_SubmissionCard> {
                     ],
                     if (data['fileUrl'] != null)
                       _buildFileAction(data['fileUrl'], data['fileName'] ?? 'submission_file'),
+                    
+                    const SizedBox(height: 20),
+                    // Mark as seen toggle
+                    InkWell(
+                      onTap: () => _toggleSeen(isSeen),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: isSeen ? Colors.green.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isSeen ? Colors.green.withOpacity(0.3) : Colors.white10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isSeen ? Icons.check_circle : Icons.radio_button_unchecked,
+                              color: isSeen ? Colors.greenAccent : Colors.white38,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              isSeen ? AppLocalizations.of(context)!.markedAsReviewed : AppLocalizations.of(context)!.markAsReviewed,
+                              style: TextStyle(
+                                color: isSeen ? Colors.greenAccent : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -190,26 +247,45 @@ class _SubmissionCardState extends State<_SubmissionCard> {
   }
 
   Widget _buildFileAction(String url, String name) {
-    return InkWell(
-      onTap: () => launchUrl(Uri.parse(url)),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.insert_drive_file_outlined, color: AppColors.accentGold, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+    return Row(
+      children: [
+        Expanded(
+          child: InkWell(
+            onTap: () => launchUrl(Uri.parse(url)),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.insert_drive_file_outlined, color: AppColors.accentGold, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  const Icon(Icons.open_in_new, color: Colors.white38, size: 16),
+                ],
+              ),
             ),
-            const Icon(Icons.open_in_new, color: Colors.white38, size: 16),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(width: 12),
+        InkWell(
+          onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.accentGold.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.accentGold.withOpacity(0.3)),
+            ),
+            child: const Icon(Icons.download_rounded, color: AppColors.accentGold, size: 24),
+          ),
+        ),
+      ],
     );
   }
 }

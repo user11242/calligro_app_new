@@ -147,6 +147,8 @@ class TeacherHomeTab extends StatefulWidget {
   final String userProfileImage;
   final int courseCount;
   final bool hasPayoutInfo;
+  final String earnings;
+  final VoidCallback onRefresh;
 
   const TeacherHomeTab({
     super.key,
@@ -154,7 +156,9 @@ class TeacherHomeTab extends StatefulWidget {
     required this.userName,
     required this.userProfileImage,
     required this.courseCount,
+    required this.earnings,
     required this.hasPayoutInfo,
+    required this.onRefresh,
   });
 
   @override
@@ -251,7 +255,6 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
               final docs = snapshot.data?.docs ?? [];
               int liveCourseCount = 0;
               int totalActiveStudents = 0;
-              double totalEarnings = 0.0;
 
               List<Map<String, dynamic>> scheduleList = [];
               final now = DateTime.now();
@@ -259,17 +262,6 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
 
               for (var doc in docs) {
                 final data = doc.data() as Map<String, dynamic>;
-
-                // --- EARNINGS CALCULATION ---
-                final double price = (data['price'] ?? 0.0).toDouble();
-                final int count =
-                    data['enrolledCount'] ??
-                    (data['enrolledStudents'] as List?)?.length ??
-                    0;
-                final double totalCourseRevenue = price * count;
-                final double teacherShare = totalCourseRevenue * 0.65;
-
-                totalEarnings += teacherShare;
 
                 DateTime? endDate;
                 if (data['endDate'] != null) {
@@ -418,7 +410,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                   const SizedBox(width: 12),
                   StatCard(
                     icon: Icons.account_balance_wallet,
-                    value: "\$${totalEarnings.toStringAsFixed(0)}",
+                    value: widget.earnings,
                     label: l10n.earnings,
                   ),
                 ],
@@ -851,8 +843,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        AutoTranslatedText(
-                          CourseUtils.getLocalizedCourseName(context, data),
+                        Text(CourseUtils.getLocalizedCourseName(context, data),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white,
@@ -970,13 +961,16 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const PayoutSettingsPage(),
                 ),
               );
+              if (result == true) {
+                widget.onRefresh();
+              }
             },
             child: Text(
               l10n.setupNow,
@@ -1158,7 +1152,7 @@ class _CountdownTimerState extends State<_CountdownTimer> {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 32, // Much larger font for prominent feel
+            fontSize: 28, // Slightly smaller to prevent overflow
             height: 1.1,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
@@ -1180,8 +1174,8 @@ class _CountdownTimerState extends State<_CountdownTimer> {
   Widget _buildDivider() {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-      ), // More breathing room
+        horizontal: 10,
+      ), // Slightly less breathing room to prevent overflow
       child: Container(
         height: 30,
         width: 1,

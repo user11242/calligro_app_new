@@ -17,6 +17,7 @@ export default function AdminFinance() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payoutEligibility, setPayoutEligibility] = useState<any[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddExpense, setShowAddExpense] = useState(false);
   
@@ -28,6 +29,7 @@ export default function AdminFinance() {
   useEffect(() => {
     const unsubTxs = financeService.getTransactions(setTransactions);
     const unsubExps = financeService.getExpenses(setExpenses);
+    const unsubPayouts = financeService.getPayouts(setPayouts);
     const unsubEligibility = financeService.getPayoutEligibility((data) => {
       setPayoutEligibility(data);
       setLoading(false);
@@ -36,6 +38,7 @@ export default function AdminFinance() {
     return () => {
       unsubTxs();
       unsubExps();
+      unsubPayouts();
       unsubEligibility();
     };
   }, []);
@@ -157,6 +160,65 @@ export default function AdminFinance() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Teacher Withdrawal Requests */}
+          <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden text-left mt-8">
+            <div className="p-10 border-b border-gray-50 flex justify-between items-center bg-amber-50/30">
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-left">Teacher Withdrawal Requests</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 text-left">Requested by Teachers in-app</p>
+              </div>
+              <Clock className="w-4 h-4 text-amber-300" />
+            </div>
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-amber-50/50">
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Teacher</th>
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Method</th>
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Amount</th>
+                    <th className="px-10 py-5 text-right text-[10px] font-black uppercase tracking-widest text-gray-400">Action/Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {payouts.map((item) => (
+                    <tr key={item.id} className="hover:bg-amber-50/50 transition-colors">
+                      <td className="px-10 py-6">
+                        <p className="text-sm font-black text-gray-900">{item.teacherName}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{item.createdAt?.toDate ? new Date(item.createdAt.toDate()).toLocaleDateString() : 'Recent'}</p>
+                      </td>
+                      <td className="px-10 py-6 text-xs font-black text-gray-500 uppercase tracking-widest">{item.payoutMethod || item.method}</td>
+                      <td className="px-10 py-6">
+                        <p className="text-sm font-black text-gray-900">${item.amount || item.netAmount || 0}</p>
+                        {item.fee > 0 && <p className="text-[10px] font-bold text-red-400 uppercase tracking-tighter">Fee: ${item.fee}</p>}
+                      </td>
+                      <td className="px-10 py-6 text-right">
+                        {item.status === "pending" ? (
+                          <button
+                            onClick={() => financeService.approveWithdrawal(item.id, item.teacherName, item.amount || item.netAmount || 0)}
+                            className="px-4 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-gray-800 transition-colors"
+                          >
+                            Approve & Pay
+                          </button>
+                        ) : (
+                          <span className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-green-50 text-green-600 border border-green-100">
+                            Settled
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {payouts.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-10 py-10 text-center text-sm font-bold text-gray-400">
+                        No withdrawal requests found.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

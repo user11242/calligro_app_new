@@ -160,6 +160,29 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
     );
   }
 
+  Future<Map<String, dynamic>> _fetchMathData(String teacherId) async {
+    final coursesQuery = await FirebaseFirestore.instance
+        .collection('courses')
+        .where('teacherId', isEqualTo: teacherId)
+        .get();
+    
+    Map<String, Map<String, dynamic>> courseMap = {};
+    for (var doc in coursesQuery.docs) {
+      courseMap[doc.id] = doc.data() as Map<String, dynamic>;
+    }
+
+    final txQuery = await FirebaseFirestore.instance
+        .collection('transactions')
+        .where('teacherId', isEqualTo: teacherId)
+        .where('status', isEqualTo: 'completed')
+        .get();
+
+    return {
+      'courses': courseMap,
+      'transactions': txQuery.docs,
+    };
+  }
+
   void _showProofOfMath(
     BuildContext context,
     String teacherId,
@@ -203,7 +226,7 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
             ),
             const SizedBox(height: 16),
             const Text(
-              "Formula: Students × Course Price × 0.65 (Teacher Share)",
+              "Formula: Sum of Actual Transactions (teacherShare)",
               style: TextStyle(
                 color: AppColors.accentGold,
                 fontWeight: FontWeight.bold,
@@ -216,11 +239,8 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: FutureBuilder<QuerySnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('courses')
-                    .where('teacherId', isEqualTo: teacherId)
-                    .get(),
+              child: FutureBuilder<Map<String, dynamic>>(
+                future: _fetchMathData(teacherId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
@@ -230,67 +250,85 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
                     );
                   }
 
-                  final docs = snapshot.data?.docs ?? [];
-                  if (docs.isEmpty) {
+                  final data = snapshot.data;
+                  if (data == null) {
+                    return const Center(
+                      child: Text("Error loading data.", style: TextStyle(color: Colors.redAccent)),
+                    );
+                  }
+
+                  final Map<String, Map<String, dynamic>> courseMap = data['courses'];
+                  final List<QueryDocumentSnapshot> txDocs = data['transactions'];
+
+                  if (txDocs.isEmpty) {
                     return const Center(
                       child: Text(
-                        "No courses found.",
+                        "No transactions found.",
                         style: TextStyle(color: Colors.white54),
                       ),
                     );
                   }
 
+                  Map<String, Map<String, dynamic>> aggregatedByCourse = {};
                   double totalAvailable = 0;
                   double totalPending = 0;
                   final now = DateTime.now();
                   final safetyWindow = now.subtract(const Duration(hours: 48));
 
-                  // Calculate totals first
-                  for (var doc in docs) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final double price = (data['price'] ?? 0.0).toDouble();
-                    final int count =
-                        data['enrolledCount'] ??
-                        (data['enrolledStudents'] as List?)?.length ??
-                        0;
-                    final double sharePerStudent = price * 0.65;
-                    final double totalShare = sharePerStudent * count;
+                  for (var doc in txDocs) {
+                    final txData = doc.data() as Map<String, dynamic>;
+                    final courseId = txData['courseId'] ?? '';
+                    final teacherShare = (txData['teacherShare'] ?? 0.0).toDouble();
+                    final amount = (txData['amount'] ?? 0.0).toDouble();
+                    
+                    if (!aggregatedByCourse.containsKey(courseId)) {
+                      final cData = courseMap[courseId] ?? {};
+                      aggregatedByCourse[courseId] = {
+                        'courseName': txData['courseName'] ?? 'Unknown Course',
+                        'endDate': cData['endDate'],
+                        'count': 0,
+                        'totalGross': 0.0,
+                        'totalShare': 0.0,
+                      };
+                    }
+                    
+                    aggregatedByCourse[courseId]!['count'] += 1;
+                    aggregatedByCourse[courseId]!['totalGross'] += amount;
+                    aggregatedByCourse[courseId]!['totalShare'] += teacherShare;
+                    
+                    final cData = courseMap[courseId] ?? {};
                     DateTime? endDate;
-                    if (data['endDate'] != null) {
-                      endDate = (data['endDate'] is Timestamp)
-                          ? (data['endDate'] as Timestamp).toDate().toLocal()
+                    if (cData['endDate'] != null) {
+                      endDate = (cData['endDate'] is Timestamp)
+                          ? (cData['endDate'] as Timestamp).toDate().toLocal()
                           : null;
                     }
+                    
                     if (endDate != null && endDate.isBefore(safetyWindow)) {
-                      totalAvailable += totalShare;
+                      totalAvailable += teacherShare;
                     } else {
-                      totalPending += totalShare;
+                      totalPending += teacherShare;
                     }
                   }
+
+                  final aggregatedList = aggregatedByCourse.values.toList();
 
                   return Column(
                     children: [
                       Expanded(
                         child: ListView.builder(
-                          itemCount: docs.length,
+                          itemCount: aggregatedList.length,
                           itemBuilder: (context, index) {
-                            final data =
-                                docs[index].data() as Map<String, dynamic>;
-                            final String courseName =
-                                data['courseName'] ?? 'Unknown Course';
-                            final double price = (data['price'] ?? 0.0)
-                                .toDouble();
-                            final int count =
-                                data['enrolledCount'] ??
-                                (data['enrolledStudents'] as List?)?.length ??
-                                0;
-                            final double sharePerStudent = price * 0.65;
-                            final double totalShare = sharePerStudent * count;
+                            final agg = aggregatedList[index];
+                            final String courseName = agg['courseName'];
+                            final int count = agg['count'];
+                            final double totalGross = agg['totalGross'];
+                            final double totalShare = agg['totalShare'];
 
                             DateTime? endDate;
-                            if (data['endDate'] != null) {
-                              endDate = (data['endDate'] is Timestamp)
-                                  ? (data['endDate'] as Timestamp)
+                            if (agg['endDate'] != null) {
+                              endDate = (agg['endDate'] is Timestamp)
+                                  ? (agg['endDate'] as Timestamp)
                                         .toDate()
                                         .toLocal()
                                   : null;
@@ -364,26 +402,17 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    "Students: $count",
+                                    "Transactions: $count",
                                     style: const TextStyle(
                                       color: Colors.white70,
                                       fontSize: 13,
                                     ),
                                   ),
                                   Text(
-                                    "Course Base Price: \$${price.toStringAsFixed(2)}",
+                                    "Total Gross: \$${totalGross.toStringAsFixed(2)}",
                                     style: const TextStyle(
                                       color: Colors.white70,
                                       fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    "Calculation: $count × \$${price.toStringAsFixed(2)} × 0.65",
-                                    style: const TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 12,
-                                      fontStyle: FontStyle.italic,
                                     ),
                                   ),
                                   const SizedBox(height: 4),

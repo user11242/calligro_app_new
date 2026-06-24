@@ -68,7 +68,7 @@ export default function AboutPage() {
             <span className="text-xs font-black text-primary uppercase tracking-[0.5em] mb-6 inline-block">
               {t("about.page.title")}
             </span>
-            <h1 className="text-4xl md:text-6xl lg:text-8xl font-black font-outfit text-white tracking-tighter leading-none mb-10">
+            <h1 className="text-4xl md:text-6xl lg:text-8xl font-black font-outfit text-white tracking-tighter mb-10" style={{ lineHeight: "1.3" }}>
               {t("about.page.subtitle")}
             </h1>
           </motion.div>

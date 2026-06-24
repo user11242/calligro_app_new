@@ -63,9 +63,16 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           .where('teacherId', isEqualTo: user.uid)
           .get();
 
+      Future<QuerySnapshot> txQueryFuture = FirebaseFirestore.instance
+          .collection('transactions')
+          .where('teacherId', isEqualTo: user.uid)
+          .where('status', isEqualTo: 'completed')
+          .get();
+
       final List<dynamic> results = await Future.wait([
         userDocFuture,
         coursesQueryFuture,
+        txQueryFuture,
       ]);
 
       if (!mounted) return;
@@ -88,19 +95,30 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       final QuerySnapshot coursesQuery = results[1] as QuerySnapshot;
       final int fetchedCourseCount = coursesQuery.size;
 
+      int totalStudents = 0;
+      for (var doc in coursesQuery.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['enrolledStudents'] is List) {
+          totalStudents += (data['enrolledStudents'] as List).length;
+        } else {
+          totalStudents += (data['studentsEnrolled'] as int? ?? 0);
+        }
+      }
+
+      final QuerySnapshot txQuery = results[2] as QuerySnapshot;
+
       setState(() {
         _userName = fetchedName;
         _userEmail = fetchedEmail;
         _courseCount = fetchedCourseCount;
-        _studentCount = "350"; // Hardcoded
+        _studentCount = totalStudents.toString();
         
-        // Calculate earnings from coursesQuery
+        // Calculate earnings from transactions ledger
         double totalEarnings = 0.0;
-        for (var doc in coursesQuery.docs) {
+        for (var doc in txQuery.docs) {
           final data = doc.data() as Map<String, dynamic>;
-          final double price = (data['price'] ?? 0.0).toDouble();
-          final int count = data['enrolledCount'] ?? (data['enrolledStudents'] as List?)?.length ?? 0;
-          totalEarnings += (price * count * 0.65);
+          final double share = (data['teacherShare'] ?? 0.0).toDouble();
+          totalEarnings += share;
         }
         _earnings = "\$${totalEarnings.toStringAsFixed(0)}";
 
@@ -160,7 +178,9 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         userName: _userName,
         userProfileImage: _userProfileImage,
         courseCount: _courseCount,
+        earnings: _earnings,
         hasPayoutInfo: _hasPayoutInfo,
+        onRefresh: _fetchUserData,
       ),
       const TeacherCoursesTab(),
       CommunityPage(onProfileTap: _handleCommunityProfileTap),

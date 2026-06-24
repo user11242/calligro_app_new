@@ -277,7 +277,7 @@ exports.notifyTeacherOnEnrollment = onDocumentUpdated("courses/{courseId}", asyn
         type: "enrollment",
         titleKey: "new_enrollment_title",
         bodyKey: "new_enrollment_body",
-        params: { studentName, courseName: afterData.title || "your course" }
+        params: { studentName, courseName: afterData.courseName || afterData.courseTitle || "your course" }
     });
 });
 
@@ -468,7 +468,6 @@ exports.notifyUsersOnBroadcast = onDocumentCreated("broadcasts/{broadcastId}", a
 
     const title = broadcastData.title || "Announcement";
     const body = broadcastData.message || "";
-    // Accept 'all', 'teacher', 'student' (or 'teachers' / 'students' from UI)
     const audienceStr = (broadcastData.targetAudience || "all").toLowerCase();
 
     let audienceFilter = null;
@@ -479,97 +478,60 @@ exports.notifyUsersOnBroadcast = onDocumentCreated("broadcasts/{broadcastId}", a
     }
 
     try {
-        console.log(`[Broadcast] Starting broadcast to audience: ${audienceStr} (${audienceFilter || 'all'})`);
+        console.log(`[Broadcast] Starting optimized broadcast to audience: ${audienceStr}`);
 
-        // 1. Fetch Users
-        let usersQuery = admin.firestore().collection("users");
-        if (audienceFilter) {
-            usersQuery = usersQuery.where("role", "==", audienceFilter);
-        }
-        const usersSnapshot = await usersQuery.get();
+        let totalRecipients = 0;
+        let totalSuccess = 0;
+        let lastDoc = null;
+        const BATCH_SIZE = 500;
 
-        const tokens = [];
-        const userIds = [];
+        while (true) {
+            let query = admin.firestore().collection("users").limit(BATCH_SIZE);
+            if (audienceFilter) {
+                query = query.where("role", "==", audienceFilter);
+            }
+            if (lastDoc) {
+                query = query.startAfter(lastDoc);
+            }
 
-        usersSnapshot.forEach(doc => {
-            const data = doc.data();
-            userIds.push(doc.id);
-            if (data.fcmToken) {
-                // Ensure unique tokens
-                if (!tokens.includes(data.fcmToken)) {
+            const snapshot = await query.get();
+            if (snapshot.empty) break;
+
+            const tokens = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.fcmToken && !tokens.includes(data.fcmToken)) {
                     tokens.push(data.fcmToken);
                 }
-            }
-        });
-
-        console.log(`[Broadcast] Found ${userIds.length} users, ${tokens.length} FCM tokens.`);
-
-        if (tokens.length === 0) {
-            console.log("[Broadcast] No tokens to send to. Aborting.");
-            return null;
-        }
-
-        // 2. Send Push Notifications (Batches of 500 max per Firebase limits)
-        const payload = {
-            notification: {
-                title,
-                body,
-            },
-            data: {
-                type: "broadcast",
-                title,
-                body
-            },
-            android: {
-                priority: "high",
-                notification: {
-                    channelId: "calligro_alerts",
-                }
-            },
-            apns: {
-                payload: {
-                    aps: {
-                        alert: {
-                            title,
-                            body
-                        },
-                        sound: "default",
-                    }
-                }
-            }
-        };
-
-        // Firebase limit for sendEachForMulticast is 500
-        const batchSize = 500;
-        let successCount = 0;
-        let failureCount = 0;
-
-        for (let i = 0; i < tokens.length; i += batchSize) {
-            const tokensBatch = tokens.slice(i, i + batchSize);
-            const response = await admin.messaging().sendEachForMulticast({
-                tokens: tokensBatch,
-                ...payload
+                totalRecipients++;
+                lastDoc = doc;
             });
-            successCount += response.successCount;
-            failureCount += response.failureCount;
 
-            if (response.failureCount > 0) {
-                response.responses.forEach((resp, idx) => {
-                    if (!resp.success) {
-                        console.warn(`[Broadcast] Failure for token: ${tokensBatch[idx]}, error: ${resp.error}`);
-                    }
+            if (tokens.length > 0) {
+                const payload = {
+                    notification: { title, body },
+                    data: { type: "broadcast", title, body },
+                    android: { priority: "high", notification: { channelId: "calligro_alerts" } },
+                    apns: { payload: { aps: { alert: { title, body }, sound: "default" } } }
+                };
+
+                const response = await admin.messaging().sendEachForMulticast({
+                    tokens,
+                    ...payload
                 });
+                totalSuccess += response.successCount;
             }
+            
+            console.log(`[Broadcast] Processed batch. Total so far: ${totalRecipients}, Success: ${totalSuccess}`);
         }
 
-        console.log(`[Broadcast] Done. Sent ${successCount} messages. Failed: ${failureCount}`);
-
-        // 3. Mark broadcast as processed
         await event.data.ref.update({
             processedAt: admin.firestore.FieldValue.serverTimestamp(),
-            recipientsCount: userIds.length,
-            successCount: successCount
+            recipientsCount: totalRecipients,
+            successCount: totalSuccess
         });
+
+        console.log(`[Broadcast] Completed. Total Recipients: ${totalRecipients}, Total Success: ${totalSuccess}`);
 
     } catch (err) {
         console.error("notifyUsersOnBroadcast error:", err);
