@@ -303,70 +303,60 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 8.0,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Row(
-                children: [
-                  Text(
-                    userName,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  () {
-                    final phone = userData['phone'] ?? userData['phoneNumber'] as String?;
-                    final flag = CountryUtils.getFlagFromPhoneNumber(phone);
-                    if (flag.isNotEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: Text(
-                          flag,
-                          style: const TextStyle(fontSize: 18),
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  }(),
-                ],
+              Text(
+                userName,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(width: 10),
+              () {
+                final phone = userData['phone'] ?? userData['phoneNumber'] as String?;
+                final flag = CountryUtils.getFlagFromPhoneNumber(phone);
+                if (flag.isNotEmpty) {
+                  return Text(
+                    flag,
+                    style: const TextStyle(fontSize: 18),
+                  );
+                }
+                return const SizedBox.shrink();
+              }(),
               if (userRole == 'teacher')
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0,
-                        vertical: 4.0,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 4.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGold.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8.0),
+                    border: Border.all(color: AppColors.accentGold, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.assignment_ind,
+                        color: AppColors.accentGold,
+                        size: 14.0,
                       ),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentGold.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8.0),
-                        border: Border.all(color: AppColors.accentGold, width: 1),
+                      const SizedBox(width: 5.0),
+                      Text(
+                        AppLocalizations.of(context)!.teacher,
+                        style: const TextStyle(
+                          color: AppColors.accentGold,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.0,
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.assignment_ind,
-                            color: AppColors.accentGold,
-                            size: 14.0,
-                          ),
-                          const SizedBox(width: 5.0),
-                          Text(
-                            AppLocalizations.of(context)!.teacher,
-                            style: const TextStyle(
-                              color: AppColors.accentGold,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
             ],
           ),

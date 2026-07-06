@@ -8,6 +8,7 @@ interface TeacherCardProps {
   teacher: {
     uid: string;
     name: string;
+    fullName?: string;
     photoUrl?: string;
     email?: string;
     bio?: string;
@@ -39,7 +40,7 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
             <div className="w-32 h-32 rounded-3xl overflow-hidden border-2 border-white/10 p-1 group-hover:border-primary/40 transition-all duration-700 transform group-hover:rotate-3">
               <Image 
                 src={formatImageUrl(teacher.photoUrl) || "/images/placeholder.png"} 
-                alt={teacher.name}
+                alt={teacher.fullName || teacher.name}
                 width={128}
                 height={128}
                 className="w-full h-full object-cover rounded-2xl grayscale-[50%] group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-115"
@@ -53,7 +54,7 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
           {/* Name & Title */}
           <div className="space-y-2 mb-6">
             <h3 className="text-2xl font-black font-outfit uppercase tracking-tighter text-white group-hover:text-primary transition-colors duration-500">
-              {teacher.name}
+              {teacher.fullName || teacher.name}
             </h3>
           </div>
 

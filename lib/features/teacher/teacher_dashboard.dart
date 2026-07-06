@@ -209,10 +209,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       return const TeacherSetupPage();
     }
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {},
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: AppColors.primary,
         appBar: null,
         body: IndexedStack(index: _selectedIndex, children: _pages),
@@ -244,8 +241,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildNavItem(

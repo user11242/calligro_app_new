@@ -33,46 +33,16 @@ export default function TermsPage() {
           </div>
 
           <div className="space-y-12 text-white/70 leading-relaxed font-medium">
-             <section className="space-y-4">
-                <h2 className="text-xl font-black font-outfit text-white uppercase tracking-wider">
-                   {t("terms.section1.title")}
-                </h2>
-                <p>
-                   {t("terms.section1.content")}
-                </p>
-             </section>
-
-             <section className="space-y-4">
-                <h2 className="text-xl font-black font-outfit text-white uppercase tracking-wider">
-                   {t("terms.section2.title")}
-                </h2>
-                <p>
-                   {t("terms.section2.content")}
-                </p>
-             </section>
-
-             <section className="space-y-4 rounded-3xl bg-primary/5 p-8 border border-primary/10">
-                <h2 className="text-xl font-black font-outfit text-primary uppercase tracking-wider">
-                   {t("terms.section3.title")}
-                </h2>
-                <ul className="list-disc pl-5 space-y-4 mt-4">
-                   <li>
-                      <strong>{t("terms.section3.web.title")}:</strong> {t("terms.section3.web.content")}
-                   </li>
-                   <li>
-                      <strong>{t("terms.section3.mobile.title")}:</strong> {t("terms.section3.mobile.content")}
-                   </li>
-                </ul>
-             </section>
-
-             <section className="space-y-4">
-                <h2 className="text-xl font-black font-outfit text-white uppercase tracking-wider">
-                   {t("terms.section4.title")}
-                </h2>
-                <p>
-                   {t("terms.section4.content")}
-                </p>
-             </section>
+             {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+               <section key={num} className="space-y-4">
+                  <h2 className="text-xl font-black font-outfit text-white uppercase tracking-wider">
+                     {t(`terms.section${num}.title`)}
+                  </h2>
+                  <p className="whitespace-pre-line">
+                     {t(`terms.section${num}.content`)}
+                  </p>
+               </section>
+             ))}
 
              <div className="pt-12 border-t border-white/5 space-y-4">
                 <p className="text-sm font-bold text-white/40">

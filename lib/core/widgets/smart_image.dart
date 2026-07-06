@@ -25,31 +25,53 @@ class SmartImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget image = CachedNetworkImage(
-      imageUrl: imageUrl,
-      width: width,
-      height: height,
-      fit: fit,
-      placeholder: (context, url) => placeholder ?? const Center(child: CircularProgressIndicator()),
-      errorWidget: (context, url, error) => errorWidget ?? const Icon(Icons.error),
-      imageBuilder: (context, imageProvider) {
-        Widget result = Image(
-          image: imageProvider,
-          fit: fit,
-          width: width,
-          height: height,
+    Widget image;
+    
+    // Support local assets that are assigned as default course banners
+    if (imageUrl.startsWith('assets/')) {
+      Widget assetImage = Image.asset(
+        imageUrl,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => errorWidget ?? const Icon(Icons.error),
+      );
+      
+      if (colorFilter != null) {
+        assetImage = ColorFiltered(
+          colorFilter: colorFilter!,
+          child: assetImage,
         );
-
-        if (colorFilter != null) {
-          result = ColorFiltered(
-            colorFilter: colorFilter!,
-            child: result,
+      }
+      image = assetImage;
+    } else {
+      // Normal network image
+      image = CachedNetworkImage(
+        imageUrl: imageUrl,
+        width: width,
+        height: height,
+        fit: fit,
+        placeholder: (context, url) => placeholder ?? const Center(child: CircularProgressIndicator()),
+        errorWidget: (context, url, error) => errorWidget ?? const Icon(Icons.error),
+        imageBuilder: (context, imageProvider) {
+          Widget result = Image(
+            image: imageProvider,
+            fit: fit,
+            width: width,
+            height: height,
           );
-        }
 
-        return result;
-      },
-    );
+          if (colorFilter != null) {
+            result = ColorFiltered(
+              colorFilter: colorFilter!,
+              child: result,
+            );
+          }
+
+          return result;
+        },
+      );
+    }
 
     if (borderRadius != null) {
       image = ClipRRect(

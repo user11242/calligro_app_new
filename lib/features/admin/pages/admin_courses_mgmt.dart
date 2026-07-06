@@ -6,6 +6,7 @@ import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:calligro_app/core/message/app_messenger.dart';
 
 class AdminCoursesMgmt extends StatefulWidget {
   const AdminCoursesMgmt({super.key});
@@ -238,6 +239,8 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
                                 ),
                               ),
                             );
+                          } else if (value == 'add_student') {
+                            _showAddStudentDialog(course['id'], courseName);
                           } else if (value == 'delete') {
                             _confirmDelete(course['id'], course['courseName']);
                           }
@@ -250,6 +253,17 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
                                 const Icon(Icons.visibility, color: AppColors.accentGold, size: 20),
                                 const SizedBox(width: 12),
                                 Text(l10n.viewDetails, style: const TextStyle(color: AppColors.textPrimary)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: 'add_student',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.person_add_alt_1_rounded, color: Colors.blueAccent, size: 20),
+                                const SizedBox(width: 12),
+                                Text(l10n.addStudent, style: const TextStyle(color: AppColors.textPrimary)),
                               ],
                             ),
                           ),
@@ -375,6 +389,243 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAddStudentDialog(String courseId, String courseName) {
+    final l10n = AppLocalizations.of(context)!;
+    String query = "";
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            backgroundColor: AppColors.cardBackground,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              constraints: const BoxConstraints(maxHeight: 500, maxWidth: 400),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.addStudent,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    courseName,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Search TextField
+                  TextField(
+                    onChanged: (val) => setState(() => query = val.toLowerCase().trim()),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: l10n.searchHintUsers,
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 13),
+                      prefixIcon: const Icon(Icons.search_rounded, color: Colors.amber, size: 18),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Students List
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .where('role', isEqualTo: 'student')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator(color: Colors.amber));
+                        }
+                        if (snapshot.hasError || !snapshot.hasData) {
+                          return Center(
+                            child: Text(
+                              l10n.somethingWentWrong,
+                              style: const TextStyle(color: Colors.white30),
+                            ),
+                          );
+                        }
+
+                        final allUsers = snapshot.data!.docs;
+                        final students = allUsers.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final name = (data['name'] ?? '').toString().toLowerCase();
+                          final email = (data['email'] ?? '').toString().toLowerCase();
+                          return name.contains(query) || email.contains(query);
+                        }).toList();
+
+                        if (students.isEmpty) {
+                          return Center(
+                            child: Text(
+                              l10n.noUsersFound,
+                              style: const TextStyle(color: Colors.white30),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          itemCount: students.length,
+                          itemBuilder: (context, index) {
+                            final doc = students[index];
+                            final data = doc.data() as Map<String, dynamic>;
+                            final name = data['name'] ?? 'No Name';
+                            final email = data['email'] ?? 'No Email';
+                            final photoUrl = data['photoUrl'] as String?;
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: photoUrl != null && photoUrl.isNotEmpty
+                                    ? CachedNetworkImage(
+                                        imageUrl: photoUrl,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          width: 40,
+                                          height: 40,
+                                          color: Colors.white.withOpacity(0.05),
+                                        ),
+                                        errorWidget: (context, url, error) => Container(
+                                          width: 40,
+                                          height: 40,
+                                          color: Colors.blueAccent.withOpacity(0.1),
+                                          child: const Icon(Icons.person, color: Colors.blueAccent, size: 18),
+                                        ),
+                                    )
+                                    : Container(
+                                        width: 40,
+                                        height: 40,
+                                        color: Colors.blueAccent.withOpacity(0.1),
+                                        child: const Icon(Icons.person, color: Colors.blueAccent, size: 18),
+                                      ),
+                              ),
+                              title: Text(
+                                name,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                email,
+                                style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              onTap: () {
+                                Navigator.pop(context); // Close search dialog
+                                _confirmAddStudent(courseId, courseName, doc.id, name);
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        l10n.cancel,
+                        style: const TextStyle(color: Colors.white54),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _confirmAddStudent(String courseId, String courseName, String studentUid, String studentName) {
+    final l10n = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(l10n.addStudent, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          l10n.enrollStudentConfirmMessage(studentName, courseName),
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.white54)),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(l10n.confirm, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            onPressed: () async {
+              final navContext = Navigator.of(context).context; // Capture parent context
+              Navigator.pop(context); // Close confirmation dialog
+              
+              showDialog(
+                context: navContext,
+                barrierDismissible: false,
+                builder: (_) => const Center(
+                  child: CircularProgressIndicator(color: Colors.amber),
+                ),
+              );
+
+              try {
+                await _adminService.enrollStudentInCourse(courseId, studentUid);
+                if (mounted) {
+                  Navigator.of(navContext).pop(); // Close loading indicator
+                  AppMessenger.showSnackBar(
+                    navContext,
+                    title: "Success",
+                    message: l10n.enrollStudentSuccess(studentName),
+                    type: MessengerType.success,
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.of(navContext).pop(); // Close loading indicator
+                  AppMessenger.showSnackBar(
+                    navContext,
+                    title: l10n.error,
+                    message: e.toString(),
+                    type: MessengerType.error,
+                  );
+                }
+              }
+            },
+          ),
+        ],
       ),
     );
   }

@@ -120,6 +120,29 @@ class AdminService {
 
   // --- MODERATION ---
 
+  /// Enrolls a student in a course by their UID
+  Future<void> enrollStudentInCourse(String courseId, String studentUid) async {
+    final courseRef = _firestore.collection('courses').doc(courseId);
+    
+    await _firestore.runTransaction((transaction) async {
+      final courseSnapshot = await transaction.get(courseRef);
+      if (!courseSnapshot.exists) {
+        throw Exception("Course not found");
+      }
+      
+      final data = courseSnapshot.data() ?? {};
+      final List<dynamic> enrolled = List<dynamic>.from(data['enrolledStudents'] ?? []);
+      
+      if (!enrolled.contains(studentUid)) {
+        enrolled.add(studentUid);
+        transaction.update(courseRef, {
+          'enrolledStudents': enrolled,
+          'enrolledCount': enrolled.length, // update count in sync
+        });
+      }
+    });
+  }
+
   /// Deletes a course from the platform
   Future<void> deleteCourse(String courseId) async {
     await _firestore.collection('courses').doc(courseId).delete();

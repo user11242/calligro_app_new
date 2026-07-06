@@ -185,9 +185,7 @@ class _OnboardingPageState extends State<OnboardingPage> with WidgetsBindingObse
     final l10n = AppLocalizations.of(context)!;
     final currentLocale = Localizations.localeOf(context).languageCode;
 
-    return PopScope(
-      canPop: false,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: Colors.black,
         body: Stack(
           children: [
@@ -374,7 +372,6 @@ class _OnboardingPageState extends State<OnboardingPage> with WidgetsBindingObse
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

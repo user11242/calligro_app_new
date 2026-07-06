@@ -18,6 +18,7 @@ import 'package:calligro_app/core/services/translation_service.dart';
 import 'package:calligro_app/features/student/widgets/course_share_card.dart';
 import 'package:calligro_app/core/utils/share_utils.dart';
 import '../../services/jitsi_meet_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class CourseDetailsPage extends StatefulWidget {
   final String courseId;
@@ -315,10 +316,66 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       }
       */
 
+      // ── STEP 1: Request camera & microphone permissions at runtime ──
+      // On Android 6+, manifest declarations alone are NOT enough.
+      // Without this, the camera button in Jitsi will be silently disabled
+      // and no permission dialog will ever be shown to the user.
+      final cameraStatus = await Permission.camera.request();
+      final micStatus = await Permission.microphone.request();
+
+      if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
+        // User clicked "Don't ask again" — guide them to settings
+        if (mounted) {
+          AppMessenger.showSnackBar(
+            context,
+            title: "Permissions Required",
+            message: "Camera and microphone access are required for the classroom. Please enable them in your device settings.",
+            type: MessengerType.error,
+          );
+        }
+        await openAppSettings();
+        return;
+      }
+
+      if (cameraStatus.isDenied || micStatus.isDenied) {
+        if (mounted) {
+          AppMessenger.showSnackBar(
+            context,
+            title: "Permissions Denied",
+            message: "Camera and microphone access are needed to join the classroom.",
+            type: MessengerType.error,
+          );
+        }
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────
+
       final user = FirebaseAuth.instance.currentUser;
-      final userName = user?.displayName ?? "User";
-      final userEmail = user?.email ?? "";
-      final userAvatar = user?.photoURL ?? "";
+      String userName = user?.displayName ?? "User";
+      String userEmail = user?.email ?? "";
+      String userAvatar = user?.photoURL ?? "";
+
+      // Fetch the true full name and photo URL from Firestore
+      if (user != null) {
+        try {
+          final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          if (userDoc.exists) {
+            final data = userDoc.data();
+            if (data != null) {
+              if (data['fullName'] != null && data['fullName'].toString().isNotEmpty) {
+                userName = data['fullName'];
+              } else if (data['name'] != null && data['name'].toString().isNotEmpty) {
+                userName = data['name'];
+              }
+              if (data['photoUrl'] != null && data['photoUrl'].toString().isNotEmpty) {
+                userAvatar = data['photoUrl'];
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint("Failed to fetch user doc for classroom: $e");
+        }
+      }
 
       if (mounted) {
         AppMessenger.showSnackBar(

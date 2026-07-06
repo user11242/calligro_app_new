@@ -58,13 +58,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       const StudentProfileTab(),
     ];
 
-    return PopScope(
-      canPop: widget.isGuestMode,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        // Handle non-guest logic if needed, but for now we keep the original behavior
-      },
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: AppColors.primary,
         body: IndexedStack(index: _selectedIndex, children: pages),
         bottomNavigationBar: BottomAppBar(
@@ -95,7 +89,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
             ],
           ),
         ),
-      ),
       ),
     );
   }

@@ -175,12 +175,14 @@ class _LoginFormState extends State<LoginForm> {
       }
     } catch (e) {
       if (mounted) setState(() => isLoading = false);
-      AppMessenger.showSnackBar(
-        context,
-        title: l10n.error,
-        message: e.toString(),
-        type: MessengerType.error,
-      );
+      if (mounted) {
+        AppMessenger.showSnackBar(
+          context,
+          title: l10n.error,
+          message: e.toString(),
+          type: MessengerType.error,
+        );
+      }
     }
   }
 

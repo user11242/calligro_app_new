@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBebAi7veB2DgOiVcPiEgGRpgtkJidBUsc',
-    appId: '1:500166558232:android:9549878d6a0a0aa861396d',
+    appId: '1:500166558232:android:c4006edb06d928fe61396d',
     messagingSenderId: '500166558232',
     projectId: 'calligro-bcfb2',
     storageBucket: 'calligro-bcfb2.firebasestorage.app',

@@ -329,7 +329,7 @@ export default function CourseCard({ course }: CourseCardProps) {
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-base md:text-lg font-black text-white leading-tight truncate">{teacherName}</p>
+                    <p className="text-base md:text-lg font-black text-white leading-tight line-clamp-2">{teacherName}</p>
                     {teacherLanguages && (
                       <div className="flex items-center gap-1 mt-1">
                         <Languages className="w-3 h-3 text-white/30 shrink-0" />

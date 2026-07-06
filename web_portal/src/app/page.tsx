@@ -81,8 +81,8 @@ export default function Home() {
 
 
 
-        {/* ════ Desktop & Tablet Hero — Diagonal Composition ════ */}
-        <div className="hidden md:flex absolute inset-0 z-10 flex-col justify-center items-center overflow-hidden" dir="rtl">
+        {/* ════ Tablet Hero — Diagonal Composition ════ */}
+        <div className="hidden md:flex lg:hidden absolute inset-0 z-10 flex-col justify-center items-center overflow-hidden" dir="rtl">
           
           {/* Dark overlay for better contrast */}
           <div className="absolute inset-0 bg-black/40 z-[1] pointer-events-none" />
@@ -121,7 +121,7 @@ export default function Home() {
             <div
               className="absolute z-20 text-[#E8C468] font-bold"
               style={{
-                fontFamily: 'var(--font-aref-ruqaa), serif',
+                fontFamily: '"Aref Ruqaa", serif',
                 fontSize: '150px',
                 fontWeight: 700,
                 transform: 'rotate(-5deg)',
@@ -213,7 +213,7 @@ export default function Home() {
               className="absolute z-20 text-center"
               dir="rtl"
               style={{
-                fontFamily: 'var(--font-aref-ruqaa), serif',
+                fontFamily: '"Aref Ruqaa", serif',
                 fontSize: '54px',
                 fontWeight: 'normal',
                 WebkitTextStroke: '0.8px #FFFFFF',
@@ -304,7 +304,81 @@ export default function Home() {
           </motion.div>
         </div>
 
+        {/* ════ Desktop Hero Content (Absolutely positioned over image) ════ */}
+        <div className="hidden lg:flex absolute right-16 xl:right-32 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
+          {/* Ambient gold glow behind text */}
+          <div className="hero-ambient-glow" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
 
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col items-end text-right pointer-events-auto relative"
+          >
+            {/* "خصم" - animated gold shimmer, large italic */}
+            <motion.span
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="gold-text font-black text-7xl xl:text-8xl leading-none mb-2 font-outfit italic"
+            >
+              {t("hero.title_top")}
+            </motion.span>
+
+            {/* "50%" - force LTR so 50 is before %, massive 3D embossed */}
+            <motion.h1
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
+              className="leading-[0.82] mb-6 font-outfit flex items-baseline"
+              dir="ltr"
+              style={{ fontSize: 'clamp(150px, 18vw, 260px)' }}
+            >
+              <span className="font-black hero-number-3d tracking-tight">50</span>
+              <span className="font-black gold-percent-3d" style={{ fontSize: '0.7em', marginLeft: '-4px' }}>%</span>
+            </motion.h1>
+
+            {/* Decorative gold line */}
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="gold-line mb-5 self-end origin-right"
+            />
+
+            {/* Subtitle */}
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.7 }}
+              className="text-2xl xl:text-3xl text-white/90 font-semibold leading-relaxed mb-10 tracking-wide"
+              style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
+            >
+              {t("hero.subtitle")}
+            </motion.p>
+
+            {/* Buttons row */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.9 }}
+              className="flex flex-row gap-4 items-center"
+              dir="ltr"
+            >
+              <Link href="/courses">
+                <button className="group flex items-center justify-center gap-4 px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest bg-primary text-black hover:scale-105 transition-transform btn-cta-glow">
+                  {t("hero.cta.join")}
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                </button>
+              </Link>
+              <Link href="/download">
+                <button className="px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest text-white border-2 border-white/20 hover:bg-white/10 hover:border-white/40 backdrop-blur-md transition-all">
+                  {t("hero.cta.app")}
+                </button>
+              </Link>
+            </motion.div>
+          </motion.div>
+        </div>
       </section>
 
       {/* ═══════ Advanced Modern About Section ═══════ */}

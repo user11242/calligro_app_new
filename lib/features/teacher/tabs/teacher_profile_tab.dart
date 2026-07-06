@@ -681,7 +681,10 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
           const SizedBox(height: 16),
 
           // 2. Name & Role Badge
-          Row(
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 8.0,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 name, // Uses live name
@@ -691,7 +694,6 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 8.0,
@@ -722,7 +724,6 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
               if (commissionRate != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -774,9 +775,9 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                         size: 14.0,
                       ),
                       const SizedBox(width: 5.0),
-                      const Text(
-                        "Waiting for admin to set commission",
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context)!.waitingForAdminCommission,
+                        style: const TextStyle(
                           color: Colors.orange,
                           fontSize: 11.0,
                           fontWeight: FontWeight.bold,

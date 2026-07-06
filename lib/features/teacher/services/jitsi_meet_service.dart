@@ -34,7 +34,11 @@ class JitsiMeetService {
     try {
       // 🛡️ SECURITY: Hash the room name to match the Web Portal
       // Logic: SHA256("Calligro_${id}_${baseRoom}_${today}_SecureSalt2026")
-      final today = DateTime.now().toIso8601String().split('T')[0];
+      // 🛡️ CRITICAL: Must use .toUtc() to match Web Portal's new Date().toISOString()
+      // JavaScript's toISOString() ALWAYS returns UTC, while Dart's toIso8601String()
+      // returns LOCAL time. Without .toUtc(), the date component differs between
+      // midnight and 3 AM in GMT+3 timezones, causing different room hashes.
+      final today = DateTime.now().toUtc().toIso8601String().split('T')[0];
       final rawSeed = "Calligro_${courseId}_${roomName}_${today}_SecureSalt2026";
       final hashed = _hashRoomName(rawSeed);
       final secureRoomName = "CG_${hashed.substring(0, 40)}";
@@ -42,7 +46,7 @@ class JitsiMeetService {
       debugPrint("Joining Secure Jitsi Meeting: $secureRoomName on meet.element.io");
 
       // 🛡️ SECURITY: Unforgeable display name with short UID tag
-      final myUniqueTag = "[${userId.substring(0, 8)}]";
+      final myUniqueTag = userId.length >= 8 ? "[${userId.substring(0, 8)}]" : "[${userId}]";
       final jitsiDisplayName = "$userName ${isModerator ? "(Admin)" : ""} $myUniqueTag";
 
       final teacherButtons = [
@@ -67,16 +71,48 @@ class JitsiMeetService {
           "subject": " ",
           "hideConferenceSubject": true,
           "prejoinPageEnabled": false,
-          "lobbyModeEnabled": false, 
-          "disableLobby": true, 
-          "disableInviteFunctions": true,
-          "doNotStoreRoom": true,
+          "lobbyModeEnabled": false,
+          "disableLobby": true,
+          "disableInviteFunctions": true,  // 🔒 SECURITY: no sharing room links
+          "doNotStoreRoom": true,           // 🔒 SECURITY: room not saved on server
           "toolbarButtons": isModerator ? teacherButtons : studentButtons,
           "disableRemoteMute": !isModerator,
-          "remoteVideoMenu": {
-              "disableKick": !isModerator,
-              "disableGrantModerator": true
-          },
+
+          // ═══ VIDEO QUALITY ═══
+          "resolution": 720,
+          "preferredCodec": "H264",
+          "disableH264": false,
+          "disableSimulcast": false,
+          "channelLastN": 4,
+
+          // ═══ P2P (Direct device-to-device when only 2 people) ═══
+          // When teacher + 1 student: video skips the server entirely
+          // → sharper image, lower latency, less bandwidth usage
+          "p2p.enabled": true,
+          "p2p.preferredCodec": "H264",
+
+          // ═══ BANDWIDTH OPTIMISATION ═══
+          // Pause encoding for participants not currently on screen
+          "enableLayerSuspension": true,
+          // Keep full 720p only for the 2 most active speakers
+          "maxFullResolutionParticipants": 2,
+          "startBitrate": 1500,
+
+          // ═══ AUDIO QUALITY ═══
+          "opusMaxAverageBitrate": 128000,
+          "enableOpusDtx": true,
+          "disableAP": false,
+          "enableNoisyMicDetection": true,
+          "disableNS": false,
+          "disableAEC": false,
+          "disableAGC": false,
+          "disableHPF": false,
+
+          // ═══ UX: Remove distracting join/leave popup notifications ═══
+          "notifications": [],
+
+          // ═══ PRIVACY: Disable call quality reporting to third parties ═══
+          "callStatsID": "",
         },
         featureFlags: {
           "invite.enabled": false,
@@ -90,6 +126,7 @@ class JitsiMeetService {
           "logo.enabled": false, 
           "kick-out.enabled": isModerator,
           "moderator.enabled": isModerator,
+          "pip.enabled": true, // Back button minimizes to PiP instead of leaving
         },
         userInfo: JitsiMeetUserInfo(
           displayName: jitsiDisplayName,

@@ -7,6 +7,13 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- Permission for screenshot detection on Android 14+ -->
     <uses-permission android:name="android.permission.DETECT_SCREEN_CAPTURE" />
+
+    <!-- Required by Jitsi Meet SDK for video conferencing -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     
     <application
         tools:replace="android:label"
@@ -21,7 +28,8 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:supportsPictureInPicture="true">
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
@@ -41,6 +49,13 @@
                 <data android:scheme="http" android:host="calligro.digital" />
             </intent-filter>
         </activity>
+
+        <!-- Jitsi Meet SDK: override to enable Picture-in-Picture on Android -->
+        <activity
+            android:name="org.jitsi.meet.sdk.JitsiMeetActivity"
+            android:supportsPictureInPicture="true"
+            android:exported="false"
+            tools:replace="android:supportsPictureInPicture" />
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

@@ -33,7 +33,9 @@ class GoogleAuthService {
   // ✅ PUBLIC GETTER FOR CONSISTENCY
   GoogleSignIn get googleSignIn => _googleSignIn;
 
-  void log(String msg) => debugPrint(msg);
+  void log(String msg) {
+    debugPrint(msg);
+  }
 
   void clearPendingCredential() {
     _pendingGoogleCredential = null;
@@ -143,14 +145,16 @@ class GoogleAuthService {
         _pendingEmail = googleUser?.email;
         return "ACCOUNT_EXISTS_DIFFERENT_CREDENTIAL";
       }
-      return e.message;
+      return "Firebase Error: ${e.message}";
     } catch (e) {
-      log("❌ Google Auth Error: $e");
-      final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('canceled') || errorStr.contains('cancel')) {
+      // Handle the case where the user simply closed the Google Sign-in modal
+      if (e is GoogleSignInException || e.toString().contains('sign_in_canceled') || e.toString().contains('canceled')) {
+        log("ℹ️ Google Auth: User cancelled sign-in flow.");
         return null;
       }
-      return e.toString();
+      
+      log("❌ Google Auth Error: $e");
+      return "Exception: $e";
     }
   }
 

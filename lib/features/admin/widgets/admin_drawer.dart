@@ -109,22 +109,6 @@ class AdminDrawer extends StatelessWidget {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => AdminCoursesMgmt()));
                   },
                 ),
-                _buildDrawerItem(
-                  icon: Icons.forum_rounded,
-                  title: l10n.community,
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => AdminCommunityMgmt()));
-                  },
-                ),
-                _buildDrawerItem(
-                  icon: Icons.forum_rounded,
-                  title: l10n.community,
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => AdminCommunityMgmt()));
-                  },
-                ),
               ],
             ),
           ),

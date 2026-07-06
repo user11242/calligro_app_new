@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:500166558232:android:9549878d6a0a0aa861396d",
         "android_client_info": {
-          "package_name": "com.yazan.calligro_app"
+          "package_name": "com.example.calligro_app"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "500166558232-43btqgmq0fr51v6psje9vnm1flc66286.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.yazan.calligro_app",
+            "package_name": "com.example.calligro_app",
             "certificate_hash": "2122d61dc90bbbb0a49fedf6b311c285b50fc44e"
           }
         },
@@ -25,7 +25,7 @@
           "client_id": "500166558232-gvffubev0gu5no6i5pf1hq4sa4pkqvdh.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.yazan.calligro_app",
+            "package_name": "com.example.calligro_app",
             "certificate_hash": "d6ec012d24f21c0f52715b8b4778e20f736ff733"
           }
         },
@@ -33,8 +33,84 @@
           "client_id": "500166558232-m84dss3an1cjvp1ghaehb50k1i05o6eu.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
+            "package_name": "com.example.calligro_app",
+            "certificate_hash": "62b35127ea9cb8ee37c14bc5e952b3bcf42da259"
+          }
+        },
+        {
+          "client_id": "500166558232-t947e97f4ocmap218qu3rm3u0o080pma.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBebAi7veB2DgOiVcPiEgGRpgtkJidBUsc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "500166558232-fgc36hhageuia4tpkujb8cd08laq1vvt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "500166558232-aegg8epoq3ffo3b0klbgqvcl6jilq80j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.yazan.calligroApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:500166558232:android:c4006edb06d928fe61396d",
+        "android_client_info": {
+          "package_name": "com.yazan.calligro_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "500166558232-av03hhb94mbh37ru473d3b80r0rhi9kn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.yazan.calligro_app",
+            "certificate_hash": "34e8af6fb5afea36e5576abf8a278b806ae72466"
+          }
+        },
+        {
+          "client_id": "500166558232-btq3tf4gshgnft9m84hccqm8cvbr9lij.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.yazan.calligro_app",
+            "certificate_hash": "2122d61dc90bbbb0a49fedf6b311c285b50fc44e"
+          }
+        },
+        {
+          "client_id": "500166558232-ib8tkj8ctcnfsrgdu4kg2f0n5fnmh004.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
             "package_name": "com.yazan.calligro_app",
             "certificate_hash": "62b35127ea9cb8ee37c14bc5e952b3bcf42da259"
+          }
+        },
+        {
+          "client_id": "500166558232-jr9q00kcjt6mjgk9d5f7gqhbim1ppuuq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.yazan.calligro_app",
+            "certificate_hash": "d6ec012d24f21c0f52715b8b4778e20f736ff733"
+          }
+        },
+        {
+          "client_id": "500166558232-rf3e4unmqdfhelvufp8kc6r4dufhc5ei.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.yazan.calligro_app",
+            "certificate_hash": "e1cd1bf60afd1a0562f336b2b8612b3773206f77"
           }
         },
         {

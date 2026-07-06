@@ -581,6 +581,15 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                     ? courseSnap.data!.docs.length
                                     : 0;
 
+                            // Sum up studentsEnrolled across ALL this teacher's courses
+                            int totalStudents = 0;
+                            if (courseSnap.hasData) {
+                              for (final doc in courseSnap.data!.docs) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                totalStudents += (data['studentsEnrolled'] as int?) ?? 0;
+                              }
+                            }
+
                             return Container(
                               padding: const EdgeInsets.symmetric(
                                 vertical: 20,
@@ -597,7 +606,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
                                   _buildMinimalStat(
-                                    followerCount.toString(),
+                                    totalStudents.toString(),
                                     l10n.students.toUpperCase(),
                                   ),
                                   _buildStatVerticalDivider(),

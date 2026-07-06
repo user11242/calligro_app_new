@@ -52,11 +52,9 @@ class _RegisterPageState extends State<RegisterPage> {
     } else if (result != null && !result.toLowerCase().contains("error")) {
       Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     } else if (result != null) {
-      AppMessenger.showSnackBar(
-        context,
-        title: l10n.error,
-        message: result,
-        type: MessengerType.error,
+      // Standard snackbar for errors (e.g., Firebase error)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result)),
       );
     }
   }

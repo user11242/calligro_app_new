@@ -266,12 +266,13 @@ export default function ClassroomPage() {
             
             // Strip UID tags from display names for clean sidebar
             const cleanName = rawName.replace(/\s*\[[a-f0-9]{8}\]$/i, '');
-            const isRemoteTeacher = course?.teacherId === p.participantId; 
+            // Detect if remote participant is the teacher by checking for the Admin tag
+            const isRemoteTeacher = rawName.includes("(Admin)"); 
 
             participantMap.set(rawName, {
                 id: p.participantId,
-                displayName: cleanName,
-                role: isRemoteTeacher ? 'moderator' : p.role || "participant",
+                displayName: cleanName.replace("(Admin)", "").trim(),
+                role: isRemoteTeacher ? 'moderator' : (p.role || "participant"),
                 avatar: p.avatarURL
             });
         });
