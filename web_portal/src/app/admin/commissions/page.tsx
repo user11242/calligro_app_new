@@ -81,12 +81,12 @@ export default function AdminCommissions() {
                               <img src={teacher.photoUrl} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full bg-black text-white flex items-center justify-center text-xs font-black">
-                                {(teacher.fullName || teacher.name || "A")[0]}
+                                {(teacher.name || "A")[0]}
                               </div>
                             )}
                           </div>
                           <div>
-                            <p className="text-sm font-black text-gray-900">{teacher.fullName || teacher.name}</p>
+                            <p className="text-sm font-black text-gray-900">{teacher.name}</p>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{teacher.email}</p>
                           </div>
                         </div>
@@ -103,7 +103,7 @@ export default function AdminCommissions() {
                                 const newPct = parseFloat(e.target.value);
                                 if (!isNaN(newPct) && newPct >= 0 && newPct <= 100) {
                                   await financeService.setTeacherCommission(teacher.uid, newPct / 100);
-                                  await financeService.logAdminAction("Update Commission", `${teacher.fullName || teacher.name}: ${newPct}%`);
+                                  await financeService.logAdminAction("Update Commission", `${teacher.name}: ${newPct}%`);
                                 }
                               }}
                               className="w-24 px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:bg-white focus:border-black transition-all text-sm font-black text-center"
