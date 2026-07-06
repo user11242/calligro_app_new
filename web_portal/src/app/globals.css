@@ -10,6 +10,14 @@
   --gold-dark: #b89b3f;
 }
 
+@font-face {
+  font-family: 'Diwani Letter';
+  src: url('/fonts/diwani-letter.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 body {
   color: #FFFFFF;
   background: #111111;
@@ -101,3 +109,228 @@ body {
   @apply scale-x-100;
 }
 
+/* ═══ Hero Premium Effects ═══ */
+
+/* 3D embossed depth effect on hero number - deep carved look */
+.hero-number-3d {
+  color: #FAFAFA;
+  text-shadow:
+    0 1px 0 #EDEDED,
+    0 2px 0 #E0E0E0,
+    0 3px 0 #D4D4D4,
+    0 4px 0 #C8C8C8,
+    0 5px 0 #BCBCBC,
+    0 6px 6px rgba(0,0,0,0.15),
+    0 10px 20px rgba(0,0,0,0.12),
+    0 20px 40px rgba(0,0,0,0.1);
+}
+
+/* Animated shimmer sweep on gold text */
+.gold-shimmer {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(
+    120deg,
+    #B8860B 0%,
+    #D4AF37 20%,
+    #FFEF96 35%,
+    #FFFBE6 50%,
+    #FFEF96 65%,
+    #D4AF37 80%,
+    #B8860B 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 4s ease-in-out infinite;
+  filter: drop-shadow(0 2px 6px rgba(212,175,55,0.4));
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 100% 0; }
+  50% { background-position: -100% 0; }
+}
+
+/* Ambient glow behind hero content */
+.hero-ambient-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212,175,55,0.08) 0%, rgba(212,175,55,0.04) 40%, transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Gold "%" with rich warm 3D gradient */
+.gold-percent-3d {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(
+    170deg,
+    #FFE082 0%,
+    #FFD54F 20%,
+    #D4AF37 50%,
+    #B8860B 80%,
+    #8B6914 100%
+  );
+  filter: drop-shadow(0 6px 12px rgba(212,175,55,0.4))
+         drop-shadow(0 2px 4px rgba(184,134,11,0.3));
+}
+
+/* Decorative gold line */
+.gold-line {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #D4AF37, #FFEF96, #D4AF37);
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+/* Enhanced CTA button glow */
+.btn-cta-glow {
+  box-shadow:
+    0 0 20px rgba(212,175,55,0.3),
+    0 10px 30px -10px rgba(212,175,55,0.5),
+    inset 0 2px 0 rgba(255,255,255,0.4);
+  transition: all 0.3s ease;
+}
+.btn-cta-glow:hover {
+  box-shadow:
+    0 0 30px rgba(212,175,55,0.5),
+    0 15px 40px -10px rgba(212,175,55,0.7),
+    inset 0 2px 0 rgba(255,255,255,0.5);
+}
+
+/* Floating animation for subtle movement */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+.hero-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ═══ Tablet Premium Effects ═══ */
+
+/* Metallic 3D gold number — rich embossed look */
+.gold-number-metallic {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(
+    180deg,
+    #FFF8DC 0%,
+    #FFE082 15%,
+    #FFD54F 30%,
+    #D4AF37 50%,
+    #B8860B 70%,
+    #8B6914 85%,
+    #D4AF37 100%
+  );
+  filter: 
+    drop-shadow(0 2px 0 rgba(139,105,20,0.8))
+    drop-shadow(0 4px 0 rgba(139,105,20,0.6))
+    drop-shadow(0 8px 16px rgba(0,0,0,0.4))
+    drop-shadow(0 16px 32px rgba(0,0,0,0.2));
+}
+
+/* White number with deep 3D carved look for tablet */
+.tablet-number-3d {
+  color: #FAFAFA;
+  text-shadow:
+    0 1px 0 #F0F0F0,
+    0 2px 0 #E6E6E6,
+    0 3px 0 #DCDCDC,
+    0 4px 0 #D2D2D2,
+    0 5px 0 #C8C8C8,
+    0 6px 0 #BEBEBE,
+    0 7px 0 #B4B4B4,
+    0 8px 8px rgba(0,0,0,0.2),
+    0 12px 24px rgba(0,0,0,0.15),
+    0 24px 48px rgba(0,0,0,0.1);
+}
+
+/* Gold spotlight radial glow */
+.gold-spotlight {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212,175,55,0.2) 0%, rgba(212,175,55,0.08) 40%, transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+/* Glassmorphic frame with gold accents */
+.glass-frame-gold {
+  background: rgba(10, 10, 10, 0.35);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(212,175,55,0.15);
+  box-shadow: 
+    0 20px 60px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    inset 0 -1px 0 rgba(0,0,0,0.2);
+}
+
+/* Pulsing gold glow */
+@keyframes goldPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+.gold-pulse {
+  animation: goldPulse 3s ease-in-out infinite;
+}
+
+/* Gold corner accents */
+.gold-corner::before,
+.gold-corner::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-color: rgba(212,175,55,0.4);
+  border-style: solid;
+}
+.gold-corner::before {
+  top: 0; left: 0;
+  border-width: 2px 0 0 2px;
+}
+.gold-corner::after {
+  bottom: 0; right: 0;
+  border-width: 0 2px 2px 0;
+}
+
+/* ═══ Diagonal Hero Animations ═══ */
+
+/* Floating seal — gentle rock + drift */
+@keyframes sealFloat {
+  0%, 100% { transform: rotate(-3deg) translateY(0px); }
+  50% { transform: rotate(3deg) translateY(-5px); }
+}
+.seal-float {
+  animation: sealFloat 4s ease-in-out infinite;
+}
+
+/* Shine sweep across 50 number */
+@keyframes shineSweep {
+  0%, 80%, 100% { transform: translateX(-120%) skewX(-15deg); }
+  40%, 60% { transform: translateX(120%) skewX(-15deg); }
+}
+.shine-sweep {
+  animation: shineSweep 3.5s ease-in-out infinite;
+}
+
+/* Dashed line dash offset animation */
+@keyframes dashFlow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -20; }
+}
+.dash-flow {
+  animation: dashFlow 1.2s linear infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .seal-float,
+  .shine-sweep,
+  .dash-flow {
+    animation: none !important;
+  }
+}

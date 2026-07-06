@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Inter, Outfit, Playfair_Display, Aref_Ruqaa, Amiri, Marhey } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
+const arefRuqaa = Aref_Ruqaa({ weight: ["400", "700"], subsets: ["arabic"], variable: "--font-aref-ruqaa" });
+const amiri = Amiri({ weight: ["400", "700"], subsets: ["arabic"], variable: "--font-amiri" });
+const marhey = Marhey({ weight: ["300", "400", "500", "600", "700"], subsets: ["arabic"], variable: "--font-marhey" });
 
 export const metadata: Metadata = {
   title: "Calligro Academy | Master the Art of Arabic Calligraphy",
@@ -24,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${outfit.variable} ${playfair.variable} ${arefRuqaa.variable} ${amiri.variable} ${marhey.variable} font-sans antialiased`}>
         <LocaleProvider>
           {children}
         </LocaleProvider>
