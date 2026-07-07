@@ -304,79 +304,164 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* ════ Desktop Hero Content (Absolutely positioned over image) ════ */}
-        <div className="hidden lg:flex absolute right-16 xl:right-32 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
-          {/* Ambient gold glow behind text */}
-          <div className="hero-ambient-glow" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+        {/* ════ Desktop Hero Content — Diagonal Composition (same as tablet, scaled up) ════ */}
+        <div className="hidden lg:flex absolute inset-0 z-10 flex-col justify-center items-start pr-24 xl:pr-32 overflow-hidden" dir="rtl">
+          
+          {/* Dark overlay for better contrast on the desktop background */}
+          <div className="absolute inset-0 bg-black/20 z-[1] pointer-events-none" />
 
+          {/* Subtle ornamental background pattern */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-[2]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="diagLinesDesktop" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                <line x1="0" y1="0" x2="0" y2="40" stroke="rgba(232,196,104,0.04)" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#diagLinesDesktop)" />
+            <circle cx="85%" cy="20%" r="100" fill="none" stroke="rgba(232,196,104,0.06)" strokeWidth="0.5" />
+            <circle cx="85%" cy="20%" r="150" fill="none" stroke="rgba(232,196,104,0.04)" strokeWidth="0.5" />
+            <circle cx="85%" cy="20%" r="200" fill="none" stroke="rgba(232,196,104,0.03)" strokeWidth="0.5" />
+            <circle cx="15%" cy="75%" r="80" fill="none" stroke="rgba(232,196,104,0.05)" strokeWidth="0.5" />
+            <circle cx="15%" cy="75%" r="120" fill="none" stroke="rgba(232,196,104,0.035)" strokeWidth="0.5" />
+          </svg>
+
+          {/* ── Desktop Composition — Horizontal Layout ── */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            className="flex flex-col items-end text-right pointer-events-auto relative"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+            className="relative z-10 flex flex-col items-center gap-10"
           >
-            {/* "خصم" - animated gold shimmer, large italic */}
-            <motion.span
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="gold-text font-black text-7xl xl:text-8xl leading-none mb-2 font-outfit italic"
+
+            {/* ── Row 1: خصم + 50 + ٪ on the same line ── */}
+            <div className="flex items-center gap-6" dir="rtl">
+              {/* خصم */}
+              <div
+                className="text-[#E8C468] font-bold"
+                style={{
+                  fontFamily: '"Aref Ruqaa", serif',
+                  fontSize: '140px',
+                  fontWeight: 700,
+                  textShadow: '0 8px 30px rgba(0,0,0,0.5)',
+                  whiteSpace: 'nowrap',
+                  lineHeight: 0.9,
+                  fontFeatureSettings: '"liga" 1, "calt" 1, "rlig" 1',
+                }}
+              >
+                {t("hero.title_top")}
+              </div>
+
+              {/* 50 */}
+              <div className="relative" dir="ltr">
+                {/* Watermark ghosted 50 */}
+                <div
+                  className="absolute text-transparent pointer-events-none select-none"
+                  style={{
+                    fontFamily: 'var(--font-outfit), sans-serif',
+                    fontSize: '300px',
+                    fontWeight: '900',
+                    WebkitTextStroke: '1.5px rgba(255,255,255,0.07)',
+                    lineHeight: 1,
+                    letterSpacing: '-0.05em',
+                    top: '-50%',
+                    left: '-25%',
+                  }}
+                >
+                  50
+                </div>
+                <div className="relative overflow-hidden">
+                  <span
+                    className="text-white relative z-10 block"
+                    style={{
+                      fontFamily: 'var(--font-outfit), sans-serif',
+                      fontSize: '160px',
+                      fontWeight: '900',
+                      lineHeight: 0.9,
+                      letterSpacing: '-0.04em',
+                      textShadow: '0 6px 20px rgba(0,0,0,0.4)',
+                    }}
+                  >
+                    50
+                  </span>
+                  {/* Shine sweep bar */}
+                  <div
+                    className="absolute inset-0 z-20 shine-sweep pointer-events-none"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)',
+                      width: '60%',
+                      height: '100%',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Percent Seal */}
+              <div className="seal-float">
+                <div
+                  className="relative flex items-center justify-center"
+                  style={{ width: '120px', height: '120px' }}
+                >
+                  <div className="absolute inset-0 bg-[#E8C468] rounded-[4px]" />
+                  <div className="absolute inset-0 bg-[#E8C468] rounded-[4px] rotate-45" />
+                  <span
+                    className="absolute text-[#14100D] font-black select-none"
+                    style={{ fontSize: '42px', transform: 'rotate(-12deg)', marginTop: '2px' }}
+                  >
+                    ٪
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Row 2: Subtext in 2 lines ── */}
+            <div
+              className="text-center"
+              dir="rtl"
+              style={{
+                fontFamily: '"Aref Ruqaa", serif',
+                fontSize: '52px',
+                fontWeight: 'normal',
+                WebkitTextStroke: '0.8px #FFFFFF',
+                color: '#FFFFFF',
+                lineHeight: 1.4,
+                fontFeatureSettings: '"liga" 1, "calt" 1, "rlig" 1',
+                textShadow: '0 4px 15px rgba(0,0,0,0.6)',
+              }}
             >
-              {t("hero.title_top")}
-            </motion.span>
+              على جميع الدورات، لفترة محدودة فقط
+              <br />
+              <span className="relative inline-block mt-3 px-6 py-1 text-[#14100D]" style={{ WebkitTextStroke: '0px', textShadow: 'none' }}>
+                {/* Yellow background with rough/scratchy edges */}
+                <svg className="absolute inset-0 w-full h-full text-[#E8C468] -z-10 drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 100" fill="currentColor">
+                  <path d="M2,4 L12,1 L25,5 L40,2 L60,4 L75,1 L88,5 L97,2 L99,20 L96,40 L100,60 L97,80 L96,96 L85,99 L70,95 L50,98 L30,94 L15,98 L4,95 L1,80 L4,60 L0,40 L3,20 Z" />
+                </svg>
+                لا تفوّت الفرصة
+              </span>
+            </div>
 
-            {/* "50%" - force LTR so 50 is before %, massive 3D embossed */}
-            <motion.h1
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.4, type: "spring", stiffness: 100 }}
-              className="leading-[0.82] mb-6 font-outfit flex items-baseline"
-              dir="ltr"
-              style={{ fontSize: 'clamp(150px, 18vw, 260px)' }}
-            >
-              <span className="font-black hero-number-3d tracking-tight">50</span>
-              <span className="font-black gold-percent-3d" style={{ fontSize: '0.7em', marginLeft: '-4px' }}>%</span>
-            </motion.h1>
-
-            {/* Decorative gold line */}
-            <motion.div
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-              className="gold-line mb-5 self-end origin-right"
-            />
-
-            {/* Subtitle */}
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.7 }}
-              className="text-2xl xl:text-3xl text-white/90 font-semibold leading-relaxed mb-10 tracking-wide"
-              style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
-            >
-              {t("hero.subtitle")}
-            </motion.p>
-
-            {/* Buttons row */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.9 }}
-              className="flex flex-row gap-4 items-center"
-              dir="ltr"
+            {/* ── Row 3: CTA Buttons (centered with content above) ── */}
+            <div
+              className="flex flex-row gap-5"
+              dir="rtl"
             >
               <Link href="/courses">
-                <button className="group flex items-center justify-center gap-4 px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest bg-primary text-black hover:scale-105 transition-transform btn-cta-glow">
+                <button
+                  className="flex items-center justify-center gap-3 px-10 py-4 rounded-xl font-bold bg-[#E8C468] text-[#211A08] hover:bg-[#F4DE90] transition-all duration-300 shadow-[0_8px_25px_rgba(232,196,104,0.25)] hover:shadow-[0_12px_35px_rgba(232,196,104,0.35)] hover:-translate-y-0.5"
+                  style={{ fontFamily: 'var(--font-amiri), serif', fontSize: '17px' }}
+                >
                   {t("hero.cta.join")}
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                  <ArrowRight className="w-5 h-5 rotate-180" />
                 </button>
               </Link>
               <Link href="/download">
-                <button className="px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest text-white border-2 border-white/20 hover:bg-white/10 hover:border-white/40 backdrop-blur-md transition-all">
+                <button
+                  className="px-10 py-4 rounded-xl font-medium text-white/90 border border-white/[0.35] bg-transparent hover:bg-white/10 hover:border-white/50 transition-all duration-300 backdrop-blur-sm"
+                  style={{ fontFamily: 'var(--font-amiri), serif', fontSize: '17px' }}
+                >
                   {t("hero.cta.app")}
                 </button>
               </Link>
-            </motion.div>
+            </div>
           </motion.div>
         </div>
       </section>
