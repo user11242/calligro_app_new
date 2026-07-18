@@ -270,7 +270,7 @@ export default function CertificatePage() {
           </div>
 
           <div className="mt-12 text-xs text-gray-400 tracking-wider">
-            {t("certificate.verify")} • ID: {id?.slice(0, 8).toUpperCase()}
+            {t("certificate.verify")} • ID: {String(id).slice(0, 8).toUpperCase()}
           </div>
         </div>
       </div>
