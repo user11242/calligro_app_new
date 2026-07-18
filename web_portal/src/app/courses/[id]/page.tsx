@@ -634,6 +634,15 @@ export default function CourseDetailsPage() {
                           <span className="uppercase tracking-widest">{t("course.join_live")}</span>
                         </Link>
                       )}
+
+                      {/* Certificate Button */}
+                      <Link
+                        href={`/courses/${id}/certificate`}
+                        className="w-full flex items-center justify-center gap-4 py-5 mt-4 border border-primary/30 text-primary rounded-[24px] hover:bg-primary/10 transition-colors uppercase tracking-widest font-bold text-sm"
+                      >
+                        <Award className="w-5 h-5" />
+                        <span>{t("course.download_certificate")}</span>
+                      </Link>
                     </div>
                   </div>
 

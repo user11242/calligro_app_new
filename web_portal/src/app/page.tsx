@@ -66,11 +66,7 @@ export default function Home() {
           />
           {/* Mobile Image */}
           <Image
-            src={
-              locale === "en" ? "/assets/images/web-hero-en-mobile.png" :
-                locale === "tr" ? "/assets/images/web-hero-tr-mobile.png" :
-                  "/assets/images/web-hero-ar-mobile.png"
-            }
+            src="/mobile_version_vertical.png"
             alt="Calligro Hero"
             fill
             className="block md:hidden object-cover object-center"
@@ -80,6 +76,112 @@ export default function Home() {
 
 
 
+
+        {/* ════ Mobile Hero — Clean Stacked Layout ════ */}
+        <div className="flex md:hidden absolute inset-0 z-10 flex-col justify-center items-center px-6 text-center" dir="rtl">
+          {/* Dark overlay for contrast */}
+          <div className="absolute inset-0 bg-black/50 z-[1] pointer-events-none" />
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="relative z-10 flex flex-col items-center gap-6 mt-16"
+          >
+            {/* The 50% خصم block */}
+            <div className="flex flex-col items-center">
+              <div 
+                className="text-[#E8C468] font-bold" 
+                style={{ fontFamily: '"Aref Ruqaa", serif', fontSize: '110px', lineHeight: 1, textShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
+              >
+                {t("hero.title_top")}
+              </div>
+              <div className="relative flex items-center justify-center -mt-6" dir="ltr">
+                <div className="relative flex items-center justify-center">
+                  {/* Watermark ghosted 50 */}
+                  <div
+                    className="absolute text-transparent pointer-events-none select-none"
+                    style={{
+                      fontFamily: 'var(--font-outfit), sans-serif',
+                      fontSize: '360px',
+                      fontWeight: '900',
+                      WebkitTextStroke: '2px rgba(255,255,255,0.07)',
+                      lineHeight: 1,
+                      letterSpacing: '-0.05em',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  >
+                    50
+                  </div>
+                  {/* Solid white 50 with shine effect */}
+                  <div className="relative overflow-hidden">
+                    <span 
+                      className="text-white font-black drop-shadow-2xl relative z-10 block" 
+                      style={{ fontFamily: 'var(--font-outfit), sans-serif', fontSize: '220px', lineHeight: 1 }}
+                    >
+                      50
+                    </span>
+                    <div
+                      className="absolute inset-0 z-20 shine-sweep pointer-events-none"
+                      style={{
+                        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)',
+                        width: '60%',
+                        height: '100%',
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* % badge absolutely positioned so it doesn't shift the centering of the 50 */}
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-24 h-24 mt-2 drop-shadow-xl seal-float z-20">
+                  <div className="absolute inset-0 bg-[#E8C468] rounded-[8px]" />
+                  <div className="absolute inset-0 bg-[#E8C468] rounded-[8px] rotate-45" />
+                  <span className="absolute text-[#14100D] font-black text-5xl -mt-1" style={{ transform: 'rotate(-10deg)' }}>٪</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Subtext */}
+            <div 
+              className="text-white drop-shadow-lg mt-2"
+              style={{ fontFamily: '"Aref Ruqaa", serif', fontSize: '42px', lineHeight: 1.4 }}
+            >
+              على جميع الدورات،
+              <br />
+              لفترة محدودة فقط
+              <br />
+              <span className="relative inline-block mt-8 px-10 py-4 text-[#14100D] text-5xl font-bold shadow-lg" style={{ fontFamily: '"Aref Ruqaa", serif' }}>
+                <svg className="absolute inset-0 w-full h-full text-[#E8C468] -z-10 drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 100" fill="currentColor">
+                  <path d="M2,4 L12,1 L25,5 L40,2 L60,4 L75,1 L88,5 L97,2 L99,20 L96,40 L100,60 L97,80 L96,96 L85,99 L70,95 L50,98 L30,94 L15,98 L4,95 L1,80 L4,60 L0,40 L3,20 Z" />
+                </svg>
+                لا تفوّت الفرصة
+              </span>
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col w-full max-w-sm gap-4 mt-12">
+              <Link href="/courses">
+                <button
+                  className="flex items-center justify-center gap-3 w-full px-6 py-5 rounded-2xl font-bold bg-[#E8C468] text-[#211A08] shadow-[0_8px_25px_rgba(232,196,104,0.25)]"
+                  style={{ fontFamily: 'var(--font-amiri), serif', fontSize: '20px' }}
+                >
+                  {t("hero.cta.join")}
+                  <ArrowRight className="w-6 h-6 rotate-180" />
+                </button>
+              </Link>
+              <Link href="/download">
+                <button
+                  className="w-full px-6 py-5 rounded-2xl font-medium text-white/90 border-2 border-white/30 bg-black/20 backdrop-blur-md"
+                  style={{ fontFamily: 'var(--font-amiri), serif', fontSize: '20px' }}
+                >
+                  {t("hero.cta.app")}
+                </button>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
 
         {/* ════ Tablet Hero — Diagonal Composition ════ */}
         <div className="hidden md:flex lg:hidden absolute inset-0 z-10 flex-col justify-center items-center overflow-hidden" dir="rtl">
@@ -112,7 +214,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
-            className="relative z-10"
+            className="relative z-10 scale-[0.6] min-[800px]:scale-75 md:scale-100 origin-center"
             style={{ width: '620px', height: '380px' }}
           >
 
@@ -282,27 +384,6 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* ════ Mobile CTA Buttons (Normal flow below image) ════ */}
-        <div className="md:hidden w-full px-6 pt-6 pb-12 flex flex-col items-center z-20 relative bg-gradient-to-b from-[#161616] to-[#0a0a0a]" dir="ltr">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-            className="w-full max-w-sm flex flex-col gap-4"
-          >
-            <Link href="/courses" className="w-full">
-              <button className="group flex items-center justify-center gap-4 w-full px-8 py-5 rounded-full text-sm font-black uppercase tracking-widest bg-primary text-black hover:scale-105 transition-transform shadow-[0_0_30px_rgba(255,215,0,0.15)]">
-                {t("hero.cta.join")}
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
-              </button>
-            </Link>
-            <Link href="/download" className="w-full">
-              <button className="w-full px-8 py-5 rounded-full text-sm font-black uppercase tracking-widest text-white border-2 border-white/20 hover:bg-white/10 backdrop-blur-md transition-all">
-                {t("hero.cta.app")}
-              </button>
-            </Link>
-          </motion.div>
-        </div>
 
         {/* ════ Desktop Hero Content — Diagonal Composition (same as tablet, scaled up) ════ */}
         <div className="hidden lg:flex absolute inset-0 z-10 flex-col justify-center items-start pr-24 xl:pr-32 overflow-hidden" dir="rtl">

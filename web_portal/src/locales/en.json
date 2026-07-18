@@ -226,5 +226,18 @@
   "terms.contact": "Contact Information",
   "terms.email": "Email",
   "terms.office": "Office",
-  "terms.location": "Amman, Jordan"
+  "terms.location": "Amman, Jordan",
+  "course.certificate": "Certificate of Completion",
+  "course.download_certificate": "Download Certificate",
+  "certificate.title": "Certificate of Completion",
+  "certificate.presented_to": "This is proudly presented to",
+  "certificate.for_completing": "for successfully completing the masterclass",
+  "certificate.date": "Date",
+  "certificate.instructor": "Instructor",
+  "certificate.verify": "Verify at: calligro.com",
+  "certificate.total_hours": "Total Hours",
+  "certificate.academy_director": "Academy Director",
+  "certificate.comprising": "Comprising",
+  "certificate.training_hours": "training hours",
+  "certificate.downloading": "Downloading..."
 }

@@ -221,5 +221,18 @@
   "terms.contact": "معلومات الاتصال",
   "terms.email": "البريد الإلكتروني",
   "terms.office": "المكتب",
-  "terms.location": "عمان، الأردن"
+  "terms.location": "عمان، الأردن",
+  "course.certificate": "شهادة إتمام",
+  "course.download_certificate": "تحميل الشهادة",
+  "certificate.title": "شهادة إتمام",
+  "certificate.presented_to": "تُمنح هذه الشهادة بكل فخر إلى",
+  "certificate.for_completing": "لإتمامه/ها بنجاح الدورة التدريبية",
+  "certificate.date": "التاريخ",
+  "certificate.instructor": "المعلم",
+  "certificate.verify": "التحقق عبر: calligro.com",
+  "certificate.total_hours": "إجمالي الساعات",
+  "certificate.academy_director": "مدير الأكاديمية",
+  "certificate.comprising": "بواقع",
+  "certificate.training_hours": "ساعات تدريبية",
+  "certificate.downloading": "جاري التحميل..."
 }

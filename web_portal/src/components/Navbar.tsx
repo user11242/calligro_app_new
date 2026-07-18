@@ -62,7 +62,7 @@ export default function Navbar() {
       <div 
         className={`max-w-[1400px] mx-auto px-4 md:px-10 py-4 md:py-5 flex items-center justify-between md:justify-start gap-4 lg:gap-12 w-full group ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}
       >
-        <Link href="/" className="text-xl lg:text-2xl font-black text-white font-outfit tracking-tighter flex-shrink-0">
+        <Link href="/" className="text-2xl sm:text-3xl md:text-xl lg:text-3xl font-black text-white font-outfit tracking-tighter flex-shrink-0">
           CALLIGRO
         </Link>
         
@@ -130,9 +130,9 @@ export default function Navbar() {
         {/* Mobile Toggle */}
         <button 
           onClick={() => setIsOpen(!isOpen)}
-          className="md:hidden text-white hover:text-white/80 transition-colors p-2"
+          className="md:hidden text-white hover:text-white/80 transition-colors p-2 -mr-2"
         >
-          {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {isOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
         </button>
       </div>
 

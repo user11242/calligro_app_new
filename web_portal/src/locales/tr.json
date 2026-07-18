@@ -226,5 +226,18 @@
   "terms.contact": "İletişim Bilgileri",
   "terms.email": "E-posta",
   "terms.office": "Ofis",
-  "terms.location": "Amman, Ürdün"
+  "terms.location": "Amman, Ürdün",
+  "course.certificate": "Tamamlama Sertifikası",
+  "course.download_certificate": "Sertifikayı İndir",
+  "certificate.title": "Tamamlama Sertifikası",
+  "certificate.presented_to": "Gururla sunulur",
+  "certificate.for_completing": "ustalık sınıfını başarıyla tamamladığı için",
+  "certificate.date": "Tarih",
+  "certificate.instructor": "Eğitmen",
+  "certificate.verify": "Doğrula: calligro.com",
+  "certificate.total_hours": "Toplam Saat",
+  "certificate.academy_director": "Akademi Direktörü",
+  "certificate.comprising": "Toplam",
+  "certificate.training_hours": "eğitim saati",
+  "certificate.downloading": "İndiriliyor..."
 }
