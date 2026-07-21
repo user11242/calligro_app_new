@@ -86,24 +86,24 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="relative z-10 flex flex-col items-center gap-6 mt-16"
+            className="relative z-10 flex flex-col items-center gap-3 mt-10"
           >
             {/* The 50% خصم block */}
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center ml-10">
               <div 
                 className="text-[#E8C468] font-bold" 
-                style={{ fontFamily: '"Aref Ruqaa", serif', fontSize: '110px', lineHeight: 1, textShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
+                style={{ fontFamily: '"Aref Ruqaa", serif', fontSize: 'clamp(55px, 16vw, 110px)', lineHeight: 1, textShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
               >
                 {t("hero.title_top")}
               </div>
-              <div className="relative flex items-center justify-center -mt-6" dir="ltr">
+              <div className="relative flex items-center justify-center -mt-3" dir="ltr">
                 <div className="relative flex items-center justify-center">
                   {/* Watermark ghosted 50 */}
                   <div
                     className="absolute text-transparent pointer-events-none select-none"
                     style={{
                       fontFamily: 'var(--font-outfit), sans-serif',
-                      fontSize: '360px',
+                      fontSize: 'clamp(200px, 52vw, 360px)',
                       fontWeight: '900',
                       WebkitTextStroke: '2px rgba(255,255,255,0.07)',
                       lineHeight: 1,
@@ -119,7 +119,7 @@ export default function Home() {
                   <div className="relative overflow-hidden">
                     <span 
                       className="text-white font-black drop-shadow-2xl relative z-10 block" 
-                      style={{ fontFamily: 'var(--font-outfit), sans-serif', fontSize: '220px', lineHeight: 1 }}
+                      style={{ fontFamily: 'var(--font-outfit), sans-serif', fontSize: 'clamp(130px, 38vw, 220px)', lineHeight: 1 }}
                     >
                       50
                     </span>
@@ -135,24 +135,24 @@ export default function Home() {
                 </div>
                 
                 {/* % badge absolutely positioned so it doesn't shift the centering of the 50 */}
-                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-24 h-24 mt-2 drop-shadow-xl seal-float z-20">
-                  <div className="absolute inset-0 bg-[#E8C468] rounded-[8px]" />
-                  <div className="absolute inset-0 bg-[#E8C468] rounded-[8px] rotate-45" />
-                  <span className="absolute text-[#14100D] font-black text-5xl -mt-1" style={{ transform: 'rotate(-10deg)' }}>٪</span>
+                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-20 h-20 drop-shadow-xl seal-float z-20">
+                  <div className="absolute inset-0 bg-[#E8C468] rounded-[6px]" />
+                  <div className="absolute inset-0 bg-[#E8C468] rounded-[6px] rotate-45" />
+                  <span className="absolute text-[#14100D] font-black text-4xl -mt-1" style={{ transform: 'rotate(-10deg)' }}>٪</span>
                 </div>
               </div>
             </div>
 
             {/* Subtext */}
             <div 
-              className="text-white drop-shadow-lg mt-2"
-              style={{ fontFamily: '"Aref Ruqaa", serif', fontSize: '42px', lineHeight: 1.4 }}
+              className="text-white drop-shadow-lg mt-1"
+              style={{ fontFamily: '"Aref Ruqaa", serif', fontSize: 'clamp(24px, 7vw, 42px)', lineHeight: 1.4 }}
             >
               على جميع الدورات،
               <br />
               لفترة محدودة فقط
               <br />
-              <span className="relative inline-block mt-8 px-10 py-4 text-[#14100D] text-5xl font-bold shadow-lg" style={{ fontFamily: '"Aref Ruqaa", serif' }}>
+              <span className="relative inline-block mt-5 px-8 py-4 text-[#14100D] text-3xl font-bold shadow-lg" style={{ fontFamily: '"Aref Ruqaa", serif' }}>
                 <svg className="absolute inset-0 w-full h-full text-[#E8C468] -z-10 drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 100" fill="currentColor">
                   <path d="M2,4 L12,1 L25,5 L40,2 L60,4 L75,1 L88,5 L97,2 L99,20 L96,40 L100,60 L97,80 L96,96 L85,99 L70,95 L50,98 L30,94 L15,98 L4,95 L1,80 L4,60 L0,40 L3,20 Z" />
                 </svg>
@@ -161,7 +161,7 @@ export default function Home() {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col w-full max-w-sm gap-4 mt-12">
+            <div className="flex flex-col w-full max-w-sm gap-3 mt-6">
               <Link href="/courses">
                 <button
                   className="flex items-center justify-center gap-3 w-full px-6 py-5 rounded-2xl font-bold bg-[#E8C468] text-[#211A08] shadow-[0_8px_25px_rgba(232,196,104,0.25)]"
