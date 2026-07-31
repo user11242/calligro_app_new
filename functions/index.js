@@ -23,6 +23,11 @@ admin.initializeApp();
 setGlobalOptions({ maxInstances: 10, region: "us-central1" });
 
 // --------------------
+// Export Modular Functions
+// --------------------
+exports.livekit = require("./livekit.js");
+
+// --------------------
 // Utility: Generate OTP
 // --------------------
 function generateOtp() {

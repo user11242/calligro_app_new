@@ -14,10 +14,10 @@ import '../../../../core/message/app_messenger.dart';
 import '../course_details/announcements_board_page.dart';
 import '../course_details/assignments_page.dart';
 import '../../../student/pages/public_profile/public_student_profile_page.dart';
+import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart';
 import 'package:calligro_app/core/services/translation_service.dart';
 import 'package:calligro_app/features/student/widgets/course_share_card.dart';
 import 'package:calligro_app/core/utils/share_utils.dart';
-import '../../services/jitsi_meet_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class CourseDetailsPage extends StatefulWidget {
@@ -433,18 +433,10 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         }
 
         // Adding a timeout because Jitsi can sometimes hang on simulators
-        await JitsiMeetService()
-            .joinMeeting(
-              courseId: widget.courseId,
-              userId: user?.uid ?? "",
-              roomName: calligroMeetLink!, // Using the branded field
-              userName: userName,
-              userEmail: userEmail,
-              avatarUrl: userAvatar,
-              password:
-                  classroomPassword, // ✅ SECURITY: Automatic unlock for enrolled users
-              isModerator: isTeacher,
-            )
+        await LiveKitMeetService().joinMeeting(
+          context: context,
+          courseId: widget.courseId,
+        )
             .timeout(
               const Duration(seconds: 10),
               onTimeout: () {
