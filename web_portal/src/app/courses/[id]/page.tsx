@@ -4,12 +4,12 @@ import { db, auth } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, Clock, Award, ShieldCheck, CheckCircle2,
   ArrowLeft, Loader2, Users, Star, BookOpen,
   Info, Lock, Layout, Pencil, PenTool, Type, Droplets, Ruler, Book, Laptop, Sparkles,
-  Apple, Play, Video
+  Apple, Play, Video, ChevronDown
 } from "lucide-react";
 import Link from "next/link";
 import { createCheckoutSession } from "@/app/actions/payment";
@@ -30,6 +30,63 @@ const ICON_REGISTRY: Record<string, any> = {
   architecture: Layout,
   build: PenTool,
 };
+
+function CollapsibleSection({ 
+  title, 
+  icon: Icon, 
+  defaultExpanded = false, 
+  children,
+  isSmallTitle = false
+}: { 
+  title: string; 
+  icon: any; 
+  defaultExpanded?: boolean; 
+  children: React.ReactNode;
+  isSmallTitle?: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="mb-12 relative"
+    >
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center gap-6 mb-2 group outline-none"
+      >
+        <div className={`flex items-center justify-center shadow-[0_0_20px_rgba(238,229,147,0.1)] group-hover:scale-110 transition-transform shrink-0 ${isSmallTitle ? '' : 'w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20'}`}>
+          <Icon className={`${isSmallTitle ? 'w-6 h-6 -[0_0_8px_currentColor]' : 'w-6 h-6'} text-primary`} />
+        </div>
+        <h3 className={`${isSmallTitle ? 'text-sm tracking-[0.3em]' : 'text-xl tracking-tighter'} font-black font-outfit uppercase text-white/90 group-hover:text-primary transition-colors text-left`}>
+          {title}
+        </h3>
+        <div className="flex-grow h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
+        <div className={`w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 transition-transform duration-500 shrink-0 ${isExpanded ? 'rotate-180 bg-white/10' : ''}`}>
+          <ChevronDown className="w-5 h-5 text-white/50 group-hover:text-white transition-colors" />
+        </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.5, ease: [0.04, 0.62, 0.23, 0.98] }}
+            className="overflow-hidden"
+          >
+            <div className="pt-6 pb-2">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.section>
+  );
+}
 
 export default function CourseDetailsPage() {
   const { id } = useParams();
@@ -353,37 +410,14 @@ export default function CourseDetailsPage() {
           </motion.div>
 
           {/* Description */}
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <div className="flex items-center gap-6 mb-10">
-              <Info className="w-6 h-6 text-primary -[0_0_8px_currentColor]" />
-              <h3 className="text-sm font-black uppercase tracking-[0.3em] text-white/90">{t("course.description")}</h3>
-              <div className="flex-grow h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
-            </div>
+          <CollapsibleSection title={t("course.description")} icon={Info} isSmallTitle={true} defaultExpanded={true}>
             <p className="text-lg md:text-xl text-white/50 leading-[1.8] font-medium whitespace-pre-wrap text-start px-2">
               {course.courseDescription || course.description || "No description available."}
             </p>
-          </motion.section>
+          </CollapsibleSection>
 
           {/* Schedule Section */}
-          <motion.section
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="relative"
-          >
-            <div className="flex items-center gap-6 mb-12">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_20px_rgba(238,229,147,0.1)]">
-                <Calendar className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-black font-outfit uppercase tracking-tighter text-white/90">
-                {t("course.schedule")}
-              </h3>
-              <div className="flex-grow h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
-            </div>
+          <CollapsibleSection title={t("course.schedule")} icon={Calendar} defaultExpanded={false}>
 
             <div className="glass-premium rounded-[3.5rem] p-10 md:p-14 border border-white/10 shadow-2xl bg-black/40 backdrop-blur-3xl overflow-hidden group/schedule relative">
               {/* Artistic Background Accent */}
@@ -449,23 +483,10 @@ export default function CourseDetailsPage() {
                 </div>
               </div>
             </div>
-          </motion.section>
+          </CollapsibleSection>
 
           {/* Curriculum */}
-          <motion.section
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <div className="flex items-center gap-6 mb-12">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_20px_rgba(238,229,147,0.1)]">
-                <BookOpen className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-black font-outfit uppercase tracking-tighter text-white/90">
-                {t("course.curriculum")}
-              </h3>
-              <div className="flex-grow h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
-            </div>
+          <CollapsibleSection title={t("course.curriculum")} icon={BookOpen} defaultExpanded={false}>
 
             <div className="space-y-6">
               {lessons.length > 0 ? lessons.map((lesson: any, i: number) => {
@@ -495,24 +516,10 @@ export default function CourseDetailsPage() {
                 </div>
               )}
             </div>
-          </motion.section>
+          </CollapsibleSection>
 
           {/* Tools Needed */}
-          <motion.section
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="pb-20"
-          >
-            <div className="flex items-center gap-6 mb-12">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_20px_rgba(238,229,147,0.1)]">
-                <PenTool className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-black font-outfit uppercase tracking-tighter text-white/90">
-                {t("course.tools")}
-              </h3>
-              <div className="flex-grow h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
-            </div>
+          <CollapsibleSection title={t("course.tools")} icon={PenTool} defaultExpanded={false}>
             
             <div className="flex flex-wrap gap-6">
               {tools.length > 0 ? tools.map((tool: any, i: number) => {
@@ -537,7 +544,7 @@ export default function CourseDetailsPage() {
                 </div>
               )}
             </div>
-          </motion.section>
+          </CollapsibleSection>
         </div>
 
         {/* Right Sticky Checkout Card */}
@@ -546,153 +553,155 @@ export default function CourseDetailsPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="sticky top-32 glass-premium rounded-[3rem] p-8 md:p-10 border border-white/10 shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] bg-black/60 backdrop-blur-3xl overflow-hidden group/pay"
+            className="sticky top-32 glass-premium rounded-[3rem] p-1 border border-white/10 shadow-[0_30px_100px_-20px_rgba(238,229,147,0.15)] bg-gradient-to-b from-black/80 to-[#0a0a0a]/90 backdrop-blur-3xl overflow-hidden group/pay"
           >
             {/* Animated Golden Pulse Background */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px] pointer-events-none group-hover/pay:bg-primary/20 transition-all duration-1000" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-primary/20 rounded-full blur-[120px] pointer-events-none group-hover/pay:bg-primary/30 transition-all duration-1000" />
             
-            <div className="relative z-10 text-center mb-10">
-              <div className="mb-6 inline-flex flex-col items-center">
-                <div className="w-16 h-16 rounded-[24px] bg-primary/10 flex items-center justify-center border border-primary/30 mb-4 group-hover/pay:scale-110 transition-transform">
-                  <Award className="w-8 h-8 text-primary shadow-[0_0_15px_rgba(238,229,147,0.4)]" />
-                </div>
-                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-2">
-                  {isEnrolled ? t("course.current_status") : t("course.tuition_fee")}
-                </p>
-                <div className="h-1 w-8 bg-primary rounded-full mx-auto" />
-              </div>
-
-              {isEnrolled ? (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-3 text-green-400 mb-2">
-                    <CheckCircle2 className="w-8 h-8 drop-shadow-[0_0_10px_rgba(74,222,128,0.4)]" />
-                    <span className="text-lg font-black uppercase tracking-widest">{t("course.enrolled")}</span>
+            <div className="relative z-10 bg-black/40 rounded-[2.8rem] p-8 md:p-10 h-full flex flex-col">
+              <div className="text-center mb-8">
+                <div className="mb-6 inline-flex flex-col items-center">
+                  <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/40 mb-4 group-hover/pay:scale-110 transition-transform shadow-[0_0_30px_rgba(238,229,147,0.2)]">
+                    {isEnrolled ? (
+                      <CheckCircle2 className="w-10 h-10 text-primary drop-shadow-[0_0_15px_rgba(238,229,147,0.8)]" />
+                    ) : (
+                      <Award className="w-10 h-10 text-primary drop-shadow-[0_0_15px_rgba(238,229,147,0.8)]" />
+                    )}
                   </div>
-                  <h2 className="text-3xl md:text-4xl font-black font-outfit text-white tracking-tighter uppercase">
-                    {t("course.lifetime_access")}
-                  </h2>
+                  <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] mb-2 opacity-80">
+                    {isEnrolled ? t("course.current_status") : t("course.tuition_fee")}
+                  </p>
+                  <div className="h-1 w-12 bg-primary rounded-full mx-auto shadow-[0_0_10px_rgba(238,229,147,0.5)]" />
                 </div>
-              ) : (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-4">
-                    <span className="text-white/20 text-3xl font-bold line-through tracking-tighter">${Number(course.price).toFixed(0)}</span>
-                    <h2 className="text-7xl md:text-8xl font-black font-outfit text-white tracking-tighter drop-shadow-[0_10px_30_rgba(0,0,0,0.5)]">
-                      ${(Number(course.price) / 2).toFixed(0)}
+
+                {isEnrolled ? (
+                  <div className="flex flex-col items-center gap-2 mt-4">
+                    <span className="text-xl font-black text-white/90 tracking-[0.2em] uppercase">{t("course.enrolled")}</span>
+                    <h2 className="text-3xl md:text-4xl font-black font-outfit text-primary tracking-tighter uppercase drop-shadow-[0_5px_15px_rgba(238,229,147,0.3)] mt-2">
+                      {t("course.lifetime_access")}
                     </h2>
                   </div>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-4 mt-2">
+                    <div className="flex items-center gap-4">
+                      <span className="text-white/30 text-3xl font-bold line-through tracking-tighter">${Number(course.price).toFixed(0)}</span>
+                      <h2 className="text-7xl md:text-8xl font-black font-outfit text-white tracking-tighter drop-shadow-[0_10px_30_rgba(255,255,255,0.2)]">
+                        ${(Number(course.price) / 2).toFixed(0)}
+                      </h2>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-            {/* Premium Feature List */}
-            <div className="space-y-6 mb-10 relative z-10 py-8 border-y border-white/5">
-              <div className="flex items-center gap-6 group/feature">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/40 group-hover/feature:bg-primary/10 transition-colors">
-                  <ShieldCheck className="w-5 h-5 text-primary" />
+              {/* Premium Feature List */}
+              <div className="space-y-5 mb-10 relative z-10 py-6 border-y border-white/10">
+                <div className="flex items-center gap-5 group/feature">
+                  <div className="w-10 h-10 rounded-[12px] bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/50 group-hover/feature:bg-primary/20 transition-all duration-300">
+                    <ShieldCheck className="w-5 h-5 text-white/50 group-hover/feature:text-primary transition-colors" />
+                  </div>
+                  <span className="text-white/80 text-sm font-bold tracking-tight group-hover/feature:text-white transition-colors">{t("course.direct_enrollment")}</span>
                 </div>
-                <span className="text-white/70 text-sm font-bold tracking-tight">{t("course.direct_enrollment")}</span>
-              </div>
-              <div className="flex items-center gap-6 group/feature">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/40 group-hover/feature:bg-primary/10 transition-colors">
-                  <Video className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-5 group/feature">
+                  <div className="w-10 h-10 rounded-[12px] bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/50 group-hover/feature:bg-primary/20 transition-all duration-300">
+                    <Video className="w-5 h-5 text-white/50 group-hover/feature:text-primary transition-colors" />
+                  </div>
+                  <span className="text-white/80 text-sm font-bold tracking-tight group-hover/feature:text-white transition-colors">
+                    {t("course.meet_feature")}
+                  </span>
                 </div>
-                <span className="text-white/70 text-sm font-bold tracking-tight">
-                  {t("course.meet_feature")}
-                </span>
-              </div>
-              <div className="flex items-center gap-6 group/feature">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/40 group-hover/feature:bg-primary/10 transition-colors">
-                  <Award className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-5 group/feature">
+                  <div className="w-10 h-10 rounded-[12px] bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/50 group-hover/feature:bg-primary/20 transition-all duration-300">
+                    <Award className="w-5 h-5 text-white/50 group-hover/feature:text-primary transition-colors" />
+                  </div>
+                  <span className="text-white/80 text-sm font-bold tracking-tight group-hover/feature:text-white transition-colors">{t("course.certified_instructor")}</span>
                 </div>
-                <span className="text-white/70 text-sm font-bold tracking-tight">{t("course.certified_instructor")}</span>
               </div>
-            </div>
 
-            <div className="relative z-10">
-              {isEnrolled ? (
-                <div className="space-y-8">
-                  <div className="p-8 rounded-[2.5rem] bg-white/[0.03] border border-white/10 text-center space-y-8 relative overflow-hidden group/classroom">
-                    <div className="absolute inset-0 bg-primary/5 translate-y-full group-hover/classroom:translate-y-0 transition-transform duration-700" />
-                    
-                    <div className="relative z-10">
-                      <div className="w-20 h-20 bg-primary/10 rounded-[28px] flex items-center justify-center mx-auto mb-6 border border-primary/20 shadow-[0_0_40px_rgba(238,229,147,0.2)]">
-                        <Video className="w-10 h-10 text-primary" />
+              <div className="relative z-10 mt-auto">
+                {isEnrolled ? (
+                  <div className="space-y-5">
+                    <div className="p-8 rounded-[2rem] bg-gradient-to-b from-primary/10 to-transparent border border-primary/20 text-center relative overflow-hidden group/classroom hover:border-primary/40 transition-colors">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(238,229,147,0.15)_0%,transparent_100%)] opacity-0 group-hover/classroom:opacity-100 transition-opacity duration-700" />
+                      
+                      <div className="relative z-10">
+                        <div className="w-16 h-16 bg-black/40 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-5 border border-primary/30 shadow-[0_0_30px_rgba(238,229,147,0.2)]">
+                          <Video className="w-8 h-8 text-primary" />
+                        </div>
+                        <h3 className="text-xl font-black font-outfit text-white mb-3 uppercase tracking-tighter">
+                          {t("course.classroom_access")}
+                        </h3>
+                        <p className="text-xs text-white/60 font-medium leading-relaxed px-2">
+                          {t("course.classroom_desc")}
+                        </p>
+
+                        {(course.calligroMeetLink || course.googleMeetLink) && (
+                          <Link
+                            href={`/courses/${id}/classroom`}
+                            className="btn-gold w-full flex items-center justify-center gap-3 py-4 mt-6 shadow-[0_10px_30px_-10px_rgba(238,229,147,0.5)] text-[15px] group/join"
+                          >
+                            <Video className="w-5 h-5 group-hover/join:scale-110 transition-transform" />
+                            <span className="uppercase tracking-widest font-black">{t("course.join_live")}</span>
+                          </Link>
+                        )}
                       </div>
-                      <h3 className="text-2xl font-black font-outfit text-white mb-4 uppercase tracking-tighter">
-                        {t("course.classroom_access")}
-                      </h3>
-                      <p className="text-xs text-white/50 font-medium leading-relaxed px-4">
-                        {t("course.classroom_desc")}
-                      </p>
+                    </div>
 
-                      {(course.calligroMeetLink || course.googleMeetLink) && (
-                        <Link
-                          href={`/courses/${id}/classroom`}
-                          className="btn-gold w-full flex items-center justify-center gap-4 py-5 mt-8 shadow-2xl text-lg hover:animate-none group/join"
-                        >
-                          <Video className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                          <span className="uppercase tracking-widest">{t("course.join_live")}</span>
-                        </Link>
-                      )}
+                    {/* Certificate Button */}
+                    <Link
+                      href={`/courses/${id}/certificate`}
+                      className="w-full flex items-center justify-center gap-3 py-4 border-2 border-primary/20 text-primary rounded-[1.5rem] hover:bg-primary/10 hover:border-primary/40 transition-all uppercase tracking-widest font-black text-xs group/cert"
+                    >
+                      <Award className="w-5 h-5 group-hover/cert:rotate-12 transition-transform" />
+                      <span>{t("course.download_certificate")}</span>
+                    </Link>
 
-                      {/* Certificate Button */}
-                      <Link
-                        href={`/courses/${id}/certificate`}
-                        className="w-full flex items-center justify-center gap-4 py-5 mt-4 border border-primary/30 text-primary rounded-[24px] hover:bg-primary/10 transition-colors uppercase tracking-widest font-bold text-sm"
-                      >
-                        <Award className="w-5 h-5" />
-                        <span>{t("course.download_certificate")}</span>
+                    {/* App Links */}
+                    <div className="grid grid-cols-2 gap-3 mt-2">
+                      <Link href="/download" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-black text-[10px] uppercase tracking-[0.1em] hover:bg-white hover:text-black transition-all group/app">
+                        <Apple className="w-4 h-4 fill-current group-hover/app:scale-110 transition-transform" />
+                        App Store
+                      </Link>
+                      <Link href="/download" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-black text-[10px] uppercase tracking-[0.1em] hover:bg-white hover:text-black transition-all group/app">
+                        <Play className="w-4 h-4 fill-current group-hover/app:scale-110 transition-transform" />
+                        Play Store
                       </Link>
                     </div>
                   </div>
+                ) : (
+                  <button
+                    onClick={handleBuyNow}
+                    disabled={joining}
+                    className="btn-gold w-full text-xl py-5 rounded-[1.5rem] shadow-[0_20px_50px_-10px_rgba(238,229,147,0.4)] disabled:opacity-50 group/buy flex items-center justify-center"
+                  >
+                    {joining ? (
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                    ) : (
+                      <div className="flex items-center gap-4 group-hover/buy:scale-105 transition-transform">
+                        <span className="font-black uppercase tracking-widest">{t("course.buy_now")}</span>
+                        <Sparkles className="w-6 h-6 animate-pulse" />
+                      </div>
+                    )}
+                  </button>
+                )}
+              </div>
 
-                  {/* App Links */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <Link href="/download" className="flex items-center justify-center gap-3 py-4 rounded-[20px] bg-white/5 border border-white/10 text-white/70 font-black text-[9px] uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all group/app">
-                      <Apple className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
-                      App Store
-                    </Link>
-                    <Link href="/download" className="flex items-center justify-center gap-3 py-4 rounded-[20px] bg-white/5 border border-white/10 text-white/70 font-black text-[9px] uppercase tracking-[0.2em] hover:bg-white hover:text-black transition-all group/app">
-                      <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
-                      Play Store
-                    </Link>
-                  </div>
-                </div>
-              ) : (
+              {process.env.NODE_ENV === "development" && !isEnrolled && (
                 <button
-                  onClick={handleBuyNow}
+                  onClick={handleAdminBypass}
                   disabled={joining}
-                  className="btn-gold w-full text-xl py-6 shadow-[0_20px_60px_-10px_rgba(238,229,147,0.4)] disabled:opacity-50 group/buy"
+                  className="w-full mt-6 py-3 bg-white/5 hover:bg-white/10 text-white/30 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {joining ? (
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-                  ) : (
-                    <div className="flex items-center justify-center gap-4 group-hover/buy:scale-105 transition-transform">
-                      <span className="font-black uppercase tracking-widest">{t("course.buy_now")}</span>
-                      <Sparkles className="w-6 h-6 animate-pulse" />
-                    </div>
-                  )}
+                  {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-green-500" />}
+                  [ {t("course.admin_bypass")} ]
                 </button>
               )}
+
+              {error && (
+                <p className="mt-4 text-center text-red-500 text-xs font-bold animate-pulse bg-red-500/10 py-2 rounded-xl border border-red-500/20">{error}</p>
+              )}
             </div>
-
-            {process.env.NODE_ENV === "development" && !isEnrolled && (
-              <button
-                onClick={handleAdminBypass}
-                disabled={joining}
-                className="w-full mt-6 py-4 bg-white/5 hover:bg-white/10 text-white/30 hover:text-white text-[11px] font-black uppercase tracking-[0.3em] rounded-[24px] border border-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-              >
-                {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-green-500" />}
-                [ {t("course.admin_bypass")} ]
-              </button>
-            )}
-
-            {error && (
-              <p className="mt-4 text-center text-red-500 text-xs font-bold animate-pulse">{error}</p>
-            )}
           </motion.div>
         </div>
-
       </div>
     </main>
   );

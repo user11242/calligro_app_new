@@ -6,7 +6,7 @@ import CalligroMeetLayout from "@/components/meet/CalligroMeetLayout";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export default function RecordingLayoutPage({ params }: { params: { courseId: string } }) {
+export default function RecordingLayoutPage({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [mounted, setMounted] = useState(false);
@@ -34,7 +34,7 @@ export default function RecordingLayoutPage({ params }: { params: { courseId: st
       className="h-screen w-screen"
     >
       <CalligroMeetLayout 
-        courseId={params.courseId} 
+        courseId={params.id} 
         isTeacher={false} 
         onLeave={() => {}} 
         isRecordingMode={true} 
