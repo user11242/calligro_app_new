@@ -189,7 +189,7 @@ exports.startAutomatedRecording = onCall({
     const tokenString = await egressToken.toJwt();
 
     // The custom URL must be publicly accessible by LiveKit's cloud servers.
-    const customLayoutUrl = `https://calligro-app.web.app/courses/${courseId}/recording?token=${tokenString}`;
+    const customLayoutUrl = `https://www.calligro.digital/courses/${courseId}/recording?token=${tokenString}`;
 
     const streamOutput = {
       protocol: 0, // RTMP
