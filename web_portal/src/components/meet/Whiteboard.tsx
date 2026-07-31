@@ -39,7 +39,6 @@ export default function Whiteboard({ isTeacher }: WhiteboardProps) {
         }
       `}} />
       <Tldraw
-        inferDarkMode
         readOnly={false}
       />
     </div>
