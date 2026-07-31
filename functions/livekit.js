@@ -150,9 +150,10 @@ exports.startAutomatedRecording = onCall({
     if (!courseSnap.exists) throw new HttpsError("not-found", "Course not found.");
     
     const courseData = courseSnap.data();
-    if (courseData.teacherId !== uid) {
-      throw new HttpsError("permission-denied", "Only the teacher can start recording.");
-    }
+    // Temporarily disabled for testing so anyone can trigger the recording
+    // if (courseData.teacherId !== uid) {
+    //   throw new HttpsError("permission-denied", "Only the teacher can start recording.");
+    // }
 
     const today = new Date().toISOString().split('T')[0];
     const rawSeed = `Calligro_${courseId}_SecureSalt2026_${today}`;

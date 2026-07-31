@@ -59,11 +59,9 @@ export default function ClassroomPage() {
           serverUrl: data.serverUrl,
         });
 
-        // Trigger Automated YouTube Recording if Teacher
-        if (courseTeacherId === user.uid) {
-           const startAutomatedRecording = httpsCallable(functions, 'livekit-startAutomatedRecording');
-           startAutomatedRecording({ courseId: id }).catch(e => console.error("Failed to start auto recording:", e));
-        }
+        // Trigger Automated YouTube Recording for everyone (temporarily for testing)
+        const startAutomatedRecording = httpsCallable(functions, 'livekit-startAutomatedRecording');
+        startAutomatedRecording({ courseId: id }).catch(e => console.error("Failed to start auto recording:", e));
 
       } catch (err: any) {
         console.error("Error generating token:", err);
