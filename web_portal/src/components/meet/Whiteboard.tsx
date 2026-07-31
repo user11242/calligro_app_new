@@ -38,9 +38,7 @@ export default function Whiteboard({ isTeacher }: WhiteboardProps) {
           pointer-events: none !important;
         }
       `}} />
-      <Tldraw
-        readOnly={false}
-      />
+      <Tldraw />
     </div>
   );
 }
