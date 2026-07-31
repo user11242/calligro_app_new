@@ -1419,5 +1419,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "actionRequired": "Action Required",
+  "cannotProceedNoCommission": "You cannot proceed until an admin sets your commission rate.",
+  "commissionRateLabel": "Commission Rate:",
+  "yourShareLabel": "Your Share:",
+  "noCommissionSet": "No Commission Set",
+  "noCommissionSetDescription": "Your earning percentage hasn't been set by the admin yet. Please contact support or wait for it to be assigned before publishing."
 }

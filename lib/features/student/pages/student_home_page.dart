@@ -16,7 +16,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../student/widgets/student_drawer.dart';
 import '../../student/data/model/student_user_model.dart';
 import '../../student/data/services/student_service.dart';
-import '../../../core/widgets/auto_translated_text.dart';
 import '../../../core/widgets/profile_avatar.dart';
 import '../../../core/widgets/smart_image.dart';
 import '../../../core/widgets/rating_display.dart';

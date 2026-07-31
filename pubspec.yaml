@@ -2,7 +2,7 @@ name: calligro_app
 description: "A new Flutter project."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.0+21
+version: 1.0.0+23
 
 environment:
   sdk: "3.9.2"  # Supports Dart 2.12 and higher (null safety)

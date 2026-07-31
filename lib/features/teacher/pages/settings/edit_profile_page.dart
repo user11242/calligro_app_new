@@ -677,7 +677,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       label: AppLocalizations.of(context)!.bio,
                       controller: _bioController,
                       maxLines: 4,
-                      maxLength: 150,
+                      maxLength: 300,
                       hint: AppLocalizations.of(context)!.writeShortIntro,
                       keyboardType: TextInputType.multiline,
                     ),

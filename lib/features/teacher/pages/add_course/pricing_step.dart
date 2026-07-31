@@ -8,6 +8,7 @@ import 'package:calligro_app/features/auth/pages/terms_and_conditions_page.dart'
 class CoursePricePage extends StatefulWidget {
   final TextEditingController priceController;
   final double teacherEarningPercentage;
+  final bool hasCommissionRate;
   final Function onNext;
   final Function onBack;
 
@@ -15,6 +16,7 @@ class CoursePricePage extends StatefulWidget {
     super.key,
     required this.priceController,
     required this.teacherEarningPercentage,
+    required this.hasCommissionRate,
     required this.onNext,
     required this.onBack,
   });
@@ -79,6 +81,13 @@ class _CoursePricePageState extends State<CoursePricePage> {
         title: AppLocalizations.of(context)!.validation,
         message: AppLocalizations.of(context)!.pleaseEnterCoursePrice,
         type: MessengerType.info,
+      );
+    } else if (!widget.hasCommissionRate) {
+      AppMessenger.showSnackBar(
+        context,
+        title: AppLocalizations.of(context)!.actionRequired,
+        message: AppLocalizations.of(context)!.cannotProceedNoCommission,
+        type: MessengerType.error,
       );
     } else {
       FocusScope.of(context).unfocus();
@@ -265,7 +274,10 @@ class _CoursePricePageState extends State<CoursePricePage> {
                       ),
                       const SizedBox(height: 24),
                       // Real-time Breakdown Table
-                      if (_price > 0) _buildPriceBreakdown(),
+                      if (_price > 0)
+                        widget.hasCommissionRate
+                            ? _buildPriceBreakdown()
+                            : _buildCommissionWarning(),
                     ],
                   ),
                 ),
@@ -351,35 +363,129 @@ class _CoursePricePageState extends State<CoursePricePage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.accentGold.withOpacity(0.15),
-            AppColors.accentGold.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.accentGold.withOpacity(0.3)),
+        border: Border.all(color: AppColors.textColor.withOpacity(0.1)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.accentGold.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           )
         ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.textColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: AppColors.textColor,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppLocalizations.of(context)!.teacherEarnings,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      AppLocalizations.of(context)!.perStudent,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(color: Colors.white12, height: 1),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                AppLocalizations.of(context)!.commissionRateLabel,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 15,
+                ),
+              ),
+              Text(
+                "${widget.teacherEarningPercentage}%",
+                style: const TextStyle(
+                  color: AppColors.textColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                AppLocalizations.of(context)!.yourShareLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                "\$${teacherShare.toStringAsFixed(2)}",
+                style: const TextStyle(
+                  color: AppColors.textColor,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommissionWarning() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.accentGold.withOpacity(0.2),
+              color: Colors.redAccent.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.account_balance_wallet_rounded,
-              color: AppColors.accentGold,
+              Icons.warning_amber_rounded,
+              color: Colors.redAccent,
               size: 28,
             ),
           ),
@@ -389,21 +495,20 @@ class _CoursePricePageState extends State<CoursePricePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "${AppLocalizations.of(context)!.teacherEarnings} (${AppLocalizations.of(context)!.perStudent})",
+                  AppLocalizations.of(context)!.noCommissionSet,
                   style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "${widget.teacherEarningPercentage}%",
+                  AppLocalizations.of(context)!.noCommissionSetDescription,
                   style: const TextStyle(
-                    color: AppColors.accentGold,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.4,
                   ),
                 ),
               ],

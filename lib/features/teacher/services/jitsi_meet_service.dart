@@ -46,7 +46,7 @@ class JitsiMeetService {
       debugPrint("Joining Secure Jitsi Meeting: $secureRoomName on meet.element.io");
 
       // 🛡️ SECURITY: Unforgeable display name with short UID tag
-      final myUniqueTag = userId.length >= 8 ? "[${userId.substring(0, 8)}]" : "[${userId}]";
+      final myUniqueTag = userId.length >= 8 ? "[${userId.substring(0, 8)}]" : "[$userId]";
       final jitsiDisplayName = "$userName ${isModerator ? "(Admin)" : ""} $myUniqueTag";
 
       final teacherButtons = [

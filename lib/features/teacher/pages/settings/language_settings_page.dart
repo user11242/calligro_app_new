@@ -85,7 +85,10 @@ class _LanguageSettingsPageState extends State<LanguageSettingsPage> {
       final userDoc = await userRef.get();
       final role = userDoc.data()?['role'] ?? 'student';
 
-      batch.update(userRef, {'language': newCode});
+      batch.update(userRef, {
+        'language': newCode,
+        'preferredLanguage': newCode, // used by Cloud Functions for localized notifications
+      });
 
       if (role == 'teacher') {
         batch.update(firestore.collection('teachers').doc(_user.uid), {'language': newCode});

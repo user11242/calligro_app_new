@@ -6513,6 +6513,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{studentName} has been enrolled successfully.'**
   String enrollStudentSuccess(String studentName);
+
+  /// No description provided for @actionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Action Required'**
+  String get actionRequired;
+
+  /// No description provided for @cannotProceedNoCommission.
+  ///
+  /// In en, this message translates to:
+  /// **'You cannot proceed until an admin sets your commission rate.'**
+  String get cannotProceedNoCommission;
+
+  /// No description provided for @commissionRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Commission Rate:'**
+  String get commissionRateLabel;
+
+  /// No description provided for @yourShareLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Share:'**
+  String get yourShareLabel;
+
+  /// No description provided for @noCommissionSet.
+  ///
+  /// In en, this message translates to:
+  /// **'No Commission Set'**
+  String get noCommissionSet;
+
+  /// No description provided for @noCommissionSetDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your earning percentage hasn\'t been set by the admin yet. Please contact support or wait for it to be assigned before publishing.'**
+  String get noCommissionSetDescription;
 }
 
 class _AppLocalizationsDelegate

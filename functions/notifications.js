@@ -1,4 +1,5 @@
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
@@ -28,6 +29,10 @@ function getLocalizedText(lang, key, params = {}) {
             account_rejected_email_body: "Thank you for your interest in joining Calligro. After reviewing your profile and portfolio, we have decided not to move forward with your teacher account at this time.\n\nYou can log in to the app to see more details and manage your account data.",
             new_follower_title: "New Follower! 👤",
             new_follower_body: "{followerName} started following you.",
+            new_reply_title: "New Reply 💬",
+            new_reply_body: "{userName} replied to your comment.",
+            new_teacher_title: "New Teacher Registration 🎓",
+            new_teacher_body: "{teacherName} is waiting for approval.",
         },
         ar: {
             new_enrollment_title: "طالب جديد مسجل! 🎓",
@@ -48,6 +53,10 @@ function getLocalizedText(lang, key, params = {}) {
             account_rejected_email_body: "نشكرك على اهتمامك بالانضمام إلى كاليجرو. بعد مراجعة ملفك الشخصي وأعمالك، قررنا عدم المتابعة في تفعيل حساب المعلم الخاص بك في الوقت الحالي.\n\nيمكنك تسجيل الدخول إلى التطبيق لرؤية المزيد من التفاصيل وإدارة بيانات حسابك.",
             new_follower_title: "متابع جديد! 👤",
             new_follower_body: "بدأ {followerName} بمتابعتك.",
+            new_reply_title: "رد جديد 💬",
+            new_reply_body: "رد {userName} على تعليقك.",
+            new_teacher_title: "معلم جديد ينتظر 🎓",
+            new_teacher_body: "{teacherName} ينتظر الموافقة.",
         },
         tr: {
             new_enrollment_title: "Yeni Öğrenci Kaydoldu! 🎓",
@@ -68,6 +77,10 @@ function getLocalizedText(lang, key, params = {}) {
             account_rejected_email_body: "Calligro'ya katılmaya gösterdiğiniz ilgi için teşekkür ederiz. Profiliniz ve portfolyonuz incelendikten sonra, şu aşamada eğitmen hesabınızla devam etmeme kararı aldık.\n\nDaha fazla ayrıntı görmek ve hesap verilerinizi yönetmek için uygulamaya giriş yapabilirsiniz.",
             new_follower_title: "Yeni Takipçi! 👤",
             new_follower_body: "{followerName} seni takip etmeye başladı.",
+            new_reply_title: "Yeni Yanıt 💬",
+            new_reply_body: "{userName} yorumunuza yanıt verdi.",
+            new_teacher_title: "Yeni Eğitmen Kaydı 🎓",
+            new_teacher_body: "{teacherName} onay bekliyor.",
         },
     };
 
@@ -540,6 +553,180 @@ exports.notifyUsersOnBroadcast = onDocumentCreated("broadcasts/{broadcastId}", a
     return null;
 });
 
-// [REMOVED] notifyUserOnFollow was causing a critical infinite loop (8.4M invocations).
-// It triggered on a new notification document and then called sendNotification, which added another document to the same collection.
-// Follow notifications are now handled directly in the follow/unfollow logic in the app or a dedicated non-circular trigger.
+// ------------------------------------------------------------------------
+// Trigger 7: New Follower (Notifies Target User)
+// Listens on the 'followers' sub-collection — completely separate from
+// 'notifications', so there is zero risk of an infinite loop.
+// ------------------------------------------------------------------------
+exports.notifyUserOnFollow = onDocumentCreated("users/{targetId}/followers/{followerId}", async (event) => {
+    const targetId = event.params.targetId;
+    const followerId = event.params.followerId;
+
+    // Don't notify if somehow the same user follows themselves
+    if (targetId === followerId) return null;
+
+    try {
+        // Fetch the follower's name
+        const followerDoc = await admin.firestore().collection("users").doc(followerId).get();
+        const followerName = followerDoc.exists ? (followerDoc.data().name || "Someone") : "Someone";
+
+        await sendNotification({
+            receiverId: targetId,
+            type: "new_follower",
+            titleKey: "new_follower_title",
+            bodyKey: "new_follower_body",
+            params: { followerName },
+            payload: {
+                route: '/profile',
+                userId: followerId,
+            },
+        });
+    } catch (err) {
+        console.error("[notifyUserOnFollow] Error:", err);
+    }
+
+    return null;
+});
+
+// ------------------------------------------------------------------------
+// Callable: Admin sends a direct notification to a specific user
+// ------------------------------------------------------------------------
+exports.sendAdminDirectMessage = onCall(async (request) => {
+    // Only admins can call this
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Must be logged in.");
+    }
+
+    const { targetUserId, title, body } = request.data;
+    if (!targetUserId || !title || !body) {
+        throw new HttpsError("invalid-argument", "targetUserId, title, and body are required.");
+    }
+
+    // Verify caller is admin
+    const callerDoc = await admin.firestore().collection("users").doc(request.auth.uid).get();
+    if (!callerDoc.exists || callerDoc.data().role !== "admin") {
+        throw new HttpsError("permission-denied", "Only admins can send direct notifications.");
+    }
+
+    try {
+        // Fetch target user for FCM token
+        const targetDoc = await admin.firestore().collection("users").doc(targetUserId).get();
+        if (!targetDoc.exists) {
+            throw new HttpsError("not-found", "Target user not found.");
+        }
+
+        const targetData = targetDoc.data();
+        const token = targetData.fcmToken;
+
+        // 1. Save to in-app inbox (correct field names matching notifications_page.dart)
+        await admin.firestore()
+            .collection("users")
+            .doc(targetUserId)
+            .collection("notifications")
+            .add({
+                title,
+                body,
+                type: "admin_message",
+                read: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+        // 2. Send FCM push notification
+        if (token) {
+            await admin.messaging().send({
+                token,
+                notification: { title, body },
+                data: { type: "admin_message", title, body },
+                android: {
+                    priority: "high",
+                    notification: { channelId: "calligro_alerts" },
+                },
+                apns: {
+                    payload: {
+                        aps: {
+                            alert: { title, body },
+                            sound: "default",
+                        },
+                    },
+                },
+            });
+            console.log(`[AdminDirect] Push sent to user ${targetUserId}`);
+        } else {
+            console.warn(`[AdminDirect] No FCM token for user ${targetUserId}. In-app notification saved.`);
+        }
+
+        return { success: true };
+    } catch (err) {
+        console.error("[sendAdminDirectMessage] Error:", err);
+        throw new HttpsError("internal", err.message || "Failed to send notification.");
+    }
+});
+
+// ------------------------------------------------------------------------
+// Trigger 7.5: New Comment Reply (Notifies Comment Author)
+// Listens on the replies sub-collection
+// ------------------------------------------------------------------------
+exports.notifyCommenterOnReply = onDocumentCreated("community_posts/{postId}/comments/{commentId}/replies/{replyId}", async (event) => {
+    const replyData = event.data.data();
+    if (!replyData) return null;
+
+    try {
+        // Get parent comment to find the commenter
+        const commentDoc = await admin.firestore()
+            .collection("community_posts")
+            .doc(event.params.postId)
+            .collection("comments")
+            .doc(event.params.commentId)
+            .get();
+            
+        if (!commentDoc.exists) return null;
+
+        const commentAuthorId = commentDoc.data().userId;
+        // Don't notify if they reply to their own comment
+        if (commentAuthorId === replyData.userId) return null;
+
+        // Check user preferences
+        const authorDoc = await admin.firestore().collection("users").doc(commentAuthorId).get();
+        if (!authorDoc.exists) return null;
+        const authorData = authorDoc.data();
+        if (authorData.wantsSocialNotifications === false) {
+            console.log(`[Notification] User ${commentAuthorId} muted social notifications. Skipping reply push.`);
+            return null;
+        }
+
+        await sendNotification({
+            receiverId: commentAuthorId,
+            type: "reply",
+            titleKey: "new_reply_title",
+            bodyKey: "new_reply_body",
+            params: { userName: replyData.userName || "Someone" },
+            payload: {
+                route: '/postDetails',
+                postId: event.params.postId,
+                commentId: event.params.commentId
+            }
+        });
+    } catch (err) {
+        console.error("[notifyCommenterOnReply] Error:", err);
+    }
+
+    return null;
+});
+
+// ------------------------------------------------------------------------
+// Helper export: Notify a single admin about a new teacher registration
+// Called from index.js to support per-admin language translation
+// ------------------------------------------------------------------------
+exports.notifyAdminHelper = async ({ receiverId, teacherName, teacherUserId }) => {
+    await sendNotification({
+        receiverId,
+        type: "new_teacher",
+        titleKey: "new_teacher_title",
+        bodyKey: "new_teacher_body",
+        params: { teacherName },
+        payload: {
+            route: '/admin/teachers',
+            userId: teacherUserId,
+        }
+    });
+};

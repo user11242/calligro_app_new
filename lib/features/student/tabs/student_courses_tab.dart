@@ -192,6 +192,20 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                     return matchesSearch && matchesFilter;
                   }).toList();
 
+                  // Sort from newest to oldest by createdAt
+                  courses.sort((a, b) {
+                    final aData = a.data() as Map<String, dynamic>;
+                    final bData = b.data() as Map<String, dynamic>;
+                    final aCreatedAt = aData['createdAt'];
+                    final bCreatedAt = bData['createdAt'];
+                    if (aCreatedAt == null && bCreatedAt == null) return 0;
+                    if (aCreatedAt == null) return 1;
+                    if (bCreatedAt == null) return -1;
+                    final aDate = (aCreatedAt as Timestamp).toDate();
+                    final bDate = (bCreatedAt as Timestamp).toDate();
+                    return bDate.compareTo(aDate); // descending
+                  });
+
                   if (courses.isEmpty) {
                     final l10n = AppLocalizations.of(context)!;
                     // Show special empty state for "My Courses" filter

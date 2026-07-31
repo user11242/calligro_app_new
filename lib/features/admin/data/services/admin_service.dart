@@ -295,14 +295,13 @@ class AdminService {
     await _firestore.collection('users').doc(uid).update({'role': newRole});
   }
 
-  /// Sends a targeted notification to a specific user
+  /// Sends a targeted notification to a specific user (push + in-app inbox)
   Future<void> sendUserNotification(String uid, String title, String message) async {
-    await _firestore.collection('users').doc(uid).collection('notifications').add({
+    final callable = FirebaseFunctions.instance.httpsCallable('sendAdminDirectMessage');
+    await callable.call({
+      'targetUserId': uid,
       'title': title,
-      'message': message,
-      'createdAt': FieldValue.serverTimestamp(),
-      'isRead': false,
-      'type': 'admin_message',
+      'body': message,
     });
   }
 

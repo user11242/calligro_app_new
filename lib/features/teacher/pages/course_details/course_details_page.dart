@@ -132,7 +132,9 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       setState(() {
         courseName = _getLocalizedCourseName(context, widget.courseData);
         courseBanner = widget.courseData['courseBanner'];
-        calligroMeetLink = widget.courseData['calligroMeetLink'] ?? widget.courseData['googleMeetLink'];
+        calligroMeetLink =
+            widget.courseData['calligroMeetLink'] ??
+            widget.courseData['googleMeetLink'];
         initialStudentCount = widget.courseData['studentsEnrolled'] ?? 0;
         requiredTools =
             widget.courseData['requiredTools'] as List<dynamic>? ?? [];
@@ -143,9 +145,11 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         selectedTime =
             (widget.courseData['startTime'] as Timestamp?)?.toDate() ??
             (widget.courseData['selectedTime'] as Timestamp?)?.toDate();
-        classroomPassword = widget.courseData['classroomPassword']; // Sync from widget
+        classroomPassword =
+            widget.courseData['classroomPassword']; // Sync from widget
         endTime = (widget.courseData['endTime'] as Timestamp?)?.toDate();
-        selectedDays = (widget.courseData['selectedDays'] as List<dynamic>?)
+        selectedDays =
+            (widget.courseData['selectedDays'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
             [];
@@ -179,21 +183,26 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
               data['selectedCategory'] ??
               data['levelColor'] ??
               AppLocalizations.of(context)!.beginner;
-          calligroMeetLink = data['calligroMeetLink'] ?? data['googleMeetLink']; // Support both keys
+          calligroMeetLink =
+              data['calligroMeetLink'] ??
+              data['googleMeetLink']; // Support both keys
           classroomPassword = data['classroomPassword']; // Fetch password
           requiredTools = data['requiredTools'] as List<dynamic>? ?? [];
 
           // POPULATE ALL SCHEDULE FIELDS
           startDate = (data['startDate'] as Timestamp?)?.toDate();
           endDate = (data['endDate'] as Timestamp?)?.toDate();
-          selectedTime = (data['startTime'] as Timestamp?)?.toDate() ??
+          selectedTime =
+              (data['startTime'] as Timestamp?)?.toDate() ??
               (data['selectedTime'] as Timestamp?)?.toDate();
           endTime = (data['endTime'] as Timestamp?)?.toDate();
-          selectedDays = (data['selectedDays'] as List<dynamic>?)
+          selectedDays =
+              (data['selectedDays'] as List<dynamic>?)
                   ?.map((e) => e.toString())
                   .toList() ??
               [];
-          curriculumSteps = (data['curriculumSteps'] as List<dynamic>?)
+          curriculumSteps =
+              (data['curriculumSteps'] as List<dynamic>?)
                   ?.map((e) => e.toString())
                   .toList() ??
               [];
@@ -250,7 +259,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     });
   }
 
-
   Future<void> _launchClassroom() async {
     final l10n = AppLocalizations.of(context)!;
     if (calligroMeetLink != null && calligroMeetLink!.isNotEmpty) {
@@ -258,20 +266,21 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       final isTeacher = userRole == 'teacher';
 
       // 🚨 LEGACY DETECTOR: Check if this is an old Google Meet link
-      if (calligroMeetLink!.contains("meet.google.com") || calligroMeetLink!.contains("http")) {
+      if (calligroMeetLink!.contains("meet.google.com") ||
+          calligroMeetLink!.contains("http")) {
         if (mounted) {
           AppMessenger.showSnackBar(
             context,
             title: isTeacher ? "Legacy Link Detected" : "Classroom Unavailable",
-            message: isTeacher 
-              ? "This course is using an old Google Meet link. Please create a new course or regenerate the link to use 'Calligro Classroom'."
-              : "The teacher hasn't upgraded this classroom yet. Please contact them.",
+            message: isTeacher
+                ? "This course is using an old Google Meet link. Please create a new course or regenerate the link to use 'Calligro Classroom'."
+                : "The teacher hasn't upgraded this classroom yet. Please contact them.",
             type: MessengerType.info,
           );
         }
         return;
       }
-      
+
       /* 🚫 SMART GATING DISABLED AT USER REQUEST (For testing and ad-hoc sessions)
       if (!isTeacher) {
         // Smart Gating Logic for Students
@@ -329,7 +338,8 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
           AppMessenger.showSnackBar(
             context,
             title: "Permissions Required",
-            message: "Camera and microphone access are required for the classroom. Please enable them in your device settings.",
+            message:
+                "Camera and microphone access are required for the classroom. Please enable them in your device settings.",
             type: MessengerType.error,
           );
         }
@@ -342,7 +352,8 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
           AppMessenger.showSnackBar(
             context,
             title: "Permissions Denied",
-            message: "Camera and microphone access are needed to join the classroom.",
+            message:
+                "Camera and microphone access are needed to join the classroom.",
             type: MessengerType.error,
           );
         }
@@ -358,16 +369,22 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       // Fetch the true full name and photo URL from Firestore
       if (user != null) {
         try {
-          final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
           if (userDoc.exists) {
             final data = userDoc.data();
             if (data != null) {
-              if (data['fullName'] != null && data['fullName'].toString().isNotEmpty) {
+              if (data['fullName'] != null &&
+                  data['fullName'].toString().isNotEmpty) {
                 userName = data['fullName'];
-              } else if (data['name'] != null && data['name'].toString().isNotEmpty) {
+              } else if (data['name'] != null &&
+                  data['name'].toString().isNotEmpty) {
                 userName = data['name'];
               }
-              if (data['photoUrl'] != null && data['photoUrl'].toString().isNotEmpty) {
+              if (data['photoUrl'] != null &&
+                  data['photoUrl'].toString().isNotEmpty) {
                 userAvatar = data['photoUrl'];
               }
             }
@@ -399,12 +416,14 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
           final data = presenceSnap.data();
           if (data != null && data.containsKey('lastHeartbeat')) {
             final lastBeat = (data['lastHeartbeat'] as Timestamp?)?.toDate();
-            if (lastBeat != null && DateTime.now().difference(lastBeat).inSeconds < 35) {
+            if (lastBeat != null &&
+                DateTime.now().difference(lastBeat).inSeconds < 35) {
               if (mounted) {
                 AppMessenger.showSnackBar(
                   context,
                   title: "Session Active",
-                  message: "Your account is already active in this meeting from another device. Please wait 30 seconds if you just disconnected.",
+                  message:
+                      "Your account is already active in this meeting from another device. Please wait 30 seconds if you just disconnected.",
                   type: MessengerType.error,
                 );
               }
@@ -414,18 +433,26 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         }
 
         // Adding a timeout because Jitsi can sometimes hang on simulators
-        await JitsiMeetService().joinMeeting(
-          courseId: widget.courseId,
-          userId: user?.uid ?? "",
-          roomName: calligroMeetLink!, // Using the branded field
-          userName: userName,
-          userEmail: userEmail,
-          avatarUrl: userAvatar,
-          password: classroomPassword, // ✅ SECURITY: Automatic unlock for enrolled users
-          isModerator: isTeacher,
-        ).timeout(const Duration(seconds: 10), onTimeout: () {
-          throw Exception("The meeting service timed out. This often happens on simulators without camera support.");
-        });
+        await JitsiMeetService()
+            .joinMeeting(
+              courseId: widget.courseId,
+              userId: user?.uid ?? "",
+              roomName: calligroMeetLink!, // Using the branded field
+              userName: userName,
+              userEmail: userEmail,
+              avatarUrl: userAvatar,
+              password:
+                  classroomPassword, // ✅ SECURITY: Automatic unlock for enrolled users
+              isModerator: isTeacher,
+            )
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () {
+                throw Exception(
+                  "The meeting service timed out. This often happens on simulators without camera support.",
+                );
+              },
+            );
       } catch (e) {
         if (mounted) {
           AppMessenger.showSnackBar(
@@ -440,12 +467,12 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       if (mounted) {
         AppMessenger.showSnackBar(
           context,
-          title: userRole == 'teacher' 
-            ? "Classroom Not Set" 
-            : AppLocalizations.of(context)!.noMeetingLink,
+          title: userRole == 'teacher'
+              ? "Classroom Not Set"
+              : AppLocalizations.of(context)!.noMeetingLink,
           message: userRole == 'teacher'
-            ? "Please go to Course Summary to generate your classroom link first."
-            : AppLocalizations.of(context)!.noMeetingLinkSet,
+              ? "Please go to Course Summary to generate your classroom link first."
+              : AppLocalizations.of(context)!.noMeetingLinkSet,
           type: MessengerType.info,
         );
       }
@@ -615,9 +642,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                                             ),
                                   ))
                           : Container(
-                              color: AppColors.accentGold.withOpacity(
-                                0.1,
-                              ),
+                              color: AppColors.accentGold.withOpacity(0.1),
                             ),
                       Container(
                         decoration: BoxDecoration(
@@ -668,9 +693,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
-                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.1)),
                     ),
                     child: TabBar(
                       controller: _tabController,
@@ -803,7 +826,10 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     }
 
     children.addAll([
-      _buildSectionTitle(l10n.localeName == 'ar' ? 'نتائج التعلم' : 'Learning Outcomes', Icons.map),
+      _buildSectionTitle(
+        l10n.localeName == 'ar' ? 'نتائج التعلم' : 'Learning Outcomes',
+        Icons.map,
+      ),
       const SizedBox(height: 16),
       _buildCurriculumTimeline(),
     ]);
@@ -1040,7 +1066,9 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                                               borderRadius:
                                                   BorderRadius.circular(10),
                                               border: Border.all(
-                                                color: Colors.white.withOpacity(0.1),
+                                                color: Colors.white.withOpacity(
+                                                  0.1,
+                                                ),
                                               ),
                                             ),
                                             child: Row(
@@ -1708,39 +1736,47 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         .doc(widget.courseId)
         .snapshots()
         .listen((snapshot) {
-      if (snapshot.exists && mounted) {
-        final data = snapshot.data() as Map<String, dynamic>;
-        
-        // Auto-expire reschedule if it was for a previous day
-        var rescheduleData = data['rescheduledSession'];
-        if (rescheduleData != null && rescheduleData['originalDate'] != null) {
-          final originalDate = (rescheduleData['originalDate'] as Timestamp).toDate();
-          final now = DateTime.now();
-          if (originalDate.year != now.year || originalDate.month != now.month || originalDate.day != now.day) {
-            rescheduleData = null; // Ignore it, it's expired
-          }
-        }
+          if (snapshot.exists && mounted) {
+            final data = snapshot.data() as Map<String, dynamic>;
 
-        setState(() {
-          _rescheduledData = rescheduleData;
+            // Auto-expire reschedule if it was for a previous day
+            var rescheduleData = data['rescheduledSession'];
+            if (rescheduleData != null &&
+                rescheduleData['originalDate'] != null) {
+              final originalDate = (rescheduleData['originalDate'] as Timestamp)
+                  .toDate();
+              final now = DateTime.now();
+              if (originalDate.year != now.year ||
+                  originalDate.month != now.month ||
+                  originalDate.day != now.day) {
+                rescheduleData = null; // Ignore it, it's expired
+              }
+            }
+
+            setState(() {
+              _rescheduledData = rescheduleData;
+            });
+          }
         });
-      }
-    });
   }
 
   bool _isSessionToday() {
     if (selectedDays.isEmpty) return false;
-    
+
     // Check if the course is currently active
     if (startDate == null || endDate == null) return false;
-    
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final startDay = DateTime(startDate!.year, startDate!.month, startDate!.day);
+    final startDay = DateTime(
+      startDate!.year,
+      startDate!.month,
+      startDate!.day,
+    );
     final endDay = DateTime(endDate!.year, endDate!.month, endDate!.day);
-    
+
     if (today.isBefore(startDay)) return false; // Course hasn't started yet
-    if (today.isAfter(endDay)) return false;   // Course has already ended
+    if (today.isAfter(endDay)) return false; // Course has already ended
 
     final todayName = DateFormat('EEEE').format(now);
     return selectedDays.contains(todayName);
@@ -1777,7 +1813,9 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
               ),
               const SizedBox(width: 12),
               Text(
-                hasReschedule ? AppLocalizations.of(context)!.sessionRescheduled : AppLocalizations.of(context)!.todaysSchedule,
+                hasReschedule
+                    ? AppLocalizations.of(context)!.sessionRescheduled
+                    : AppLocalizations.of(context)!.todaysSchedule,
                 style: TextStyle(
                   color: hasReschedule ? Colors.orangeAccent : Colors.white60,
                   fontSize: 12,
@@ -1803,7 +1841,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ] else
-             Text(
+            Text(
               AppLocalizations.of(context)!.sessionOnTime,
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
@@ -1815,18 +1853,26 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                 decoration: BoxDecoration(
                   color: Colors.orangeAccent.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.orangeAccent.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.orangeAccent.withOpacity(0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 20),
+                    const Icon(
+                      Icons.info_outline,
+                      color: Colors.orangeAccent,
+                      size: 20,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        AppLocalizations.of(context)!.cannotRescheduleNotMeetingDay,
+                        AppLocalizations.of(
+                          context,
+                        )!.cannotRescheduleNotMeetingDay,
                         style: const TextStyle(
-                          color: Colors.orangeAccent, 
-                          fontSize: 13, 
+                          color: Colors.orangeAccent,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
                         ),
@@ -1840,21 +1886,33 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: (isSessionToday || hasReschedule) ? _showRescheduleDialog : null,
+                onPressed: (isSessionToday || hasReschedule)
+                    ? _showRescheduleDialog
+                    : null,
                 icon: Icon(
                   hasReschedule ? Icons.edit_calendar : Icons.more_time,
                   size: 18,
                 ),
-                label: _isSavingReschedule 
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                label: _isSavingReschedule
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.black,
+                        ),
+                      )
                     : Text(
-                        hasReschedule ? AppLocalizations.of(context)!.updateReschedule : AppLocalizations.of(context)!.rescheduleToday,
+                        hasReschedule
+                            ? AppLocalizations.of(context)!.updateReschedule
+                            : AppLocalizations.of(context)!.rescheduleToday,
                       ),
                 style: ElevatedButton.styleFrom(
                   disabledBackgroundColor: Colors.white.withOpacity(0.05),
                   disabledForegroundColor: Colors.white30,
-                  backgroundColor:
-                      hasReschedule ? Colors.orangeAccent : AppColors.accentGold,
+                  backgroundColor: hasReschedule
+                      ? Colors.orangeAccent
+                      : AppColors.accentGold,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -1885,17 +1943,17 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         return Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: AppColors.accentGold, 
-              onPrimary: Colors.black, 
-              surface: AppColors.primary, 
-              onSurface: Colors.white, 
+              primary: AppColors.accentGold,
+              onPrimary: Colors.black,
+              surface: AppColors.primary,
+              onSurface: Colors.white,
             ),
-            dialogBackgroundColor: AppColors.primary,
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.accentGold, 
+                foregroundColor: AppColors.accentGold,
               ),
             ),
+            dialogTheme: DialogThemeData(backgroundColor: AppColors.primary),
           ),
           child: child!,
         );
@@ -1904,35 +1962,54 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
 
     if (picked != null) {
       final now = DateTime.now();
-      final newStartTime = DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
+      final newStartTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        picked.hour,
+        picked.minute,
+      );
       // Assume 1 hour session for simplicity in this mockup or pick end time too
       final newEndTime = newStartTime.add(const Duration(hours: 1));
 
       setState(() => _isSavingReschedule = true);
       try {
-        await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).update({
-          'rescheduledSession': {
-            'originalDate': Timestamp.fromDate(now), // Effectively today
-            'newStartTime': Timestamp.fromDate(newStartTime),
-            'newEndTime': Timestamp.fromDate(newEndTime),
-          }
-        });
+        await FirebaseFirestore.instance
+            .collection('courses')
+            .doc(widget.courseId)
+            .update({
+              'rescheduledSession': {
+                'originalDate': Timestamp.fromDate(now), // Effectively today
+                'newStartTime': Timestamp.fromDate(newStartTime),
+                'newEndTime': Timestamp.fromDate(newEndTime),
+              },
+            });
 
         // Add Notification Logic
         final dynamic studentsRaw = widget.courseData['enrolledStudents'];
         final List<String> enrolledStudentIds = (studentsRaw is List)
             ? List<String>.from(studentsRaw.whereType<String>())
             : [];
-            
+
         if (enrolledStudentIds.isNotEmpty) {
-          final courseName = _getLocalizedCourseName(context, widget.courseData);
-          final formattedTime = DateFormat.jm(Localizations.localeOf(context).toString()).format(newStartTime);
+          final courseName = _getLocalizedCourseName(
+            context,
+            widget.courseData,
+          );
+          final formattedTime = DateFormat.jm(
+            Localizations.localeOf(context).toString(),
+          ).format(newStartTime);
           final title = AppLocalizations.of(context)!.sessionRescheduled;
-          final message = "${AppLocalizations.of(context)!.teacherMovedSession} '$courseName'. ${AppLocalizations.of(context)!.newTime} $formattedTime";
+          final message =
+              "${AppLocalizations.of(context)!.teacherMovedSession} '$courseName'. ${AppLocalizations.of(context)!.newTime} $formattedTime";
 
           final batch = FirebaseFirestore.instance.batch();
           for (var studentId in enrolledStudentIds) {
-            final notifRef = FirebaseFirestore.instance.collection('users').doc(studentId).collection('notifications').doc();
+            final notifRef = FirebaseFirestore.instance
+                .collection('users')
+                .doc(studentId)
+                .collection('notifications')
+                .doc();
             batch.set(notifRef, {
               'title': title,
               'message': message,
@@ -1945,9 +2022,17 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
           await batch.commit();
         }
 
-        _showMessage(AppLocalizations.of(context)!.success, AppLocalizations.of(context)!.sessionRescheduledSuccess, MessengerType.success);
+        _showMessage(
+          AppLocalizations.of(context)!.success,
+          AppLocalizations.of(context)!.sessionRescheduledSuccess,
+          MessengerType.success,
+        );
       } catch (e) {
-        _showMessage(AppLocalizations.of(context)!.error, "${AppLocalizations.of(context)!.error}: $e", MessengerType.error);
+        _showMessage(
+          AppLocalizations.of(context)!.error,
+          "${AppLocalizations.of(context)!.error}: $e",
+          MessengerType.error,
+        );
       }
       setState(() => _isSavingReschedule = false);
     }
@@ -1956,12 +2041,21 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   Future<void> _cancelReschedule() async {
     setState(() => _isSavingReschedule = true);
     try {
-      await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).update({
-        'rescheduledSession': FieldValue.delete(),
-      });
-      _showMessage(AppLocalizations.of(context)!.success, AppLocalizations.of(context)!.sessionBackToNormal, MessengerType.info);
+      await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(widget.courseId)
+          .update({'rescheduledSession': FieldValue.delete()});
+      _showMessage(
+        AppLocalizations.of(context)!.success,
+        AppLocalizations.of(context)!.sessionBackToNormal,
+        MessengerType.info,
+      );
     } catch (e) {
-      _showMessage(AppLocalizations.of(context)!.error, "${AppLocalizations.of(context)!.error}: $e", MessengerType.error);
+      _showMessage(
+        AppLocalizations.of(context)!.error,
+        "${AppLocalizations.of(context)!.error}: $e",
+        MessengerType.error,
+      );
     }
     setState(() => _isSavingReschedule = false);
   }
@@ -2104,9 +2198,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.03),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.05),
-                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.05)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2340,9 +2432,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: AppColors.accentGold.withOpacity(
-                                    0.3,
-                                  ),
+                                  color: AppColors.accentGold.withOpacity(0.3),
                                   width: 2,
                                 ),
                               ),
@@ -2412,7 +2502,9 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                                       Icon(
                                         Icons.calendar_today_outlined,
                                         size: 10,
-                                        color: AppColors.accentGold.withOpacity(0.6),
+                                        color: AppColors.accentGold.withOpacity(
+                                          0.6,
+                                        ),
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
@@ -2447,7 +2539,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       },
     );
   }
-
 
   Widget _buildDefaultAvatar(String? name) {
     return Container(

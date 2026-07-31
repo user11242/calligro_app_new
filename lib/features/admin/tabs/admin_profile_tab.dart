@@ -385,8 +385,6 @@ class _AdminProfileTabState extends State<AdminProfileTab>
           if (bio.isNotEmpty) ...[
             Text(
               bio,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
               softWrap: true,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.8),

@@ -1167,5 +1167,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "actionRequired": "إجراء مطلوب",
+  "cannotProceedNoCommission": "لا يمكنك المتابعة حتى يقوم المسؤول بتعيين نسبة العمولة الخاصة بك.",
+  "commissionRateLabel": "نسبة العمولة:",
+  "yourShareLabel": "حصتك:",
+  "noCommissionSet": "لم يتم تعيين عمولة",
+  "noCommissionSetDescription": "لم يتم تعيين نسبة أرباحك من قبل المسؤول بعد. يرجى الاتصال بالدعم أو الانتظار حتى يتم تعيينها قبل النشر."
 }

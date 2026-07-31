@@ -39,13 +39,6 @@ class FollowService {
         .collection('users')
         .doc(currentUserId);
 
-    // 5. Notification Reference
-    final String followNotificationId = "follow_$currentUserId";
-    final DocumentReference notificationRef = _firestore
-        .collection('users')
-        .doc(targetUserId)
-        .collection('notifications')
-        .doc(followNotificationId);
 
     // --- Logic ---
     if (isFollowing) {
@@ -60,15 +53,13 @@ class FollowService {
       batch.update(currentUserDocRef, {
         'followingCount': FieldValue.increment(-1),
       }); // 4. Decrement our count
-      
-      // Remove follow notification
-      batch.delete(notificationRef);
     } else {
       // --- FOLLOW logic ---
       final timestamp = FieldValue.serverTimestamp();
       batch.set(targetUserFollowersRef, {
+        'followerId': currentUserId,
         'timestamp': timestamp,
-      }); // 1. Add to their followers
+      }); // 1. Add to their followers — Cloud Function watches this to send push + in-app notification
       batch.update(targetUserDocRef, {
         'followerCount': FieldValue.increment(1),
       }); // 2. Increment their count
@@ -78,18 +69,6 @@ class FollowService {
       batch.update(currentUserDocRef, {
         'followingCount': FieldValue.increment(1),
       }); // 4. Increment our count
-
-      // Add follow notification
-      batch.set(notificationRef, {
-        'id': followNotificationId,
-        'type': 'new_follower',
-        'userId': currentUserId, // The person who followed
-        'targetId': targetUserId, // (Optional) for profile linking
-        'createdAt': timestamp, // MUST BE createdAt
-        'read': false,          // MUST BE read
-        'title': 'New Follower',
-        'body': 'Someone started following you.',
-      });
     }
 
     // Commit all operations at once

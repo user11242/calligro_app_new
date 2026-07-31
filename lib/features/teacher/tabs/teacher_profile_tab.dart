@@ -110,7 +110,7 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
     // We rely on the real-time stream for state updates
     await _communityService.toggleSavePost(
       postId: postId,
-      currentUserId: currentUserId!,
+      currentUserId: currentUserId ?? '',
       isSaved: isSaved,
     );
   }
@@ -321,7 +321,7 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                   SingleChildScrollView(
                     child: ProfilePostsSection(
                       title: AppLocalizations.of(context)!.saved,
-                      currentUserId: currentUserId!,
+                      currentUserId: currentUserId ?? '',
                       postsStream: FirebaseFirestore.instance
                           .collection('community_posts')
                           .where(
@@ -361,7 +361,7 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                   SingleChildScrollView(
                     child: ProfilePostsSection(
                       title: AppLocalizations.of(context)!.liked,
-                      currentUserId: currentUserId!,
+                      currentUserId: currentUserId ?? '',
                       postsStream: FirebaseFirestore.instance
                           .collection('community_posts')
                           .where('likes.$currentUserId', isEqualTo: true)
@@ -810,8 +810,6 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
             const SizedBox(height: 12),
             Text(
               bio,
-              maxLines: 4, // Shows max 4 lines (Instagram standard)
-              overflow: TextOverflow.ellipsis, // Adds "..." if it's too long
               softWrap: true,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.8),

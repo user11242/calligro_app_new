@@ -199,26 +199,34 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
                       courseCount = courseSnapshot.data!.docs.length.toString();
                     }
 
-                    return Column(
-                      children: [
-                        _buildProfileHeader(
-                          userData,
-                          postCount,
-                          _currentUserId,
-                        ),
-                        _buildTabSelector(postCount, courseCount),
-                        Expanded(
-                          child: TabBarView(
-                            controller: _tabController,
-                            // ORDER: Courses, Reviews, Posts
-                            children: [
-                                _buildCoursesTab(),
-                                _buildReviewsTab(), 
-                                _buildPostsTab()
-                            ],
+                    return NestedScrollView(
+                      headerSliverBuilder: (context, innerBoxIsScrolled) {
+                        return [
+                          SliverToBoxAdapter(
+                            child: _buildProfileHeader(
+                              userData,
+                              postCount,
+                              _currentUserId,
+                            ),
                           ),
-                        ),
-                      ],
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _SliverAppBarDelegate(
+                              _buildTabSelector(postCount, courseCount),
+                              height: 72.0,
+                            ),
+                          ),
+                        ];
+                      },
+                      body: TabBarView(
+                        controller: _tabController,
+                        // ORDER: Courses, Reviews, Posts
+                        children: [
+                          _buildCoursesTab(),
+                          _buildReviewsTab(),
+                          _buildPostsTab(),
+                        ],
+                      ),
                     );
                   },
                 );
@@ -388,8 +396,6 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
             const SizedBox(height: 8),
             Text(
               userData['bio'],
-              maxLines: 4, // Shows max 4 lines (Instagram standard)
-              overflow: TextOverflow.ellipsis, // Adds "..." if it's too long
               softWrap: true,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.8),
@@ -1113,24 +1119,59 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
   }
 
   Widget _buildEmptyState(IconData icon, String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 60.0, color: AppColors.textLight.withOpacity(0.5)),
-          const SizedBox(height: 16.0),
-          Text(
-            message,
-            style: TextStyle(
-              color: AppColors.textLight.withOpacity(0.7),
-              fontSize: 16.0,
-              fontWeight: FontWeight.w500,
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 60.0),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 60.0, color: AppColors.textLight.withOpacity(0.5)),
+            const SizedBox(height: 16.0),
+            Text(
+              message,
+              style: TextStyle(
+                color: AppColors.textLight.withOpacity(0.7),
+                fontSize: 16.0,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate(this._tabBar, {this.height = 72.0});
+
+  final Widget _tabBar;
+  final double height;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: AppColors.primary,
+      child: _tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return oldDelegate._tabBar != _tabBar;
   }
 }
 

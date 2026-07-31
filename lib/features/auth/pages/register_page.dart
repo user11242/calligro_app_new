@@ -5,7 +5,6 @@ import '../widgets/register_form.dart';
 import '../widgets/google_hint_dialog.dart';
 import 'google_register_wizard.dart';
 import '../../../features/auth/data/services/auth_service.dart';
-import '../../../core/message/app_messenger.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});

@@ -204,8 +204,6 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
                           _buildTotalEarningsHero(l10n),
                           const SizedBox(height: 24),
                           _buildBalanceSplitCards(l10n),
-                          const SizedBox(height: 16),
-                          _buildWithdrawnCard(l10n),
                           const SizedBox(height: 32),
                           _buildWithdrawSection(l10n),
                           const SizedBox(height: 32),
@@ -349,15 +347,6 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildWithdrawnCard(AppLocalizations l10n) {
-    return _buildGlassStatCard(
-      "Total Withdrawn",
-      "\$${_totalWithdrawn.toStringAsFixed(0)}",
-      Colors.greenAccent,
-      Icons.account_balance_wallet_outlined,
     );
   }
 

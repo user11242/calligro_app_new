@@ -1114,5 +1114,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "actionRequired": "İşlem Gerekiyor",
+  "cannotProceedNoCommission": "Yönetici komisyon oranınızı belirleyene kadar devam edemezsiniz.",
+  "commissionRateLabel": "Komisyon Oranı:",
+  "yourShareLabel": "Payınız:",
+  "noCommissionSet": "Komisyon Belirlenmedi",
+  "noCommissionSetDescription": "Kazanç yüzdeniz henüz yönetici tarafından belirlenmedi. Lütfen yayınlamadan önce destek ile iletişime geçin veya atanmasını bekleyin."
 }

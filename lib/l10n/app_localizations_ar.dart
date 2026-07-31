@@ -3476,4 +3476,24 @@ class AppLocalizationsAr extends AppLocalizations {
   String enrollStudentSuccess(String studentName) {
     return 'تم تسجيل $studentName بنجاح.';
   }
+
+  @override
+  String get actionRequired => 'إجراء مطلوب';
+
+  @override
+  String get cannotProceedNoCommission =>
+      'لا يمكنك المتابعة حتى يقوم المسؤول بتعيين نسبة العمولة الخاصة بك.';
+
+  @override
+  String get commissionRateLabel => 'نسبة العمولة:';
+
+  @override
+  String get yourShareLabel => 'حصتك:';
+
+  @override
+  String get noCommissionSet => 'لم يتم تعيين عمولة';
+
+  @override
+  String get noCommissionSetDescription =>
+      'لم يتم تعيين نسبة أرباحك من قبل المسؤول بعد. يرجى الاتصال بالدعم أو الانتظار حتى يتم تعيينها قبل النشر.';
 }

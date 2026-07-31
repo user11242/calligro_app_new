@@ -602,8 +602,11 @@ class _CommunityPageState extends State<CommunityPage>
                             onToggleSave: () async {
                                 final isCurrentlySaved = _savedPostIds.contains(postId);
                                 setState(() {
-                                    if (isCurrentlySaved) _savedPostIds.remove(postId);
-                                    else _savedPostIds.add(postId);
+                                    if (isCurrentlySaved) {
+                                      _savedPostIds.remove(postId);
+                                    } else {
+                                      _savedPostIds.add(postId);
+                                    }
                                 });
                                 try {
                                     await _communityService.toggleSavePost(
@@ -614,8 +617,11 @@ class _CommunityPageState extends State<CommunityPage>
                                 } catch (e) {
                                     if (mounted) {
                                         setState(() {
-                                            if (isCurrentlySaved) _savedPostIds.add(postId);
-                                            else _savedPostIds.remove(postId);
+                                            if (isCurrentlySaved) {
+                                              _savedPostIds.add(postId);
+                                            } else {
+                                              _savedPostIds.remove(postId);
+                                            }
                                         });
                                     }
                                 }

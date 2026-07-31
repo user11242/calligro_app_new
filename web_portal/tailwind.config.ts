@@ -28,6 +28,10 @@ const config: Config = {
         "gold-gradient": "linear-gradient(to right, #E0C17E, #D4AF37, #B58C28)", // Improved matching
         "dark-gradient": "radial-gradient(circle at center, #2C2C2C 0%, #1F1F1F 100%)",
       },
+      fontFamily: {
+        'aref-ruqaa': ['var(--font-aref-ruqaa)', 'serif'],
+        'diwani': ['"Diwani Letter"', 'serif'],
+      },
     },
   },
   plugins: [],

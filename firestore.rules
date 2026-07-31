@@ -210,9 +210,12 @@ service cloud.firestore {
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likesCount', 'commentsCount']) &&
           (
-            // Logic for likesCount: must only change by 1
-            request.resource.data.likesCount == resource.data.likesCount + 1 ||
-            request.resource.data.likesCount == resource.data.likesCount - 1
+            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['likesCount']) ||
+              request.resource.data.likesCount == resource.data.likesCount + 1 ||
+              request.resource.data.likesCount == resource.data.likesCount - 1) &&
+            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentsCount']) ||
+              request.resource.data.commentsCount == resource.data.commentsCount + 1 ||
+              request.resource.data.commentsCount == resource.data.commentsCount - 1)
           )
         )
       );

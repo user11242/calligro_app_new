@@ -44,17 +44,21 @@ exports.notifyAdminOnTeacherRegistration = onDocumentCreated(
         .where("role", "==", "admin")
         .get();
 
-      const tokens = adminsSnap.docs.map(doc => doc.data().fcmToken).filter(Boolean);
-      if (tokens.length === 0) return null;
+      if (adminsSnap.empty) return null;
 
-      await admin.messaging().sendEachForMulticast({
-        tokens,
-        notification: {
-          title: "New Teacher Registration",
-          body: `${newUser.name || "A new teacher"} is waiting for approval.`,
-        },
-        data: { userId: event.params.userId, type: "new_teacher" },
+      // Import sendNotification from notifications module
+      const { notifyAdminHelper } = require("./notifications.js");
+
+      // Notify each admin individually using their preferred language
+      const notifyPromises = adminsSnap.docs.map(adminDoc => {
+        return notifyAdminHelper({
+          receiverId: adminDoc.id,
+          teacherName: newUser.name || "A new teacher",
+          teacherUserId: event.params.userId,
+        });
       });
+
+      await Promise.all(notifyPromises);
     } catch (err) {
       console.error("notifyAdmin error:", err);
     }

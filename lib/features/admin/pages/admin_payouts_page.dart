@@ -168,7 +168,7 @@ class _AdminPayoutsPageState extends State<AdminPayoutsPage> {
     
     Map<String, Map<String, dynamic>> courseMap = {};
     for (var doc in coursesQuery.docs) {
-      courseMap[doc.id] = doc.data() as Map<String, dynamic>;
+      courseMap[doc.id] = doc.data();
     }
 
     final txQuery = await FirebaseFirestore.instance

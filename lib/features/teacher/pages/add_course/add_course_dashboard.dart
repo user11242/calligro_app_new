@@ -59,7 +59,8 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
   String teacherName = '';
   String teacherProfilePic = '';
   bool _hasPayoutInfo = false;
-  double _teacherEarningPercentage = 60.0;
+  bool _hasCommissionRate = false;
+  double _teacherEarningPercentage = 0.0;
 
   @override
   void initState() {
@@ -75,7 +76,8 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
         teacherName = teacherDetails['teacherName']!;
         teacherProfilePic = teacherDetails['teacherProfilePic'] ?? '';
         _hasPayoutInfo = teacherDetails['hasPayoutInfo'] ?? false;
-        _teacherEarningPercentage = teacherDetails['earningPercentage'] ?? 60.0;
+        _hasCommissionRate = teacherDetails['hasCommissionRate'] ?? false;
+        _teacherEarningPercentage = teacherDetails['earningPercentage'] ?? 0.0;
       });
     } catch (e) {
       _showMessage(AppLocalizations.of(context)!.error, AppLocalizations.of(context)!.errorFetchingUserData(e.toString()), MessengerType.error);
@@ -454,6 +456,7 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
       CoursePricePage(
         priceController: _priceController,
         teacherEarningPercentage: _teacherEarningPercentage,
+        hasCommissionRate: _hasCommissionRate,
         onNext: _goToNextStep,
         onBack: () {
           setState(() => _currentStep--);

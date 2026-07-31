@@ -346,8 +346,6 @@ class _PublicStudentProfilePageState extends State<PublicStudentProfilePage> {
           if ((userData['bio'] ?? "").toString().isNotEmpty) ...[
             Text(
               userData['bio'],
-              maxLines: 4, // Shows max 4 lines (Instagram standard)
-              overflow: TextOverflow.ellipsis, // Adds "..." if it's too long
               softWrap: true,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.8),

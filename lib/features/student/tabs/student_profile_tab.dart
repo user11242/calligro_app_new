@@ -213,83 +213,86 @@ class _StudentProfileTabState extends State<StudentProfileTab>
             final savedCount = savedPostIds.length.toString();
             final likedCount = likedPosts.length.toString();
 
-            return Column(
-              children: [
-                _buildTopBar(),
-                // Header (Same design as Teacher)
-                _buildProfileHeader(
-                  userName,
-                  userImage,
-                  displayBio,
-                  postCount,
-                  followerCount,
-                  followingCount,
-                ),
-
-                // Tabs
-                _buildTabSelector(savedCount, likedCount),
-
-                // Content
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      SingleChildScrollView(
-                        child: ProfilePostsSection(
-                          title: AppLocalizations.of(context)!.saved,
-                          currentUserId: currentUserId!,
-                          postsStream: FirebaseFirestore.instance
-                              .collection('community_posts')
-                              .where(
-                                FieldPath.documentId,
-                                whereIn: savedPostIds.isNotEmpty
-                                    ? savedPostIds.take(30).toList()
-                                    : ['placeholder'],
-                              )
-                              .snapshots()
-                              .map((snapshot) {
-                                // Lazy cleanup of orphaned saved posts
-                                final idsToCheck = savedPostIds
-                                    .take(30)
-                                    .toList();
-                                if (snapshot.docs.length < idsToCheck.length) {
-                                  final validIds = snapshot.docs
-                                      .map((d) => d.id)
-                                      .toSet();
-                                  for (int i = 0; i < idsToCheck.length; i++) {
-                                    final String id = idsToCheck[i];
-                                    if (!validIds.contains(id)) {
-                                      FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(currentUserId)
-                                          .collection('saved_posts')
-                                          .doc(id)
-                                          .delete();
-                                    }
-                                  }
-                                }
-                                return snapshot;
-                              }),
-                          savedPostIds: savedPostIds,
-                          onToggleSave: _onToggleSave,
-                        ),
-                      ),
-                      SingleChildScrollView(
-                        child: ProfilePostsSection(
-                          title: AppLocalizations.of(context)!.liked,
-                          currentUserId: currentUserId!,
-                          postsStream: FirebaseFirestore.instance
-                              .collection('community_posts')
-                              .where('likes.$currentUserId', isEqualTo: true)
-                              .snapshots(),
-                          savedPostIds: savedPostIds,
-                          onToggleSave: _onToggleSave,
-                        ),
-                      ),
-                    ],
+            return NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
+                return [
+                  SliverToBoxAdapter(child: _buildTopBar()),
+                  SliverToBoxAdapter(
+                    child: _buildProfileHeader(
+                      userName,
+                      userImage,
+                      displayBio,
+                      postCount,
+                      followerCount,
+                      followingCount,
+                    ),
                   ),
-                ),
-              ],
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _SliverAppBarDelegate(
+                      _buildTabSelector(savedCount, likedCount),
+                      height: 48.0,
+                    ),
+                  ),
+                ];
+              },
+              body: TabBarView(
+                controller: _tabController,
+                children: [
+                  SingleChildScrollView(
+                    child: ProfilePostsSection(
+                      title: AppLocalizations.of(context)!.saved,
+                      currentUserId: currentUserId!,
+                      postsStream: FirebaseFirestore.instance
+                          .collection('community_posts')
+                          .where(
+                            FieldPath.documentId,
+                            whereIn: savedPostIds.isNotEmpty
+                                ? savedPostIds.take(30).toList()
+                                : ['placeholder'],
+                          )
+                          .snapshots()
+                          .map((snapshot) {
+                            // Lazy cleanup of orphaned saved posts
+                            final idsToCheck = savedPostIds
+                                .take(30)
+                                .toList();
+                            if (snapshot.docs.length < idsToCheck.length) {
+                              final validIds = snapshot.docs
+                                  .map((d) => d.id)
+                                  .toSet();
+                              for (int i = 0; i < idsToCheck.length; i++) {
+                                final String id = idsToCheck[i];
+                                if (!validIds.contains(id)) {
+                                  FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(currentUserId)
+                                      .collection('saved_posts')
+                                      .doc(id)
+                                      .delete();
+                                }
+                              }
+                            }
+                            return snapshot;
+                          }),
+                      savedPostIds: savedPostIds,
+                      onToggleSave: _onToggleSave,
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    child: ProfilePostsSection(
+                      title: AppLocalizations.of(context)!.liked,
+                      currentUserId: currentUserId!,
+                      postsStream: FirebaseFirestore.instance
+                          .collection('community_posts')
+                          .where('likes.$currentUserId', isEqualTo: true)
+                          .snapshots(),
+                      savedPostIds: savedPostIds,
+                      onToggleSave: _onToggleSave,
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -533,5 +536,35 @@ class _StudentProfileTabState extends State<StudentProfileTab>
         ],
       ),
     );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate(this._tabBar, {this.height = 48.0});
+
+  final Widget _tabBar;
+  final double height;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: AppColors.primary,
+      child: _tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return oldDelegate._tabBar != _tabBar;
   }
 }

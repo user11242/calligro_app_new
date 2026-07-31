@@ -56,6 +56,8 @@ class ProfilePostsSection extends StatelessWidget {
         final previewPosts = allPosts.take(3).toList();
 
         return ListView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 80.0), // Padding to avoid bottom nav bar cutoffs
           children: [
             const SizedBox(height: 32),

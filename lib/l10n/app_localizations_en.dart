@@ -3481,4 +3481,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String enrollStudentSuccess(String studentName) {
     return '$studentName has been enrolled successfully.';
   }
+
+  @override
+  String get actionRequired => 'Action Required';
+
+  @override
+  String get cannotProceedNoCommission =>
+      'You cannot proceed until an admin sets your commission rate.';
+
+  @override
+  String get commissionRateLabel => 'Commission Rate:';
+
+  @override
+  String get yourShareLabel => 'Your Share:';
+
+  @override
+  String get noCommissionSet => 'No Commission Set';
+
+  @override
+  String get noCommissionSetDescription =>
+      'Your earning percentage hasn\'t been set by the admin yet. Please contact support or wait for it to be assigned before publishing.';
 }

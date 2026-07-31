@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calligro_app/features/admin/pages/admin_users_management_page.dart';
 import 'package:calligro_app/features/admin/pages/admin_pending_teachers.dart';
 import 'package:calligro_app/features/admin/pages/admin_courses_mgmt.dart';
-import 'package:calligro_app/features/admin/pages/admin_community_mgmt.dart';
 import 'package:calligro_app/features/admin/pages/admin_active_teachers_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 

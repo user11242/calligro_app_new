@@ -581,12 +581,15 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                     ? courseSnap.data!.docs.length
                                     : 0;
 
-                            // Sum up studentsEnrolled across ALL this teacher's courses
+                            // Sum up enrolledStudents across ALL this teacher's courses
                             int totalStudents = 0;
                             if (courseSnap.hasData) {
                               for (final doc in courseSnap.data!.docs) {
                                 final data = doc.data() as Map<String, dynamic>;
-                                totalStudents += (data['studentsEnrolled'] as int?) ?? 0;
+                                final dynamic enrolled = data['enrolledStudents'];
+                                if (enrolled is List) {
+                                  totalStudents += enrolled.length;
+                                }
                               }
                             }
 

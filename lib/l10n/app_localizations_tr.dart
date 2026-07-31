@@ -3486,4 +3486,24 @@ class AppLocalizationsTr extends AppLocalizations {
   String enrollStudentSuccess(String studentName) {
     return '$studentName başarıyla kaydedildi.';
   }
+
+  @override
+  String get actionRequired => 'İşlem Gerekiyor';
+
+  @override
+  String get cannotProceedNoCommission =>
+      'Yönetici komisyon oranınızı belirleyene kadar devam edemezsiniz.';
+
+  @override
+  String get commissionRateLabel => 'Komisyon Oranı:';
+
+  @override
+  String get yourShareLabel => 'Payınız:';
+
+  @override
+  String get noCommissionSet => 'Komisyon Belirlenmedi';
+
+  @override
+  String get noCommissionSetDescription =>
+      'Kazanç yüzdeniz henüz yönetici tarafından belirlenmedi. Lütfen yayınlamadan önce destek ile iletişime geçin veya atanmasını bekleyin.';
 }
