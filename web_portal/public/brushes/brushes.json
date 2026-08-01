@@ -23,7 +23,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      1920,
+      1920
+    ],
+    "slitAngleDeg": -14.9,
+    "slitWidthPct": 11.2
   },
   {
     "id": "3241E10A-429B-4494-99EC-780CB7C56C66",
@@ -49,7 +56,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -2.9,
+    "slitWidthPct": 12.4
   },
   {
     "id": "31455ED4-0B84-409B-8B0A-15F1E83BB207",
@@ -75,7 +89,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "9AA5A9EE-93ED-46C3-80E2-88EE9963A22F",
@@ -101,7 +122,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "EEB2D137-E7ED-4629-8DB6-CCB4F0A8F762",
@@ -127,7 +155,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -2.9,
+    "slitWidthPct": 15.4
   },
   {
     "id": "B08C744E-0B7B-4551-A5BF-91D4A018B2FC",
@@ -153,7 +188,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "A22108E6-1297-459F-A2E9-14B132E7F6A5",
@@ -179,7 +221,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "85A9B179-6A46-4D6D-AB84-06A60F3487C0",
@@ -205,7 +254,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -13.6,
+    "slitWidthPct": 9.3
   },
   {
     "id": "18003697-03EC-4976-A74F-D686BB83E69D",
@@ -231,7 +287,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "C1E9B9A0-1EF8-4D61-8254-4A43D6AE8B1C",
@@ -257,7 +320,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "64199A7A-FB4D-4139-AABC-68CF8AD31A6D",
@@ -283,7 +353,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -15.4,
+    "slitWidthPct": 14.6
   },
   {
     "id": "05B66ADB-14B5-4EEB-BDC4-B2354B698A44",
@@ -309,7 +386,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "281BEE44-F9E2-47F4-B0C4-B3593F39D95D",
@@ -335,7 +419,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "23D01DF6-58CB-4A9A-8568-06AD152E83CB",
@@ -361,7 +452,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -15.4,
+    "slitWidthPct": 19.6
   },
   {
     "id": "C1DF6136-51C1-4E75-971F-60F7C28B2435",
@@ -387,7 +485,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "CF5F0C01-1363-4862-9CAA-E7C9A9CF5D39",
@@ -413,7 +518,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "8D0F7189-F07B-4F60-91FA-F9AA24F718D1",
@@ -439,7 +551,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      1920,
+      1920
+    ],
+    "slitAngleDeg": -15.8,
+    "slitWidthPct": 13.0
   },
   {
     "id": "410F2EB1-C675-4108-A1D4-FC4E02DC923E",
@@ -465,7 +584,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -25.8,
+    "slitWidthPct": 15.7
   },
   {
     "id": "2C0870D7-9B9C-4CB8-A0A7-AEE25798F49C",
@@ -491,7 +617,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "53A725BD-36E3-4B0E-9F11-0A81CC363E80",
@@ -517,7 +650,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "A50F30DA-7229-40AB-8411-60F1C3E15808",
@@ -543,7 +683,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -25.8,
+    "slitWidthPct": 15.7
   },
   {
     "id": "B3C85B43-ACDE-4FEE-9B21-5E484CAFCB69",
@@ -569,7 +716,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.2
   },
   {
     "id": "05D80E23-7A98-49C5-B6AC-97B6E04BBE52",
@@ -595,7 +749,14 @@
     "dynamicsSpeedOpacity": 0.2819673418998718,
     "dynamicsPressureSize": 0.7916666865348816,
     "dynamicsPressureOpacity": 1.0,
-    "hasThumbnail": true
+    "hasShape": false,
+    "hasThumbnail": true,
+    "shapeSize": [
+      0,
+      0
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 0
   },
   {
     "id": "040872AF-7017-4D3F-AC37-C631ADAC6A19",
@@ -621,7 +782,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 1.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -20.1,
+    "slitWidthPct": 3.9
   },
   {
     "id": "94463F47-B505-4D56-9366-C94650A3B4EC",
@@ -647,7 +815,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 1.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -20.1,
+    "slitWidthPct": 3.9
   },
   {
     "id": "60F1F40F-AED6-42EA-ABB1-5F1D4724AC0C",
@@ -673,7 +848,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 1.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -18.4,
+    "slitWidthPct": 1.5
   },
   {
     "id": "28B592FD-0656-48B5-B5BE-657A529AFBCC",
@@ -699,7 +881,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.7708333134651184,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      1418,
+      1418
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 33.2
   },
   {
     "id": "6BE7D0C0-DE03-4B89-9268-5292F1128A0C",
@@ -725,7 +914,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      1920,
+      1920
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 0.0
   },
   {
     "id": "6EF04F7A-25FA-4F92-83BA-27FAF6C82608",
@@ -751,7 +947,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 1.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      1920,
+      1920
+    ],
+    "slitAngleDeg": -15.8,
+    "slitWidthPct": 13.0
   },
   {
     "id": "070993FF-7C65-4F81-87EC-C4F42EAE0CC4",
@@ -777,7 +980,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 1.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": -2.9,
+    "slitWidthPct": 15.4
   },
   {
     "id": "68A068AC-383D-4AEE-97EA-0FA0A9716A62",
@@ -803,7 +1013,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 5.7
   },
   {
     "id": "5CDBA459-6AEA-4D2B-8794-6C62122FF6A5",
@@ -829,7 +1046,14 @@
     "dynamicsSpeedOpacity": 0.0,
     "dynamicsPressureSize": 1.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": true,
+    "hasThumbnail": true,
+    "shapeSize": [
+      2048,
+      2048
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 85.7
   },
   {
     "id": "4662D407-D3BB-4C19-B809-A82653E6959C",
@@ -855,7 +1079,14 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": false,
+    "hasThumbnail": true,
+    "shapeSize": [
+      0,
+      0
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 0
   },
   {
     "id": "D93746B2-B060-4E43-A42A-D2014C693E35",
@@ -881,6 +1112,13 @@
     "dynamicsSpeedOpacity": 1.0,
     "dynamicsPressureSize": 0.0,
     "dynamicsPressureOpacity": 0.0,
-    "hasThumbnail": true
+    "hasShape": false,
+    "hasThumbnail": true,
+    "shapeSize": [
+      0,
+      0
+    ],
+    "slitAngleDeg": 0,
+    "slitWidthPct": 0
   }
 ]

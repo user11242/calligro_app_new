@@ -1,373 +1,398 @@
 "use client";
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import { Eraser, Download, Undo2 } from "lucide-react";
+/**
+ * CalligraphyBoard — Stamp-Based Arabic Calligraphy Engine (Fixed)
+ *
+ * Uses the ACTUAL Shape.png files from the brushes folder as stamps.
+ * Each stamp is:
+ *   1. Pre-cropped to only the ink region (not full 2048x2048)
+ *   2. Tinted to the selected ink color
+ *   3. Placed at the brush's FIXED shapeAngle (NOT rotating with stroke)
+ *   4. Stamped every ~1px along the smoothed path for seamless coverage
+ *
+ * The thick/thin effect comes naturally from the shape:
+ *   - The Shape.png is a tall thin slit (chisel nib shape)
+ *   - At a FIXED angle, moving in different directions overlaps different
+ *     amounts of the slit → natural thick/thin
+ */
 
-interface Point { x: number; y: number }
+import React, { useRef, useEffect, useState, useCallback } from "react";
+import { Eraser, Download, Undo2, Sliders, X, RotateCcw, Paintbrush, PenLine } from "lucide-react";
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 interface BrushProfile {
   id: string;
   name: string;
-  // Orientation behavior
-  oriented: boolean;        // TRUE = stamp rotates with stroke direction (key for thick/thin!)
-  shapeOrientation: number; // 1=fixed, 2=azimuth, 3=random, 4=external
-  shapeAngle: number;       // Fixed offset angle added to stroke direction (radians)
-  // Size
-  paintSize: number;        // 0-1: default size as fraction of ~2048px canvas
-  maxSize: number;
-  minSize: number;
-  // Opacity
-  paintOpacity: number;
-  maxOpacity: number;
-  minOpacity: number;
-  // Stroke
-  plotSpacing: number;      // 0-1: gap between stamps (0=very dense)
-  plotSmoothing: number;    // 0-1: stroke smoothing
-  // Shape
-  shapeRoundness: number;   // 0-1: 1=rectangular, 0.1=very flat (chisel!)
-  shapeCount: number;       // 0-1: multiple tips per stamp for thick brushes
-  // Taper
-  taperSize: number;
-  taperOpacity: number;
-  taperStartLength: number;
-  taperEndLength: number;
-  // Dynamics (speed-based)
-  dynamicsSpeedSize: number;   // negative = gets thinner when faster (calligraphy behavior!)
-  dynamicsSpeedOpacity: number;
-  dynamicsPressureSize: number;
-  dynamicsPressureOpacity: number;
+  shapeAngle: number;
+  paintSize: number;
+  plotSmoothing: number;
+  slitWidthPct: number;
+  dynamicsSpeedSize: number;
   hasThumbnail: boolean;
+  hasShape: boolean;
+  maxOpacity: number;
+  paintOpacity: number;
+  shapeSize: number[];
+  [key: string]: unknown;
+}
+
+interface StrokeRecord {
+  points: number[][];
+  color: string;
+  brushId: string;
+  brushSize: number;
+  nibAngle: number;
+  opacity: number;
 }
 
 const INK_COLORS = [
-  { name: "Ink Black", hex: "#0A0A0A" },
-  { name: "Dark Brown", hex: "#3E2723" },
-  { name: "Sepia", hex: "#6B4226" },
-  { name: "Indigo", hex: "#1A237E" },
-  { name: "Forest", hex: "#1B5E20" },
-  { name: "Crimson", hex: "#7B0000" },
-  { name: "Gold", hex: "#7D5A00" },
-  { name: "White", hex: "#FFFFFF" },
+  { name: "Ink Black",  hex: "#000000" },
+  { name: "Charcoal",   hex: "#1a1a1a" },
+  { name: "Umber",      hex: "#3E2723" },
+  { name: "Sepia",      hex: "#6B4226" },
+  { name: "Navy",       hex: "#1A237E" },
+  { name: "Forest",     hex: "#1B5E20" },
+  { name: "Crimson",    hex: "#7B0000" },
+  { name: "Gold",       hex: "#7D5A00" },
+  { name: "White",      hex: "#FFFFFF" },
 ];
 
-interface BrushMask {
-  canvas: HTMLCanvasElement;
-  naturalW: number;
-  naturalH: number;
+type StudioTab = "stroke" | "shape";
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Catmull-Rom interpolation between p1 and p2, with control points p0 and p3 */
+function catmullRom(p0: number[], p1: number[], p2: number[], p3: number[], t: number): number[] {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return [
+    0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+    0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3),
+  ];
 }
 
-export default function CalligraphyBoard() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [brushes, setBrushes] = useState<BrushProfile[]>([]);
-  const [activeBrush, setActiveBrush] = useState<BrushProfile | null>(null);
-  const brushMaskRef = useRef<BrushMask | null>(null);
-  const [brushLoaded, setBrushLoaded] = useState(false);
+/** Interpolate path points to get smooth dense points every ~spacing px */
+function smoothPath(rawPoints: number[][], spacing: number): number[][] {
+  if (rawPoints.length < 2) return rawPoints;
+  
+  const result: number[][] = [rawPoints[0]];
+  const pts = rawPoints;
+  
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    
+    const dx = p2[0] - p1[0];
+    const dy = p2[1] - p1[1];
+    const segLen = Math.sqrt(dx * dx + dy * dy);
+    const steps = Math.max(1, Math.ceil(segLen / spacing));
+    
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      result.push(catmullRom(p0, p1, p2, p3, t));
+    }
+  }
+  
+  return result;
+}
 
-  const [inkColor, setInkColor] = useState("#0A0A0A");
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [userSize, setUserSize] = useState(50);
+// ── Component ────────────────────────────────────────────────────────────────
+
+interface CalligraphyBoardProps {
+  isTeacher?: boolean;
+}
+
+export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoardProps) {
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const ctxRef     = useRef<CanvasRenderingContext2D | null>(null);
+
+  const strokesRef = useRef<StrokeRecord[]>([]);
+  const currentStrokeRef = useRef<StrokeRecord | null>(null);
+  const lastDrawnIndexRef = useRef(0);
+
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [brushes, setBrushes]   = useState<BrushProfile[]>([]);
+  const [activeBrush, setActiveBrush] = useState<BrushProfile | null>(null);
+  const [localBrush, setLocalBrush] = useState<BrushProfile | null>(null);
+
+  const [inkColor, setInkColor]     = useState("#000000");
+  const [showColors, setShowColors] = useState(false);
+  const [userSize, setUserSize]     = useState(40);
   const [userOpacity, setUserOpacity] = useState(100);
 
-  const historyRef = useRef<ImageData[]>([]);
-  const lastPoint = useRef<Point | null>(null);
-  // Track stroke speed for dynamicsSpeedSize
-  const lastTimestamp = useRef<number>(0);
-  const lastSpeed = useRef<number>(0);
-  const strokeLength = useRef<number>(0);
-  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const [showStudio, setShowStudio] = useState(false);
+  const [studioTab, setStudioTab] = useState<StudioTab>("stroke");
+  const [stylusOnly, setStylusOnly] = useState(false);
 
-  // Load brush list
+  const dprRef = useRef(1);
+
+  // Cached tinted stamp canvases: key = brushId + color + size
+  const stampCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  // Loaded crop images: key = brushId
+  const cropImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+
+  // ── Load brush list ─────────────────────────────────────────────────────
   useEffect(() => {
     fetch("/brushes/brushes.json")
       .then(r => r.json())
       .then((data: BrushProfile[]) => {
         setBrushes(data);
-        if (data.length > 0) setActiveBrush(data[0]);
+        if (data.length > 0) {
+          setActiveBrush(data[0]);
+          setLocalBrush({ ...data[0] });
+        }
+        // Preload all crop images
+        data.forEach(brush => {
+          if (brush.hasShape) {
+            const img = new Image();
+            img.src = `/brushes/${brush.id}_crop.png`;
+            img.onload = () => {
+              cropImagesRef.current.set(brush.id, img);
+            };
+            // Fallback: try original shape
+            img.onerror = () => {
+              const fallback = new Image();
+              fallback.src = `/brushes/${brush.id}.png`;
+              fallback.onload = () => {
+                cropImagesRef.current.set(brush.id, fallback);
+              };
+            };
+          }
+        });
       });
   }, []);
 
-  // Build alpha mask from Shape.png
   useEffect(() => {
-    if (!activeBrush) return;
-    setBrushLoaded(false);
-    brushMaskRef.current = null;
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = `/brushes/${activeBrush.id}.png`;
-
-    img.onload = () => {
-      const oc = document.createElement("canvas");
-      oc.width = img.width;
-      oc.height = img.height;
-      const octx = oc.getContext("2d")!;
-      octx.drawImage(img, 0, 0);
-
-      // Convert brightness → alpha mask
-      // Dark pixels = ink (opaque), white pixels = transparent
-      const id = octx.getImageData(0, 0, oc.width, oc.height);
-      const d = id.data;
-      for (let i = 0; i < d.length; i += 4) {
-        const brightness = (d[i] + d[i+1] + d[i+2]) / 3;
-        const darkness = 255 - brightness;
-        d[i] = 0; d[i+1] = 0; d[i+2] = 0;
-        // Blend with existing alpha (PNG might already have transparency)
-        d[i+3] = Math.max(darkness, d[i+3] > 128 ? 255 - brightness : 0);
-      }
-      octx.putImageData(id, 0, 0);
-
-      brushMaskRef.current = { canvas: oc, naturalW: oc.width, naturalH: oc.height };
-      setBrushLoaded(true);
-    };
-
-    img.onerror = () => {
-      // Fallback: create a chisel-shaped mask manually
-      const oc = document.createElement("canvas");
-      oc.width = 120; oc.height = 20;
-      const octx = oc.getContext("2d")!;
-      // Tapered chisel shape
-      octx.beginPath();
-      octx.moveTo(0, 10);
-      octx.lineTo(10, 0);
-      octx.lineTo(110, 0);
-      octx.lineTo(120, 10);
-      octx.lineTo(110, 20);
-      octx.lineTo(10, 20);
-      octx.closePath();
-      octx.fillStyle = "black";
-      octx.fill();
-      const id = octx.getImageData(0, 0, 120, 20);
-      const d = id.data;
-      for (let i = 0; i < d.length; i += 4) {
-        d[i+3] = d[i] === 0 ? 255 : 0;
-        d[i] = 0; d[i+1] = 0; d[i+2] = 0;
-      }
-      octx.putImageData(id, 0, 0);
-      brushMaskRef.current = { canvas: oc, naturalW: 120, naturalH: 20 };
-      setBrushLoaded(true);
-    };
+    if (activeBrush) {
+      setLocalBrush({ ...activeBrush });
+      stampCacheRef.current.clear(); // Clear cache when brush changes
+    }
   }, [activeBrush]);
 
-  // Initialize Canvas
+  // ── Init canvas ─────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
+    const ctx = canvas.getContext("2d", { willReadFrequently: false })!;
     const dpr = window.devicePixelRatio || 1;
+    dprRef.current = dpr;
     const rect = canvas.parentElement?.getBoundingClientRect();
     if (rect) {
-      canvas.width = rect.width * dpr;
+      canvas.width  = rect.width  * dpr;
       canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-      canvas.style.width = `${rect.width}px`;
+      canvas.style.width  = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
     }
+    ctx.scale(dpr, dpr);
     ctx.fillStyle = "#FDFBF7";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctxRef.current = ctx;
-    historyRef.current = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
   }, []);
 
-  const saveHistory = useCallback(() => {
-    const canvas = canvasRef.current;
-    const ctx = ctxRef.current;
-    if (!canvas || !ctx) return;
-    historyRef.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-    if (historyRef.current.length > 30) historyRef.current.shift();
-  }, []);
+  // ── Get or create tinted stamp ─────────────────────────────────────────
+  const getTintedStamp = useCallback((brushId: string, color: string, size: number): HTMLCanvasElement | null => {
+    const cacheKey = `${brushId}_${color}_${size}`;
+    const cached = stampCacheRef.current.get(cacheKey);
+    if (cached) return cached;
 
-  const undo = useCallback(() => {
-    const ctx = ctxRef.current;
-    if (!ctx || historyRef.current.length <= 1) return;
-    historyRef.current.pop();
-    ctx.putImageData(historyRef.current[historyRef.current.length - 1], 0, 0);
-  }, []);
+    const cropImg = cropImagesRef.current.get(brushId);
+    if (!cropImg) return null;
 
-  // ── CORE STAMP FUNCTION ──
-  // This is where the calligraphy magic happens:
-  // - If brush is ORIENTED: stamp rotates with stroke direction → automatic thick/thin!
-  // - shapeAngle is the nib offset (e.g., 0.43 rad ≈ 25° for Thuluth)
-  // - Stamp width = full brush size, height = width × natural aspect ratio
-  //   → as you rotate, the projected width changes → thick/thin variation!
-  const stamp = useCallback((
-    ctx: CanvasRenderingContext2D,
-    x: number, y: number,
-    strokeAngle: number,  // current movement direction in radians
-    speed: number,        // normalized 0-1 speed
-    tapFactor: number,    // 0-1 taper factor at start/end
-    brush: BrushProfile
-  ) => {
-    const mask = brushMaskRef.current;
-    if (!mask) return;
+    // Scale the crop image to the target size
+    // The crop image height represents the full nib length
+    const scale = size / cropImg.height;
+    const sw = Math.max(1, Math.round(cropImg.width * scale));
+    const sh = Math.max(1, Math.round(cropImg.height * scale));
 
-    const canvasEl = canvasRef.current;
-    if (!canvasEl) return;
-    const displayW = canvasEl.getBoundingClientRect().width;
+    const stamp = document.createElement("canvas");
+    stamp.width = sw;
+    stamp.height = sh;
+    const sctx = stamp.getContext("2d")!;
 
-    // Base stamp size: paintSize is a Procreate fraction of ~2048px canvas
-    // We scale it to our actual canvas width. Typical paintSize=0.05 → ~5% of 500px = 25px
-    const baseW = brush.paintSize * displayW * 0.55; 
-    const sizeScale = (userSize / 100) * 1.5 + 0.2; // 1% → 0.21x, 100% → 1.7x
+    // Draw the scaled crop image
+    sctx.drawImage(cropImg, 0, 0, sw, sh);
 
-    // Speed dynamics: dynamicsSpeedSize < 0 means brush gets THINNER when faster
-    // This is the key calligraphy behavior!
-    const speedEffect = brush.dynamicsSpeedSize * speed * baseW * sizeScale;
-    const finalW = Math.max(0.5, baseW * sizeScale + speedEffect);
-
-    // Height: use natural aspect ratio of the Shape.png (chisel proportions)
-    // Most calligraphy brushes have a wide flat chisel, naturalW >> naturalH
-    const aspectRatio = mask.naturalH / mask.naturalW;
-    const finalH = Math.max(0.5, finalW * aspectRatio);
-
-    // ROTATION:
-    // oriented=true: stamp rotates with stroke direction (thick/thin variation)
-    // oriented=false: stamp stays at fixed angle
-    let stampAngle: number;
-    if (brush.oriented) {
-      // Stroke direction + nib offset = final stamp angle
-      // This gives automatic thick/thin as direction changes!
-      stampAngle = strokeAngle + brush.shapeAngle;
-    } else {
-      // Fixed angle brush (decorative, dotted, etc.)
-      stampAngle = brush.shapeAngle;
-    }
-
-    // Opacity
-    const baseOpacity = brush.paintOpacity * brush.maxOpacity * (userOpacity / 100);
-    const speedOpacityEffect = brush.dynamicsSpeedOpacity !== 1 
-      ? (brush.dynamicsSpeedOpacity - 1) * speed * 0.3 
-      : 0;
-    const taperOpacity = brush.taperOpacity + (1 - brush.taperOpacity) * (1 - tapFactor);
-    const finalOpacity = Math.max(0.01, Math.min(1, baseOpacity + speedOpacityEffect)) * taperOpacity;
-
-    // Build colorized stamp on tiny offscreen canvas
-    const sw = Math.max(1, Math.ceil(finalW));
-    const sh = Math.max(1, Math.ceil(finalH));
-    const stampCanvas = document.createElement("canvas");
-    stampCanvas.width = sw;
-    stampCanvas.height = sh;
-    const sctx = stampCanvas.getContext("2d")!;
-
-    // Fill with ink color
-    sctx.fillStyle = inkColor;
+    // Tint: the crop image has white pixels with alpha = brightness
+    // We need to replace white with the ink color
+    // Use 'source-in' compositing: draw color rect, keeping only where stamp has alpha
+    sctx.globalCompositeOperation = "source-in";
+    sctx.fillStyle = color;
     sctx.fillRect(0, 0, sw, sh);
-    // Mask it with the brush shape
-    sctx.globalCompositeOperation = "destination-in";
-    sctx.drawImage(mask.canvas, 0, 0, sw, sh);
+    sctx.globalCompositeOperation = "source-over";
 
-    // Stamp onto main canvas at calculated angle
-    ctx.save();
-    ctx.globalAlpha = finalOpacity;
-    ctx.translate(x, y);
-    ctx.rotate(stampAngle);
-    ctx.drawImage(stampCanvas, -sw / 2, -sh / 2);
-    ctx.restore();
+    stampCacheRef.current.set(cacheKey, stamp);
+    return stamp;
+  }, []);
 
-    // Multi-tip: shapeCount > 0 means scatter additional stamps for richer texture
-    if (brush.shapeCount > 0.15) {
-      const extraCount = Math.round(brush.shapeCount * 3);
-      for (let i = 0; i < extraCount; i++) {
-        const jitter = (Math.random() - 0.5) * finalW * 0.15;
-        ctx.save();
-        ctx.globalAlpha = finalOpacity * 0.4;
-        ctx.translate(x + jitter, y + (Math.random() - 0.5) * finalH * 0.15);
-        ctx.rotate(stampAngle);
-        ctx.drawImage(stampCanvas, -sw / 2, -sh / 2);
-        ctx.restore();
-      }
-    }
-  }, [userSize, userOpacity, inkColor]);
-
-  // ── STROKE DRAWING ──
-  const drawStroke = useCallback((x: number, y: number, timestamp: number) => {
+  // ── Render all strokes ─────────────────────────────────────────────────
+  const renderAllStrokes = useCallback(() => {
     const ctx = ctxRef.current;
-    if (!ctx || !brushLoaded || !activeBrush) return;
+    const canvas = canvasRef.current;
+    if (!ctx || !canvas) return;
 
-    if (lastPoint.current) {
-      const dx = x - lastPoint.current.x;
-      const dy = y - lastPoint.current.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < 0.5) return;
+    const dpr = dprRef.current;
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
 
-      // Calculate stroke direction angle (this is what makes thick/thin happen!)
-      const strokeAngle = Math.atan2(dy, dx);
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = "#FDFBF7";
+    ctx.fillRect(0, 0, w, h);
 
-      // Calculate speed (pixels per ms)
-      const dt = Math.max(1, timestamp - lastTimestamp.current);
-      const rawSpeed = dist / dt;
-      // Smooth speed and normalize to 0-1
-      lastSpeed.current = lastSpeed.current * 0.7 + rawSpeed * 0.3;
-      const normalizedSpeed = Math.min(1, lastSpeed.current / 8);
+    const allStrokes = [...strokesRef.current];
+    if (currentStrokeRef.current) allStrokes.push(currentStrokeRef.current);
 
-      strokeLength.current += dist;
+    for (const stroke of allStrokes) {
+      renderStroke(ctx, stroke);
+    }
+    ctx.restore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getTintedStamp]);
 
-      // Spacing between stamps
-      const gap = Math.max(1.5, activeBrush.plotSpacing * 40 + 1.5);
-      const steps = Math.max(1, Math.floor(dist / gap));
+  // ── Render a single stroke ─────────────────────────────────────────────
+  const renderStroke = (ctx: CanvasRenderingContext2D, stroke: StrokeRecord) => {
+    if (stroke.points.length < 2) return;
 
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const tx = lastPoint.current.x + dx * t;
-        const ty = lastPoint.current.y + dy * t;
+    const { color, brushId, brushSize, nibAngle, opacity } = stroke;
+    const stamp = getTintedStamp(brushId, color, brushSize);
+    if (!stamp) return;
 
-        // Taper factor (1 = full, fades at start/end)
-        let tapFactor = 1;
-        if (activeBrush.taperSize > 0.1 || activeBrush.taperStartLength > 0) {
-          const startFade = Math.min(1, strokeLength.current / (50 * activeBrush.taperStartLength + 1));
-          tapFactor = startFade;
-        }
+    // Smooth the path - interpolate to get a point every ~1.5px
+    const smoothed = smoothPath(stroke.points, 1.5);
 
-        stamp(ctx, tx, ty, strokeAngle, normalizedSpeed, tapFactor, activeBrush);
-      }
-    } else {
-      // First point of stroke
-      strokeLength.current = 0;
-      lastSpeed.current = 0;
-      // For first point, use 0 as angle (will update on next move)
-      stamp(ctx, x, y, 0, 0, 0.5, activeBrush);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.05, opacity);
+
+    const halfW = stamp.width / 2;
+    const halfH = stamp.height / 2;
+
+    for (let i = 0; i < smoothed.length; i++) {
+      const [x, y] = smoothed[i];
+
+      ctx.save();
+      ctx.translate(x, y);
+      // Fixed nib angle — this is the key: the pen angle does NOT change
+      ctx.rotate(nibAngle);
+      ctx.drawImage(stamp, -halfW, -halfH);
+      ctx.restore();
     }
 
-    lastPoint.current = { x, y };
-    lastTimestamp.current = timestamp;
-  }, [activeBrush, brushLoaded, stamp]);
+    ctx.restore();
+  };
 
-  const getCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  // ── Incremental render (only new points during drawing) ─────────────────
+  const renderIncremental = useCallback(() => {
+    const ctx = ctxRef.current;
+    const stroke = currentStrokeRef.current;
+    if (!ctx || !stroke || stroke.points.length < 2) return;
+
+    const { color, brushId, brushSize, nibAngle, opacity } = stroke;
+    const stamp = getTintedStamp(brushId, color, brushSize);
+    if (!stamp) return;
+
+    // Only interpolate and draw the segment from last drawn point to end
+    const startIdx = Math.max(0, lastDrawnIndexRef.current - 1);
+    const segmentPts = stroke.points.slice(startIdx);
+    
+    if (segmentPts.length < 2) return;
+    
+    const smoothed = smoothPath(segmentPts, 1.5);
+
+    const dpr = dprRef.current;
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalAlpha = Math.max(0.05, opacity);
+
+    const halfW = stamp.width / 2;
+    const halfH = stamp.height / 2;
+
+    for (let i = 0; i < smoothed.length; i++) {
+      const [x, y] = smoothed[i];
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(nibAngle);
+      ctx.drawImage(stamp, -halfW, -halfH);
+      ctx.restore();
+    }
+
+    ctx.restore();
+    lastDrawnIndexRef.current = stroke.points.length - 1;
+  }, [getTintedStamp]);
+
+  // ── Pointer events ──────────────────────────────────────────────────────
+  const getPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    if (!rect) return [0, 0];
+    return [e.clientX - rect.left, e.clientY - rect.top];
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (stylusOnly && e.pointerType !== "pen") return;
+    
     (e.target as Element).setPointerCapture(e.pointerId);
-    saveHistory();
+    const brush = localBrush;
+    if (!brush) return;
+
+    const [x, y] = getPos(e);
+
+    // Brush size: paintSize (0-1) scaled by user slider
+    // paintSize 0.5 at userSize 40 → ~25px nib
+    const baseSize = 6 + brush.paintSize * 60 * (userSize / 50);
+
+    currentStrokeRef.current = {
+      points: [[x, y]],
+      color: inkColor,
+      brushId: brush.id,
+      brushSize: Math.max(4, baseSize),
+      nibAngle: brush.shapeAngle,
+      opacity: brush.paintOpacity * (brush.maxOpacity || 1) * (userOpacity / 100),
+    };
+
+    lastDrawnIndexRef.current = 0;
     setIsDrawing(true);
-    lastPoint.current = null;
-    const { x, y } = getCoords(e);
-    drawStroke(x, y, e.timeStamp);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const { x, y } = getCoords(e);
-    drawStroke(x, y, e.timeStamp);
+    if (!isDrawing || !currentStrokeRef.current) return;
+    const [x, y] = getPos(e);
+    
+    // Simple input smoothing: average with previous point
+    const pts = currentStrokeRef.current.points;
+    if (pts.length > 0) {
+      const [lx, ly] = pts[pts.length - 1];
+      const smoothFactor = localBrush?.plotSmoothing ?? 0.5;
+      const sx = lx + (x - lx) * (1 - smoothFactor * 0.5);
+      const sy = ly + (y - ly) * (1 - smoothFactor * 0.5);
+      currentStrokeRef.current.points.push([sx, sy]);
+    } else {
+      currentStrokeRef.current.points.push([x, y]);
+    }
+    
+    renderIncremental();
   };
 
   const onPointerUp = () => {
+    if (currentStrokeRef.current && currentStrokeRef.current.points.length > 1) {
+      strokesRef.current.push(currentStrokeRef.current);
+    }
+    currentStrokeRef.current = null;
+    lastDrawnIndexRef.current = 0;
     setIsDrawing(false);
-    lastPoint.current = null;
-    strokeLength.current = 0;
+    renderAllStrokes();
   };
 
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = ctxRef.current;
-    if (!canvas || !ctx) return;
-    saveHistory();
-    ctx.globalAlpha = 1.0;
-    ctx.fillStyle = "#FDFBF7";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  };
+  const undo = useCallback(() => {
+    strokesRef.current.pop();
+    renderAllStrokes();
+  }, [renderAllStrokes]);
+
+  const clearCanvas = useCallback(() => {
+    strokesRef.current = [];
+    currentStrokeRef.current = null;
+    renderAllStrokes();
+  }, [renderAllStrokes]);
 
   const downloadCanvas = () => {
     const canvas = canvasRef.current;
@@ -378,125 +403,310 @@ export default function CalligraphyBoard() {
     a.click();
   };
 
-  return (
-    <div className="w-full h-full relative flex rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-[#FDFBF7]">
+  const resetBrush = () => {
+    if (activeBrush) {
+      setLocalBrush({ ...activeBrush });
+      stampCacheRef.current.clear();
+    }
+  };
 
-      {/* LEFT: Size & Opacity Sliders */}
-      <div className="w-14 h-full bg-[#0A0907] border-r border-white/5 flex flex-col items-center py-5 z-30 shrink-0 gap-3">
-        <button onClick={undo} title="Undo" className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 flex items-center justify-center text-white/50 hover:text-white transition-colors">
+  // ── UI ──────────────────────────────────────────────────────────────────
+  return (
+    <div className="w-full h-full flex rounded-3xl overflow-hidden shadow-2xl border border-white/10 relative">
+
+      {/* ── LEFT SIDEBAR ── */}
+      <div className="w-14 h-full bg-[#0D0B08] border-r border-white/5 flex flex-col items-center py-4 gap-3 shrink-0 z-30">
+        <button onClick={undo} title="Undo"
+          className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 flex items-center justify-center text-white/40 hover:text-white transition-all">
           <Undo2 className="w-4 h-4" />
         </button>
+
         <div className="relative">
-          <button
-            onClick={() => setShowColorPicker(v => !v)}
-            className="w-9 h-9 rounded-xl border-2 border-white/20 hover:border-white/50 transition-all shadow-lg"
-            style={{ backgroundColor: inkColor }}
-            title="Ink Color"
-          />
-          {showColorPicker && (
-            <div className="absolute left-12 top-0 bg-[#13110C] border border-white/10 rounded-2xl p-3 grid grid-cols-4 gap-2 z-50 shadow-2xl">
-              {INK_COLORS.map((c) => (
-                <button key={c.hex} onClick={() => { setInkColor(c.hex); setShowColorPicker(false); }}
-                  title={c.name}
-                  className={`w-7 h-7 rounded-full border-2 transition-all ${inkColor === c.hex ? "border-blue-500 scale-125" : "border-white/10 hover:border-white/40"}`}
-                  style={{ backgroundColor: c.hex }}
-                />
-              ))}
+          <button onClick={() => setShowColors(v => !v)}
+            style={{ background: inkColor }}
+            className="w-9 h-9 rounded-xl border-2 border-white/20 hover:border-white/60 shadow-lg transition-all" />
+        </div>
+
+        {/* Full-screen Overlay for Radial Menu */}
+        {showColors && (
+          <div className="fixed inset-0 z-[100]" onClick={() => setShowColors(false)}>
+            <div 
+              className="absolute ltr:left-[280px] rtl:right-[280px] top-1/2 -translate-y-1/2 w-64 h-64 animate-in fade-in zoom-in-95 duration-200"
+              onClick={e => e.stopPropagation()} // prevent closing when clicking menu
+            >
+              <div className="absolute inset-0 bg-[#13151A]/95 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_0_50px_rgba(0,0,0,0.6)]"></div>
+              
+              {/* Inner concentric lines for the "radial menu" look */}
+              <div className="absolute inset-10 border border-white/5 rounded-full pointer-events-none"></div>
+              <div className="absolute inset-20 border border-white/[0.02] rounded-full pointer-events-none"></div>
+              
+              {/* Color Buttons */}
+              {[...INK_COLORS, { name: "Custom", hex: "custom" }].map((c, i, arr) => {
+                const angle = (i / arr.length) * 360 - 90; 
+                const radius = 95; // distance from center
+                const center = 128; // w-64 is 256px, half is 128
+                const x = center + Math.cos((angle * Math.PI) / 180) * radius;
+                const y = center + Math.sin((angle * Math.PI) / 180) * radius;
+                
+                const isCustom = c.hex === "custom";
+                
+                return (
+                  <div key={c.name}
+                    className={`absolute w-12 h-12 rounded-full border-[3px] transition-all duration-300 hover:scale-125 hover:z-20 flex items-center justify-center overflow-hidden ${
+                      inkColor === c.hex || (isCustom && !INK_COLORS.find(ic => ic.hex === inkColor)) ? "border-blue-400 scale-110 shadow-[0_0_25px_rgba(96,165,250,0.5)] z-10" : "border-white/10 shadow-lg"
+                    }`}
+                    style={{ 
+                      background: isCustom ? "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)" : c.hex,
+                      left: `${x}px`,
+                      top: `${y}px`,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                    title={c.name}
+                  >
+                    {!isCustom && (
+                      <button 
+                        className="w-full h-full"
+                        onClick={() => { setInkColor(c.hex); stampCacheRef.current.clear(); setShowColors(false); }}
+                      />
+                    )}
+                    {isCustom && (
+                      <input 
+                        type="color" 
+                        value={inkColor}
+                        onChange={(e) => {
+                          setInkColor(e.target.value);
+                          stampCacheRef.current.clear();
+                        }}
+                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+              
+              {/* Center close button */}
+              <button 
+                onClick={() => setShowColors(false)}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/5 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-all text-white/50 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
-          )}
+          </div>
+        )}
+
+        <button onClick={() => setShowStudio(v => !v)}
+          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+            showStudio ? "bg-blue-600 text-white" : "bg-white/5 text-white/40 hover:bg-white/15 hover:text-white"
+          }`} title="Brush Studio">
+          <Sliders className="w-4 h-4" />
+        </button>
+
+        <button onClick={() => setStylusOnly(s => !s)}
+          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+            stylusOnly ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "bg-white/5 text-white/40 hover:bg-white/15 hover:text-white"
+          }`} title="Stylus Only Mode (Palm Rejection)">
+          <PenLine className="w-4 h-4" />
+        </button>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
+          <span className="text-[8px] text-white/25 font-bold uppercase tracking-widest">Size</span>
+          <input type="range" min="5" max="150" value={userSize}
+            onChange={e => { setUserSize(+e.target.value); stampCacheRef.current.clear(); }}
+            className="h-32 w-1 appearance-none bg-white/10 rounded-full cursor-ns-resize
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4
+              [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow"
+            style={{ writingMode: "vertical-lr", direction: "rtl" }} />
+          <span className="text-[8px] text-white/30 font-mono">{userSize}</span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-2">
-          <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider">Size</span>
-          <input type="range" min="1" max="100" value={userSize} onChange={e => setUserSize(+e.target.value)}
-            className="h-28 w-1.5 appearance-none bg-white/10 rounded-full outline-none cursor-ns-resize [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
-            style={{ writingMode: "vertical-lr", direction: "rtl" }}
-          />
-          <span className="text-[9px] text-white/40 font-mono">{userSize}%</span>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center gap-2">
-          <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider">Opacity</span>
-          <input type="range" min="1" max="100" value={userOpacity} onChange={e => setUserOpacity(+e.target.value)}
-            className="h-28 w-1.5 appearance-none bg-white/10 rounded-full outline-none cursor-ns-resize [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full"
-            style={{ writingMode: "vertical-lr", direction: "rtl" }}
-          />
-          <span className="text-[9px] text-white/40 font-mono">{userOpacity}%</span>
+        <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
+          <span className="text-[8px] text-white/25 font-bold uppercase tracking-widest">Opac</span>
+          <input type="range" min="5" max="100" value={userOpacity}
+            onChange={e => setUserOpacity(+e.target.value)}
+            className="h-32 w-1 appearance-none bg-white/10 rounded-full cursor-ns-resize
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4
+              [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-400
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow"
+            style={{ writingMode: "vertical-lr", direction: "rtl" }} />
+          <span className="text-[8px] text-white/30 font-mono">{userOpacity}%</span>
         </div>
       </div>
 
-      {/* Brush Picker */}
-      <div className="w-64 h-full bg-[#13110C] border-r border-white/5 flex flex-col z-20 shrink-0">
-        <div className="px-4 pt-4 pb-3 border-b border-white/5">
-          <h2 className="text-base font-black font-outfit text-white">فرش الخط العربي</h2>
-          <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mt-0.5">{brushes.length} Procreate Brushes</p>
+      {/* ── BRUSH LIST ── */}
+      <div className="w-[200px] h-full bg-[#100E0A] border-r border-white/5 flex flex-col shrink-0 z-20">
+        <div className="px-4 pt-4 pb-2.5 border-b border-white/5">
+          <h2 className="text-[12px] font-black text-white">فرش الخط العربي</h2>
+          <p className="text-white/25 text-[8px] font-bold uppercase tracking-widest mt-0.5">
+            {brushes.length} BRUSHES
+          </p>
         </div>
-        <div className="flex-1 overflow-y-auto py-1.5 px-2 space-y-1" style={{ scrollbarWidth: "thin", scrollbarColor: "#333 transparent" }}>
-          {brushes.map((brush) => {
+
+        <div className="flex-1 overflow-y-auto py-1.5 px-1.5 space-y-0.5"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "#2a2520 transparent" }}>
+          {brushes.map(brush => {
             const isActive = activeBrush?.id === brush.id;
             return (
               <button key={brush.id} onClick={() => setActiveBrush(brush)}
-                className={`w-full flex flex-col rounded-xl transition-all duration-200 border overflow-hidden ${
-                  isActive ? "bg-blue-600 border-blue-500 shadow-[0_0_12px_rgba(37,99,235,0.35)]" : "bg-white/[0.03] border-transparent hover:bg-white/[0.07]"
-                }`}
-              >
-                <div className="px-3 pt-2 pb-0.5 text-right w-full">
-                  <span className={`text-sm font-bold ${isActive ? "text-white" : "text-white/70"}`}
-                    style={{ fontFamily: "'Noto Sans Arabic', 'Segoe UI', sans-serif" }}>
+                className={`w-full rounded-xl border overflow-hidden transition-all duration-150 text-right ${
+                  isActive
+                    ? "bg-blue-600/90 border-blue-500/70 shadow-[0_0_16px_rgba(37,99,235,0.25)]"
+                    : "bg-white/[0.025] border-transparent hover:bg-white/[0.06]"
+                }`}>
+                <div className="px-3 pt-2 pb-1">
+                  <span className={`text-[11px] font-bold ${isActive ? "text-white" : "text-white/65"}`}
+                    style={{ fontFamily: "'Noto Sans Arabic', sans-serif" }}>
                     {brush.name}
                   </span>
                 </div>
-                <div className="w-full h-9 px-2 pb-1.5">
-                  {brush.hasThumbnail ? (
+                {brush.hasThumbnail && (
+                  <div className="w-full h-8 px-3 pb-1.5">
                     <img src={`/brushes/${brush.id}_thumb.png`} alt={brush.name}
                       className="w-full h-full object-contain"
-                      style={{ filter: isActive ? "brightness(2)" : "brightness(0.6) contrast(1.3)" }}
-                    />
-                  ) : (
-                    <svg width="100%" height="100%" viewBox="0 0 200 30">
-                      <path d="M 190 15 Q 140 3, 100 15 T 10 15" fill="none" stroke={isActive ? "#fff" : "#555"} strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                  )}
-                </div>
+                      style={{ filter: isActive ? "brightness(3) contrast(0.7)" : "brightness(0.55) contrast(1.4)" }} />
+                  </div>
+                )}
               </button>
             );
           })}
         </div>
-        <div className="p-2.5 border-t border-white/5 grid grid-cols-3 gap-1.5">
-          <button onClick={clearCanvas} className="flex items-center justify-center gap-1 p-2.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
-            <Eraser className="w-3.5 h-3.5" /><span className="text-[10px] font-bold">Clear</span>
+
+        <div className="p-1.5 border-t border-white/5 grid grid-cols-3 gap-1">
+          <button onClick={clearCanvas}
+            className="flex items-center justify-center gap-1 py-2 rounded-lg bg-red-500/10 text-red-400/80 hover:bg-red-500/20 hover:text-red-300 transition-all">
+            <Eraser className="w-3 h-3" /><span className="text-[9px] font-bold">Clear</span>
           </button>
-          <button onClick={undo} className="flex items-center justify-center gap-1 p-2.5 rounded-lg bg-white/5 text-white/60 hover:bg-white/10 transition-colors">
-            <Undo2 className="w-3.5 h-3.5" /><span className="text-[10px] font-bold">Undo</span>
+          <button onClick={undo}
+            className="flex items-center justify-center gap-1 py-2 rounded-lg bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all">
+            <Undo2 className="w-3 h-3" /><span className="text-[9px] font-bold">Undo</span>
           </button>
-          <button onClick={downloadCanvas} className="flex items-center justify-center gap-1 p-2.5 rounded-lg bg-white/5 text-white/60 hover:bg-white/10 transition-colors">
-            <Download className="w-3.5 h-3.5" /><span className="text-[10px] font-bold">Save</span>
+          <button onClick={downloadCanvas}
+            className="flex items-center justify-center gap-1 py-2 rounded-lg bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-all">
+            <Download className="w-3 h-3" /><span className="text-[9px] font-bold">Save</span>
           </button>
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1 relative bg-[#FDFBF7] cursor-crosshair h-full overflow-hidden">
-        {!brushLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 bg-[#FDFBF7]/80 pointer-events-none">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-7 h-7 rounded-full border-4 border-black/10 border-t-black/40 animate-spin" />
-              <span className="text-black/30 font-bold uppercase text-[10px] tracking-widest">Loading Brush...</span>
+      {/* ── CANVAS ── */}
+      <div className="flex-1 h-full relative overflow-hidden bg-[#FDFBF7] flex">
+        <div className="flex-1 relative h-full">
+          {/* Watermark */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none"
+            style={{ fontSize: "20rem", color: "rgba(0,0,0,0.015)", fontFamily: "'Noto Naskh Arabic', serif", lineHeight: 1 }}>
+            ب
+          </div>
+
+          {/* Active brush info */}
+          {localBrush && (
+            <div className="absolute top-3 left-4 z-10 pointer-events-none">
+              <div className="bg-black/70 backdrop-blur-md rounded-full px-4 py-1.5 flex items-center gap-2 text-white border border-white/10 shadow-lg">
+                <Paintbrush className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-bold" style={{ fontFamily: "'Noto Sans Arabic', sans-serif" }}>
+                  {localBrush.name}
+                </span>
+                <span className="text-white/35 text-[9px] font-mono">
+                  angle {Math.round(localBrush.shapeAngle * 180 / Math.PI)}° · nib {Math.round(localBrush.slitWidthPct)}%
+                </span>
+              </div>
+            </div>
+          )}
+
+          <canvas ref={canvasRef}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerUp}
+            className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+          />
+        </div>
+
+        {/* ── BRUSH STUDIO PANEL ── */}
+        {showStudio && localBrush && (
+          <div className="w-[320px] h-full bg-[#12100C]/95 backdrop-blur-md border-l border-white/10 flex flex-col z-30 shrink-0 text-white">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-bold uppercase tracking-wider">Brush Studio</span>
+              </div>
+              <button onClick={() => setShowStudio(false)} className="text-white/50 hover:text-white p-1 hover:bg-white/10 rounded-lg">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 border-b border-white/10 text-center text-xs">
+              {(["stroke", "shape"] as StudioTab[]).map(tab => (
+                <button key={tab} onClick={() => setStudioTab(tab)}
+                  className={`py-2.5 font-bold capitalize ${studioTab === tab ? "border-b-2 border-blue-500 text-blue-400" : "text-white/60"}`}>
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+
+              {studioTab === "stroke" && (
+                <>
+                  <StudioSlider label="Smoothing (تثبيت)" labelAr="Stabilizer"
+                    value={localBrush.plotSmoothing} min={0} max={1} step={0.01}
+                    displayValue={`${Math.round(localBrush.plotSmoothing * 100)}%`}
+                    onChange={v => setLocalBrush({ ...localBrush, plotSmoothing: v })}
+                    desc="High = silky smooth curves, low = responsive raw input" />
+                </>
+              )}
+
+              {studioTab === "shape" && (
+                <>
+                  <StudioSlider label="Nib Angle (زاوية القلم)" labelAr="Pen angle"
+                    value={localBrush.shapeAngle} min={-1.57} max={1.57} step={0.05}
+                    displayValue={`${Math.round(localBrush.shapeAngle * 180 / Math.PI)}°`}
+                    onChange={v => { setLocalBrush({ ...localBrush, shapeAngle: v }); stampCacheRef.current.clear(); }}
+                    desc="Fixed pen-hold angle — changes where thick/thin appears" />
+
+                  {/* Shape preview */}
+                  <div className="space-y-2">
+                    <span className="text-xs text-white/60">Shape Preview</span>
+                    <div className="w-full h-24 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 overflow-hidden">
+                      <img src={`/brushes/${localBrush.id}_crop.png`} alt="Brush shape"
+                        className="max-h-20 max-w-full object-contain"
+                        style={{ filter: "invert(1)", transform: `rotate(${localBrush.shapeAngle}rad)` }} />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-white/10">
+              <button onClick={resetBrush}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 transition-all font-bold text-xs uppercase tracking-wider">
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset Defaults
+              </button>
             </div>
           </div>
         )}
-        <canvas
-          ref={canvasRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
-          className="absolute inset-0 touch-none w-full h-full"
-        />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[18rem] text-black/[0.015] pointer-events-none select-none" style={{ fontFamily: "'Noto Naskh Arabic', serif" }}>
-          ب
-        </div>
       </div>
+    </div>
+  );
+}
+
+// ── Studio Slider sub-component ──────────────────────────────────────────────
+
+function StudioSlider({ label, desc, value, min, max, step, displayValue, onChange }: {
+  label: string; labelAr?: string; value: number;
+  min: number; max: number; step: number; displayValue: string;
+  onChange: (v: number) => void; desc: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between text-xs">
+        <span className="text-white/60">{label}</span>
+        <span className="font-mono text-blue-400">{displayValue}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(+e.target.value)}
+        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+      <p className="text-[10px] text-white/30">{desc}</p>
     </div>
   );
 }

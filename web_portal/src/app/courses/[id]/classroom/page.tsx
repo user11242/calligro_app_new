@@ -107,7 +107,7 @@ export default function ClassroomPage() {
   return (
     <div className="flex flex-col h-screen bg-black overflow-hidden relative font-outfit">
       {/* Premium Glass Header */}
-      <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/80 to-transparent z-40 pointer-events-none flex items-start">
+      <div id="classroom-header" className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/80 to-transparent z-40 pointer-events-none flex items-start transition-opacity duration-300">
         <div className="w-full flex items-center justify-between px-6 pt-4 pointer-events-auto">
           {/* Left Side: Logo & Course Name */}
           <div className="flex items-center gap-4 bg-[#13151A]/60 backdrop-blur-xl border border-white/10 rounded-2xl px-4 py-2 shadow-2xl">

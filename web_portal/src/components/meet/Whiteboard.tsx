@@ -39,7 +39,7 @@ export default function Whiteboard({ isTeacher }: WhiteboardProps) {
           }`}
         >
           <LayoutDashboard className="w-4 h-4" />
-          Standard Board
+          Calligro Board
         </button>
         <button
           onClick={() => setMode("calligraphy")}
@@ -48,7 +48,7 @@ export default function Whiteboard({ isTeacher }: WhiteboardProps) {
           }`}
         >
           <PenTool className="w-4 h-4" />
-          Calligraphy Studio
+          Calligro Paint
         </button>
       </div>
 
@@ -71,6 +71,48 @@ export default function Whiteboard({ isTeacher }: WhiteboardProps) {
                 opacity: 0 !important;
                 pointer-events: none !important;
               }
+
+              /* 1) Grab the Main Toolbar and rotate it vertically */
+              .whiteboard-container .tlui-main-toolbar {
+                position: absolute !important;
+                top: 480px !important; /* Move it down further so it doesn't collide when rotated */
+                right: -90px !important; /* Adjust right placement due to rotation pivot */
+                left: auto !important;
+                bottom: auto !important;
+                z-index: 999 !important;
+                
+                /* Rotate the entire horizontal toolbar -90 degrees to make it vertical */
+                transform: rotate(-90deg) !important;
+                transform-origin: center center !important;
+                
+                /* Reset width overrides so it flows naturally before rotation */
+                width: max-content !important;
+                height: auto !important;
+              }
+              
+              /* 2) Counter-rotate the individual buttons so the icons stand upright */
+              .whiteboard-container .tlui-button__tool,
+              .whiteboard-container .tlui-main-toolbar__overflow {
+                transform: rotate(90deg) !important;
+              }
+
+              /* 3) Fix borders/dividers to look correct after rotation */
+              .whiteboard-container .tlui-main-toolbar__group {
+                border-right: 1px solid var(--tl-color-divider) !important;
+                border-bottom: none !important;
+                margin-right: 2px !important;
+              }
+
+              /* 4) Reset the horizontal padding */
+              .whiteboard-container .tlui-main-toolbar--horizontal {
+                padding: 0 !important;
+                max-width: none !important;
+              }
+              
+              /* Hide the empty bottom layout container so it doesn't block clicks */
+              .whiteboard-container .tlui-layout__bottom {
+                pointer-events: none !important;
+              }
             `}} />
             <Tldraw />
           </motion.div>
@@ -83,7 +125,9 @@ export default function Whiteboard({ isTeacher }: WhiteboardProps) {
             transition={{ duration: 0.3 }}
             className="w-full h-full"
           >
-            <CalligraphyBoard />
+            <CalligraphyBoard 
+              isTeacher={isTeacher}
+            />
           </motion.div>
         )}
       </AnimatePresence>

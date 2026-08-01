@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   useTracks,
   GridLayout,
@@ -8,8 +8,9 @@ import {
   TrackReferenceOrPlaceholder,
   useDataChannel,
   useParticipants,
+  useParticipantContext,
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { Track, ParticipantEvent } from "livekit-client";
 import { Users, MessageSquare, PhoneOff, ShieldCheck, PenTool, Hand, Compass } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ParticipantsPanel from "./ParticipantsPanel";
@@ -18,6 +19,78 @@ import TeacherControls from "./TeacherControls";
 import StudentControls from "./StudentControls";
 import Whiteboard from "./Whiteboard";
 import ProtractorOverlay from "./ProtractorOverlay";
+
+// A wrapper for ParticipantTile that renders our custom avatar on top ONLY when the camera is off,
+// without breaking LiveKit's internal children rendering for the video track.
+const CustomParticipantTile = React.forwardRef<HTMLDivElement, any>((props, ref) => {
+  const { trackRef, className, style, ...rest } = props;
+  const participant = trackRef?.participant;
+  const [isCameraEnabled, setIsCameraEnabled] = useState(participant?.isCameraEnabled ?? false);
+  
+  useEffect(() => {
+    if (!participant) return;
+    const updateCameraState = () => setIsCameraEnabled(participant.isCameraEnabled);
+    
+    participant.on(ParticipantEvent.TrackPublished, updateCameraState);
+    participant.on(ParticipantEvent.TrackUnpublished, updateCameraState);
+    participant.on(ParticipantEvent.TrackMuted, updateCameraState);
+    participant.on(ParticipantEvent.TrackUnmuted, updateCameraState);
+    participant.on(ParticipantEvent.LocalTrackPublished, updateCameraState);
+    participant.on(ParticipantEvent.LocalTrackUnpublished, updateCameraState);
+
+    updateCameraState();
+
+    return () => {
+      participant.off(ParticipantEvent.TrackPublished, updateCameraState);
+      participant.off(ParticipantEvent.TrackUnpublished, updateCameraState);
+      participant.off(ParticipantEvent.TrackMuted, updateCameraState);
+      participant.off(ParticipantEvent.TrackUnmuted, updateCameraState);
+      participant.off(ParticipantEvent.LocalTrackPublished, updateCameraState);
+      participant.off(ParticipantEvent.LocalTrackUnpublished, updateCameraState);
+    };
+  }, [participant]);
+  
+  let avatarUrl = null;
+  if (participant?.metadata) {
+    try {
+      const meta = JSON.parse(participant.metadata);
+      avatarUrl = meta.avatar;
+    } catch (e) {}
+  }
+
+  return (
+    <div ref={ref} className={`relative overflow-hidden shadow-2xl border border-white/5 bg-[#13151A] ${className || ""}`} style={style} {...rest}>
+      {/* LiveKit natively renders video, audio, name, and connection quality here */}
+      <ParticipantTile trackRef={trackRef} className="w-full h-full" />
+      
+      {/* Our custom avatar overlay sitting on top of the native tile, hiding it if camera is disabled */}
+      <AnimatePresence>
+        {!isCameraEnabled && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#13151A] pointer-events-none"
+          >
+            {avatarUrl ? (
+              <img 
+                src={avatarUrl} 
+                alt={participant?.name || "Participant"} 
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]" 
+              />
+            ) : (
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-primary/20 border-4 border-primary/30 flex items-center justify-center text-primary font-bold text-4xl shadow-[0_0_30px_rgba(235,185,55,0.2)]">
+                {participant?.name?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+});
+CustomParticipantTile.displayName = "CustomParticipantTile";
 
 interface CalligroMeetLayoutProps {
   courseId: string;
@@ -46,6 +119,7 @@ export default function CalligroMeetLayout({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isProtractorActive, setIsProtractorActive] = useState(false);
   const [protractorAngle, setProtractorAngle] = useState(70);
+  const constraintsRef = useRef<HTMLDivElement>(null);
 
   // Check if ANY track is a screen share to automatically trigger Focus Mode
   const isScreenSharing = tracks.some((t) => t.source === Track.Source.ScreenShare);
@@ -129,8 +203,19 @@ export default function CalligroMeetLayout({
         </AnimatePresence>
 
         {/* Dynamic Focus Layout */}
-        <div className={`flex-1 p-4 pb-28 overflow-hidden flex transition-all duration-700 ${isFocusMode ? "gap-4" : ""}`}>
+        <div ref={constraintsRef} className={`flex-1 p-4 pb-28 overflow-hidden flex transition-all duration-700 relative`}>
           
+          {/* Hide page.tsx header when whiteboard is active */}
+          {isWhiteboardActive && (
+            <style dangerouslySetInnerHTML={{__html: `
+              #classroom-header {
+                opacity: 0 !important;
+                pointer-events: none !important;
+                visibility: hidden !important;
+              }
+            `}} />
+          )}
+
           {/* Main Focus Area (Whiteboard or Screen Share) */}
           <AnimatePresence>
             {isWhiteboardActive && (
@@ -139,31 +224,48 @@ export default function CalligroMeetLayout({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95, display: "none" }}
                 transition={{ duration: 0.4 }}
-                className="flex-[3] h-full relative"
+                className="absolute inset-0 z-[60] bg-[#0D0D0D]"
               >
-                <Whiteboard isTeacher={isTeacher} />
+                <Whiteboard 
+                  isTeacher={isTeacher} 
+                />
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Video Grid (Shrinks to sidebar if Focus Mode is active) */}
+          {/* Video Grid (Shrinks to small floating box if Whiteboard is active) */}
           <motion.div 
             layout
-            className={`h-full transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              isFocusMode ? (isWhiteboardActive ? "flex-1" : "hidden") : "flex-1 w-full"
+            drag={isWhiteboardActive}
+            dragConstraints={constraintsRef}
+            dragMomentum={false}
+            className={`${
+              isWhiteboardActive 
+                ? "absolute top-24 left-6 w-56 max-h-[70vh] z-[70] overflow-y-auto flex flex-col gap-2 rounded-2xl p-2 bg-[#13151A]/80 backdrop-blur-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-grab active:cursor-grabbing" 
+                : "flex-1 w-full h-full relative z-10 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
             } custom-participant-grid`}
           >
              <style dangerouslySetInnerHTML={{__html: `
                .custom-participant-grid .lk-participant-placeholder > svg {
                  display: none !important;
                }
+               /* Make grid layout single column when floating */
+               ${isWhiteboardActive ? `
+                 .custom-participant-grid > div {
+                   grid-template-columns: 1fr !important;
+                   gap: 8px !important;
+                 }
+                 .custom-participant-grid .lk-participant-tile {
+                    aspect-ratio: 16/9;
+                 }
+               ` : ''}
              `}} />
              <GridLayout 
                 tracks={tracks as TrackReferenceOrPlaceholder[]} 
-                style={{ height: '100%', width: '100%', gap: '16px' }}
+                style={isWhiteboardActive ? { width: '100%' } : { height: '100%', width: '100%', gap: '16px' }}
               >
-              <ParticipantTile 
-                className="rounded-3xl overflow-hidden shadow-2xl border border-white/5 bg-[#13151A]"
+              <CustomParticipantTile 
+                className={isWhiteboardActive ? "rounded-xl" : "rounded-3xl"}
               />
             </GridLayout>
           </motion.div>
@@ -175,7 +277,7 @@ export default function CalligroMeetLayout({
             initial={{ y: 50, opacity: 0, x: "-50%" }}
             animate={{ y: 0, opacity: 1, x: "-50%" }}
             transition={{ type: "spring", stiffness: 300, damping: 25, delay: 0.3 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-[#1A1C23]/80 backdrop-blur-3xl border border-white/10 p-2.5 rounded-full flex items-center gap-2 shadow-[0_20px_60px_rgba(0,0,0,0.6)] z-30"
+            className={`absolute bottom-8 left-1/2 -translate-x-1/2 bg-[#1A1C23]/80 backdrop-blur-3xl border border-white/10 p-2.5 rounded-full flex items-center gap-2 shadow-[0_20px_60px_rgba(0,0,0,0.6)] ${isWhiteboardActive ? "z-[70]" : "z-30"}`}
           >
             {isTeacher ? <TeacherControls /> : <StudentControls />}
             
@@ -186,7 +288,12 @@ export default function CalligroMeetLayout({
                 onClick={() => {
                   const newState = !isWhiteboardActive;
                   setIsWhiteboardActive(newState);
-                  // TODO: Send data channel message to sync whiteboard state
+                  if (isTeacher) {
+                    send(new TextEncoder().encode(JSON.stringify({
+                      cmd: "toggle_whiteboard",
+                      state: newState
+                    })), { reliable: true });
+                  }
                 }}
                 className={`p-3.5 rounded-full transition-all duration-300 flex items-center justify-center relative group ${
                   isWhiteboardActive ? "bg-primary text-black shadow-[0_0_20px_rgba(235,185,55,0.4)]" : "bg-white/5 hover:bg-white/10 text-white"
@@ -246,7 +353,7 @@ export default function CalligroMeetLayout({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 400, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-80 bg-[#13151A]/80 backdrop-blur-2xl border-l border-white/5 flex flex-col z-30 shadow-[-20px_0_40px_rgba(0,0,0,0.3)] relative"
+            className={`w-80 bg-[#13151A]/80 backdrop-blur-2xl border-l border-white/5 flex flex-col shadow-[-20px_0_40px_rgba(0,0,0,0.3)] relative ${isWhiteboardActive ? "z-[70]" : "z-30"}`}
           >
             {activeTab === "participants" ? (
               <ParticipantsPanel isTeacher={isTeacher} />
