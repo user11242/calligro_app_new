@@ -5,16 +5,16 @@ import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "@/components/Navbar";
 import CourseCard from "@/components/CourseCard";
-import { Search, SlidersHorizontal, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { Search, Loader2, Sparkles, Filter } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/hooks/useTranslation";
+import Image from "next/image";
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { t } = useTranslation();
 
@@ -42,7 +42,6 @@ export default function CoursesPage() {
   }, []);
 
   const filteredCourses = courses.filter(c => {
-    // Hide started courses from non-enrolled students
     if (c.startDate) {
       const start = c.startDate.toDate ? c.startDate.toDate() : new Date(c.startDate);
       if (!isNaN(start.getTime())) {
@@ -70,119 +69,142 @@ export default function CoursesPage() {
   });
 
   return (
-    <main className="min-h-screen bg-secondary-dark">
-      <Navbar />
+    <main className="min-h-screen bg-[#13110C] selection:bg-primary/30 relative">
       
-      {/* Header */}
-      <section className="pt-40 pb-12 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-10 mb-16">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-              <div className="space-y-4">
-                <h1 className="text-5xl md:text-7xl font-bold font-outfit uppercase tracking-tighter leading-none">
-                  {t("portal.title")}
-                </h1>
-                <p className="text-white/40 max-w-lg text-lg leading-relaxed">
-                  {t("portal.subtitle")}
-                </p>
-              </div>
+      {/* ── AMBIENT WARM TEXTURE ── */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03] mix-blend-screen" style={{ backgroundImage: "url('/images/bg_calligraphy.png')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }} />
+      <div className="fixed inset-0 z-0 pointer-events-none bg-[url('/images/noise.png')] opacity-[0.02]" />
 
-              {/* Enhanced Search & Filter Row */}
-              <div className="flex items-center gap-4 w-full md:w-auto relative">
-                <div className="relative flex-grow md:w-96 group">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-primary transition-all duration-300" />
-                  <input 
-                    type="text" 
-                    placeholder={t("portal.search_placeholder")} 
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-white placeholder:text-white/10 outline-none focus:border-primary/50 focus:bg-white/[0.05] transition-all duration-500 shadow-2xl backdrop-blur-xl"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
-                
-                {/* Filter Trigger Button */}
-                <div className="relative">
-                  <button 
-                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className={`p-5 rounded-2xl border transition-all duration-500 glass ${
-                      isFilterOpen || selectedCategory !== "All" 
-                        ? "bg-primary text-black border-primary shadow-[0_10px_30px_rgba(238,229,147,0.3)]" 
-                        : "bg-white/[0.03] text-white/40 border-white/10 hover:border-white/30"
-                    }`}
-                  >
-                    <SlidersHorizontal className="w-6 h-6" />
-                  </button>
+      <div className="relative z-50">
+        <Navbar />
+      </div>
+      
+      {/* ── CINEMATIC HEADER ── */}
+      <section className="relative pt-40 pb-20 px-6 overflow-hidden">
+        {/* Warm Ambient Glowing Orbs */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[50vh] bg-[#D4B04C]/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-20 right-0 w-[40vw] h-[40vw] bg-[#8B5CF6]/5 rounded-full blur-[100px] pointer-events-none" />
+        
+        <div className="relative max-w-5xl mx-auto text-center space-y-6 z-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#1A1814]/80 border border-[#D4B04C]/20 backdrop-blur-md"
+          >
+            <Sparkles className="w-4 h-4 text-[#D4B04C]" />
+            <span className="text-xs font-bold uppercase tracking-widest text-[#D4B04C]">Masterclass Academy</span>
+          </motion.div>
+          
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-5xl md:text-7xl lg:text-8xl font-black font-outfit uppercase tracking-tighter text-[#FDFBF7] drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+          >
+            {t("portal.title")}
+          </motion.h1>
+          
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-[#FDFBF7]/60 text-lg md:text-xl max-w-2xl mx-auto"
+          >
+            {t("portal.subtitle")}
+          </motion.p>
+        </div>
+      </section>
 
-                  {/* Glass Filter Dropdown */}
-                  {isFilterOpen && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      className="absolute right-0 top-[calc(100%+12px)] z-50 min-w-[200px] bg-[#1a1a1a] border border-white/10 rounded-3xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl overflow-hidden"
-                    >
-                      <div className="flex flex-col gap-1">
-                        {categories.map((cat) => (
-                          <button
-                            key={cat}
-                            onClick={() => {
-                              setSelectedCategory(cat);
-                              setIsFilterOpen(false);
-                            }}
-                            className={`w-full text-left px-5 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 border ${
-                              selectedCategory === cat 
-                                ? "bg-primary/20 text-primary border-primary/30" 
-                                : "text-white/40 border-transparent hover:bg-white/[0.05] hover:text-white"
-                            }`}
-                          >
-                            {t(`categories.${cat.toLowerCase()}`)}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-            </div>
+      {/* ── FLOATING COMMAND BAR (Dynamic Island Style) ── */}
+      <section className="sticky top-24 z-40 px-6 mb-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="max-w-4xl mx-auto bg-[#1A1814]/80 backdrop-blur-3xl border border-[#FDFBF7]/10 p-2 md:p-3 rounded-full flex flex-col md:flex-row items-center gap-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+        >
+          {/* Search Input */}
+          <div className="relative flex-1 w-full group">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-[#FDFBF7]/40 group-focus-within:text-[#D4B04C] transition-colors" />
+            <input 
+              type="text" 
+              placeholder={t("portal.search_placeholder")}
+              className="w-full bg-transparent border-none py-3 md:py-4 pl-14 pr-6 text-[#FDFBF7] placeholder:text-[#FDFBF7]/30 outline-none font-medium"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
 
+          <div className="hidden md:block w-px h-10 bg-[#FDFBF7]/10" />
+
+          {/* Categories Pill Toggle */}
+          <div className="flex items-center gap-1 w-full md:w-auto overflow-x-auto hide-scrollbar px-2 pb-2 md:pb-0">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all duration-300 whitespace-nowrap ${
+                  selectedCategory === cat 
+                    ? "bg-[#D4B04C] text-[#13110C] shadow-[0_0_20px_rgba(212,176,76,0.3)]" 
+                    : "text-[#FDFBF7]/50 hover:bg-[#FDFBF7]/5 hover:text-[#FDFBF7]"
+                }`}
+              >
+                {t(`categories.${cat.toLowerCase()}`)}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ── COURSE GRID ── */}
+      <section className="px-6 pb-40 relative z-10">
+        <div className="max-w-7xl mx-auto">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-6">
               <div className="relative">
-                <Loader2 className="w-16 h-16 text-primary animate-spin" />
-                <div className="absolute inset-0 bg-primary/20 blur-2xl animate-pulse" />
+                <Loader2 className="w-16 h-16 text-[#D4B04C] animate-spin" />
+                <div className="absolute inset-0 bg-[#D4B04C]/20 blur-2xl animate-pulse" />
               </div>
-              <p className="text-white/40 font-black uppercase tracking-[0.3em] text-[10px]">
+              <p className="text-[#FDFBF7]/40 font-black uppercase tracking-[0.3em] text-[10px]">
                 {t("portal.syncing")}
               </p>
             </div>
           ) : filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-14">
-              {filteredCourses.map((course, idx) => (
-                <motion.div
-                  key={course.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <CourseCard course={course} />
-                </motion.div>
-              ))}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-12">
+              <AnimatePresence>
+                {filteredCourses.map((course, idx) => (
+                  <motion.div
+                    key={course.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95, y: 40 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: idx * 0.05, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <CourseCard course={course} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-40 text-center space-y-6">
-              <div className="w-20 h-20 rounded-full bg-white/[0.03] border border-white/10 flex items-center justify-center">
-                <Search className="w-8 h-8 text-white/10" />
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-40 text-center space-y-6"
+            >
+              <div className="w-24 h-24 rounded-full bg-[#1A1814] border border-[#FDFBF7]/10 flex items-center justify-center">
+                <Filter className="w-10 h-10 text-[#FDFBF7]/20" />
               </div>
-              <p className="text-white/40 text-xl font-medium max-w-sm">
+              <p className="text-[#FDFBF7]/60 text-xl font-medium max-w-sm">
                 {t("portal.no_results")}
               </p>
               <button 
                 onClick={() => { setSearch(""); setSelectedCategory("All"); }}
-                className="text-primary text-sm font-black uppercase tracking-widest hover:underline"
+                className="px-8 py-3 bg-[#1A1814] hover:bg-[#FDFBF7]/10 rounded-full text-[#FDFBF7] text-sm font-black uppercase tracking-widest transition-colors border border-[#FDFBF7]/10"
               >
                 {t("portal.clear_filters")}
               </button>
-            </div>
+            </motion.div>
           )}
         </div>
       </section>

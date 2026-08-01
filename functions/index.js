@@ -20,7 +20,7 @@ const lemonsqueezyWebhookSecret = defineSecret("LEMONSQUEEZY_WEBHOOK_SECRET");
 // Initialize Firebase Admin
 // --------------------
 admin.initializeApp();
-setGlobalOptions({ maxInstances: 10, region: "us-central1" });
+setGlobalOptions({ maxInstances: 1, region: "us-central1" });
 
 // --------------------
 // Export Modular Functions

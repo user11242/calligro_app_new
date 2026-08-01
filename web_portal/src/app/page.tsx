@@ -1,47 +1,95 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, query, limit, getDocs, orderBy, where } from "firebase/firestore";
 import Image from "next/image";
-import { Star, ArrowRight, Play, Layout, Users, Sparkles } from "lucide-react";
+import { Star, ArrowRight, Play, Layout, Users, Sparkles, Search, BookOpen, Clock, ChevronRight, ChevronLeft, CheckCircle, TrendingUp, Quote, Trophy, Medal, Map, Award } from "lucide-react";
 import { formatImageUrl } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 
+// Helper for Mouse Glow effect
+const GlowCard = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => {
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    setMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  return (
+    <div 
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      className={`bento-card group ${className}`}
+    >
+      <div 
+        className="mouse-glow"
+        style={{
+          left: `${mousePosition.x - 200}px`,
+          top: `${mousePosition.y - 200}px`,
+        }}
+      />
+      {children}
+    </div>
+  );
+};
+
 export default function Home() {
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [featuredCourses, setFeaturedCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const { t, locale } = useTranslation();
+  const { t, isRTL } = useTranslation();
+  
+  // Parallax scroll effects
+  const { scrollYProgress } = useScroll();
+  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+  
+  // Slider ref
+  const sliderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
-    const fetchMasters = async () => {
+    const fetchData = async () => {
       try {
-        // Fetch teachers from the 'users' collection
-        const q = query(
-          collection(db, "users"),
-          where("role", "==", "teacher"),
-          limit(3)
-        );
-        const snap = await getDocs(q);
-        setTeachers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // Fetch teachers
+        const tQuery = query(collection(db, "users"), where("role", "==", "teacher"), limit(3));
+        const tSnap = await getDocs(tQuery);
+        setTeachers(tSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+        // Fetch courses for the slider
+        const cQuery = query(collection(db, "courses"), limit(6));
+        const cSnap = await getDocs(cQuery);
+        setFeaturedCourses(cSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (err) {
         console.error("Home fetch error:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchMasters();
+    fetchData();
   }, []);
+
+  const scrollSlider = (direction: "left" | "right") => {
+    if (sliderRef.current) {
+      const scrollAmount = direction === "left" ? -400 : 400;
+      sliderRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    }
+  };
 
   if (!mounted) return <div className="min-h-screen bg-[#0a0a0a]" />;
 
   return (
-    <main className="academy-bg min-h-screen font-sans">
+    <main className="min-h-screen font-sans bg-[#050505]">
       <Navbar />
 
       {/* ═══════ Cinematic Full-Width Hero ═══════ */}
@@ -547,274 +595,298 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════ Advanced Modern About Section ═══════ */}
-      <section className="relative py-32 px-6 overflow-hidden">
-        {/* Animated Background Elements */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none z-0">
-          <motion.div
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.1, 0.2, 0.1],
-              rotate: [0, 90, 0]
-            }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-[20%] -left-[10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]"
-          />
-          <motion.div
-            animate={{
-              scale: [1.2, 1, 1.2],
-              opacity: [0.1, 0.15, 0.1],
-              rotate: [0, -90, 0]
-            }}
-            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-            className="absolute top-[40%] -right-[10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px]"
-          />
-        </div>
-
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center mb-24">
-            <motion.span
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-xs font-black text-primary uppercase tracking-[0.4em] mb-6 inline-block"
-            >
-              {t("home.about.title")}
-            </motion.span>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-5xl md:text-7xl font-black font-outfit tracking-tighter text-white mb-8 leading-none"
-            >
-              {t("home.about.subtitle")}
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="text-lg md:text-xl text-white/50 max-w-3xl mx-auto font-medium leading-relaxed"
-            >
-              {t("home.about.desc")}
-            </motion.p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
-            {/* Mission Card */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              whileHover={{ y: -10 }}
-              className="lg:col-span-7 glass-premium p-10 md:p-14 rounded-[48px] border border-white/10 bg-black/40 backdrop-blur-3xl flex flex-col justify-between group overflow-hidden relative"
-            >
-              <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity">
-                <Sparkles className="w-48 h-48 text-primary" />
-              </div>
-              <div>
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 mb-10 group-hover:scale-110 transition-transform">
-                  <Layout className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="text-3xl md:text-4xl font-black font-outfit text-white mb-6 tracking-tight uppercase">
-                  {t("home.about.mission")}
-                </h3>
-                <p className="text-white/60 text-lg leading-relaxed max-w-xl">
-                  {t("home.about.mission_desc")}
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Vision Card */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              whileHover={{ y: -10 }}
-              className="lg:col-span-5 glass-premium p-10 md:p-14 rounded-[48px] border border-white/10 bg-primary/[0.03] backdrop-blur-3xl flex flex-col group overflow-hidden relative"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30 mb-10 group-hover:rotate-12 transition-transform">
-                <Users className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-3xl md:text-4xl font-black font-outfit text-white mb-6 tracking-tight uppercase">
-                {t("home.about.vision")}
-              </h3>
-              <p className="text-white/60 text-lg leading-relaxed">
-                {t("home.about.vision_desc")}
-              </p>
-            </motion.div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              whileHover={{ scale: 1.02 }}
-              className="glass-premium p-10 rounded-[40px] border border-white/5 bg-white/[0.02] hover:border-primary/40 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-8 border border-white/10 group-hover:bg-primary group-hover:text-black transition-all">
-                <Play className="w-5 h-5" />
-              </div>
-              <h4 className="text-xl font-black text-white mb-4 uppercase tracking-tight">
-                {t("home.about.feature1.title")}
-              </h4>
-              <p className="text-white/40 text-sm leading-relaxed">
-                {t("home.about.feature1.desc")}
-              </p>
-            </motion.div>
-
-            {/* Feature 2 */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              whileHover={{ scale: 1.02 }}
-              className="glass-premium p-10 rounded-[40px] border border-white/5 bg-white/[0.02] hover:border-primary/40 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-8 border border-white/10 group-hover:bg-primary group-hover:text-black transition-all">
-                <Users className="w-5 h-5" />
-              </div>
-              <h4 className="text-xl font-black text-white mb-4 uppercase tracking-tight">
-                {t("home.about.feature2.title")}
-              </h4>
-              <p className="text-white/40 text-sm leading-relaxed">
-                {t("home.about.feature2.desc")}
-              </p>
-            </motion.div>
-
-            {/* Feature 3 */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              whileHover={{ scale: 1.02 }}
-              className="glass-premium p-10 rounded-[40px] border border-white/5 bg-white/[0.02] hover:border-primary/40 transition-all group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-8 border border-white/10 group-hover:bg-primary group-hover:text-black transition-all">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <h4 className="text-xl font-black text-white mb-4 uppercase tracking-tight">
-                {t("home.about.feature3.title")}
-              </h4>
-              <p className="text-white/40 text-sm leading-relaxed">
-                {t("home.about.feature3.desc")}
-              </p>
-            </motion.div>
+      {/* ═══════ DYNAMIC CATEGORIES BAR ═══════ */}
+      <section className="w-full bg-[#0A0A0A] border-y border-white/5 py-4 z-20 relative shadow-2xl">
+        <div className="max-w-[1400px] mx-auto px-6 overflow-x-auto hide-scrollbar">
+          <div className="flex items-center gap-4 min-w-max" dir={isRTL ? "rtl" : "ltr"}>
+            <span className="text-white/40 font-bold uppercase tracking-widest text-xs mr-4">Popular:</span>
+            {["Diwani", "Thuluth", "Naskh", "Kufic", "Ruqaa", "Maghrebi", "Nastaliq"].map((cat) => (
+              <button key={cat} className="px-6 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-primary hover:text-black hover:border-primary transition-all font-bold text-sm text-white/80">
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════ Modern Teachers Section ═══════ */}
-      <section className="relative py-32 px-6 max-w-7xl mx-auto z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="flex flex-col md:flex-row justify-between items-end mb-24 gap-8"
+      {/* ═══════ GLOBAL STATS BANNER ═══════ */}
+      <section className="relative py-16 bg-gradient-to-b from-[#050505] to-[#0a0a0a] z-20">
+        <div className="max-w-[1400px] mx-auto px-6" dir={isRTL ? "rtl" : "ltr"}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-white/10" dir="ltr">
+            {[
+              { label: "Active Students", value: "10,000+", icon: Users },
+              { label: "Masterclasses", value: "50+", icon: Layout },
+              { label: "Average Rating", value: "4.9/5", icon: Star },
+              { label: "Certified Masters", value: "20+", icon: Medal },
+            ].map((stat, i) => (
+              <div key={i} className="flex flex-col items-center justify-center text-center px-4">
+                <stat.icon className="w-8 h-8 text-primary mb-4" />
+                <h4 className="text-3xl md:text-5xl font-black font-outfit text-white mb-2">{stat.value}</h4>
+                <p className="text-white/40 uppercase tracking-widest text-xs font-bold">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ FEATURED COURSES SLIDER (Coursera/Udemy style but premium) ═══════ */}
+      <section className="relative py-24 bg-[#050505] overflow-hidden z-20">
+        <div className="max-w-[1400px] mx-auto px-6 mb-12 flex justify-between items-end" dir={isRTL ? "rtl" : "ltr"}>
+          <div>
+            <h2 className="text-3xl md:text-5xl font-black font-outfit text-white">Featured Courses</h2>
+            <p className="text-primary mt-2 font-bold uppercase tracking-widest text-sm">Start your journey today</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => scrollSlider(isRTL ? "right" : "left")} className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-primary hover:text-black transition-colors">
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <button onClick={() => scrollSlider(isRTL ? "left" : "right")} className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-primary hover:text-black transition-colors">
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Horizontal Slider */}
+        <div 
+          ref={sliderRef}
+          className="flex gap-6 overflow-x-auto hide-scrollbar px-6 max-w-[1400px] mx-auto pb-12 snap-x snap-mandatory"
+          dir={isRTL ? "rtl" : "ltr"}
         >
-          <div className="text-start">
-            <p className="text-[10px] md:text-xs font-black text-primary uppercase tracking-[0.3em] mb-4">{t("home.trending")}</p>
-            <h2 className="text-3xl md:text-5xl lg:text-7xl font-black font-outfit tracking-tighter text-white leading-none">
-              {t("teachers.title")}
-            </h2>
-          </div>
-          <Link href="/teachers" className="glass-premium px-10 py-5 rounded-full text-xs font-black uppercase tracking-[0.2em] text-white/80 hover:text-primary transition-all border-white/10 shadow-xl flex items-center gap-4 group">
-            {t("home.enter_library")}
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
-          </Link>
-        </motion.div>
-
-        <AnimatePresence mode="wait">
           {loading ? (
-            <motion.div
-              key="skeletons"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-12 col-span-full"
-            >
-              {Array(3).fill(0).map((_, i) => (
-                <div key={i} className="glass-premium rounded-[64px] aspect-[4/5] bg-white/5 border-white/5 animate-pulse" />
-              ))}
-            </motion.div>
+            Array(4).fill(0).map((_, i) => (
+              <div key={i} className="min-w-[320px] md:min-w-[400px] aspect-[4/5] bg-white/5 animate-pulse rounded-[32px] snap-center" />
+            ))
           ) : (
-            <motion.div
-              key="content"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-12 col-span-full"
-            >
-              {teachers.map((teacher, i) => (
-                <motion.div
-                  key={teacher.id}
-                  initial={{ opacity: 0, scale: 0.9, y: 40 }}
-                  whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.2, duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-                  whileHover={{ y: -20 }}
-                  className="group relative"
-                >
-                  {/* Decorative Background Glow */}
-                  <div className="absolute inset-0 bg-primary/5 rounded-[64px] blur-2xl group-hover:bg-primary/10 transition-colors duration-500" />
-
-                  <div className="relative glass-premium rounded-[64px] p-10 border border-white/10 bg-black/40 backdrop-blur-3xl overflow-hidden flex flex-col items-center text-center h-full shadow-2xl">
-
-                    {/* Teacher Image with Premium Frame */}
-                    <div className="relative w-48 h-48 mb-10">
-                      <div className="absolute inset-0 rounded-full border-2 border-primary/20 group-hover:border-primary transition-colors duration-500 animate-[spin_10s_linear_infinite] group-hover:animate-[spin_4s_linear_infinite] border-dashed" />
-                      <div className="absolute inset-2 rounded-full border border-white/10" />
-                      <div className="absolute inset-4 rounded-full overflow-hidden border-4 border-[#0a0a0a] shadow-2xl">
-                        <Image
-                          src={formatImageUrl(teacher.photoUrl || teacher.profileImage) || "/assets/images/Logo.png"}
-                          alt={teacher.name || "Teacher"}
-                          fill
-                          className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-110 group-hover:scale-100"
-                        />
-                      </div>
-
-                      {/* Certified Badge */}
-                      <div className="absolute -bottom-2 right-4 bg-primary text-black p-2 rounded-full shadow-xl border-4 border-[#0a0a0a] group-hover:scale-110 transition-transform">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
+            featuredCourses.map((course) => (
+              <Link href={`/courses/${course.id}`} key={course.id} className="min-w-[320px] md:min-w-[400px] snap-center group">
+                <GlowCard className="h-full flex flex-col p-6 cursor-pointer">
+                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden mb-6">
+                    <Image 
+                      src={formatImageUrl(course.thumbnailUrl) || "/assets/images/Logo.png"} 
+                      alt={course.title} 
+                      fill 
+                      className="object-cover group-hover:scale-110 transition-transform duration-700" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                    <div className="absolute top-4 left-4 z-10">
+                      {/* Bestseller Badge */}
+                      <span className="bg-[#E8C468] text-black text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1 shadow-lg">
+                        <Trophy className="w-3 h-3" /> Bestseller
+                      </span>
                     </div>
-
-                    <h3 className="text-3xl font-black font-outfit text-white mb-8 tracking-tight group-hover:gold-text transition-all">
-                      {teacher.fullName || teacher.name || "Anonymous Master"}
-                    </h3>
-
-                    {/* Stats Row */}
-                    <div className="grid grid-cols-2 gap-8 w-full py-8 border-y border-white/5 mb-10">
-                      <div className="flex flex-col items-center">
-                        <span className="text-2xl font-black text-white font-outfit">{teacher.followerCount || 0}</span>
-                        <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">{t("course.students")}</span>
-                      </div>
-                      <div className="flex flex-col items-center border-l border-white/10">
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-primary fill-primary" />
-                          <span className="text-2xl font-black text-white font-outfit">{Number(teacher.rating || 5.0).toFixed(1)}</span>
-                        </div>
-                        <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">{t("course.rating")}</span>
-                      </div>
+                    <div className="absolute bottom-4 left-4 flex gap-2">
+                      <span className="bg-black/60 backdrop-blur-md border border-white/20 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                        {course.level || "Beginner"}
+                      </span>
                     </div>
-
-                    {/* Action Button */}
-                    <Link href={`/teachers/${teacher.id}`} className="w-full py-5 rounded-3xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-[0.2em] text-[10px] hover:bg-primary hover:text-black hover:border-primary transition-all shadow-inner">
-                      {t("course.learn_more")}
-                    </Link>
                   </div>
-                </motion.div>
-              ))}
-            </motion.div>
+                  <h3 className="text-2xl font-black font-outfit text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                    {course.title}
+                  </h3>
+                  <div className="flex items-center gap-4 mt-auto pt-6 border-t border-white/10 text-white/50 text-sm font-medium">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{course.durationWeeks || 4} Weeks</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <BookOpen className="w-4 h-4" />
+                      <span>{course.lessonsCount || 12} Lessons</span>
+                    </div>
+                  </div>
+                </GlowCard>
+              </Link>
+            ))
           )}
-        </AnimatePresence>
+        </div>
       </section>
 
+      {/* ═══════ BENTO GRID ABOUT SECTION (Apple Style) ═══════ */}
+      <section className="relative py-24 px-6 max-w-[1400px] mx-auto z-20" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-6xl font-black font-outfit text-white mb-4">Why Calligro?</h2>
+          <p className="text-white/50 max-w-2xl mx-auto text-lg">Experience the most advanced and immersive platform built specifically for learning the ancient arts.</p>
+        </div>
+
+        <div className="bento-grid">
+          {/* Large Card: Video/Interactive feature */}
+          <GlowCard className="bento-card-large p-10 flex flex-col justify-between min-h-[400px] bg-gradient-to-br from-white/5 to-transparent">
+            <div>
+              <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30 mb-6">
+                <Play className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-3xl font-black font-outfit text-white mb-4">Interactive 4K Classrooms</h3>
+              <p className="text-white/60 text-lg max-w-md">Join live sessions with multiple camera angles. Watch the master&apos;s pen strokes in crystal clear 4K resolution while interacting in real-time.</p>
+            </div>
+            {/* Abstract visual */}
+            <div className="absolute right-0 bottom-0 w-[60%] h-[80%] opacity-20 pointer-events-none">
+               <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#F2E293" d="M42.7,-73.4C55.9,-65.4,67.6,-53.5,76.3,-39.6C85,-25.7,90.7,-9.8,87.9,5C85,19.8,73.6,33.5,61.9,45.1C50.2,56.7,38.2,66.1,23.8,72.4C9.4,78.7,-7.4,81.9,-23.4,79C-39.4,76,-54.6,66.9,-65.4,54.1C-76.2,41.3,-82.6,24.8,-84.9,7.8C-87.2,-9.2,-85.4,-26.7,-77.1,-41.2C-68.8,-55.7,-54,-67.2,-39.3,-74.6C-24.6,-82,-12.3,-85.3,1.9,-88.6C16.1,-91.9,32.2,-95.2,42.7,-73.4Z" transform="translate(100 100)" />
+              </svg>
+            </div>
+          </GlowCard>
+
+          {/* Medium Card: Community */}
+          <GlowCard className="bento-card-medium p-10 flex flex-col justify-between bg-gradient-to-bl from-primary/10 to-transparent">
+            <div>
+               <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 mb-6">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-2xl font-black font-outfit text-white mb-4">Global Community</h3>
+              <p className="text-white/60">Share your homework, get feedback from masters, and connect with calligraphy enthusiasts worldwide.</p>
+            </div>
+          </GlowCard>
+
+          {/* Small Card: Certificate */}
+          <GlowCard className="bento-card-small p-10 flex flex-col justify-center items-center text-center bg-white/5">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8860B] flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(212,175,55,0.4)]">
+              <Star className="w-8 h-8 text-black fill-black" />
+            </div>
+            <h3 className="text-xl font-black font-outfit text-white">Verified Certificates</h3>
+          </GlowCard>
+          
+          {/* Bottom Wide Card */}
+          <GlowCard className="col-span-full p-10 md:p-14 bg-gradient-to-r from-black via-primary/5 to-black flex flex-col md:flex-row items-center justify-between gap-10">
+            <div className="max-w-2xl">
+              <h3 className="text-4xl font-black font-outfit text-white mb-4">Ready to start writing?</h3>
+              <p className="text-white/60 text-lg">Join Calligro today and get access to our exclusive tools, community, and courses.</p>
+            </div>
+            <button className="whitespace-nowrap px-10 py-5 rounded-full bg-white text-black font-black uppercase tracking-widest hover:bg-primary transition-colors shadow-2xl">
+              Join Now
+            </button>
+          </GlowCard>
+        </div>
+      </section>
+
+      {/* ═══════ 3D TEACHERS SHOWCASE ═══════ */}
+      <section className="relative py-24 px-6 max-w-[1400px] mx-auto z-20" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-6xl font-black font-outfit text-white mb-4">Learn From The Masters</h2>
+          <p className="text-primary font-bold uppercase tracking-widest">The best calligraphers in the world</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {teachers.map((teacher, i) => (
+            <motion.div
+              key={teacher.id}
+              whileHover={{ scale: 1.05, rotateY: 10, rotateX: 5 }}
+              className="relative perspective-1000"
+            >
+              <GlowCard className="h-full flex flex-col items-center text-center p-10 bg-black/40">
+                <div className="relative w-40 h-40 mb-8">
+                  <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-[spin_8s_linear_infinite] border-dashed" />
+                  <div className="absolute inset-2 rounded-full overflow-hidden border-4 border-black">
+                    <Image
+                      src={formatImageUrl(teacher.photoUrl || teacher.profileImage) || "/assets/images/Logo.png"}
+                      alt={teacher.name || "Teacher"}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-black font-outfit text-white mb-6">
+                  {teacher.fullName || teacher.name || "Master Calligrapher"}
+                </h3>
+                <div className="flex gap-6 border-t border-white/10 w-full pt-6 justify-center">
+                  <div className="flex flex-col items-center">
+                    <span className="text-xl font-black text-white">{teacher.followerCount || 0}</span>
+                    <span className="text-[10px] text-white/40 uppercase tracking-widest">Students</span>
+                  </div>
+                  <div className="w-px h-10 bg-white/10" />
+                  <div className="flex flex-col items-center">
+                    <span className="text-xl font-black text-white flex items-center gap-1">
+                      {Number(teacher.rating || 5.0).toFixed(1)} <Star className="w-4 h-4 text-primary fill-primary" />
+                    </span>
+                    <span className="text-[10px] text-white/40 uppercase tracking-widest">Rating</span>
+                  </div>
+                </div>
+              </GlowCard>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══════ THE MASTER'S JOURNEY (Learning Paths) ═══════ */}
+      <section className="relative py-24 bg-[#050505] border-t border-white/5 z-20" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="max-w-[1400px] mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-6xl font-black font-outfit text-white mb-4">The Calligrapher&apos;s Journey</h2>
+            <p className="text-white/50 max-w-2xl mx-auto text-lg">A structured path from your first stroke to creating timeless masterpieces.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            {/* Connecting Line */}
+            <div className="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-[2px] bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 -translate-y-1/2" />
+            
+            {[
+              { step: "01", title: "Foundations", desc: "Master the individual letters, tools preparation, and the correct posture.", icon: BookOpen },
+              { step: "02", title: "Compositions", desc: "Learn how to connect letters and balance words in beautiful harmony.", icon: Layout },
+              { step: "03", title: "Masterpieces", desc: "Create your own complex artworks and earn your traditional certificate (Ijazah).", icon: Award },
+            ].map((path, i) => (
+              <GlowCard key={i} className="relative p-10 bg-[#0A0A0A] flex flex-col items-center text-center border-t-4 border-t-primary/50 hover:border-t-primary transition-all z-10">
+                <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary mb-6 shadow-[0_0_20px_rgba(232,196,104,0.15)]">
+                  <path.icon className="w-8 h-8" />
+                </div>
+                <div className="text-primary/50 font-black text-6xl font-outfit absolute -top-8 -left-4 opacity-30 select-none pointer-events-none">{path.step}</div>
+                <h3 className="text-2xl font-black font-outfit text-white mb-3">{path.title}</h3>
+                <p className="text-white/60">{path.desc}</p>
+              </GlowCard>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ INFINITE TESTIMONIALS MARQUEE ═══════ */}
+      <section className="relative py-24 bg-gradient-to-b from-[#0a0a0a] to-[#050505] overflow-hidden z-20">
+        <div className="text-center mb-16 px-6 relative z-10">
+          <h2 className="text-3xl md:text-5xl font-black font-outfit text-white mb-4">Trusted by 10,000+ Students</h2>
+          <p className="text-primary font-bold uppercase tracking-widest text-sm">Join a global community of artists</p>
+        </div>
+
+        {/* Marquee Container */}
+        <div className="relative flex overflow-x-hidden group">
+          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+          
+          <motion.div 
+            className="flex gap-6 px-3"
+            animate={{ x: ["0%", "-50%"] }}
+            transition={{ duration: 40, ease: "linear", repeat: Infinity }}
+            style={{ width: "fit-content" }}
+          >
+            {/* Array duplicated to make infinite loop seamless */}
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="flex gap-6">
+                {[
+                  { name: "Sarah Ahmed", role: "Beginner", text: "I never thought I could learn calligraphy online, but the 4K multiple camera angles make it feel like the master is sitting right next to me.", rating: 5 },
+                  { name: "Omar Youssef", role: "Intermediate", text: "The structured learning paths took me from struggling with basic letters to writing full compositions in just 3 months. Worth every penny.", rating: 5 },
+                  { name: "Layla M.", role: "Advanced", text: "Getting direct feedback from world-renowned certified masters is a game changer. The community is incredibly supportive.", rating: 5 },
+                  { name: "Tariq K.", role: "Beginner", text: "The Calligro platform is simply beautiful. It's fast, interactive, and the mobile app syncs my progress perfectly.", rating: 5 },
+                  { name: "Aisha F.", role: "Intermediate", text: "I achieved my dream of writing the Thuluth script beautifully. Thank you Calligro for this amazing academy!", rating: 5 },
+                ].map((testimonial, j) => (
+                  <div key={j} className="w-[350px] md:w-[450px] p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors shrink-0">
+                    <div className="flex items-center gap-2 mb-6">
+                      {[...Array(testimonial.rating)].map((_, k) => (
+                        <Star key={k} className="w-5 h-5 fill-primary text-primary" />
+                      ))}
+                    </div>
+                    <p className="text-white/80 text-lg italic mb-6 leading-relaxed">"{testimonial.text}"</p>
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary border border-primary/30">
+                        {testimonial.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white font-outfit">{testimonial.name}</h4>
+                        <span className="text-xs text-white/40 uppercase tracking-widest">{testimonial.role}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+      
       <Footer />
     </main>
   );

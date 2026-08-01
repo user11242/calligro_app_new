@@ -336,3 +336,72 @@ body {
     animation: none !important;
   }
 }
+
+/* ═══ Next-Level Premium Redesign ═══ */
+
+/* Bento Grid System */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: repeat(2, minmax(300px, auto));
+  }
+  .bento-card-large { grid-column: span 7; grid-row: span 2; }
+  .bento-card-medium { grid-column: span 5; }
+  .bento-card-small { grid-column: span 3; }
+}
+
+/* Premium Interlocking Card */
+.bento-card {
+  position: relative;
+  background: rgba(20, 20, 20, 0.4);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 
+    0 20px 40px -20px rgba(0,0,0,0.5), 
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.bento-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(232, 196, 104, 0.3);
+  box-shadow: 
+    0 30px 60px -20px rgba(0,0,0,0.6),
+    0 0 40px -10px rgba(232, 196, 104, 0.1),
+    inset 0 1px 0 rgba(232, 196, 104, 0.2);
+}
+
+/* Mouse tracking glow (to be paired with JS, but fallback here) */
+.mouse-glow {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(232, 196, 104, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: -1;
+}
+.bento-card:hover .mouse-glow {
+  opacity: 1;
+}
+
+/* Carousel/Slider Hiding Scrollbar */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

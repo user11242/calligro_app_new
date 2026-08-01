@@ -10,13 +10,14 @@ import {
   useParticipants,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { Users, MessageSquare, PhoneOff, ShieldCheck, PenTool, Hand } from "lucide-react";
+import { Users, MessageSquare, PhoneOff, ShieldCheck, PenTool, Hand, Compass } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ParticipantsPanel from "./ParticipantsPanel";
 import ChatPanel from "./ChatPanel";
 import TeacherControls from "./TeacherControls";
 import StudentControls from "./StudentControls";
 import Whiteboard from "./Whiteboard";
+import ProtractorOverlay from "./ProtractorOverlay";
 
 interface CalligroMeetLayoutProps {
   courseId: string;
@@ -43,6 +44,8 @@ export default function CalligroMeetLayout({
   const [activeTab, setActiveTab] = useState<"chat" | "participants" | null>(null);
   const [isWhiteboardActive, setIsWhiteboardActive] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isProtractorActive, setIsProtractorActive] = useState(false);
+  const [protractorAngle, setProtractorAngle] = useState(70);
 
   // Check if ANY track is a screen share to automatically trigger Focus Mode
   const isScreenSharing = tracks.some((t) => t.source === Track.Source.ScreenShare);
@@ -61,8 +64,22 @@ export default function CalligroMeetLayout({
       if (data.cmd === "toggle_whiteboard") {
         setIsWhiteboardActive(data.state);
       }
+      if (data.type === "PROTRACTOR_STATE") {
+        setIsProtractorActive(data.active);
+        if (data.angle !== undefined) setProtractorAngle(data.angle);
+      }
     } catch (e) {}
   });
+
+  const handleProtractorChange = (active: boolean, angle: number) => {
+    setIsProtractorActive(active);
+    setProtractorAngle(angle);
+    send(new TextEncoder().encode(JSON.stringify({
+      type: "PROTRACTOR_STATE",
+      active,
+      angle
+    })), { reliable: true });
+  };
 
   return (
     <div className="flex-1 flex overflow-hidden bg-[#0A0A0B] text-white font-outfit selection:bg-primary/30 relative">
@@ -87,6 +104,26 @@ export default function CalligroMeetLayout({
             >
               <Hand className="w-5 h-5 animate-bounce" />
               <span className="font-bold text-sm tracking-wide">{toastMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Protractor Overlay */}
+        <AnimatePresence>
+          {isProtractorActive && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 z-40 pointer-events-none"
+            >
+              <ProtractorOverlay 
+                angle={protractorAngle} 
+                onAngleChange={(newAngle) => handleProtractorChange(true, newAngle)}
+                onClose={() => handleProtractorChange(false, protractorAngle)}
+                isTeacher={isTeacher}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -157,6 +194,16 @@ export default function CalligroMeetLayout({
                 title="Toggle Whiteboard"
               >
                 <PenTool className="w-5 h-5 relative z-10" />
+              </button>
+
+              <button
+                onClick={() => handleProtractorChange(!isProtractorActive, protractorAngle)}
+                className={`p-3.5 rounded-full transition-all duration-300 flex items-center justify-center relative group ${
+                  isProtractorActive ? "bg-primary text-black shadow-[0_0_20px_rgba(235,185,55,0.4)]" : "bg-white/5 hover:bg-white/10 text-white"
+                }`}
+                title="Toggle Qalam Protractor"
+              >
+                <Compass className="w-5 h-5 relative z-10" />
               </button>
 
               <button
