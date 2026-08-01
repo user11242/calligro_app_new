@@ -48,7 +48,8 @@ export default function Home() {
   const [featuredCourses, setFeaturedCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const { t, isRTL } = useTranslation();
+  const { t, locale } = useTranslation();
+  const isRTL = locale === "ar";
   
   // Parallax scroll effects
   const { scrollYProgress } = useScroll();
@@ -869,7 +870,7 @@ export default function Home() {
                         <Star key={k} className="w-5 h-5 fill-primary text-primary" />
                       ))}
                     </div>
-                    <p className="text-white/80 text-lg italic mb-6 leading-relaxed">"{testimonial.text}"</p>
+                    <p className="text-white/80 text-lg italic mb-6 leading-relaxed">&ldquo;{testimonial.text}&rdquo;</p>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary border border-primary/30">
                         {testimonial.name.charAt(0)}
