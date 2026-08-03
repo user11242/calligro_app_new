@@ -66,16 +66,20 @@ export default function Navbar() {
           layout
           className={`pointer-events-auto flex items-center justify-between gap-6 px-6 py-3 rounded-full transition-all duration-500 ${
             scrolled 
-              ? "bg-[#0A0A0A]/80 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] w-full max-w-5xl" 
+              ? "bg-[#1F1F1F]/80 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] w-full max-w-5xl" 
               : "bg-transparent w-full max-w-7xl"
           }`}
           dir={isRTL ? "rtl" : "ltr"}
         >
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/40 group-hover:bg-primary transition-colors">
-              <span className="text-primary group-hover:text-black font-black font-outfit text-sm transition-colors">C</span>
-            </div>
+          <Link href="/" className="flex items-center gap-3 group" dir="ltr">
+            <Image 
+              src="/assets/images/Logo.png"
+              alt="Calligro Logo"
+              width={32}
+              height={32}
+              className="w-8 h-8 object-contain drop-shadow-md"
+            />
             <span className={`text-xl font-black text-white font-outfit tracking-tighter transition-all ${scrolled ? "hidden sm:block" : "block"}`}>
               CALLIGRO
             </span>
@@ -189,7 +193,7 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
             transition={{ duration: 0.3 }}
-            className="fixed top-24 left-4 right-4 z-[49] bg-[#0A0A0A]/90 backdrop-blur-3xl border border-white/10 rounded-[32px] p-8 md:hidden shadow-2xl pointer-events-auto"
+            className="fixed top-24 left-4 right-4 z-[49] bg-[#1F1F1F]/90 backdrop-blur-3xl border border-white/10 rounded-[32px] p-8 md:hidden shadow-2xl pointer-events-auto"
             dir={isRTL ? "rtl" : "ltr"}
           >
             <div className="flex flex-col gap-6 text-center text-white">

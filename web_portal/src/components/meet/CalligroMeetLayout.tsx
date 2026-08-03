@@ -9,8 +9,9 @@ import {
   useDataChannel,
   useParticipants,
   useParticipantContext,
+  useConnectionState,
 } from "@livekit/components-react";
-import { Track, ParticipantEvent } from "livekit-client";
+import { Track, ParticipantEvent, ConnectionState } from "livekit-client";
 import { Users, MessageSquare, PhoneOff, ShieldCheck, PenTool, Hand, Compass } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ParticipantsPanel from "./ParticipantsPanel";
@@ -116,6 +117,7 @@ export default function CalligroMeetLayout({
   const participants = useParticipants();
   const [activeTab, setActiveTab] = useState<"chat" | "participants" | null>(null);
   const [isWhiteboardActive, setIsWhiteboardActive] = useState(false);
+  const [whiteboardMode, setWhiteboardMode] = useState<"standard" | "calligraphy">("calligraphy");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isProtractorActive, setIsProtractorActive] = useState(false);
   const [protractorAngle, setProtractorAngle] = useState(70);
@@ -137,6 +139,10 @@ export default function CalligroMeetLayout({
       }
       if (data.cmd === "toggle_whiteboard") {
         setIsWhiteboardActive(data.state);
+        if (data.mode) setWhiteboardMode(data.mode);
+      }
+      if (data.cmd === "set_whiteboard_mode") {
+        setWhiteboardMode(data.mode);
       }
       if (data.type === "PROTRACTOR_STATE") {
         setIsProtractorActive(data.active);
@@ -145,14 +151,51 @@ export default function CalligroMeetLayout({
     } catch (e) {}
   });
 
+  const connectionState = useConnectionState();
+
+  // Re-broadcast state when new participants join (Teacher only)
+  useEffect(() => {
+    if (isTeacher && connectionState === ConnectionState.Connected) {
+      try {
+        const p1 = send(new TextEncoder().encode(JSON.stringify({
+          cmd: "toggle_whiteboard",
+          state: isWhiteboardActive,
+          mode: whiteboardMode
+        })), { reliable: true });
+        if (p1 && p1.catch) p1.catch(() => {});
+
+        const p2 = send(new TextEncoder().encode(JSON.stringify({
+          type: "PROTRACTOR_STATE",
+          active: isProtractorActive,
+          angle: protractorAngle
+        })), { reliable: true });
+        if (p2 && p2.catch) p2.catch(() => {});
+      } catch (e) {
+        console.warn("Failed to broadcast state, connection might not be ready", e);
+      }
+    }
+  }, [participants.length, isTeacher, isWhiteboardActive, whiteboardMode, isProtractorActive, protractorAngle, send, connectionState]);
+
+  const handleWhiteboardModeChange = (newMode: "standard" | "calligraphy") => {
+    setWhiteboardMode(newMode);
+    if (connectionState !== ConnectionState.Connected) return;
+    const p = send(new TextEncoder().encode(JSON.stringify({
+      cmd: "set_whiteboard_mode",
+      mode: newMode
+    })), { reliable: true });
+    if (p && p.catch) p.catch(() => {});
+  };
+
   const handleProtractorChange = (active: boolean, angle: number) => {
     setIsProtractorActive(active);
     setProtractorAngle(angle);
-    send(new TextEncoder().encode(JSON.stringify({
+    if (connectionState !== ConnectionState.Connected) return;
+    const p = send(new TextEncoder().encode(JSON.stringify({
       type: "PROTRACTOR_STATE",
       active,
       angle
     })), { reliable: true });
+    if (p && p.catch) p.catch(() => {});
   };
 
   return (
@@ -217,21 +260,22 @@ export default function CalligroMeetLayout({
           )}
 
           {/* Main Focus Area (Whiteboard or Screen Share) */}
-          <AnimatePresence>
-            {isWhiteboardActive && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95, display: "none" }}
-                transition={{ duration: 0.4 }}
-                className="absolute inset-0 z-[60] bg-[#0D0D0D]"
-              >
-                <Whiteboard 
-                  isTeacher={isTeacher} 
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <motion.div 
+            initial={false}
+            animate={
+              isWhiteboardActive 
+                ? { opacity: 1, scale: 1, pointerEvents: "auto", display: "block" } 
+                : { opacity: 0, scale: 0.95, pointerEvents: "none", transitionEnd: { display: "none" } }
+            }
+            transition={{ duration: 0.4 }}
+            className={`absolute inset-0 z-[60] bg-[#0D0D0D] ${!isWhiteboardActive ? 'invisible' : ''}`}
+          >
+            <Whiteboard 
+              isTeacher={isTeacher} 
+              mode={whiteboardMode}
+              onModeChange={handleWhiteboardModeChange}
+            />
+          </motion.div>
 
           {/* Video Grid (Shrinks to small floating box if Whiteboard is active) */}
           <motion.div 
@@ -284,34 +328,39 @@ export default function CalligroMeetLayout({
             <div className="w-px h-8 bg-white/10 mx-1" />
             
             <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => {
-                  const newState = !isWhiteboardActive;
-                  setIsWhiteboardActive(newState);
-                  if (isTeacher) {
-                    send(new TextEncoder().encode(JSON.stringify({
-                      cmd: "toggle_whiteboard",
-                      state: newState
-                    })), { reliable: true });
-                  }
-                }}
-                className={`p-3.5 rounded-full transition-all duration-300 flex items-center justify-center relative group ${
-                  isWhiteboardActive ? "bg-primary text-black shadow-[0_0_20px_rgba(235,185,55,0.4)]" : "bg-white/5 hover:bg-white/10 text-white"
-                }`}
-                title="Toggle Whiteboard"
-              >
-                <PenTool className="w-5 h-5 relative z-10" />
-              </button>
+              {isTeacher && (
+                <>
+                  <button
+                    onClick={() => {
+                      const newState = !isWhiteboardActive;
+                      setIsWhiteboardActive(newState);
+                      if (isTeacher) {
+                        send(new TextEncoder().encode(JSON.stringify({
+                          cmd: "toggle_whiteboard",
+                          state: newState,
+                          mode: whiteboardMode
+                        })), { reliable: true });
+                      }
+                    }}
+                    className={`p-3.5 rounded-full transition-all duration-300 flex items-center justify-center relative group ${
+                      isWhiteboardActive ? "bg-primary text-black shadow-[0_0_20px_rgba(235,185,55,0.4)]" : "bg-white/5 hover:bg-white/10 text-white"
+                    }`}
+                    title="Toggle Whiteboard"
+                  >
+                    <PenTool className="w-5 h-5 relative z-10" />
+                  </button>
 
-              <button
-                onClick={() => handleProtractorChange(!isProtractorActive, protractorAngle)}
-                className={`p-3.5 rounded-full transition-all duration-300 flex items-center justify-center relative group ${
-                  isProtractorActive ? "bg-primary text-black shadow-[0_0_20px_rgba(235,185,55,0.4)]" : "bg-white/5 hover:bg-white/10 text-white"
-                }`}
-                title="Toggle Qalam Protractor"
-              >
-                <Compass className="w-5 h-5 relative z-10" />
-              </button>
+                  <button
+                    onClick={() => handleProtractorChange(!isProtractorActive, protractorAngle)}
+                    className={`p-3.5 rounded-full transition-all duration-300 flex items-center justify-center relative group ${
+                      isProtractorActive ? "bg-primary text-black shadow-[0_0_20px_rgba(235,185,55,0.4)]" : "bg-white/5 hover:bg-white/10 text-white"
+                    }`}
+                    title="Toggle Qalam Protractor"
+                  >
+                    <Compass className="w-5 h-5 relative z-10" />
+                  </button>
+                </>
+              )}
 
               <button
                 onClick={() => setActiveTab(activeTab === "participants" ? null : "participants")}

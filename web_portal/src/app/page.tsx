@@ -87,14 +87,14 @@ export default function Home() {
     }
   };
 
-  if (!mounted) return <div className="min-h-screen bg-[#0a0a0a]" />;
+  if (!mounted) return <div className="min-h-screen bg-[#1F1F1F]" />;
 
   return (
-    <main className="min-h-screen font-sans bg-[#050505]">
+    <main className="min-h-screen font-sans bg-transparent">
       <Navbar />
 
       {/* ═══════ Cinematic Full-Width Hero ═══════ */}
-      <section className="relative w-full overflow-hidden bg-[#161616]">
+      <section className="relative w-full overflow-hidden bg-transparent">
         {/* Match the container's aspect ratio exactly to the generated images to completely eliminate zooming/cropping */}
         <div className="relative w-full aspect-[9/16] md:aspect-[11/10] lg:aspect-auto lg:h-[100dvh]">
           {/* Desktop Image */}
@@ -597,7 +597,7 @@ export default function Home() {
       </section>
 
       {/* ═══════ DYNAMIC CATEGORIES BAR ═══════ */}
-      <section className="w-full bg-[#0A0A0A] border-y border-white/5 py-4 z-20 relative shadow-2xl">
+      <section className="w-full bg-[#1F1F1F] border-y border-white/5 py-4 z-20 relative shadow-2xl">
         <div className="max-w-[1400px] mx-auto px-6 overflow-x-auto hide-scrollbar">
           <div className="flex items-center gap-4 min-w-max" dir={isRTL ? "rtl" : "ltr"}>
             <span className="text-white/40 font-bold uppercase tracking-widest text-xs mr-4">Popular:</span>
@@ -610,280 +610,242 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════ GLOBAL STATS BANNER ═══════ */}
-      <section className="relative py-16 bg-gradient-to-b from-[#050505] to-[#0a0a0a] z-20">
-        <div className="max-w-[1400px] mx-auto px-6" dir={isRTL ? "rtl" : "ltr"}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-white/10" dir="ltr">
+      {/* ═══════ 1. THE INTERACTIVE BENTO GRID (Stats) ═══════ */}
+      <section className="relative w-full bg-[#1F1F1F] py-32 z-20 overflow-hidden">
+        <div className="max-w-[1400px] mx-auto px-6">
+          <div className="text-center mb-20 relative z-10">
+            <h2 className="text-5xl md:text-7xl font-black font-outfit text-transparent bg-clip-text bg-gradient-to-r from-white to-[#FFF0C0] mb-6 tracking-tighter">
+              {t("home.vision.title")}
+            </h2>
+            <p className="text-white/50 text-xl max-w-2xl mx-auto">{t("home.vision.desc")}</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { label: "Active Students", value: "10,000+", icon: Users },
-              { label: "Masterclasses", value: "50+", icon: Layout },
-              { label: "Average Rating", value: "4.9/5", icon: Star },
-              { label: "Certified Masters", value: "20+", icon: Medal },
+              { front: t("home.vision.1.front"), reveal: t("home.vision.1.reveal"), color: "from-blue-600 to-cyan-400", colSpan: "md:col-span-2" },
+              { front: t("home.vision.2.front"), reveal: t("home.vision.2.reveal"), color: "from-primary to-orange-400", colSpan: "md:col-span-1" },
+              { front: t("home.vision.3.front"), reveal: t("home.vision.3.reveal"), color: "from-purple-600 to-pink-500", colSpan: "md:col-span-1" },
+              { front: t("home.vision.4.front"), reveal: t("home.vision.4.reveal"), color: "from-emerald-500 to-teal-400", colSpan: "md:col-span-2" },
             ].map((stat, i) => (
-              <div key={i} className="flex flex-col items-center justify-center text-center px-4">
-                <stat.icon className="w-8 h-8 text-primary mb-4" />
-                <h4 className="text-3xl md:text-5xl font-black font-outfit text-white mb-2">{stat.value}</h4>
-                <p className="text-white/40 uppercase tracking-widest text-xs font-bold">{stat.label}</p>
+              <div 
+                key={i} 
+                className={`group relative overflow-hidden rounded-[40px] bg-white/[0.02] border border-white/5 p-12 min-h-[300px] cursor-default transition-all duration-500 ${stat.colSpan}`}
+              >
+                {/* Default State (Front Container) */}
+                <div className="absolute inset-0 p-12 flex flex-col justify-between z-10 transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:-translate-y-[120%]">
+                  <h4 className="text-4xl md:text-5xl font-black font-outfit text-white tracking-tighter max-w-[80%] leading-tight">{stat.front}</h4>
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                      <ArrowRight className="w-4 h-4 text-white -rotate-45" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hidden Hover State (Inner Container Reveal) */}
+                <div className={`absolute inset-0 p-12 flex flex-col justify-center bg-gradient-to-br ${stat.color} translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] z-20`}>
+                  <p className="text-black uppercase tracking-[0.2em] text-xs font-black mb-4">{stat.front}</p>
+                  <h4 className="text-2xl md:text-3xl font-black font-outfit text-black leading-tight max-w-lg">{stat.reveal}</h4>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════ FEATURED COURSES SLIDER (Coursera/Udemy style but premium) ═══════ */}
-      <section className="relative py-24 bg-[#050505] overflow-hidden z-20">
-        <div className="max-w-[1400px] mx-auto px-6 mb-12 flex justify-between items-end" dir={isRTL ? "rtl" : "ltr"}>
-          <div>
-            <h2 className="text-3xl md:text-5xl font-black font-outfit text-white">Featured Courses</h2>
-            <p className="text-primary mt-2 font-bold uppercase tracking-widest text-sm">Start your journey today</p>
+      {/* ═══════ 2. THE INTERACTIVE ACCORDION (Courses) ═══════ */}
+      <section className="relative w-full bg-[#1F1F1F] py-24 z-20">
+        <div className="max-w-[1600px] mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+            <div>
+              <h2 className="text-4xl md:text-6xl font-black font-outfit text-white tracking-tighter">{t("home.courses.title")}</h2>
+              <p className="text-primary mt-4 font-bold uppercase tracking-[0.2em] text-sm">{t("home.courses.subtitle")}</p>
+            </div>
+            <Link href="/courses">
+              <button className="flex items-center gap-3 px-8 py-4 rounded-full border border-white/10 hover:border-primary/50 hover:bg-primary/10 text-white transition-all group">
+                <span className="font-bold tracking-widest uppercase text-xs">{t("home.courses.view_all")}</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </Link>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => scrollSlider(isRTL ? "right" : "left")} className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-primary hover:text-black transition-colors">
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <button onClick={() => scrollSlider(isRTL ? "left" : "right")} className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-primary hover:text-black transition-colors">
-              <ChevronRight className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
 
-        {/* Horizontal Slider */}
-        <div 
-          ref={sliderRef}
-          className="flex gap-6 overflow-x-auto hide-scrollbar px-6 max-w-[1400px] mx-auto pb-12 snap-x snap-mandatory"
-          dir={isRTL ? "rtl" : "ltr"}
-        >
-          {loading ? (
-            Array(4).fill(0).map((_, i) => (
-              <div key={i} className="min-w-[320px] md:min-w-[400px] aspect-[4/5] bg-white/5 animate-pulse rounded-[32px] snap-center" />
-            ))
-          ) : (
-            featuredCourses.map((course) => (
-              <Link href={`/courses/${course.id}`} key={course.id} className="min-w-[320px] md:min-w-[400px] snap-center group">
-                <GlowCard className="h-full flex flex-col p-6 cursor-pointer">
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden mb-6">
-                    <Image 
-                      src={formatImageUrl(course.thumbnailUrl) || "/assets/images/Logo.png"} 
-                      alt={course.title} 
-                      fill 
-                      className="object-cover group-hover:scale-110 transition-transform duration-700" 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                    <div className="absolute top-4 left-4 z-10">
-                      {/* Bestseller Badge */}
-                      <span className="bg-[#E8C468] text-black text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1 shadow-lg">
-                        <Trophy className="w-3 h-3" /> Bestseller
+          {/* Pure CSS Expanding Accordion Gallery */}
+          <div className="flex flex-col md:flex-row h-[80vh] md:h-[60vh] gap-4 w-full">
+            {loading ? (
+              <div className="w-full h-full flex items-center justify-center text-white/50">{t("home.courses.loading")}</div>
+            ) : (
+              featuredCourses.slice(0, 5).map((course) => (
+                <Link 
+                  href={`/courses/${course.id}`} 
+                  key={course.id} 
+                  className="relative flex-1 md:flex-[1] hover:flex-[3] md:hover:flex-[4] overflow-hidden rounded-[32px] group transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                >
+                  <div className="absolute inset-0 bg-black/80 z-10 group-hover:bg-black/20 transition-colors duration-700" />
+                  <Image 
+                    src={formatImageUrl(course.courseBanner || course.thumbnailUrl) || "/assets/images/Logo.png"} 
+                    alt={course.courseName || course.title || "Course"} 
+                    fill 
+                    className="object-cover scale-125 group-hover:scale-100 transition-transform duration-1000" 
+                  />
+                  
+                  {/* Default State (Collapsed) */}
+                  <div className="absolute inset-0 z-20 flex md:flex-col justify-end md:justify-center items-center p-6 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
+                    <h3 className="text-white font-black font-outfit text-2xl md:-rotate-90 whitespace-nowrap tracking-wider">{String(course.courseName || course.title || t("home.courses.title")).substring(0, 20)}...</h3>
+                  </div>
+
+                  {/* Hover State (Expanded) */}
+                  <div className="absolute inset-0 z-20 p-10 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100">
+                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl translate-y-10 group-hover:translate-y-0 transition-transform duration-700">
+                      <span className="bg-primary text-black text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest inline-flex items-center gap-1 mb-4 shadow-lg">
+                        <Trophy className="w-3 h-3" /> {t("home.courses.bestseller")}
                       </span>
-                    </div>
-                    <div className="absolute bottom-4 left-4 flex gap-2">
-                      <span className="bg-black/60 backdrop-blur-md border border-white/20 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
-                        {course.level || "Beginner"}
-                      </span>
+                      <h3 className="text-3xl md:text-4xl font-black font-outfit text-white mb-4 leading-tight">{course.courseName || course.title}</h3>
+                      <div className="flex items-center gap-6 text-white/70 font-medium">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-primary" />
+                          <span>{course.durationWeeks || 4} {t("home.courses.weeks")}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-primary" />
+                          <span>{course.lessonsCount || 12} {t("home.courses.lessons")}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <h3 className="text-2xl font-black font-outfit text-white mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-                    {course.title}
-                  </h3>
-                  <div className="flex items-center gap-4 mt-auto pt-6 border-t border-white/10 text-white/50 text-sm font-medium">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{course.durationWeeks || 4} Weeks</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <BookOpen className="w-4 h-4" />
-                      <span>{course.lessonsCount || 12} Lessons</span>
-                    </div>
-                  </div>
-                </GlowCard>
-              </Link>
-            ))
-          )}
+                </Link>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
-      {/* ═══════ BENTO GRID ABOUT SECTION (Apple Style) ═══════ */}
-      <section className="relative py-24 px-6 max-w-[1400px] mx-auto z-20" dir={isRTL ? "rtl" : "ltr"}>
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-6xl font-black font-outfit text-white mb-4">Why Calligro?</h2>
-          <p className="text-white/50 max-w-2xl mx-auto text-lg">Experience the most advanced and immersive platform built specifically for learning the ancient arts.</p>
-        </div>
-
-        <div className="bento-grid">
-          {/* Large Card: Video/Interactive feature */}
-          <GlowCard className="bento-card-large p-10 flex flex-col justify-between min-h-[400px] bg-gradient-to-br from-white/5 to-transparent">
-            <div>
-              <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/30 mb-6">
-                <Play className="w-6 h-6 text-primary" />
+      {/* ═══════ 3. THE STICKY CANVAS (Why Calligro) ═══════ */}
+      <section className="relative w-full bg-[#1F1F1F] py-32 z-20 border-y border-white/5">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-20">
+            {/* Sticky Left Visual */}
+            <div className="hidden md:block relative z-10">
+              <div className="sticky top-40 h-[60vh] border border-white/10 rounded-[40px] overflow-hidden group shadow-2xl">
+                <Image 
+                  src="/assets/images/premium_experience.png"
+                  alt="Premium Experience"
+                  fill
+                  className="object-cover group-hover:scale-110 transition-transform duration-1000"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-primary/10 mix-blend-overlay pointer-events-none" />
+                
+                <div className="relative w-full h-full flex flex-col items-center justify-end p-12 text-center z-10">
+                  <div className="w-16 h-16 rounded-full border border-primary/30 flex items-center justify-center mb-6 backdrop-blur-md bg-black/40 shadow-xl">
+                    <Sparkles className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="text-4xl font-black font-outfit text-white mb-4">{t("home.premium.title")}</h3>
+                  <p className="text-white/70 text-lg font-medium drop-shadow-md">{t("home.premium.desc")}</p>
+                </div>
               </div>
-              <h3 className="text-3xl font-black font-outfit text-white mb-4">Interactive 4K Classrooms</h3>
-              <p className="text-white/60 text-lg max-w-md">Join live sessions with multiple camera angles. Watch the master&apos;s pen strokes in crystal clear 4K resolution while interacting in real-time.</p>
             </div>
-            {/* Abstract visual */}
-            <div className="absolute right-0 bottom-0 w-[60%] h-[80%] opacity-20 pointer-events-none">
-               <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                <path fill="#F2E293" d="M42.7,-73.4C55.9,-65.4,67.6,-53.5,76.3,-39.6C85,-25.7,90.7,-9.8,87.9,5C85,19.8,73.6,33.5,61.9,45.1C50.2,56.7,38.2,66.1,23.8,72.4C9.4,78.7,-7.4,81.9,-23.4,79C-39.4,76,-54.6,66.9,-65.4,54.1C-76.2,41.3,-82.6,24.8,-84.9,7.8C-87.2,-9.2,-85.4,-26.7,-77.1,-41.2C-68.8,-55.7,-54,-67.2,-39.3,-74.6C-24.6,-82,-12.3,-85.3,1.9,-88.6C16.1,-91.9,32.2,-95.2,42.7,-73.4Z" transform="translate(100 100)" />
-              </svg>
-            </div>
-          </GlowCard>
 
-          {/* Medium Card: Community */}
-          <GlowCard className="bento-card-medium p-10 flex flex-col justify-between bg-gradient-to-bl from-primary/10 to-transparent">
-            <div>
-               <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 mb-6">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-2xl font-black font-outfit text-white mb-4">Global Community</h3>
-              <p className="text-white/60">Share your homework, get feedback from masters, and connect with calligraphy enthusiasts worldwide.</p>
-            </div>
-          </GlowCard>
+            {/* Scrolling Right Content */}
+            <div className="flex flex-col gap-32 py-20 relative">
+              {[
+                { title: t("home.features.video.title"), icon: Play, desc: t("home.features.video.desc") },
+                { title: t("home.features.community.title"), icon: Users, desc: t("home.features.community.desc") },
+                { title: t("home.features.certificates.title"), icon: Award, desc: t("home.features.certificates.desc") }
+              ].map((feature, i) => (
+                <div key={i} className="flex flex-col sm:flex-row gap-8 group relative z-10 items-start">
+                  
+                  {/* Large Ghost Number Background */}
+                  <div className="absolute -top-16 -right-10 text-[140px] font-black text-white/[0.02] group-hover:text-primary/[0.05] transition-colors duration-700 pointer-events-none font-outfit select-none -z-10">
+                    0{i + 1}
+                  </div>
 
-          {/* Small Card: Certificate */}
-          <GlowCard className="bento-card-small p-10 flex flex-col justify-center items-center text-center bg-white/5">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8860B] flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(212,175,55,0.4)]">
-              <Star className="w-8 h-8 text-black fill-black" />
+                  {/* Icon Timeline Node */}
+                  <div className="relative shrink-0 mt-2">
+                    <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="w-16 h-16 rounded-full bg-[#121212] border border-white/10 flex items-center justify-center group-hover:border-primary/50 group-hover:scale-110 transition-all duration-700 relative z-10">
+                      <feature.icon className="w-7 h-7 text-white/50 group-hover:text-primary transition-colors duration-700" />
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col pt-3">
+                    <h3 className="text-3xl md:text-5xl font-black font-outfit text-white mb-6 tracking-tight group-hover:text-primary transition-colors duration-700">{feature.title}</h3>
+                    <p className="text-white/50 text-lg md:text-xl leading-relaxed max-w-lg group-hover:text-white/80 transition-colors duration-700">{feature.desc}</p>
+                    
+                    {/* Animated Expanding Divider */}
+                    <div className="w-12 h-px bg-white/20 mt-10 group-hover:w-full group-hover:bg-primary/50 transition-all duration-1000 ease-out" />
+                  </div>
+                </div>
+              ))}
             </div>
-            <h3 className="text-xl font-black font-outfit text-white">Verified Certificates</h3>
-          </GlowCard>
-          
-          {/* Bottom Wide Card */}
-          <GlowCard className="col-span-full p-10 md:p-14 bg-gradient-to-r from-black via-primary/5 to-black flex flex-col md:flex-row items-center justify-between gap-10">
-            <div className="max-w-2xl">
-              <h3 className="text-4xl font-black font-outfit text-white mb-4">Ready to start writing?</h3>
-              <p className="text-white/60 text-lg">Join Calligro today and get access to our exclusive tools, community, and courses.</p>
-            </div>
-            <button className="whitespace-nowrap px-10 py-5 rounded-full bg-white text-black font-black uppercase tracking-widest hover:bg-primary transition-colors shadow-2xl">
-              Join Now
-            </button>
-          </GlowCard>
+          </div>
         </div>
       </section>
 
-      {/* ═══════ 3D TEACHERS SHOWCASE ═══════ */}
-      <section className="relative py-24 px-6 max-w-[1400px] mx-auto z-20" dir={isRTL ? "rtl" : "ltr"}>
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-6xl font-black font-outfit text-white mb-4">Learn From The Masters</h2>
-          <p className="text-primary font-bold uppercase tracking-widest">The best calligraphers in the world</p>
+      {/* ═══════ 4. THE MASTERS' HALL (Teachers) ═══════ */}
+      <section className="relative w-full bg-[#1F1F1F] py-40 z-20 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 mb-24 text-center">
+          <h2 className="text-5xl md:text-7xl font-black font-outfit text-white mb-6 tracking-tight">{t("home.teachers.title")}</h2>
+          <p className="text-white/40 text-sm font-medium uppercase tracking-[0.3em]">{t("home.teachers.subtitle")}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-center items-center gap-16 md:gap-24">
           {teachers.map((teacher, i) => (
-            <motion.div
-              key={teacher.id}
-              whileHover={{ scale: 1.05, rotateY: 10, rotateX: 5 }}
-              className="relative perspective-1000"
-            >
-              <GlowCard className="h-full flex flex-col items-center text-center p-10 bg-black/40">
-                <div className="relative w-40 h-40 mb-8">
-                  <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-[spin_8s_linear_infinite] border-dashed" />
-                  <div className="absolute inset-2 rounded-full overflow-hidden border-4 border-black">
-                    <Image
-                      src={formatImageUrl(teacher.photoUrl || teacher.profileImage) || "/assets/images/Logo.png"}
-                      alt={teacher.name || "Teacher"}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
+             <motion.div 
+               key={teacher.id}
+               initial={{ opacity: 0, y: 20 }}
+               whileInView={{ opacity: 1, y: 0 }}
+               viewport={{ once: true }}
+               transition={{ duration: 0.8, delay: i * 0.1 }}
+               className="flex flex-col items-center group cursor-pointer"
+             >
+                <div className="w-48 h-48 md:w-60 md:h-60 rounded-full overflow-hidden mb-8 relative border border-white/5 transition-transform duration-700 group-hover:scale-105">
+                   <Image 
+                     src={formatImageUrl(teacher.photoUrl || teacher.profileImage) || "/assets/images/Logo.png"}
+                     alt={teacher.name || "Teacher"}
+                     fill 
+                     className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
+                   />
                 </div>
-                <h3 className="text-2xl font-black font-outfit text-white mb-6">
-                  {teacher.fullName || teacher.name || "Master Calligrapher"}
-                </h3>
-                <div className="flex gap-6 border-t border-white/10 w-full pt-6 justify-center">
-                  <div className="flex flex-col items-center">
-                    <span className="text-xl font-black text-white">{teacher.followerCount || 0}</span>
-                    <span className="text-[10px] text-white/40 uppercase tracking-widest">Students</span>
-                  </div>
-                  <div className="w-px h-10 bg-white/10" />
-                  <div className="flex flex-col items-center">
-                    <span className="text-xl font-black text-white flex items-center gap-1">
-                      {Number(teacher.rating || 5.0).toFixed(1)} <Star className="w-4 h-4 text-primary fill-primary" />
-                    </span>
-                    <span className="text-[10px] text-white/40 uppercase tracking-widest">Rating</span>
-                  </div>
+                
+                <h3 className="text-2xl md:text-3xl font-bold font-outfit text-white mb-2">{teacher.fullName || teacher.name || t("home.teachers.title")}</h3>
+                <p className="text-white/40 text-xs font-medium tracking-[0.2em] mb-4 uppercase">{t("home.teachers.certified")}</p>
+                
+                <div className="flex items-center gap-6">
+                   <div className="flex items-center gap-2">
+                      <Star className="w-3 h-3 fill-white text-white" />
+                      <span className="text-white/80 text-sm font-medium">{Number(teacher.rating || 5.0).toFixed(1)}</span>
+                   </div>
+                   <div className="w-1 h-1 rounded-full bg-white/20" />
+                   <div className="text-white/60 text-sm font-medium">
+                      {teacher.followerCount || 0} {t("home.teachers.students").toLowerCase()}
+                   </div>
                 </div>
-              </GlowCard>
-            </motion.div>
+             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* ═══════ THE MASTER'S JOURNEY (Learning Paths) ═══════ */}
-      <section className="relative py-24 bg-[#050505] border-t border-white/5 z-20" dir={isRTL ? "rtl" : "ltr"}>
-        <div className="max-w-[1400px] mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-6xl font-black font-outfit text-white mb-4">The Calligrapher&apos;s Journey</h2>
-            <p className="text-white/50 max-w-2xl mx-auto text-lg">A structured path from your first stroke to creating timeless masterpieces.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            {/* Connecting Line */}
-            <div className="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-[2px] bg-gradient-to-r from-primary/0 via-primary/30 to-primary/0 -translate-y-1/2" />
-            
-            {[
-              { step: "01", title: "Foundations", desc: "Master the individual letters, tools preparation, and the correct posture.", icon: BookOpen },
-              { step: "02", title: "Compositions", desc: "Learn how to connect letters and balance words in beautiful harmony.", icon: Layout },
-              { step: "03", title: "Masterpieces", desc: "Create your own complex artworks and earn your traditional certificate (Ijazah).", icon: Award },
-            ].map((path, i) => (
-              <GlowCard key={i} className="relative p-10 bg-[#0A0A0A] flex flex-col items-center text-center border-t-4 border-t-primary/50 hover:border-t-primary transition-all z-10">
-                <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary mb-6 shadow-[0_0_20px_rgba(232,196,104,0.15)]">
-                  <path.icon className="w-8 h-8" />
-                </div>
-                <div className="text-primary/50 font-black text-6xl font-outfit absolute -top-8 -left-4 opacity-30 select-none pointer-events-none">{path.step}</div>
-                <h3 className="text-2xl font-black font-outfit text-white mb-3">{path.title}</h3>
-                <p className="text-white/60">{path.desc}</p>
-              </GlowCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════ INFINITE TESTIMONIALS MARQUEE ═══════ */}
-      <section className="relative py-24 bg-gradient-to-b from-[#0a0a0a] to-[#050505] overflow-hidden z-20">
-        <div className="text-center mb-16 px-6 relative z-10">
-          <h2 className="text-3xl md:text-5xl font-black font-outfit text-white mb-4">Trusted by 10,000+ Students</h2>
-          <p className="text-primary font-bold uppercase tracking-widest text-sm">Join a global community of artists</p>
-        </div>
-
-        {/* Marquee Container */}
-        <div className="relative flex overflow-x-hidden group">
-          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-          
+      {/* ═══════ 5. THE FINAL CALL (Refined CTA) ═══════ */}
+      <section className="relative w-full bg-[#1F1F1F] py-40 z-20 pb-48">
+        <div className="max-w-4xl mx-auto px-6 text-center">
           <motion.div 
-            className="flex gap-6 px-3"
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ duration: 40, ease: "linear", repeat: Infinity }}
-            style={{ width: "fit-content" }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1 }}
+            className="flex flex-col items-center"
           >
-            {/* Array duplicated to make infinite loop seamless */}
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="flex gap-6">
-                {[
-                  { name: "Sarah Ahmed", role: "Beginner", text: "I never thought I could learn calligraphy online, but the 4K multiple camera angles make it feel like the master is sitting right next to me.", rating: 5 },
-                  { name: "Omar Youssef", role: "Intermediate", text: "The structured learning paths took me from struggling with basic letters to writing full compositions in just 3 months. Worth every penny.", rating: 5 },
-                  { name: "Layla M.", role: "Advanced", text: "Getting direct feedback from world-renowned certified masters is a game changer. The community is incredibly supportive.", rating: 5 },
-                  { name: "Tariq K.", role: "Beginner", text: "The Calligro platform is simply beautiful. It's fast, interactive, and the mobile app syncs my progress perfectly.", rating: 5 },
-                  { name: "Aisha F.", role: "Intermediate", text: "I achieved my dream of writing the Thuluth script beautifully. Thank you Calligro for this amazing academy!", rating: 5 },
-                ].map((testimonial, j) => (
-                  <div key={j} className="w-[350px] md:w-[450px] p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors shrink-0">
-                    <div className="flex items-center gap-2 mb-6">
-                      {[...Array(testimonial.rating)].map((_, k) => (
-                        <Star key={k} className="w-5 h-5 fill-primary text-primary" />
-                      ))}
-                    </div>
-                    <p className="text-white/80 text-lg italic mb-6 leading-relaxed">&ldquo;{testimonial.text}&rdquo;</p>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary border border-primary/30">
-                        {testimonial.name.charAt(0)}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-white font-outfit">{testimonial.name}</h4>
-                        <span className="text-xs text-white/40 uppercase tracking-widest">{testimonial.role}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
+            <h2 className="text-6xl md:text-8xl font-black font-outfit text-white mb-8 tracking-tighter leading-tight">
+              {t("home.cta.title")}
+            </h2>
+            <p className="text-white/50 text-xl md:text-2xl mb-16 font-light max-w-2xl">
+              {t("home.cta.desc")}
+            </p>
+            
+            <Link href="/login">
+              <button className="px-12 py-5 rounded-full bg-white text-black font-semibold text-sm hover:scale-105 transition-transform duration-300">
+                {t("home.cta.btn")}
+              </button>
+            </Link>
           </motion.div>
         </div>
       </section>

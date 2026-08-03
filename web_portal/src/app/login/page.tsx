@@ -33,13 +33,9 @@ export default function LoginPage() {
       }
       const userData = userDoc.data();
       const role = userData?.role || "student";
-      if (role === "teacher") {
-        await auth.signOut();
-        setError(t("login.error_teacher_mobile_only"));
-        setLoading(false);
-        return;
-      }
-      if (role === "admin") { router.push("/admin/dashboard"); } else { router.push("/courses"); }
+      if (role === "teacher") { router.push("/teacher/dashboard"); }
+      else if (role === "admin") { router.push("/admin/dashboard"); } 
+      else { router.push("/courses"); }
     } catch (err: any) {
       setError(err.message || t("login.error_invalid_credentials"));
       setLoading(false);
@@ -63,13 +59,9 @@ export default function LoginPage() {
       }
       const userData = userDoc.data();
       const role = userData?.role || "student";
-      if (role === "teacher") {
-        await auth.signOut();
-        setError(t("login.error_teacher_mobile_only"));
-        setLoading(false);
-        return;
-      }
-      if (role === "admin") { router.push("/admin/dashboard"); } else { router.push("/courses"); }
+      if (role === "teacher") { router.push("/teacher/dashboard"); }
+      else if (role === "admin") { router.push("/admin/dashboard"); } 
+      else { router.push("/courses"); }
     } catch (err: any) {
       setError(err.message || t("login.error_google_failed"));
       setLoading(false);
@@ -77,7 +69,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0C] font-outfit selection:bg-primary/30 selection:text-primary flex flex-col">
+    <div className="min-h-screen bg-secondary font-outfit selection:bg-primary/30 selection:text-primary flex flex-col">
       <Navbar />
       
       <div className="flex-1 flex flex-col md:flex-row mt-[72px] md:mt-[80px]">
@@ -89,35 +81,6 @@ export default function LoginPage() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="w-full md:w-1/2 flex items-center justify-center p-8 md:p-12 lg:p-24 relative z-10 overflow-hidden"
         >
-          {/* 🌊 Modern Animated Background (Bubbles/Blobs) */}
-          <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
-             <motion.div 
-               animate={{ 
-                 x: [0, 50, 0], 
-                 y: [0, 30, 0],
-                 scale: [1, 1.1, 1]
-               }} 
-               transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-               className="absolute top-[-10%] left-[-10%] w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px]" 
-             />
-             <motion.div 
-               animate={{ 
-                 x: [0, -40, 0], 
-                 y: [0, 60, 0],
-                 scale: [1, 1.2, 1]
-               }} 
-               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-               className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px]" 
-             />
-             <motion.div 
-               animate={{ 
-                 scale: [1, 1.1, 1],
-                 opacity: [0.3, 0.5, 0.3]
-               }} 
-               transition={{ duration: 8, repeat: Infinity }}
-               className="absolute top-[30%] left-[40%] w-[300px] h-[300px] bg-purple-500/5 rounded-full blur-[80px]" 
-             />
-          </div>
           
           <div className="w-full max-w-md flex flex-col justify-center relative z-10">
             <h1 className="text-4xl lg:text-6xl font-black text-white mb-4 tracking-tighter leading-none">

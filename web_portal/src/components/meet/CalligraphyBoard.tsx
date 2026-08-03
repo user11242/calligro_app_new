@@ -16,7 +16,9 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import { Eraser, Download, Undo2, Sliders, X, RotateCcw, Paintbrush, PenLine } from "lucide-react";
+import { Eraser, Download, Undo2, Sliders, X, RotateCcw, Paintbrush, PenLine, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useDataChannel, useParticipants, useConnectionState } from "@livekit/components-react";
+import { ConnectionState } from "livekit-client";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,6 +100,14 @@ function smoothPath(rawPoints: number[][], spacing: number): number[][] {
   return result;
 }
 
+function getDistance(p1: {x: number, y: number}, p2: {x: number, y: number}) {
+  return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+}
+
+function getMidpoint(p1: {x: number, y: number}, p2: {x: number, y: number}) {
+  return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 interface CalligraphyBoardProps {
@@ -108,7 +118,8 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const ctxRef     = useRef<CanvasRenderingContext2D | null>(null);
 
-  const strokesRef = useRef<StrokeRecord[]>([]);
+  const pagesRef = useRef<StrokeRecord[][]>([[]]);
+  const [currentPage, setCurrentPage] = useState(0);
   const currentStrokeRef = useRef<StrokeRecord | null>(null);
   const lastDrawnIndexRef = useRef(0);
 
@@ -125,6 +136,12 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
   const [showStudio, setShowStudio] = useState(false);
   const [studioTab, setStudioTab] = useState<StudioTab>("stroke");
   const [stylusOnly, setStylusOnly] = useState(false);
+
+  // Zoom and Pan State
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const pointersRef = useRef<Map<number, {x: number, y: number}>>(new Map());
+  const initialGestureRef = useRef<{ dist: number; center: {x: number, y: number}; scale: number; offset: {x: number, y: number} } | null>(null);
 
   const dprRef = useRef(1);
 
@@ -164,32 +181,78 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
       });
   }, []);
 
+  // ── LiveKit Data Channel Sync ───────────────────────────────────────────
+  const { send } = useDataChannel("calligraphy-paint", (msg) => {
+    if (isTeacher) return; // Teachers don't listen to incoming paints from students
+    try {
+      const data = JSON.parse(new TextDecoder().decode(msg.payload));
+      
+      if (data.type === "PAINT_START") {
+        currentStrokeRef.current = data.stroke;
+        lastDrawnIndexRef.current = 0;
+        setIsDrawing(true);
+      } else if (data.type === "PAINT_MOVE") {
+        if (!currentStrokeRef.current) return;
+        currentStrokeRef.current.points.push(data.point);
+        renderIncremental();
+      } else if (data.type === "PAINT_END") {
+        if (currentStrokeRef.current && currentStrokeRef.current.points.length > 1) {
+          pagesRef.current[currentPage].push(currentStrokeRef.current);
+        }
+        currentStrokeRef.current = null;
+        lastDrawnIndexRef.current = 0;
+        setIsDrawing(false);
+        renderAllStrokes();
+      } else if (data.type === "PAINT_CLEAR") {
+        pagesRef.current[currentPage] = [];
+        currentStrokeRef.current = null;
+        renderAllStrokes();
+      } else if (data.type === "PAINT_UNDO") {
+        pagesRef.current[currentPage].pop();
+        renderAllStrokes();
+      } else if (data.type === "PAINT_SYNC_ALL") {
+        if (data.pages) {
+          pagesRef.current = data.pages;
+          setCurrentPage(data.currentPage || 0);
+        } else {
+          // Backwards compatibility
+          pagesRef.current[currentPage] = data.strokes || [];
+        }
+        requestAnimationFrame(renderAllStrokes);
+      }
+    } catch (e) {
+      console.error("Failed to parse paint event", e);
+    }
+  });
+
+  const connectionState = useConnectionState();
+
+  const broadcastEvent = useCallback((event: any) => {
+    if (!isTeacher || connectionState !== ConnectionState.Connected) return;
+    try {
+      const p = send(new TextEncoder().encode(JSON.stringify(event)), { reliable: true });
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  }, [isTeacher, send, connectionState]);
+
+  const participants = useParticipants();
+
+  // Re-broadcast all strokes when a new participant joins
+  useEffect(() => {
+    if (!isTeacher) return;
+    // Debounce slightly to ensure connection is ready
+    const timer = setTimeout(() => {
+      broadcastEvent({ type: "PAINT_SYNC_ALL", pages: pagesRef.current, currentPage });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [participants.length, isTeacher, broadcastEvent, currentPage]);
+
   useEffect(() => {
     if (activeBrush) {
       setLocalBrush({ ...activeBrush });
       stampCacheRef.current.clear(); // Clear cache when brush changes
     }
   }, [activeBrush]);
-
-  // ── Init canvas ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d", { willReadFrequently: false })!;
-    const dpr = window.devicePixelRatio || 1;
-    dprRef.current = dpr;
-    const rect = canvas.parentElement?.getBoundingClientRect();
-    if (rect) {
-      canvas.width  = rect.width  * dpr;
-      canvas.height = rect.height * dpr;
-      canvas.style.width  = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
-    }
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = "#FDFBF7";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctxRef.current = ctx;
-  }, []);
 
   // ── Get or create tinted stamp ─────────────────────────────────────────
   const getTintedStamp = useCallback((brushId: string, color: string, size: number): HTMLCanvasElement | null => {
@@ -226,33 +289,8 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
     return stamp;
   }, []);
 
-  // ── Render all strokes ─────────────────────────────────────────────────
-  const renderAllStrokes = useCallback(() => {
-    const ctx = ctxRef.current;
-    const canvas = canvasRef.current;
-    if (!ctx || !canvas) return;
-
-    const dpr = dprRef.current;
-    const w = canvas.width / dpr;
-    const h = canvas.height / dpr;
-
-    ctx.save();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#FDFBF7";
-    ctx.fillRect(0, 0, w, h);
-
-    const allStrokes = [...strokesRef.current];
-    if (currentStrokeRef.current) allStrokes.push(currentStrokeRef.current);
-
-    for (const stroke of allStrokes) {
-      renderStroke(ctx, stroke);
-    }
-    ctx.restore();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getTintedStamp]);
-
   // ── Render a single stroke ─────────────────────────────────────────────
-  const renderStroke = (ctx: CanvasRenderingContext2D, stroke: StrokeRecord) => {
+  const renderStroke = useCallback((ctx: CanvasRenderingContext2D, stroke: StrokeRecord) => {
     if (stroke.points.length < 2) return;
 
     const { color, brushId, brushSize, nibAngle, opacity } = stroke;
@@ -280,7 +318,78 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
     }
 
     ctx.restore();
-  };
+  }, [getTintedStamp]);
+
+  // ── Render all strokes ─────────────────────────────────────────────────
+  const renderAllStrokes = useCallback(() => {
+    const ctx = ctxRef.current;
+    const canvas = canvasRef.current;
+    if (!ctx || !canvas) return;
+
+    const dpr = dprRef.current;
+
+    ctx.save();
+    // Clear the ENTIRE canvas first using the un-scaled transform
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "#FDFBF7";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Apply the zoom & pan transform to the context (origin at center)
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, centerX + offset.x * dpr, centerY + offset.y * dpr);
+
+    const allStrokes = [...pagesRef.current[currentPage]];
+    if (currentStrokeRef.current) allStrokes.push(currentStrokeRef.current);
+
+    for (const stroke of allStrokes) {
+      renderStroke(ctx, stroke);
+    }
+    ctx.restore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale, offset, currentPage, renderStroke]);
+
+  // ── Init canvas ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: false })!;
+    ctxRef.current = ctx;
+    const dpr = window.devicePixelRatio || 1;
+    dprRef.current = dpr;
+
+    const updateSize = () => {
+      const rect = parent.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        if (canvas.width !== Math.floor(rect.width * dpr) || canvas.height !== Math.floor(rect.height * dpr)) {
+          canvas.width  = rect.width  * dpr;
+          canvas.height = rect.height * dpr;
+          canvas.style.width  = `${rect.width}px`;
+          canvas.style.height = `${rect.height}px`;
+          // Draw background and then strokes
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.fillStyle = "#FDFBF7";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          renderAllStrokes(); 
+        }
+      }
+    };
+
+    updateSize();
+
+    const resizeObserver = new ResizeObserver(() => updateSize());
+    resizeObserver.observe(parent);
+
+    return () => resizeObserver.disconnect();
+  }, [renderAllStrokes]);
+
+  // Re-render when zooming or panning
+  useEffect(() => {
+    renderAllStrokes();
+  }, [scale, offset, renderAllStrokes]);
 
   // ── Incremental render (only new points during drawing) ─────────────────
   const renderIncremental = useCallback(() => {
@@ -301,8 +410,12 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
     const smoothed = smoothPath(segmentPts, 1.5);
 
     const dpr = dprRef.current;
+    const canvas = canvasRef.current;
+    const centerX = canvas ? canvas.width / 2 : 0;
+    const centerY = canvas ? canvas.height / 2 : 0;
+    
     ctx.save();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, centerX + offset.x * dpr, centerY + offset.y * dpr);
     ctx.globalAlpha = Math.max(0.05, opacity);
 
     const halfW = stamp.width / 2;
@@ -322,16 +435,42 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
   }, [getTintedStamp]);
 
   // ── Pointer events ──────────────────────────────────────────────────────
-  const getPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const getRawPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return [0, 0];
-    return [e.clientX - rect.left, e.clientY - rect.top];
+    if (!rect) return { x: 0, y: 0 };
+    // Make the center of the canvas (0,0) so drawings sync correctly across different screen sizes
+    return { 
+      x: (e.clientX - rect.left) - rect.width / 2, 
+      y: (e.clientY - rect.top) - rect.height / 2 
+    };
+  };
+
+  const getPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const raw = getRawPos(e);
+    // Reverse the scale and offset to map back to original canvas coordinates
+    return [(raw.x - offset.x) / scale, (raw.y - offset.y) / scale];
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (stylusOnly && e.pointerType !== "pen") return;
-    
+    if (!isTeacher) return;
     (e.target as Element).setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, getRawPos(e));
+
+    // Handle gesture trigger if 2 fingers
+    if (pointersRef.current.size === 2) {
+      setIsDrawing(false);
+      currentStrokeRef.current = null;
+      
+      const pts = Array.from(pointersRef.current.values());
+      const dist = getDistance(pts[0], pts[1]);
+      const center = getMidpoint(pts[0], pts[1]);
+      initialGestureRef.current = { dist, center, scale, offset };
+      return;
+    }
+
+    if (pointersRef.current.size > 2) return;
+
+    if (stylusOnly && e.pointerType !== "pen") return;
     const brush = localBrush;
     if (!brush) return;
 
@@ -352,9 +491,34 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
 
     lastDrawnIndexRef.current = 0;
     setIsDrawing(true);
+
+    broadcastEvent({ type: "PAINT_START", stroke: currentStrokeRef.current });
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isTeacher) return;
+    if (pointersRef.current.has(e.pointerId)) {
+      pointersRef.current.set(e.pointerId, getRawPos(e));
+    }
+
+    // Handle zoom & pan
+    if (pointersRef.current.size === 2 && initialGestureRef.current) {
+      const pts = Array.from(pointersRef.current.values());
+      const dist = getDistance(pts[0], pts[1]);
+      const center = getMidpoint(pts[0], pts[1]);
+      const init = initialGestureRef.current;
+
+      let newScale = init.scale * (dist / init.dist);
+      newScale = Math.max(0.5, Math.min(newScale, 5.0)); // Clamp between 0.5x and 5.0x
+      
+      const newOffsetX = center.x - (init.center.x - init.offset.x) * (newScale / init.scale);
+      const newOffsetY = center.y - (init.center.y - init.offset.y) * (newScale / init.scale);
+
+      setScale(newScale);
+      setOffset({ x: newOffsetX, y: newOffsetY });
+      return;
+    }
+
     if (!isDrawing || !currentStrokeRef.current) return;
     const [x, y] = getPos(e);
     
@@ -371,28 +535,61 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
     }
     
     renderIncremental();
+    broadcastEvent({ type: "PAINT_MOVE", point: currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1] });
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isTeacher) return;
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) {
+      initialGestureRef.current = null;
+    }
+
     if (currentStrokeRef.current && currentStrokeRef.current.points.length > 1) {
-      strokesRef.current.push(currentStrokeRef.current);
+      pagesRef.current[currentPage].push(currentStrokeRef.current);
     }
     currentStrokeRef.current = null;
     lastDrawnIndexRef.current = 0;
     setIsDrawing(false);
     renderAllStrokes();
+
+    broadcastEvent({ type: "PAINT_END" });
+  };
+
+  const onPointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isTeacher) return;
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) {
+      initialGestureRef.current = null;
+    }
+    currentStrokeRef.current = null;
+    setIsDrawing(false);
+    renderAllStrokes();
+    broadcastEvent({ type: "PAINT_END" });
   };
 
   const undo = useCallback(() => {
-    strokesRef.current.pop();
+    if (!isTeacher) return;
+    pagesRef.current[currentPage].pop();
     renderAllStrokes();
-  }, [renderAllStrokes]);
+    broadcastEvent({ type: "PAINT_UNDO" });
+  }, [renderAllStrokes, isTeacher, broadcastEvent, currentPage]);
 
   const clearCanvas = useCallback(() => {
-    strokesRef.current = [];
+    if (!isTeacher) return;
+    pagesRef.current[currentPage] = [];
     currentStrokeRef.current = null;
     renderAllStrokes();
-  }, [renderAllStrokes]);
+    broadcastEvent({ type: "PAINT_CLEAR" });
+  }, [renderAllStrokes, isTeacher, broadcastEvent, currentPage]);
+
+  const switchPage = useCallback((newIndex: number) => {
+    if (newIndex < 0 || newIndex > pagesRef.current.length) return;
+    if (newIndex === pagesRef.current.length) {
+      pagesRef.current.push([]);
+    }
+    setCurrentPage(newIndex);
+  }, []);
 
   const downloadCanvas = () => {
     const canvas = canvasRef.current;
@@ -415,8 +612,9 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
     <div className="w-full h-full flex rounded-3xl overflow-hidden shadow-2xl border border-white/10 relative">
 
       {/* ── LEFT SIDEBAR ── */}
-      <div className="w-14 h-full bg-[#0D0B08] border-r border-white/5 flex flex-col items-center py-4 gap-3 shrink-0 z-30">
-        <button onClick={undo} title="Undo"
+      {isTeacher && (
+        <div className="w-14 h-full bg-[#0D0B08] border-r border-white/5 flex flex-col items-center py-4 gap-3 shrink-0 z-30">
+          <button onClick={undo} title="Undo"
           className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 flex items-center justify-center text-white/40 hover:text-white transition-all">
           <Undo2 className="w-4 h-4" />
         </button>
@@ -530,13 +728,15 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
               [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-400
               [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow"
             style={{ writingMode: "vertical-lr", direction: "rtl" }} />
-          <span className="text-[8px] text-white/30 font-mono">{userOpacity}%</span>
+            <span className="text-[8px] text-white/30 font-mono">{userOpacity}%</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── BRUSH LIST ── */}
-      <div className="w-[200px] h-full bg-[#100E0A] border-r border-white/5 flex flex-col shrink-0 z-20">
-        <div className="px-4 pt-4 pb-2.5 border-b border-white/5">
+      {isTeacher && (
+        <div className="w-[200px] h-full bg-[#100E0A] border-r border-white/5 flex flex-col shrink-0 z-20">
+          <div className="px-4 pt-4 pb-2.5 border-b border-white/5">
           <h2 className="text-[12px] font-black text-white">فرش الخط العربي</h2>
           <p className="text-white/25 text-[8px] font-bold uppercase tracking-widest mt-0.5">
             {brushes.length} BRUSHES
@@ -572,6 +772,28 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
           })}
         </div>
 
+        {/* Pages Controls */}
+        <div className="p-2 border-t border-white/5 flex items-center justify-between bg-black/20">
+          <button 
+            onClick={() => switchPage(currentPage - 1)} 
+            disabled={currentPage === 0}
+            className="p-1.5 text-white/40 hover:text-white disabled:opacity-30 hover:bg-white/5 rounded transition-all"
+            title="Previous Page"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-[10px] text-white/60 font-mono tracking-widest font-bold">
+            {currentPage + 1} / {pagesRef.current.length}
+          </span>
+          <button 
+            onClick={() => switchPage(currentPage + 1)}
+            className="p-1.5 text-white/40 hover:text-white hover:bg-white/5 rounded transition-all"
+            title={currentPage === pagesRef.current.length - 1 ? "New Page" : "Next Page"}
+          >
+            {currentPage === pagesRef.current.length - 1 ? <Plus className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+        </div>
+
         <div className="p-1.5 border-t border-white/5 grid grid-cols-3 gap-1">
           <button onClick={clearCanvas}
             className="flex items-center justify-center gap-1 py-2 rounded-lg bg-red-500/10 text-red-400/80 hover:bg-red-500/20 hover:text-red-300 transition-all">
@@ -586,16 +808,13 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
             <Download className="w-3 h-3" /><span className="text-[9px] font-bold">Save</span>
           </button>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* ── CANVAS ── */}
       <div className="flex-1 h-full relative overflow-hidden bg-[#FDFBF7] flex">
         <div className="flex-1 relative h-full">
-          {/* Watermark */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none"
-            style={{ fontSize: "20rem", color: "rgba(0,0,0,0.015)", fontFamily: "'Noto Naskh Arabic', serif", lineHeight: 1 }}>
-            ب
-          </div>
+
 
           {/* Active brush info */}
           {localBrush && (
@@ -613,16 +832,17 @@ export default function CalligraphyBoard({ isTeacher = false }: CalligraphyBoard
           )}
 
           <canvas ref={canvasRef}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerLeave={onPointerUp}
-            className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+            onPointerDown={isTeacher ? onPointerDown : undefined}
+            onPointerMove={isTeacher ? onPointerMove : undefined}
+            onPointerUp={isTeacher ? onPointerUp : undefined}
+            onPointerCancel={isTeacher ? onPointerCancel : undefined}
+            onPointerOut={isTeacher ? onPointerCancel : undefined}
+            className={`absolute inset-0 w-full h-full touch-none ${isTeacher ? "cursor-crosshair" : "cursor-default"}`}
           />
         </div>
 
         {/* ── BRUSH STUDIO PANEL ── */}
-        {showStudio && localBrush && (
+        {showStudio && localBrush && isTeacher && (
           <div className="w-[320px] h-full bg-[#12100C]/95 backdrop-blur-md border-l border-white/10 flex flex-col z-30 shrink-0 text-white">
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-2">

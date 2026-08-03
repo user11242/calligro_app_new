@@ -1,18 +1,89 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { Tldraw } from "@tldraw/tldraw";
+import React, { useEffect, useState, useRef } from "react";
+import { Tldraw, Editor } from "@tldraw/tldraw";
 import "@tldraw/tldraw/tldraw.css";
 import { Loader2, PenTool, LayoutDashboard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useDataChannel, useParticipants, useConnectionState } from "@livekit/components-react";
+import { ConnectionState } from "livekit-client";
 import CalligraphyBoard from "./CalligraphyBoard";
 
 interface WhiteboardProps {
   isTeacher: boolean;
+  mode: "standard" | "calligraphy";
+  onModeChange: (mode: "standard" | "calligraphy") => void;
 }
 
-export default function Whiteboard({ isTeacher }: WhiteboardProps) {
+export default function Whiteboard({ isTeacher, mode, onModeChange }: WhiteboardProps) {
   const [mounted, setMounted] = useState(false);
-  const [mode, setMode] = useState<"standard" | "calligraphy">("calligraphy");
+  const editorRef = useRef<Editor | null>(null);
+
+  // ── Tldraw Data Channel Sync ──────────────────────────────────────────────
+  const { send } = useDataChannel("tldraw-sync", (msg) => {
+    if (isTeacher) return;
+    try {
+      const data = JSON.parse(new TextDecoder().decode(msg.payload));
+      if (editorRef.current && data.type === 'TLDRAW_PATCH') {
+        const { added, updated, removed } = data.changes;
+        editorRef.current.store.mergeRemoteChanges(() => {
+          if (added && Object.keys(added).length > 0) {
+            editorRef.current!.store.put(Object.values(added));
+          }
+          if (updated && Object.keys(updated).length > 0) {
+            editorRef.current!.store.put(Object.values(updated).map((v: any) => v[1]));
+          }
+          if (removed && Object.keys(removed).length > 0) {
+            editorRef.current!.store.remove(Object.values(removed));
+          }
+        });
+      } else if (editorRef.current && data.type === 'TLDRAW_SNAPSHOT') {
+        editorRef.current.store.loadSnapshot(data.snapshot);
+      }
+    } catch (e) {}
+  });
+
+  const participants = useParticipants();
+  const connectionState = useConnectionState();
+
+  // Re-broadcast all shapes when a new participant joins
+  useEffect(() => {
+    if (!isTeacher || !editorRef.current || connectionState !== ConnectionState.Connected) return;
+    
+    // Debounce slightly to ensure connection is ready
+    const timer = setTimeout(() => {
+      try {
+        const p = send(new TextEncoder().encode(JSON.stringify({ 
+          type: 'TLDRAW_SNAPSHOT', 
+          snapshot: editorRef.current!.store.getSnapshot()
+        })), { reliable: true });
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) {}
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [participants.length, isTeacher, send, connectionState]);
+
+  const handleTldrawMount = (editor: Editor) => {
+    editorRef.current = editor;
+    
+    // Only teacher broadcasts changes
+    if (isTeacher) {
+      editor.store.listen(
+        (update) => {
+          if (update.source === 'user' && connectionState === ConnectionState.Connected) {
+            try {
+              const p = send(new TextEncoder().encode(JSON.stringify({ 
+                type: 'TLDRAW_PATCH', 
+                changes: update.changes 
+              })), { reliable: true });
+              if (p && p.catch) p.catch(() => {});
+            } catch (e) {}
+          }
+        },
+        { scope: 'document' } // document changes only (ignores UI/presence)
+      );
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -31,26 +102,28 @@ export default function Whiteboard({ isTeacher }: WhiteboardProps) {
     <div className="w-full h-full relative rounded-3xl overflow-hidden shadow-2xl border border-white/10" style={{ zIndex: 10 }}>
       
       {/* ── MODE TOGGLE (Floating Top Center) ── */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-[#13110C]/90 backdrop-blur-md border border-white/10 p-1 rounded-full flex items-center shadow-2xl">
-        <button
-          onClick={() => setMode("standard")}
-          className={`flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
-            mode === "standard" ? "bg-white/10 text-white" : "text-white/40 hover:text-white"
-          }`}
-        >
-          <LayoutDashboard className="w-4 h-4" />
-          Calligro Board
-        </button>
-        <button
-          onClick={() => setMode("calligraphy")}
-          className={`flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
-            mode === "calligraphy" ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]" : "text-white/40 hover:text-white"
-          }`}
-        >
-          <PenTool className="w-4 h-4" />
-          Calligro Paint
-        </button>
-      </div>
+      {isTeacher && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-[#13110C]/90 backdrop-blur-md border border-white/10 p-1 rounded-full flex items-center shadow-2xl">
+          <button
+            onClick={() => onModeChange("standard")}
+            className={`flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
+              mode === "standard" ? "bg-white/10 text-white" : "text-white/40 hover:text-white"
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Calligro Board
+          </button>
+          <button
+            onClick={() => onModeChange("calligraphy")}
+            className={`flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
+              mode === "calligraphy" ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]" : "text-white/40 hover:text-white"
+            }`}
+          >
+            <PenTool className="w-4 h-4" />
+            Calligro Paint
+          </button>
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {mode === "standard" ? (
@@ -113,8 +186,18 @@ export default function Whiteboard({ isTeacher }: WhiteboardProps) {
               .whiteboard-container .tlui-layout__bottom {
                 pointer-events: none !important;
               }
+
+              /* Hide UI for students completely */
+              ${!isTeacher ? `
+                .whiteboard-container .tlui-layout {
+                  display: none !important;
+                }
+              ` : ''}
             `}} />
-            <Tldraw />
+            <Tldraw 
+              onMount={handleTldrawMount}
+              isReadonly={!isTeacher}
+            />
           </motion.div>
         ) : (
           <motion.div
