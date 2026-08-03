@@ -17,7 +17,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] },
+  transition: { duration: 0.4, delay, ease: "easeOut" as const },
 });
 
 type Status = "all" | "submitted" | "graded" | "rejected";
@@ -48,7 +48,7 @@ export default function TeacherHomeworksPage() {
         const coursesSnap = await getDocs(
           query(collection(db, "courses"), where("teacherId", "==", user.uid))
         );
-        const courseList = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const courseList: any[] = coursesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
         // For each course, get all assignments and their submissions
         const allAssignments: any[] = [];
@@ -353,7 +353,7 @@ export default function TeacherHomeworksPage() {
                                   <span className="flex items-center gap-1.5 font-bold" style={{ color: "#34D399" }}>
                                     <Award className="w-4 h-4" /> {sub.points || 0} pts
                                   </span>
-                                  {sub.feedback && <span className="text-white/30">· "{sub.feedback}"</span>}
+                                  {sub.feedback && <span className="text-white/30">· &quot;{sub.feedback}&quot;</span>}
                                 </div>
                               )}
                             </div>

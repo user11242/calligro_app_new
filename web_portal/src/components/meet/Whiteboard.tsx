@@ -37,7 +37,7 @@ export default function Whiteboard({ isTeacher, mode, onModeChange }: Whiteboard
           }
         });
       } else if (editorRef.current && data.type === 'TLDRAW_SNAPSHOT') {
-        editorRef.current.store.loadSnapshot(data.snapshot);
+        editorRef.current.store.loadStoreSnapshot(data.snapshot);
       }
     } catch (e) {}
   });
@@ -54,7 +54,7 @@ export default function Whiteboard({ isTeacher, mode, onModeChange }: Whiteboard
       try {
         const p = send(new TextEncoder().encode(JSON.stringify({ 
           type: 'TLDRAW_SNAPSHOT', 
-          snapshot: editorRef.current!.store.getSnapshot()
+          snapshot: editorRef.current!.store.getStoreSnapshot()
         })), { reliable: true });
         if (p && p.catch) p.catch(() => {});
       } catch (e) {}
@@ -196,6 +196,7 @@ export default function Whiteboard({ isTeacher, mode, onModeChange }: Whiteboard
             `}} />
             <Tldraw 
               onMount={handleTldrawMount}
+              // @ts-ignore
               isReadonly={!isTeacher}
             />
           </motion.div>

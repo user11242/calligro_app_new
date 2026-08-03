@@ -17,7 +17,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] },
+  transition: { duration: 0.4, delay, ease: "easeOut" as const },
 });
 
 const formatSafe = (val: any) => {
