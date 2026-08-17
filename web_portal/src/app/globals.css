@@ -1,5 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&display=swap');
 
+@font-face {
+  font-family: 'Thuluth';
+  src: url('/fonts/thuluth.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

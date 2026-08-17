@@ -33,7 +33,7 @@ export default function Footer() {
               <h3 className="text-[10px] font-black uppercase tracking-[2px] text-white/40">{t("footer.support")}</h3>
               <ul className="space-y-1.5 flex flex-col">
                 <Link href="/login" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.portal")}</Link>
-                <Link href="mailto:support@calligro.com" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.contact")}</Link>
+                <Link href="mailto:support@calligroacademy.com" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.contact")}</Link>
               </ul>
             </div>
             <div className="space-y-3">

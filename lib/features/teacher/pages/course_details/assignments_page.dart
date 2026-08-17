@@ -304,6 +304,7 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
             .doc(widget.courseId)
             .collection('assignments')
             .orderBy('dueDate', descending: false)
+            .limit(100)
             .snapshots(),
         builder: (context, snapshot) {
           final docs = snapshot.data?.docs ?? [];

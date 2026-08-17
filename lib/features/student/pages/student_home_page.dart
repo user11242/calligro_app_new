@@ -5,6 +5,8 @@ import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:calligro_app/features/student/data/services/student_service.dart';
+import 'package:calligro_app/features/student/data/services/certificate_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -107,6 +109,13 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
           if (reviewQuery.docs.isEmpty) {
             if (mounted) {
+              // Generate certificate in background
+              CertificateService().generateCertificateIfMissing(
+                courseId: doc.id,
+                courseName: CourseUtils.getLocalizedCourseName(context, data),
+                teacherId: data['teacherId'] ?? '',
+              );
+              
               showCourseCompletionRatingDialog(
                 context: context,
                 courseId: doc.id,

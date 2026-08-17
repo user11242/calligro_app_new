@@ -159,6 +159,9 @@ class CommunityService {
         // Increment user's post count
         if (userDoc.exists) {
           transaction.update(userRef, {'postCount': FieldValue.increment(1)});
+          final role = userDoc.data()?['role'] as String? ?? 'student';
+          final roleRef = _firestore.collection(role == 'teacher' ? 'teachers' : 'students').doc(uid);
+          transaction.update(roleRef, {'postCount': FieldValue.increment(1)});
         }
       });
     } catch (e) {
@@ -232,6 +235,7 @@ class CommunityService {
     return _firestore
         .collection('community_posts')
         .where('isPinned', isEqualTo: true)
+        .limit(5)
         .snapshots()
         .handleError((e) {
       // Swallow errors
@@ -320,6 +324,9 @@ class CommunityService {
           final int currentCount = userDoc.data()?['postCount'] ?? 0;
           if (currentCount > 0) {
             transaction.update(userRef, {'postCount': FieldValue.increment(-1)});
+            final role = userDoc.data()?['role'] as String? ?? 'student';
+            final roleRef = _firestore.collection(role == 'teacher' ? 'teachers' : 'students').doc(postAuthorId);
+            transaction.update(roleRef, {'postCount': FieldValue.increment(-1)});
           }
         }
       });
@@ -624,6 +631,41 @@ class CommunityService {
     await replyRef.update({
       'text': newText,
       'isEdited': true,
+    });
+  }
+
+  // ------------------------------------------------------------------------
+  // 10. Moderation (Report / Block)
+  // ------------------------------------------------------------------------
+  Future<void> reportPost({
+    required String postId,
+    required String reportedUserId,
+    required String currentUserId,
+  }) async {
+    await _firestore.collection('reports').add({
+      'postId': postId,
+      'reportedUserId': reportedUserId,
+      'reportedByUserId': currentUserId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'status': 'pending',
+    });
+  }
+
+  Future<void> blockUser({
+    required String currentUserId,
+    required String blockedUserId,
+  }) async {
+    await _firestore.collection('users').doc(currentUserId).update({
+      'blockedUsers': FieldValue.arrayUnion([blockedUserId]),
+    });
+  }
+
+  Future<void> unblockUser({
+    required String currentUserId,
+    required String blockedUserId,
+  }) async {
+    await _firestore.collection('users').doc(currentUserId).update({
+      'blockedUsers': FieldValue.arrayRemove([blockedUserId]),
     });
   }
 }

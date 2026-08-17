@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -18,6 +18,7 @@ export default function TeacherClassroomPage() {
   const [user, setUser] = useState<any>(null);
   const [courseName, setCourseName] = useState("");
   const [livekitData, setLivekitData] = useState<{ token: string; serverUrl: string } | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -47,7 +48,15 @@ export default function TeacherClassroomPage() {
             throw new Error("You are not authorized as the teacher of this course.");
           }
         } else {
-            throw new Error("Course not found.");
+          setError("Course not found");
+          return;
+        }
+
+        // Fetch user photoUrl from Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUserAvatar(userDocSnap.data().photoUrl || userDocSnap.data().photoURL || null);
         }
 
         // Call Cloud Function to get LiveKit Token
@@ -62,6 +71,7 @@ export default function TeacherClassroomPage() {
           serverUrl: data.serverUrl,
         });
 
+        // (Auto recording is now handled client-side in CalligroMeetRoom)
       } catch (err: any) {
         console.error("Error generating token:", err);
         setError(err.message || "Failed to load secure classroom.");
@@ -72,6 +82,14 @@ export default function TeacherClassroomPage() {
 
     fetchToken();
   }, [id, user]);
+
+  // When teacher leaves, simply navigate away. LocalRecorderWrapper handles the upload on unmount.
+  const handleTeacherLeave = useCallback(() => {
+    if (id) {
+      router.push(`/teacher/courses/${id}`);
+    }
+  }, [id, router]);
+
 
   if (loading) {
     return (
@@ -146,7 +164,8 @@ export default function TeacherClassroomPage() {
         serverUrl={livekitData.serverUrl}
         courseId={id as string}
         isTeacher={true}
-        onLeave={() => router.push(`/teacher/courses/${id}`)}
+        userAvatar={userAvatar}
+        onLeave={handleTeacherLeave}
       />
     </div>
   );

@@ -61,7 +61,7 @@ export default function CourseCard({ course }: CourseCardProps) {
   const price = Number(course.price || 0);
 
   return (
-    <Link href={isEnrolled ? `/courses/${course.id}/classroom` : `/courses/${course.id}`} className="block w-full outline-none">
+    <Link href={`/courses/${course.id}`} className="block w-full outline-none">
       <motion.div
         whileHover={{ y: -4 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -198,7 +198,7 @@ export default function CourseCard({ course }: CourseCardProps) {
             <div className="flex flex-col">
               {isEnrolled ? (
                 <span className="text-sm font-black uppercase tracking-widest text-[#E8C468]">
-                  {t("course.access_course") || "Access Course"}
+                  {t("course.access_course") === "course.access_course" ? "Access Course" : t("course.access_course")}
                 </span>
               ) : isEnded ? (
                 <span className="text-sm font-black uppercase tracking-widest text-white/30">

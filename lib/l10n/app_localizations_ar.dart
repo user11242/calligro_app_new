@@ -3496,4 +3496,71 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get noCommissionSetDescription =>
       'لم يتم تعيين نسبة أرباحك من قبل المسؤول بعد. يرجى الاتصال بالدعم أو الانتظار حتى يتم تعيينها قبل النشر.';
+
+  @override
+  String get classRecordings => 'تسجيلات الحصص';
+
+  @override
+  String get rewatchPastSessions => 'أعد مشاهدة الحصص السابقة';
+
+  @override
+  String get noRecordingsAvailable => 'لا توجد تسجيلات متاحة.';
+
+  @override
+  String get errorLoadingRecordings => 'حدث خطأ أثناء تحميل التسجيلات.';
+
+  @override
+  String get tapToPlay => 'انقر للتشغيل';
+
+  @override
+  String classRecordingDate(String date) {
+    return 'تسجيل الحصة - $date';
+  }
+
+  @override
+  String get showOriginal => 'عرض النص الأصلي';
+
+  @override
+  String get blockedUsersTitle => 'المستخدمون المحظورون';
+
+  @override
+  String get blockedUsersSubtitle => 'إدارة الأشخاص الذين قمت بحظرهم';
+
+  @override
+  String get unblockUser => 'إلغاء الحظر';
+
+  @override
+  String get noBlockedUsers => 'لم تقم بحظر أي شخص.';
+
+  @override
+  String get userUnblockedSuccess => 'تم إلغاء حظر المستخدم بنجاح.';
+
+  @override
+  String get failedToUnblockUser => 'فشل في إلغاء حظر المستخدم:';
+
+  @override
+  String get userDataNotFound => 'لم يتم العثور على بيانات المستخدم';
+
+  @override
+  String get reportPost => 'الإبلاغ عن المنشور';
+
+  @override
+  String get blockUser => 'حظر المستخدم';
+
+  @override
+  String get postReportedSuccess =>
+      'شكراً لك. تم الإبلاغ عن هذا المنشور للمراجعة.';
+
+  @override
+  String get blockUserConfirmTitle => 'حظر المستخدم';
+
+  @override
+  String get blockUserConfirmBody =>
+      'هل أنت متأكد أنك تريد حظر هذا المستخدم؟ سيتم إخفاء منشوراته من يومياتك.';
+
+  @override
+  String get block => 'حظر';
+
+  @override
+  String get userBlockedSuccess => 'تم حظر المستخدم بنجاح.';
 }

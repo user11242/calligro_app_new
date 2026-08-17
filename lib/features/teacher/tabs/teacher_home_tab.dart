@@ -16,6 +16,7 @@ import '../pages/finance/teacher_finance_page.dart';
 import '../../student/pages/gallery_page.dart';
 import '../pages/course_details/course_details_page.dart';
 import '../pages/notifications/notifications_page.dart';
+import 'package:calligro_app/core/widgets/auto_translated_text.dart';
 
 // --- HELPER WIDGETS ---
 
@@ -864,7 +865,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(CourseUtils.getLocalizedCourseName(context, data),
+                        AutoTranslatedText(CourseUtils.getLocalizedCourseName(context, data),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white,

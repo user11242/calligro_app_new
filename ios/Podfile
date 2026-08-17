@@ -50,7 +50,7 @@ post_install do |installer|
       # Enable ONLY_ACTIVE_ARCH to avoid architectural conflicts
       config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
       # Standard Flutter/Swift overrides
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)', 'PERMISSION_NOTIFICATIONS=1']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)', 'PERMISSION_NOTIFICATIONS=1', 'PERMISSION_CAMERA=1', 'PERMISSION_MICROPHONE=1']
     end
   end
 end

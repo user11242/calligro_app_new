@@ -48,6 +48,8 @@ class _CommunityPageState extends State<CommunityPage>
   Stream<QuerySnapshot>? _pinnedPostsStream; // Add Pinned stream
   List<String> _savedPostIds = []; // Local cache of saved IDs for UI state
   StreamSubscription<QuerySnapshot>? _savedPostsSubscription; // Real-time listener
+  List<String> _blockedUsers = [];
+  StreamSubscription<DocumentSnapshot>? _blockedUsersSubscription;
 
   List<String> _getFilterOptions(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -83,6 +85,7 @@ class _CommunityPageState extends State<CommunityPage>
     if (_currentUser != null) {
       _fetchUserRole(_currentUser!.uid);
       _subscribeToSavedPosts(); // Real-time subscription
+      _subscribeToBlockedUsers();
     }
     _pinnedPostsStream = _communityService.getPinnedPostsStream();
 
@@ -175,6 +178,24 @@ class _CommunityPageState extends State<CommunityPage>
         });
   }
 
+  void _subscribeToBlockedUsers() {
+    if (_currentUser == null) return;
+    _blockedUsersSubscription?.cancel();
+    _blockedUsersSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUser!.uid)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists && mounted) {
+        setState(() {
+          _blockedUsers = List<String>.from(doc.data()?['blockedUsers'] ?? []);
+        });
+      }
+    }, onError: (e) {
+      // Swallow errors
+    });
+  }
+
   void _scrollListener() {
     if (_scrollController.offset <= 10 && !_isAtTop) {
       setState(() {
@@ -193,6 +214,7 @@ class _CommunityPageState extends State<CommunityPage>
     _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     _savedPostsSubscription?.cancel(); // ERROR: Dispose subscription
+    _blockedUsersSubscription?.cancel();
     super.dispose();
   }
 
@@ -553,7 +575,16 @@ class _CommunityPageState extends State<CommunityPage>
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const SliverToBoxAdapter(child: SizedBox.shrink());
                 }
-                final pinnedPosts = snapshot.data!.docs;
+                var pinnedPosts = snapshot.data!.docs;
+                // Filter blocked users
+                pinnedPosts = pinnedPosts.where((doc) {
+                   final postData = doc.data() as Map<String, dynamic>;
+                   return !_blockedUsers.contains(postData['userId'] ?? '');
+                }).toList();
+
+                if (pinnedPosts.isEmpty) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
                 
                 return SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
@@ -683,10 +714,12 @@ class _CommunityPageState extends State<CommunityPage>
                   );
                 }
 
-                // Filter out pinned posts so they aren't duplicated in the main feed
+                // Filter out pinned posts and blocked users so they aren't duplicated in the main feed
                 final nonPinnedPosts = snapshot.data!.docs.where((doc) {
                    final data = doc.data() as Map<String, dynamic>;
-                   return data['isPinned'] != true;
+                   final isNotPinned = data['isPinned'] != true;
+                   final isNotBlocked = !_blockedUsers.contains(data['userId'] ?? '');
+                   return isNotPinned && isNotBlocked;
                 }).toList();
 
                 if (nonPinnedPosts.isEmpty && snapshot.data!.docs.isNotEmpty) {

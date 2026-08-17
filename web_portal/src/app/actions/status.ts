@@ -60,6 +60,17 @@ export async function checkPaymentStatus(resourcePath: string, courseId: string,
             academyProfit: grossAmount * 0.25,
             storeFee: grossAmount * 0.15,
           });
+
+          // 3. Generate Certificate Instantly
+          const certRef = doc(collection(db, "certificates"));
+          transaction.set(certRef, {
+            studentId: userId,
+            studentName: 'Student', // Can be updated later when profile is fetched
+            courseId: courseId,
+            courseName: courseData.courseName || courseData.courseTitle || 'Untitled Course',
+            teacherId: courseData.teacherId || '',
+            issueDate: serverTimestamp()
+          });
         }
       });
 

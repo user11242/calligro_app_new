@@ -124,12 +124,15 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-4 shrink-0">
 
             {/* Language Switcher */}
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer h-[34px]`}>
-              <Globe className="w-4 h-4 text-white/70" />
+            <div className={`relative flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors cursor-pointer h-[34px]`}>
+              <Globe className="w-4 h-4 text-white/70 pointer-events-none" />
+              <span className="text-[11px] font-black uppercase tracking-widest text-white pointer-events-none">
+                {locale.toUpperCase()}
+              </span>
               <select 
                 value={locale} 
                 onChange={(e) => setLocale(e.target.value as any)}
-                className="bg-transparent text-[11px] font-black uppercase tracking-widest text-white focus:outline-none cursor-pointer appearance-none"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none"
               >
                 <option value="en" className="text-black">EN</option>
                 <option value="ar" className="text-black">AR</option>
@@ -139,24 +142,26 @@ export default function Navbar() {
 
             {user ? (
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 bg-white/5 pr-4 pl-1 py-1 rounded-full border border-white/10" dir={isRTL ? "ltr" : "ltr"}>
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-white overflow-hidden border border-primary/40">
-                    {userPhoto ? (
-                      <Image 
-                        src={userPhoto} 
-                        alt="User" 
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <UserIcon className="w-4 h-4 text-primary" />
-                    )}
+                <Link href="/profile">
+                  <div className="flex items-center gap-3 bg-white/5 pr-4 pl-1 py-1 rounded-full border border-white/10 hover:bg-white/10 transition-colors cursor-pointer" dir={isRTL ? "ltr" : "ltr"}>
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-white overflow-hidden border border-primary/40">
+                      {userPhoto ? (
+                        <Image 
+                          src={userPhoto} 
+                          alt="User" 
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <UserIcon className="w-4 h-4 text-primary" />
+                      )}
+                    </div>
+                    <span className="text-[11px] font-bold text-white font-outfit uppercase tracking-wider max-w-[100px] truncate">
+                      {userName}
+                    </span>
                   </div>
-                  <span className="text-[11px] font-bold text-white font-outfit uppercase tracking-wider max-w-[100px] truncate">
-                    {userName}
-                  </span>
-                </div>
+                </Link>
                 <button 
                   onClick={handleLogout}
                   className="w-10 h-10 flex items-center justify-center rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
@@ -217,15 +222,18 @@ export default function Navbar() {
               <div className="h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent my-4" />
               
               {/* Language Switcher Mobile */}
-              <div className="flex items-center justify-center gap-4 py-2">
-                <Globe className="w-5 h-5 text-primary" />
+              <div className="relative flex items-center justify-center gap-4 py-2 cursor-pointer w-40 mx-auto">
+                <Globe className="w-5 h-5 text-primary pointer-events-none" />
+                <span className="text-sm font-black uppercase tracking-widest text-white pointer-events-none">
+                  {locale === 'en' ? 'ENGLISH' : locale === 'ar' ? 'العربية' : 'TÜRKÇE'}
+                </span>
                 <select 
                   value={locale} 
                   onChange={(e) => {
                     setLocale(e.target.value as any);
                     setIsOpen(false);
                   }}
-                  className="bg-transparent text-sm font-black uppercase tracking-widest text-white focus:outline-none"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none"
                 >
                   <option value="en" className="text-black">English</option>
                   <option value="ar" className="text-black">العربية</option>
@@ -235,18 +243,20 @@ export default function Navbar() {
 
               {user ? (
                 <div className="flex flex-col gap-6 items-center mt-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-white overflow-hidden border-2 border-primary/40 shadow-[0_0_15px_rgba(235,185,55,0.3)]">
-                      {userPhoto ? (
-                        <Image src={userPhoto} alt="User" width={48} height={48} className="w-full h-full object-cover" />
-                      ) : (
-                        <UserIcon className="w-6 h-6 text-primary" />
-                      )}
+                  <Link href="/profile" onClick={() => setIsOpen(false)}>
+                    <div className="flex items-center gap-4 bg-white/5 py-2 px-4 rounded-full border border-white/10 hover:bg-white/10 transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-white overflow-hidden border-2 border-primary/40 shadow-[0_0_15px_rgba(235,185,55,0.3)]">
+                        {userPhoto ? (
+                          <Image src={userPhoto} alt="User" width={48} height={48} className="w-full h-full object-cover" />
+                        ) : (
+                          <UserIcon className="w-6 h-6 text-primary" />
+                        )}
+                      </div>
+                      <span className="text-lg font-black text-white font-outfit uppercase tracking-wider">
+                        {userName}
+                      </span>
                     </div>
-                    <span className="text-lg font-black text-white font-outfit uppercase tracking-wider">
-                      {userName}
-                    </span>
-                  </div>
+                  </Link>
                   <button 
                     onClick={handleLogout}
                     className="flex items-center gap-2 text-red-400 bg-red-500/10 border border-red-500/20 px-6 py-3 rounded-full font-bold w-full justify-center"

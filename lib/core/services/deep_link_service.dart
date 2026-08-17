@@ -44,7 +44,7 @@ class DeepLinkService {
   void _handleUri(Uri uri) {
     debugPrint("Handling incoming link: $uri");
     
-    // Pattern: https://calligro.digital/post/ID
+    // Pattern: https://calligroacademy.com/post/ID
     if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'post') {
       final String postId = uri.pathSegments[1];
       _navigateToPost(postId);

@@ -292,7 +292,42 @@ class AdminService {
 
   /// Changes a user's role directly
   Future<void> changeUserRole(String uid, String newRole) async {
-    await _firestore.collection('users').doc(uid).update({'role': newRole});
+    final userRef = _firestore.collection('users').doc(uid);
+    final userDoc = await userRef.get();
+    
+    if (!userDoc.exists) return;
+    
+    final userData = userDoc.data()!;
+    final oldRole = userData['role'] as String? ?? 'student';
+    
+    if (oldRole == newRole) return;
+
+    final batch = _firestore.batch();
+    
+    final updateData = <String, dynamic>{'role': newRole};
+    if (newRole == 'teacher') {
+      updateData['approved'] = true;
+      updateData['status'] = 'approved';
+    }
+
+    batch.update(userRef, updateData);
+
+    // Prepare complete document for new collection
+    final newDocData = Map<String, dynamic>.from(userData);
+    newDocData.addAll(updateData);
+
+    if (newRole == 'teacher') {
+      batch.delete(_firestore.collection('students').doc(uid));
+      batch.set(_firestore.collection('teachers').doc(uid), newDocData);
+    } else if (newRole == 'student') {
+      batch.delete(_firestore.collection('teachers').doc(uid));
+      batch.set(_firestore.collection('students').doc(uid), newDocData);
+    } else if (newRole == 'admin') {
+      batch.delete(_firestore.collection('students').doc(uid));
+      batch.delete(_firestore.collection('teachers').doc(uid));
+    }
+
+    await batch.commit();
   }
 
   /// Sends a targeted notification to a specific user (push + in-app inbox)

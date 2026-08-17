@@ -13,6 +13,7 @@ import '../../student/pages/public_profile/public_student_profile_page.dart';
 import '../../../core/message/app_messenger.dart';
 import '../../../../core/utils/guest_guard.dart'; // Import GuestGuard
 import 'package:calligro_app/core/widgets/profile_avatar.dart';
+import '../../../core/services/translation_service.dart';
 import '../pages/edit_post_page.dart';
 
 final CommunityService _communityService = CommunityService();
@@ -76,6 +77,12 @@ class _PostCardState extends State<PostCard>
 
   bool _isExpanded = false;
   final int _maxLinesCollapsed = 3;
+
+  bool _showTranslation = false;
+  bool _isTranslating = false;
+  String? _translatedText;
+  String? _detectedSourceLang;
+  final TranslationService _translationService = TranslationService();
 
   @override
   void initState() {
@@ -153,7 +160,7 @@ class _PostCardState extends State<PostCard>
   void _sharePost() {
     final l10n = AppLocalizations.of(context)!;
     // Generate the deep link
-    final String postLink = "https://calligro.digital/post/${widget.postId}";
+    final String postLink = "https://calligroacademy.com/post/${widget.postId}";
 
     String shareContent =
         "${l10n.postedBy(widget.userName)}\n\n${widget.caption}";
@@ -447,6 +454,68 @@ class _PostCardState extends State<PostCard>
     );
   }
 
+  Future<void> _handleTranslateTap(BuildContext context, TapDownDetails details) async {
+    if (_showTranslation) {
+      // Toggle back to original
+      setState(() => _showTranslation = false);
+      return;
+    }
+
+    setState(() => _isTranslating = true);
+    
+    // Identify source language
+    if (_detectedSourceLang == null) {
+      _detectedSourceLang = await _translationService.identifyLanguage(widget.caption);
+    }
+    
+    if (!mounted) return;
+    setState(() => _isTranslating = false);
+
+    // Prepare options
+    final Map<String, String> langOptions = {
+      'en': 'English',
+      'ar': 'العربية',
+      'tr': 'Türkçe',
+    };
+    
+    // Remove the detected source language
+    langOptions.remove(_detectedSourceLang);
+
+    // Show popup menu at tap location
+    final offset = details.globalPosition;
+    final selectedLang = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(offset.dx, offset.dy, offset.dx, offset.dy),
+      color: AppColors.cardBackground,
+      items: langOptions.entries.map((e) {
+        return PopupMenuItem<String>(
+          value: e.key,
+          child: Text(e.value, style: const TextStyle(color: AppColors.textPrimary)),
+        );
+      }).toList(),
+    );
+
+    if (selectedLang != null && mounted) {
+      setState(() => _isTranslating = true);
+      try {
+        final result = await _translationService.translate(
+          text: widget.caption,
+          target: selectedLang,
+        );
+        if (mounted) {
+          setState(() {
+            _translatedText = result;
+            _showTranslation = true;
+          });
+        }
+      } catch (e) {
+        debugPrint("Translation error: $e");
+      } finally {
+        if (mounted) setState(() => _isTranslating = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     String timeAgo = widget.timestamp != null
@@ -572,20 +641,63 @@ class _PostCardState extends State<PostCard>
                         color: AppColors.accentGold,
                       ),
                     )
-                  else if (isPostAuthor || _currentUserRole == 'admin')
+                  else
                     PopupMenuButton<String>(
                       icon: const Icon(
                         Icons.more_vert,
                         color: AppColors.textLight,
                       ),
                       color: AppColors.cardBackground,
-                      onSelected: (v) {
+                      onSelected: (v) async {
                         if (v == 'delete') {
                           _deletePost();
                         } else if (v == 'edit') {
                           _editPost();
                         } else if (v == 'pin') {
                           _togglePin();
+                        } else if (v == 'report') {
+                          if (!GuestGuard.check(context, isGuest: widget.isGuest)) return;
+                          await _communityService.reportPost(
+                             postId: widget.postId,
+                             reportedUserId: widget.userId,
+                             currentUserId: widget.currentLoggedInUserId,
+                          );
+                          if (mounted) {
+                            AppMessenger.showSnackBar(
+                              context,
+                              title: AppLocalizations.of(context)!.success,
+                              message: AppLocalizations.of(context)!.postReportedSuccess,
+                              type: MessengerType.success,
+                            );
+                          }
+                        } else if (v == 'block') {
+                          if (!GuestGuard.check(context, isGuest: widget.isGuest)) return;
+                          final bool didConfirm = await showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: AppColors.cardBackground,
+                              title: Text(AppLocalizations.of(context)!.blockUserConfirmTitle, style: const TextStyle(color: AppColors.textPrimary)),
+                              content: Text(AppLocalizations.of(context)!.blockUserConfirmBody, style: const TextStyle(color: AppColors.textLight)),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: AppColors.textLight))),
+                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppLocalizations.of(context)!.block, style: const TextStyle(color: Colors.redAccent))),
+                              ],
+                            )
+                          ) ?? false;
+                          if (didConfirm) {
+                             await _communityService.blockUser(
+                               currentUserId: widget.currentLoggedInUserId,
+                               blockedUserId: widget.userId,
+                             );
+                             if (mounted) {
+                               AppMessenger.showSnackBar(
+                                 context,
+                                 title: AppLocalizations.of(context)!.success,
+                                 message: AppLocalizations.of(context)!.userBlockedSuccess,
+                                 type: MessengerType.success,
+                               );
+                             }
+                          }
                         }
                       },
                       itemBuilder: (ctx) => [
@@ -629,23 +741,46 @@ class _PostCardState extends State<PostCard>
                               ],
                             ),
                           ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.delete,
-                                color: Colors.redAccent,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                AppLocalizations.of(context)!.delete,
-                                style: const TextStyle(color: Colors.redAccent),
-                              ),
-                            ],
+                        if (isPostAuthor || _currentUserRole == 'admin')
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.delete,
+                                  color: Colors.redAccent,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  AppLocalizations.of(context)!.delete,
+                                  style: const TextStyle(color: Colors.redAccent),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        if (!isPostAuthor && _currentUserRole != 'admin')
+                          PopupMenuItem(
+                            value: 'report',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.report, color: Colors.orange, size: 18),
+                                const SizedBox(width: 8),
+                                Text(AppLocalizations.of(context)!.reportPost, style: const TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (!isPostAuthor && _currentUserRole != 'admin')
+                          PopupMenuItem(
+                            value: 'block',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.block, color: Colors.redAccent, size: 18),
+                                const SizedBox(width: 8),
+                                Text(AppLocalizations.of(context)!.blockUser, style: const TextStyle(color: Colors.redAccent)),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                 ],
@@ -659,14 +794,44 @@ class _PostCardState extends State<PostCard>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.caption,
-                      style: captionStyle,
-                      maxLines: _isExpanded ? null : _maxLinesCollapsed,
-                      overflow: _isExpanded
-                          ? TextOverflow.visible
-                          : TextOverflow.ellipsis,
-                    ),
+                    _showTranslation && _translatedText != null
+                        ? Text(
+                            _translatedText!,
+                            style: captionStyle,
+                            maxLines: _isExpanded ? null : _maxLinesCollapsed,
+                            overflow: _isExpanded
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                          )
+                        : Text(
+                            widget.caption,
+                            style: captionStyle,
+                            maxLines: _isExpanded ? null : _maxLinesCollapsed,
+                            overflow: _isExpanded
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                          ),
+                    const SizedBox(height: 8),
+                    if (_isTranslating)
+                      const SizedBox(
+                        height: 14,
+                        width: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue),
+                      )
+                    else
+                      GestureDetector(
+                        onTapDown: (details) => _handleTranslateTap(context, details),
+                        child: Text(
+                          _showTranslation
+                              ? AppLocalizations.of(context)!.showOriginal
+                              : AppLocalizations.of(context)!.translate,
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     if (!_isExpanded &&
                         _isTextOverflowing(
                           widget.caption,

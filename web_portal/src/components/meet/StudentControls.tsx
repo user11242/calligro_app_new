@@ -1,14 +1,34 @@
 "use client";
 
 import React, { useState } from "react";
-import { useLocalParticipant, TrackToggle } from "@livekit/components-react";
+import { useLocalParticipant, TrackToggle, useDataChannel } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { Hand } from "lucide-react";
+import { Hand, Monitor, MonitorOff } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function StudentControls() {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
+  const { send } = useDataChannel("classroom-events");
   const [isHandRaised, setIsHandRaised] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+
+  const toggleScreenShare = async () => {
+    try {
+      if (isScreenSharing) {
+        await localParticipant.setScreenShareEnabled(false);
+        setIsScreenSharing(false);
+      } else {
+        await localParticipant.setScreenShareEnabled(true, {
+          audio: true,
+          contentHint: "detail",
+        });
+        setIsScreenSharing(true);
+      }
+    } catch (err) {
+      console.error("Screen share error:", err);
+      setIsScreenSharing(false);
+    }
+  };
 
   const handleRaiseHand = async () => {
     if (isHandRaised) return;
@@ -16,7 +36,7 @@ export default function StudentControls() {
     setIsHandRaised(true);
     const encoder = new TextEncoder();
     const data = encoder.encode(JSON.stringify({ cmd: "raise_hand", name: localParticipant.name || "Student" }));
-    await localParticipant.publishData(data, { reliable: true });
+    send(data, { reliable: true });
 
     // Reset after 5 seconds to allow raising again later
     setTimeout(() => {
@@ -29,7 +49,14 @@ export default function StudentControls() {
       
       <TrackToggle source={Track.Source.Microphone} className="lk-toggle-btn" />
       <TrackToggle source={Track.Source.Camera} className="lk-toggle-btn" />
-      <TrackToggle source={Track.Source.ScreenShare} className="lk-toggle-btn" />
+      {/* Custom screen share button that requests audio too */}
+      <button
+        onClick={toggleScreenShare}
+        className={`lk-toggle-btn ${isScreenSharing ? 'lk-toggle-btn-active' : ''}`}
+        title={isScreenSharing ? "Stop Sharing" : "Share Screen (with Audio)"}
+      >
+        {isScreenSharing ? <MonitorOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Monitor style={{ width: '1.25rem', height: '1.25rem' }} />}
+      </button>
 
       <style dangerouslySetInnerHTML={{__html: `
         .lk-custom-toggles .lk-toggle-btn { 

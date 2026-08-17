@@ -4,13 +4,14 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import Navbar from "@/components/Navbar";
 import TeacherCard from "@/components/TeacherCard";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Users, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -29,31 +30,33 @@ export default function TeachersPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-secondary-dark">
+    <main className="min-h-screen bg-transparent pt-32 pb-24">
       <Navbar />
       
-      {/* Header */}
-      <section className="pt-40 pb-12 px-6 border-b border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-6 mb-16">
-            <div className="space-y-4">
-              <h1 className="text-4xl md:text-6xl lg:text-8xl font-bold font-outfit uppercase tracking-tighter leading-none italic">
-                {t("teachers.title")}
-              </h1>
-              <p className="text-white/40 max-w-lg text-lg leading-relaxed">
-                {t("teachers.subtitle")}
-              </p>
-            </div>
+      {/* Clean Header */}
+      <section className="px-6 mb-16">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 border-b border-white/10 pb-8">
+          <div>
+            <h1 className="text-3xl md:text-5xl font-black font-outfit uppercase tracking-wider text-white">
+              {t("teachers.title") || "Teachers"}
+            </h1>
+          </div>
+          
+          <div className="relative w-full md:w-80 shrink-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+            <input 
+              type="text"
+              placeholder={t("teachers.search_placeholder") || "Search..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C468]/50 focus:bg-white/10 transition-all"
+            />
           </div>
         </div>
       </section>
 
       {/* Teachers Grid */}
-      <section className="py-24 px-6 relative overflow-hidden">
-        {/* Artistic Background Gradients */}
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -z-10" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-primary/3 rounded-full blur-[120px] -z-10" />
-
+      <section className="px-6">
         <div className="max-w-7xl mx-auto">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-6">
@@ -67,7 +70,11 @@ export default function TeachersPage() {
             </div>
           ) : teachers.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-              {teachers.map((teacher, index) => (
+              {teachers.filter(teacher => {
+                const term = searchQuery.toLowerCase();
+                const name = (teacher.fullName || teacher.name || "").toLowerCase();
+                return name.includes(term);
+              }).map((teacher, index) => (
                 <motion.div
                   key={teacher.uid}
                   initial={{ opacity: 0, y: 30 }}

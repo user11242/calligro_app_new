@@ -11,6 +11,29 @@ import { Star, ArrowRight, Play, Layout, Users, Sparkles, Search, BookOpen, Cloc
 import { formatImageUrl } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 
+// Safe date formatter for Firebase Timestamps or strings
+const formatCourseDate = (dateVal: any, locale: string) => {
+  if (!dateVal) return "";
+  try {
+    let d: Date;
+    if (dateVal instanceof Date) {
+      d = dateVal;
+    } else if (typeof dateVal.toDate === 'function') {
+      d = dateVal.toDate();
+    } else if (dateVal.seconds) {
+      d = new Date(dateVal.seconds * 1000);
+    } else if (dateVal._seconds) {
+      d = new Date(dateVal._seconds * 1000);
+    } else {
+      d = new Date(dateVal);
+    }
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short' });
+  } catch (err) {
+    return "";
+  }
+};
+
 // Helper for Mouse Glow effect
 const GlowCard = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -141,9 +164,14 @@ export default function Home() {
             <div className="flex flex-col items-center ml-10">
               <div 
                 className="text-[#E8C468] font-bold" 
-                style={{ fontFamily: '"Aref Ruqaa", serif', fontSize: 'clamp(55px, 16vw, 110px)', lineHeight: 1, textShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
+                style={{ 
+                  fontFamily: locale === 'ar' ? '"Aref Ruqaa", serif' : 'var(--font-outfit), sans-serif', 
+                  fontSize: 'clamp(55px, 16vw, 110px)', 
+                  lineHeight: 1, 
+                  textShadow: '0 4px 20px rgba(0,0,0,0.5)' 
+                }}
               >
-                {t("hero.title_top")}
+                {t("hero.promo.get")}
               </div>
               <div className="relative flex items-center justify-center -mt-3" dir="ltr">
                 <div className="relative flex items-center justify-center">
@@ -195,29 +223,37 @@ export default function Home() {
             {/* Subtext */}
             <div 
               className="text-white drop-shadow-lg mt-1"
-              style={{ fontFamily: '"Aref Ruqaa", serif', fontSize: 'clamp(24px, 7vw, 42px)', lineHeight: 1.4 }}
+              style={{ 
+                fontFamily: locale === 'ar' ? '"Aref Ruqaa", serif' : 'var(--font-outfit), sans-serif', 
+                fontSize: locale === 'ar' ? 'clamp(24px, 7vw, 42px)' : 'clamp(18px, 5vw, 28px)', 
+                lineHeight: 1.4 
+              }}
             >
-              على جميع الدورات،
+              {t("hero.promo.on_all_courses_limited")}
               <br />
-              لفترة محدودة فقط
-              <br />
-              <span className="relative inline-block mt-5 px-8 py-4 text-[#14100D] text-3xl font-bold shadow-lg" style={{ fontFamily: '"Aref Ruqaa", serif' }}>
+              <span 
+                className="relative inline-block mt-5 px-8 py-4 text-[#14100D] font-bold shadow-lg" 
+                style={{ 
+                  fontFamily: locale === 'ar' ? '"Aref Ruqaa", serif' : 'var(--font-outfit), sans-serif', 
+                  fontSize: locale === 'ar' ? '30px' : '22px' 
+                }}
+              >
                 <svg className="absolute inset-0 w-full h-full text-[#E8C468] -z-10 drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 100" fill="currentColor">
                   <path d="M2,4 L12,1 L25,5 L40,2 L60,4 L75,1 L88,5 L97,2 L99,20 L96,40 L100,60 L97,80 L96,96 L85,99 L70,95 L50,98 L30,94 L15,98 L4,95 L1,80 L4,60 L0,40 L3,20 Z" />
                 </svg>
-                لا تفوّت الفرصة
+                {t("hero.promo.dont_miss")}
               </span>
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col w-full max-w-sm gap-3 mt-6">
+            <div className="flex flex-col w-full max-w-sm gap-3 mt-6" dir={isRTL ? 'rtl' : 'ltr'}>
               <Link href="/courses">
                 <button
                   className="flex items-center justify-center gap-3 w-full px-6 py-5 rounded-2xl font-bold bg-[#E8C468] text-[#211A08] shadow-[0_8px_25px_rgba(232,196,104,0.25)]"
                   style={{ fontFamily: 'var(--font-amiri), serif', fontSize: '20px' }}
                 >
                   {t("hero.cta.join")}
-                  <ArrowRight className="w-6 h-6 rotate-180" />
+                  <ArrowRight className={`w-6 h-6 ${isRTL ? 'rotate-180' : ''}`} />
                 </button>
               </Link>
               <Link href="/download">
@@ -401,7 +437,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.55, ease: "easeOut" }}
             className="flex flex-row gap-5 relative z-20 mt-24 translate-y-40"
-            dir="rtl"
+            dir={isRTL ? 'rtl' : 'ltr'}
           >
             <Link href="/courses">
               <button
@@ -409,7 +445,7 @@ export default function Home() {
                 style={{ fontFamily: 'var(--font-amiri), serif', fontSize: '17px' }}
               >
                 {t("hero.cta.join")}
-                <ArrowRight className="w-5 h-5 rotate-180" />
+                <ArrowRight className={`w-5 h-5 ${isRTL ? 'rotate-180' : ''}`} />
               </button>
             </Link>
             <Link href="/download">
@@ -460,25 +496,26 @@ export default function Home() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
-            className="relative z-10 flex flex-col items-center gap-10"
+            className="relative z-10 flex flex-col items-start gap-10"
           >
 
             {/* ── Row 1: خصم + 50 + ٪ on the same line ── */}
-            <div className="flex items-center gap-6" dir="rtl">
-              {/* خصم */}
+            <div className="flex items-center gap-6" dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+              {/* GET / خصم / İNDİRİM */}
               <div
-                className="text-[#E8C468] font-bold"
+                className="text-[#E8C468] font-bold tracking-widest"
                 style={{
-                  fontFamily: '"Aref Ruqaa", serif',
-                  fontSize: '140px',
-                  fontWeight: 700,
+                  fontFamily: locale === 'ar' ? '"Aref Ruqaa", serif' : 'var(--font-outfit), sans-serif',
+                  fontSize: locale === 'ar' ? '140px' : locale === 'tr' ? 'clamp(40px, 6vw, 75px)' : 'clamp(60px, 9vw, 110px)',
+                  fontWeight: 900,
                   textShadow: '0 8px 30px rgba(0,0,0,0.5)',
                   whiteSpace: 'nowrap',
                   lineHeight: 0.9,
                   fontFeatureSettings: '"liga" 1, "calt" 1, "rlig" 1',
+                  paddingTop: locale === 'ar' ? '0' : '1rem',
                 }}
               >
-                {t("hero.title_top")}
+                {t("hero.promo.get")}
               </div>
 
               {/* 50 */}
@@ -545,34 +582,33 @@ export default function Home() {
 
             {/* ── Row 2: Subtext in 2 lines ── */}
             <div
-              className="text-center"
-              dir="rtl"
+              className="text-white drop-shadow-lg mt-2 mb-8 max-w-[800px]"
               style={{
-                fontFamily: '"Aref Ruqaa", serif',
-                fontSize: '52px',
-                fontWeight: 'normal',
-                WebkitTextStroke: '0.8px #FFFFFF',
+                fontFamily: locale === 'ar' ? '"Aref Ruqaa", serif' : 'var(--font-outfit), sans-serif',
+                fontSize: locale === 'ar' ? '52px' : 'clamp(24px, 4vw, 36px)',
+                fontWeight: locale === 'ar' ? 'normal' : '500',
+                WebkitTextStroke: locale === 'ar' ? '0.8px #FFFFFF' : '0px',
                 color: '#FFFFFF',
                 lineHeight: 1.4,
                 fontFeatureSettings: '"liga" 1, "calt" 1, "rlig" 1',
                 textShadow: '0 4px 15px rgba(0,0,0,0.6)',
               }}
             >
-              على جميع الدورات، لفترة محدودة فقط
+              {t("hero.promo.on_all_courses_limited")}
               <br />
               <span className="relative inline-block mt-3 px-6 py-1 text-[#14100D]" style={{ WebkitTextStroke: '0px', textShadow: 'none' }}>
                 {/* Yellow background with rough/scratchy edges */}
                 <svg className="absolute inset-0 w-full h-full text-[#E8C468] -z-10 drop-shadow-md" preserveAspectRatio="none" viewBox="0 0 100 100" fill="currentColor">
                   <path d="M2,4 L12,1 L25,5 L40,2 L60,4 L75,1 L88,5 L97,2 L99,20 L96,40 L100,60 L97,80 L96,96 L85,99 L70,95 L50,98 L30,94 L15,98 L4,95 L1,80 L4,60 L0,40 L3,20 Z" />
                 </svg>
-                لا تفوّت الفرصة
+                {t("hero.promo.dont_miss")}
               </span>
             </div>
 
             {/* ── Row 3: CTA Buttons (centered with content above) ── */}
             <div
               className="flex flex-row gap-5"
-              dir="rtl"
+              dir={isRTL ? 'rtl' : 'ltr'}
             >
               <Link href="/courses">
                 <button
@@ -580,7 +616,7 @@ export default function Home() {
                   style={{ fontFamily: 'var(--font-amiri), serif', fontSize: '17px' }}
                 >
                   {t("hero.cta.join")}
-                  <ArrowRight className="w-5 h-5 rotate-180" />
+                  <ArrowRight className={`w-5 h-5 ${isRTL ? 'rotate-180' : ''}`} />
                 </button>
               </Link>
               <Link href="/download">
@@ -596,19 +632,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════ DYNAMIC CATEGORIES BAR ═══════ */}
-      <section className="w-full bg-[#1F1F1F] border-y border-white/5 py-4 z-20 relative shadow-2xl">
-        <div className="max-w-[1400px] mx-auto px-6 overflow-x-auto hide-scrollbar">
-          <div className="flex items-center gap-4 min-w-max" dir={isRTL ? "rtl" : "ltr"}>
-            <span className="text-white/40 font-bold uppercase tracking-widest text-xs mr-4">Popular:</span>
-            {["Diwani", "Thuluth", "Naskh", "Kufic", "Ruqaa", "Maghrebi", "Nastaliq"].map((cat) => (
-              <button key={cat} className="px-6 py-2 rounded-full border border-white/10 bg-white/5 hover:bg-primary hover:text-black hover:border-primary transition-all font-bold text-sm text-white/80">
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       {/* ═══════ 1. THE INTERACTIVE BENTO GRID (Stats) ═══════ */}
       <section className="relative w-full bg-[#1F1F1F] py-32 z-20 overflow-hidden">
@@ -688,26 +712,51 @@ export default function Home() {
                   />
                   
                   {/* Default State (Collapsed) */}
-                  <div className="absolute inset-0 z-20 flex md:flex-col justify-end md:justify-center items-center p-6 opacity-100 group-hover:opacity-0 transition-opacity duration-300">
-                    <h3 className="text-white font-black font-outfit text-2xl md:-rotate-90 whitespace-nowrap tracking-wider">{String(course.courseName || course.title || t("home.courses.title")).substring(0, 20)}...</h3>
+                  <div className="absolute inset-0 z-20 flex flex-col justify-end p-4 md:p-6 opacity-100 group-hover:opacity-0 transition-opacity duration-300 bg-gradient-to-t from-black/90 via-black/40 to-transparent">
+                    <h3 className="text-white font-bold font-outfit text-xl line-clamp-3 leading-snug text-center md:text-right">
+                      {course.courseName || course.title || t("home.courses.title")}
+                    </h3>
                   </div>
 
                   {/* Hover State (Expanded) */}
-                  <div className="absolute inset-0 z-20 p-10 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100">
-                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl translate-y-10 group-hover:translate-y-0 transition-transform duration-700">
-                      <span className="bg-primary text-black text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest inline-flex items-center gap-1 mb-4 shadow-lg">
-                        <Trophy className="w-3 h-3" /> {t("home.courses.bestseller")}
-                      </span>
-                      <h3 className="text-3xl md:text-4xl font-black font-outfit text-white mb-4 leading-tight">{course.courseName || course.title}</h3>
-                      <div className="flex items-center gap-6 text-white/70 font-medium">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-primary" />
-                          <span>{course.durationWeeks || 4} {t("home.courses.weeks")}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-primary" />
-                          <span>{course.lessonsCount || 12} {t("home.courses.lessons")}</span>
-                        </div>
+                  <div className="absolute inset-0 z-20 p-6 md:p-10 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100">
+                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 md:p-8 rounded-3xl translate-y-10 group-hover:translate-y-0 transition-transform duration-700">
+                      {course.courseLevel && (
+                        <span className="bg-primary text-black text-[10px] md:text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest inline-flex items-center gap-1 mb-3 shadow-lg">
+                          <Award className="w-3 h-3" /> {course.courseLevel}
+                        </span>
+                      )}
+                      <h3 className="text-2xl md:text-3xl font-black font-outfit text-white mb-4 leading-tight line-clamp-3">
+                        {course.courseName || course.title}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-4 text-white/80 font-medium text-sm md:text-base">
+                        {course.teacherName && (
+                          <div className="flex items-center gap-2">
+                            <span className="w-4 h-4 text-primary flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            </span>
+                            <span>{course.teacherName}</span>
+                          </div>
+                        )}
+                        {course.startDate && formatCourseDate(course.startDate, locale) && (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-primary" />
+                            <span>
+                              {formatCourseDate(course.startDate, locale)}
+                              {course.endDate && formatCourseDate(course.endDate, locale) && ` - ${formatCourseDate(course.endDate, locale)}`}
+                            </span>
+                          </div>
+                        )}
+                        {course.price != null && course.price > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[#E8C468]">${course.price}</span>
+                          </div>
+                        )}
+                        {course.price === 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[#E8C468]">{t("course.free") || "Free"}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -782,45 +831,70 @@ export default function Home() {
 
       {/* ═══════ 4. THE MASTERS' HALL (Teachers) ═══════ */}
       <section className="relative w-full bg-[#1F1F1F] py-40 z-20 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 mb-24 text-center">
-          <h2 className="text-5xl md:text-7xl font-black font-outfit text-white mb-6 tracking-tight">{t("home.teachers.title")}</h2>
-          <p className="text-white/40 text-sm font-medium uppercase tracking-[0.3em]">{t("home.teachers.subtitle")}</p>
+        <div className="max-w-7xl mx-auto px-6 mb-16 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="text-center md:text-start">
+            <h2 className="text-5xl md:text-7xl font-black font-outfit text-white mb-4 tracking-tight">{t("home.teachers.title")}</h2>
+            <p className="text-white/40 text-sm font-medium uppercase tracking-[0.3em]">{t("home.teachers.subtitle")}</p>
+          </div>
+          
+          <Link href="/teachers">
+            <button className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 hover:border-white/20 transition-all duration-300 flex items-center gap-3">
+              <span>{t("home.teachers.view_all") || (isRTL ? "عرض جميع الأساتذة" : "View All Masters")}</span>
+              <div className="w-6 h-6 rounded-full bg-[#E8C468]/20 flex items-center justify-center">
+                <span className="text-[#E8C468] text-sm leading-none">{isRTL ? '←' : '→'}</span>
+              </div>
+            </button>
+          </Link>
         </div>
 
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-center items-center gap-16 md:gap-24">
-          {teachers.map((teacher, i) => (
-             <motion.div 
-               key={teacher.id}
-               initial={{ opacity: 0, y: 20 }}
-               whileInView={{ opacity: 1, y: 0 }}
-               viewport={{ once: true }}
-               transition={{ duration: 0.8, delay: i * 0.1 }}
-               className="flex flex-col items-center group cursor-pointer"
-             >
-                <div className="w-48 h-48 md:w-60 md:h-60 rounded-full overflow-hidden mb-8 relative border border-white/5 transition-transform duration-700 group-hover:scale-105">
-                   <Image 
-                     src={formatImageUrl(teacher.photoUrl || teacher.profileImage) || "/assets/images/Logo.png"}
-                     alt={teacher.name || "Teacher"}
-                     fill 
-                     className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700" 
-                   />
+        <div className="w-full max-w-[1400px] mx-auto px-6 pb-12 overflow-x-auto hide-scrollbar snap-x snap-mandatory cursor-grab active:cursor-grabbing">
+          <div className="flex items-center justify-center gap-6 min-w-full w-max py-10" dir="ltr"> {/* ltr ensures smooth carousel behavior universally */}
+            {teachers.map((teacher, i) => (
+              <motion.div 
+                key={teacher.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: i * 0.1 }}
+                className="w-[280px] md:w-[320px] snap-center shrink-0 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center relative group hover:bg-white/10 transition-colors duration-500 shadow-2xl"
+              >
+                {/* Elegant Circular Avatar */}
+                <div className="w-32 h-32 rounded-full overflow-hidden mb-6 relative border border-white/20 group-hover:border-[#E8C468]/50 transition-colors duration-500 shadow-[0_0_30px_rgba(0,0,0,0.5)] group-hover:shadow-[0_0_40px_rgba(232,196,104,0.15)]">
+                  <Image 
+                    src={formatImageUrl(teacher.photoUrl || teacher.profileImage) || "/assets/images/Logo.png"}
+                    alt={teacher.name || "Teacher"}
+                    fill 
+                    className="object-cover" 
+                  />
                 </div>
                 
-                <h3 className="text-2xl md:text-3xl font-bold font-outfit text-white mb-2">{teacher.fullName || teacher.name || t("home.teachers.title")}</h3>
-                <p className="text-white/40 text-xs font-medium tracking-[0.2em] mb-4 uppercase">{t("home.teachers.certified")}</p>
+                {/* Badge */}
+                <span className="bg-[#E8C468]/10 text-[#E8C468] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-4">
+                  {t("home.teachers.certified")}
+                </span>
                 
-                <div className="flex items-center gap-6">
-                   <div className="flex items-center gap-2">
-                      <Star className="w-3 h-3 fill-white text-white" />
-                      <span className="text-white/80 text-sm font-medium">{Number(teacher.rating || 5.0).toFixed(1)}</span>
-                   </div>
-                   <div className="w-1 h-1 rounded-full bg-white/20" />
-                   <div className="text-white/60 text-sm font-medium">
+                {/* Name */}
+                <h3 className="text-2xl font-black font-outfit text-white mb-6 leading-tight">
+                  {teacher.fullName || teacher.name || t("home.teachers.title")}
+                </h3>
+                
+                {/* Stats */}
+                <div className="flex items-center justify-center gap-4 w-full pt-5 border-t border-white/10">
+                  <div className="flex items-center gap-1.5">
+                    <Star className="w-4 h-4 fill-[#E8C468] text-[#E8C468]" />
+                    <span className="text-white font-bold">{Number(teacher.rating || 5.0).toFixed(1)}</span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-white/20" />
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-white/40" />
+                    <span className="text-white/50 text-sm font-medium">
                       {teacher.followerCount || 0} {t("home.teachers.students").toLowerCase()}
-                   </div>
+                    </span>
+                  </div>
                 </div>
-             </motion.div>
-          ))}
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 

@@ -3,6 +3,7 @@ import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/features/auth/data/services/auth_service.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
+import '../../../community/pages/blocked_users_page.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/features/auth/pages/terms_and_conditions_page.dart';
 
@@ -410,6 +411,22 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const SecurityPage(),
+                    ),
+                  );
+                },
+              ),
+
+              // 4. Blocked Users
+              _buildSettingsItem(
+                context,
+                icon: Icons.block,
+                title: AppLocalizations.of(context)!.blockedUsersTitle,
+                subtitle: AppLocalizations.of(context)!.blockedUsersSubtitle,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BlockedUsersPage(),
                     ),
                   );
                 },

@@ -6549,6 +6549,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your earning percentage hasn\'t been set by the admin yet. Please contact support or wait for it to be assigned before publishing.'**
   String get noCommissionSetDescription;
+
+  /// No description provided for @classRecordings.
+  ///
+  /// In en, this message translates to:
+  /// **'Class Recordings'**
+  String get classRecordings;
+
+  /// No description provided for @rewatchPastSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-watch past sessions'**
+  String get rewatchPastSessions;
+
+  /// No description provided for @noRecordingsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No recordings available.'**
+  String get noRecordingsAvailable;
+
+  /// No description provided for @errorLoadingRecordings.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading recordings.'**
+  String get errorLoadingRecordings;
+
+  /// No description provided for @tapToPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to play'**
+  String get tapToPlay;
+
+  /// No description provided for @classRecordingDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Class Recording - {date}'**
+  String classRecordingDate(String date);
+
+  /// No description provided for @showOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Original'**
+  String get showOriginal;
+
+  /// No description provided for @blockedUsersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked Users'**
+  String get blockedUsersTitle;
+
+  /// No description provided for @blockedUsersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage people you have blocked'**
+  String get blockedUsersSubtitle;
+
+  /// No description provided for @unblockUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock'**
+  String get unblockUser;
+
+  /// No description provided for @noBlockedUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t blocked anyone.'**
+  String get noBlockedUsers;
+
+  /// No description provided for @userUnblockedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'User unblocked successfully.'**
+  String get userUnblockedSuccess;
+
+  /// No description provided for @failedToUnblockUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to unblock user:'**
+  String get failedToUnblockUser;
+
+  /// No description provided for @userDataNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'User data not found'**
+  String get userDataNotFound;
+
+  /// No description provided for @reportPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Post'**
+  String get reportPost;
+
+  /// No description provided for @blockUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Block User'**
+  String get blockUser;
+
+  /// No description provided for @postReportedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you. This post has been reported for review.'**
+  String get postReportedSuccess;
+
+  /// No description provided for @blockUserConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block User'**
+  String get blockUserConfirmTitle;
+
+  /// No description provided for @blockUserConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to block this user? Their posts will be hidden from your feed.'**
+  String get blockUserConfirmBody;
+
+  /// No description provided for @block.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get block;
+
+  /// No description provided for @userBlockedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'User blocked successfully.'**
+  String get userBlockedSuccess;
 }
 
 class _AppLocalizationsDelegate

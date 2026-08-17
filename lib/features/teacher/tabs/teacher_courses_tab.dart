@@ -49,6 +49,7 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
       _coursesStream = FirebaseFirestore.instance
           .collection('courses')
           .where('teacherId', isEqualTo: _teacherId!)
+          .limit(50)
           .snapshots();
     }
   }

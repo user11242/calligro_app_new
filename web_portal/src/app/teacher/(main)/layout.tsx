@@ -9,11 +9,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { onAuthStateChanged } from "firebase/auth";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useLocale } from "@/context/LocaleContext";
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const [isTeacher, setIsTeacher] = useState<boolean | null>(null);
   const [teacherData, setTeacherData] = useState<any>(null);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const { locale, setLocale, isRTL } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useTranslation();
@@ -56,7 +58,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const avatarLetter = teacherData?.name?.charAt(0)?.toUpperCase() || "T";
 
   return (
-    <div className="flex h-screen bg-[#1F1F1F] overflow-hidden" dir="ltr">
+    <div className="flex h-screen bg-[#1F1F1F] overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
       {/* Mobile Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -87,6 +89,30 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           <button className="ml-auto md:hidden text-white/40 hover:text-white" onClick={() => setSidebarOpen(false)}>
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Locale Switcher for Sidebar */}
+        <div className="px-6 py-4 border-b border-white/[0.06] shrink-0">
+          <div className="relative group/lang">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#D4AF37]/50 transition-colors cursor-pointer">
+              <span className="text-white text-sm font-medium">
+                {locale === 'en' ? 'ENGLISH' : locale === 'ar' ? 'العربية' : 'TÜRKÇE'}
+              </span>
+              <svg className="w-4 h-4 ml-auto text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            
+            <select 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              value={locale} 
+              onChange={(e) => setLocale(e.target.value as any)}
+            >
+              <option value="en" className="text-black">English</option>
+              <option value="ar" className="text-black">العربية</option>
+              <option value="tr" className="text-black">Türkçe</option>
+            </select>
+          </div>
         </div>
 
         {/* Navigation */}

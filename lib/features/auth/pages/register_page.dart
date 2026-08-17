@@ -23,7 +23,10 @@ class _RegisterPageState extends State<RegisterPage> {
       showDialog(
         context: context,
         barrierDismissible: true,
-        builder: (context) => GoogleHintDialog(onContinue: _handleGoogleRegister),
+        builder: (context) => GoogleHintDialog(
+          onContinue: _handleGoogleRegister,
+          onAppleContinue: _handleAppleRegister,
+        ),
       );
     });
   }
@@ -41,7 +44,37 @@ class _RegisterPageState extends State<RegisterPage> {
       final wizardResult = await showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const GoogleRegisterWizard(),
+        builder: (context) => const GoogleRegisterWizard(provider: 'google'),
+      );
+      
+      // If wizard completed successfully (Teacher finished), close RegisterPage too
+      if (wizardResult == true && mounted) {
+        Navigator.pop(context);
+      }
+    } else if (result != null && !result.toLowerCase().contains("error")) {
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    } else if (result != null) {
+      // Standard snackbar for errors (e.g., Firebase error)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result)),
+      );
+    }
+  }
+
+  Future<void> _handleAppleRegister() async {
+    final l10n = AppLocalizations.of(context)!;
+    if (mounted && Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+
+    final result = await _authService.loginWithApple();
+    if (!mounted) return;
+
+    if (result == "NEEDS_ROLE") {
+      final wizardResult = await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const GoogleRegisterWizard(provider: 'apple'),
       );
       
       // If wizard completed successfully (Teacher finished), close RegisterPage too

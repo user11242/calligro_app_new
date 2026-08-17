@@ -6,8 +6,9 @@ import '../data/services/auth_service.dart';
 
 class LinkAccountDialog extends StatefulWidget {
   final String email;
+  final String provider;
 
-  const LinkAccountDialog({super.key, required this.email});
+  const LinkAccountDialog({super.key, required this.email, this.provider = 'google'});
 
   @override
   State<LinkAccountDialog> createState() => _LinkAccountDialogState();
@@ -29,7 +30,9 @@ class _LinkAccountDialogState extends State<LinkAccountDialog> {
     });
 
     try {
-      final role = await _authService.linkGoogleAccount(widget.email, _passwordController.text);
+      final role = widget.provider == 'apple' 
+          ? await _authService.linkAppleAccount(widget.email, _passwordController.text)
+          : await _authService.linkGoogleAccount(widget.email, _passwordController.text);
       if (mounted) {
         Navigator.pop(context, role);
       }

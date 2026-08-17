@@ -23,6 +23,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
   final AuthService _authService = AuthService();
   String? _lastUid;
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🛡️ CACHED SNAPSHOT — This is the critical fix for the meeting page bug.
+  // When iOS allocates camera/mic resources during a LiveKit meeting, it can
+  // briefly interrupt the network. Firestore's real-time stream detects this
+  // and transitions to ConnectionState.waiting. Without caching, the builder
+  // returns a loading spinner, which DESTROYS the entire Navigator stack
+  // (including CalligroMeetPage), killing the meeting mid-session.
+  //
+  // By caching the last valid snapshot, we keep showing the dashboard even
+  // during temporary network blips. The meeting page stays alive.
+  // ═══════════════════════════════════════════════════════════════════════════
+  DocumentSnapshot? _cachedUserSnapshot;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +52,31 @@ class _AuthWrapperState extends State<AuthWrapper> {
     // Use a small delay to ensure Firebase is fully ready if needed, 
     // though saveUserFcmToken handles its own async logic.
     Future.microtask(() => _authService.saveUserFcmToken(uid));
+  }
+
+  /// Build the appropriate dashboard widget based on user data.
+  /// Extracted to avoid duplication between live and cached paths.
+  Widget _buildForUserData(Map<String, dynamic> userData) {
+    final String? role = userData['role'];
+    final String status = userData['status'] ?? 'approved';
+
+    if (role == null || role.isEmpty) {
+      return const OnboardingPage(key: ValueKey('onboarding_root'));
+    }
+
+    if (role == 'teacher') {
+      if (status == 'approved') {
+        return const TeacherDashboardPage();
+      } else if (status == 'rejected') {
+        return const TeacherRejectedPage();
+      } else {
+        return const TeacherPendingPage();
+      }
+    } else if (role == 'admin') {
+      return const AdminDashboardPage();
+    } else {
+      return const StudentDashboardPage();
+    }
   }
 
   @override
@@ -62,12 +100,32 @@ class _AuthWrapperState extends State<AuthWrapper> {
             }),
             builder: (context, userSnapshot) {
               // 1. Check for errors (e.g. permission-denied during logout)
+              //    Only redirect to onboarding if we have NO cached data.
               if (userSnapshot.hasError) {
+                if (_cachedUserSnapshot != null) {
+                  debugPrint("AuthWrapper: Stream error but using cached snapshot to keep UI stable.");
+                  final data = _cachedUserSnapshot!.data();
+                  if (data != null && data is Map<String, dynamic>) {
+                    return _buildForUserData(data);
+                  }
+                }
                 return const OnboardingPage(key: ValueKey('onboarding_root'));
               }
 
-              // 2. Handle loading state
+              // 2. Handle loading state — THIS IS THE CRITICAL FIX
+              //    NEVER show a loading spinner if we already have cached data.
+              //    The old code returned a Scaffold with a spinner here, which
+              //    destroyed the entire Navigator stack including meetings.
               if (userSnapshot.connectionState == ConnectionState.waiting) {
+                if (_cachedUserSnapshot != null) {
+                  // We have cached data — keep showing the current UI!
+                  // This prevents meetings from being killed by network blips.
+                  final data = _cachedUserSnapshot!.data();
+                  if (data != null && data is Map<String, dynamic>) {
+                    return _buildForUserData(data);
+                  }
+                }
+                // First load ever — no cache yet, show spinner
                 return const Scaffold(
                   backgroundColor: Color(0xFF1F1F1F),
                   body: Center(
@@ -78,42 +136,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
               // 3. Handle missing data or user deletion
               if (!userSnapshot.hasData || userSnapshot.data == null || !userSnapshot.data!.exists) {
+                _cachedUserSnapshot = null; // Clear cache — user truly doesn't exist
                 return const OnboardingPage(key: ValueKey('onboarding_root'));
               }
 
               // 4. Safely extract user data
               final data = userSnapshot.data!.data();
               if (data == null || data is! Map<String, dynamic>) {
-                 return const OnboardingPage(key: ValueKey('onboarding_root'));
-              }
-              
-              final userData = data;
-              final String? role = userData['role'];
-              final String status = userData['status'] ?? 'approved';
-
-              if (role == null || role.isEmpty) {
+                _cachedUserSnapshot = null;
                 return const OnboardingPage(key: ValueKey('onboarding_root'));
               }
+              
+              // ✅ Cache the valid snapshot for resilience against future blips
+              _cachedUserSnapshot = userSnapshot.data!;
 
-              if (role == 'teacher') {
-                if (status == 'approved') {
-                  return const TeacherDashboardPage();
-                } else if (status == 'rejected') {
-                  return const TeacherRejectedPage();
-                } else {
-                  return const TeacherPendingPage();
-                }
-              } else if (role == 'admin') {
-                return const AdminDashboardPage();
-              } else {
-                return const StudentDashboardPage();
-              }
+              return _buildForUserData(data);
             },
           );
         }
 
         // 2. User Logged Out (Default) -> Show OnboardingPage
         _lastUid = null;
+        _cachedUserSnapshot = null; // Clear cache on logout
         return const OnboardingPage(key: ValueKey('onboarding_root'));
       },
     );

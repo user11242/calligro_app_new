@@ -8,6 +8,8 @@ import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:screen_protector/screen_protector.dart';
+
 class SecurityService with WidgetsBindingObserver {
   static final SecurityService _instance = SecurityService._internal();
   factory SecurityService() => _instance;
@@ -46,26 +48,22 @@ class SecurityService with WidgetsBindingObserver {
   /// Enable screenshot/screen recording protection
   Future<void> enableScreenshotProtection() async {
     _isProtectionEnabled = true;
-    if (Platform.isAndroid) {
-      try {
-        await _channel.invokeMethod('enableSecure');
-        debugPrint('🔓 SecurityService: FLAG_SECURE ENABLED');
-      } catch (e) {
-        debugPrint('❌ Failed to enable screenshot protection: $e');
-      }
+    try {
+      await ScreenProtector.preventScreenshotOn();
+      debugPrint('🔓 SecurityService: screen_protector ON ENABLED');
+    } catch (e) {
+      debugPrint('❌ Failed to enable screenshot protection: $e');
     }
   }
 
   /// Disable screenshot/screen recording protection
   Future<void> disableScreenshotProtection() async {
     _isProtectionEnabled = false;
-    if (Platform.isAndroid) {
-      try {
-        await _channel.invokeMethod('disableSecure');
-        debugPrint('🔒 SecurityService: FLAG_SECURE DISABLED');
-      } catch (e) {
-        debugPrint('❌ Failed to disable screenshot protection: $e');
-      }
+    try {
+      await ScreenProtector.preventScreenshotOff();
+      debugPrint('🔒 SecurityService: screen_protector OFF (DISABLED protection)');
+    } catch (e) {
+      debugPrint('❌ Failed to disable screenshot protection: $e');
     }
   }
 

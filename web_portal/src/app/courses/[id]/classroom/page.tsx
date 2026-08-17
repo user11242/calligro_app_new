@@ -19,6 +19,7 @@ export default function ClassroomPage() {
   const [isTeacher, setIsTeacher] = useState(false);
   const [courseName, setCourseName] = useState("");
   const [livekitData, setLivekitData] = useState<{ token: string; serverUrl: string } | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -47,6 +48,13 @@ export default function ClassroomPage() {
           courseTeacherId = data.teacherId;
         }
 
+        // Fetch user photoUrl from Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          setUserAvatar(userDocSnap.data().photoUrl || userDocSnap.data().photoURL || null);
+        }
+
         // Call Cloud Function to get LiveKit Token
         const functions = getFunctions(app);
         const getLiveKitToken = httpsCallable(functions, 'livekit-generateLiveKitToken');
@@ -58,10 +66,6 @@ export default function ClassroomPage() {
           token: data.token,
           serverUrl: data.serverUrl,
         });
-
-        // Trigger Automated YouTube Recording for everyone (temporarily for testing)
-        const startAutomatedRecording = httpsCallable(functions, 'livekit-startAutomatedRecording');
-        startAutomatedRecording({ courseId: id }).catch(e => console.error("Failed to start auto recording:", e));
 
       } catch (err: any) {
         console.error("Error generating token:", err);
@@ -147,6 +151,7 @@ export default function ClassroomPage() {
         serverUrl={livekitData.serverUrl}
         courseId={id as string}
         isTeacher={isTeacher}
+        userAvatar={userAvatar}
         onLeave={() => router.push(`/courses/${id}`)}
       />
     </div>

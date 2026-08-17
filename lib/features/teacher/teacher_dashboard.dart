@@ -120,7 +120,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           final double share = (data['teacherShare'] ?? 0.0).toDouble();
           totalEarnings += share;
         }
-        _earnings = "\$${totalEarnings.toStringAsFixed(0)}";
+        _earnings = "\$${(totalEarnings / 2).toStringAsFixed(0)}";
 
         if (fetchedPhotoUrl.isNotEmpty) {
           _userProfileImage = fetchedPhotoUrl;

@@ -10,6 +10,7 @@ class GalleryService {
     return _db
         .collection('gallery_artists')
         .orderBy('name')
+        .limit(100)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => GalleryArtist.fromFirestore(doc))
@@ -18,7 +19,7 @@ class GalleryService {
 
   // Future to get artists (for search/filtering if needed)
   Future<List<GalleryArtist>> getArtists() async {
-    final snapshot = await _db.collection('gallery_artists').orderBy('name').get();
+    final snapshot = await _db.collection('gallery_artists').orderBy('name').limit(100).get();
     return snapshot.docs.map((doc) => GalleryArtist.fromFirestore(doc)).toList();
   }
 
@@ -27,6 +28,7 @@ class GalleryService {
     return _db
         .collection('gallery_artworks')
         .where('artistId', isEqualTo: artistId)
+        .limit(100)
         .snapshots()
         .map((snapshot) {
       final artworks = snapshot.docs

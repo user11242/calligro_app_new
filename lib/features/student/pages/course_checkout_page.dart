@@ -323,9 +323,9 @@ class _CourseCheckoutPageState extends State<CourseCheckoutPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildSmallTextButton(l10n.termsOfUse, () => _launchUrl('https://calligro.com/terms')),
+                            _buildSmallTextButton(l10n.termsOfUse, () => _launchUrl('https://calligroacademy.com/terms')),
                             Text(" • ", style: TextStyle(color: Colors.white.withValues(alpha: 0.2))),
-                            _buildSmallTextButton(l10n.privacyPolicy, () => _launchUrl('https://calligro.com/privacy')),
+                            _buildSmallTextButton(l10n.privacyPolicy, () => _launchUrl('https://calligroacademy.com/privacy')),
                             Text(" • ", style: TextStyle(color: Colors.white.withValues(alpha: 0.2))),
                             _buildSmallTextButton(l10n.restorePurchases, () {
                               // TODO: Implement restore

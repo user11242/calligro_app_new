@@ -1,16 +1,36 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useParticipants } from "@livekit/components-react";
-import { Users, Mic, MicOff, Video, VideoOff, UserCheck } from "lucide-react";
+import { Users, Mic, MicOff, Video, VideoOff, UserCheck, UserMinus, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from "@/lib/firebase";
 
 interface ParticipantsPanelProps {
   isTeacher: boolean;
+  courseId: string;
 }
 
-export default function ParticipantsPanel({ isTeacher }: ParticipantsPanelProps) {
+export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsPanelProps) {
   const participants = useParticipants();
+  // Track which participant + action is currently loading to prevent double-clicks
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+
+  const moderateParticipant = async (action: "mute_mic" | "mute_camera" | "kick", identity: string) => {
+    const key = `${action}_${identity}`;
+    if (pendingAction === key) return;
+    setPendingAction(key);
+    try {
+      const functions = getFunctions(app);
+      const moderate = httpsCallable(functions, "livekit-moderateParticipant");
+      await moderate({ courseId, targetIdentity: identity, action });
+    } catch (err) {
+      console.error("Moderation error:", err);
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-transparent font-outfit">
@@ -51,7 +71,7 @@ export default function ParticipantsPanel({ isTeacher }: ParticipantsPanelProps)
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className={`flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300 border backdrop-blur-md ${
+              className={`group flex items-center justify-between p-3.5 rounded-2xl transition-all duration-300 border backdrop-blur-md ${
                 isRemoteTeacher
                   ? "bg-primary/10 border-primary/30 shadow-[0_5px_20px_rgba(235,185,55,0.1)]"
                   : "bg-white/5 border-white/5 hover:border-white/20 hover:bg-white/10"
@@ -108,6 +128,45 @@ export default function ParticipantsPanel({ isTeacher }: ParticipantsPanelProps)
                 ) : (
                   <div className="p-1.5 bg-red-500/10 rounded-full text-red-500">
                     <VideoOff className="w-3.5 h-3.5" />
+                  </div>
+                )}
+                
+                {/* Teacher Actions — server-side enforced */}
+                {isTeacher && !isRemoteTeacher && !p.isLocal && (
+                  <div className="flex items-center gap-1 ml-1 pl-2 border-l border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => moderateParticipant("mute_mic", p.identity)}
+                      disabled={pendingAction === `mute_mic_${p.identity}`}
+                      className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-40"
+                      title="Mute Mic (Server)"
+                    >
+                      {pendingAction === `mute_mic_${p.identity}`
+                        ? <Loader2 className="w-3.5 h-3.5 text-white/70 animate-spin" />
+                        : <MicOff className="w-3.5 h-3.5 text-white/70 hover:text-white" />
+                      }
+                    </button>
+                    <button
+                      onClick={() => moderateParticipant("mute_camera", p.identity)}
+                      disabled={pendingAction === `mute_camera_${p.identity}`}
+                      className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-40"
+                      title="Turn Off Camera (Server)"
+                    >
+                      {pendingAction === `mute_camera_${p.identity}`
+                        ? <Loader2 className="w-3.5 h-3.5 text-white/70 animate-spin" />
+                        : <VideoOff className="w-3.5 h-3.5 text-white/70 hover:text-white" />
+                      }
+                    </button>
+                    <button
+                      onClick={() => moderateParticipant("kick", p.identity)}
+                      disabled={pendingAction === `kick_${p.identity}`}
+                      className="p-1 hover:bg-red-500/20 rounded transition-colors disabled:opacity-40"
+                      title="Remove from Class (Server)"
+                    >
+                      {pendingAction === `kick_${p.identity}`
+                        ? <Loader2 className="w-3.5 h-3.5 text-red-400 animate-spin" />
+                        : <UserMinus className="w-3.5 h-3.5 text-red-400 hover:text-red-500" />
+                      }
+                    </button>
                   </div>
                 )}
               </div>

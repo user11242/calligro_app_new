@@ -8,12 +8,16 @@
     <!-- Permission for screenshot detection on Android 14+ -->
     <uses-permission android:name="android.permission.DETECT_SCREEN_CAPTURE" />
 
-    <!-- Required by Jitsi Meet SDK for video conferencing -->
+    <!-- Required by LiveKit SDK for video conferencing -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    
+    <!-- Required for background audio during live classes -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     
     <application
         tools:replace="android:label"
@@ -45,17 +49,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 
-                <data android:scheme="https" android:host="calligro.digital" />
-                <data android:scheme="http" android:host="calligro.digital" />
+                <data android:scheme="https" android:host="calligroacademy.com" />
+                <data android:scheme="http" android:host="calligroacademy.com" />
             </intent-filter>
         </activity>
 
-        <!-- Jitsi Meet SDK: override to enable Picture-in-Picture on Android -->
-        <activity
-            android:name="org.jitsi.meet.sdk.JitsiMeetActivity"
-            android:supportsPictureInPicture="true"
-            android:exported="false"
-            tools:replace="android:supportsPictureInPicture" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
@@ -76,6 +75,12 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+
+        <!-- Required for flutter_foreground_task background live class audio/mic -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.services.ForegroundService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
     </application>
     <queries>
         <intent>

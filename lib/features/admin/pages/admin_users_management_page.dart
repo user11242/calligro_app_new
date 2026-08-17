@@ -8,6 +8,7 @@ import '../../student/pages/public_profile/public_student_profile_page.dart';
 import 'package:calligro_app/core/widgets/profile_avatar.dart';
 import 'package:calligro_app/core/utils/date_utils.dart';
 import 'package:intl/intl.dart';
+import '../data/services/admin_service.dart';
 
 class AdminUsersManagementPage extends StatefulWidget {
   const AdminUsersManagementPage({super.key});
@@ -18,6 +19,7 @@ class AdminUsersManagementPage extends StatefulWidget {
 
 class _AdminUsersManagementPageState extends State<AdminUsersManagementPage> {
   final TextEditingController _searchController = TextEditingController();
+  final AdminService _adminService = AdminService();
   String _selectedFilter = 'all'; // all, student, teacher, admin
   String _searchQuery = '';
 
@@ -442,10 +444,7 @@ class _AdminUsersManagementPageState extends State<AdminUsersManagementPage> {
     }
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'role': newRole,
-        if (newRole == 'teacher') 'approved': true, // Auto-approve when making someone a teacher
-      });
+      await _adminService.changeUserRole(userId, newRole);
 
       if (context.mounted) {
         AppMessenger.showSnackBar(

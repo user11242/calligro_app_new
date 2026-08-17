@@ -3501,4 +3501,71 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noCommissionSetDescription =>
       'Your earning percentage hasn\'t been set by the admin yet. Please contact support or wait for it to be assigned before publishing.';
+
+  @override
+  String get classRecordings => 'Class Recordings';
+
+  @override
+  String get rewatchPastSessions => 'Re-watch past sessions';
+
+  @override
+  String get noRecordingsAvailable => 'No recordings available.';
+
+  @override
+  String get errorLoadingRecordings => 'Error loading recordings.';
+
+  @override
+  String get tapToPlay => 'Tap to play';
+
+  @override
+  String classRecordingDate(String date) {
+    return 'Class Recording - $date';
+  }
+
+  @override
+  String get showOriginal => 'Show Original';
+
+  @override
+  String get blockedUsersTitle => 'Blocked Users';
+
+  @override
+  String get blockedUsersSubtitle => 'Manage people you have blocked';
+
+  @override
+  String get unblockUser => 'Unblock';
+
+  @override
+  String get noBlockedUsers => 'You haven\'t blocked anyone.';
+
+  @override
+  String get userUnblockedSuccess => 'User unblocked successfully.';
+
+  @override
+  String get failedToUnblockUser => 'Failed to unblock user:';
+
+  @override
+  String get userDataNotFound => 'User data not found';
+
+  @override
+  String get reportPost => 'Report Post';
+
+  @override
+  String get blockUser => 'Block User';
+
+  @override
+  String get postReportedSuccess =>
+      'Thank you. This post has been reported for review.';
+
+  @override
+  String get blockUserConfirmTitle => 'Block User';
+
+  @override
+  String get blockUserConfirmBody =>
+      'Are you sure you want to block this user? Their posts will be hidden from your feed.';
+
+  @override
+  String get block => 'Block';
+
+  @override
+  String get userBlockedSuccess => 'User blocked successfully.';
 }

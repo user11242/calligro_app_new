@@ -36,6 +36,7 @@ class NotificationsPage extends StatelessWidget {
                   .doc(uid)
                   .collection('notifications')
                   .where('read', isEqualTo: false)
+                  .limit(500) // IMPORTANT: Batch can only handle 500 max, and limits costs!
                   .get();
               if (snapshot.docs.isNotEmpty) {
                 final batch = FirebaseFirestore.instance.batch();
@@ -63,6 +64,7 @@ class NotificationsPage extends StatelessWidget {
                 .doc(FirebaseAuth.instance.currentUser!.uid)
                 .collection('notifications')
                 .orderBy('createdAt', descending: true)
+                .limit(50) // IMPORTANT: Prevents reading millions of documents!
                 .snapshots()
             : const Stream<QuerySnapshot>.empty(),
         builder: (context, snapshot) {

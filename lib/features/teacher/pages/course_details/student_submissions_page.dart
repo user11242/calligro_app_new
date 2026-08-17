@@ -60,6 +60,7 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
             .doc(widget.assignmentId)
             .collection('submissions')
             .orderBy('submittedAt', descending: true)
+            .limit(100)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

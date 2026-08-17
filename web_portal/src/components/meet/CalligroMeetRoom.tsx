@@ -8,6 +8,7 @@ import {
 import { VideoPresets, RoomOptions } from "livekit-client";
 import "@livekit/components-styles";
 import CalligroMeetLayout from "./CalligroMeetLayout";
+import ResilienceManager from "./ResilienceManager";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 
@@ -16,6 +17,7 @@ interface CalligroMeetRoomProps {
   serverUrl: string;
   courseId: string;
   isTeacher: boolean;
+  userAvatar?: string | null;
   onLeave: () => void;
 }
 
@@ -24,6 +26,7 @@ export default function CalligroMeetRoom({
   serverUrl,
   courseId,
   isTeacher,
+  userAvatar,
   onLeave,
 }: CalligroMeetRoomProps) {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
@@ -35,61 +38,72 @@ export default function CalligroMeetRoom({
   const [isCamOn, setIsCamOn] = useState(false);
   const [isMicOn, setIsMicOn] = useState(false);
 
+  // Connection Resilience: ICE Relay Fallback state
+  const [iceTransportPolicy, setIceTransportPolicy] = useState<"all" | "relay">("all");
+
   // High-performance video settings tuned for Calligraphy classes
+  // Deps include isCamOn/isMicOn so publishDefaults correctly reflects the lobby state at join time
   const roomOptions = useMemo<RoomOptions>(() => ({
-    adaptiveStream: { pixelDensity: 'screen' },
+    // DISABLED adaptive stream — it was auto-downscaling to 360p/720p based
+    // on the video element's pixel size on screen. For calligraphy we ALWAYS
+    // want the full 1080p stream so every pen stroke is razor-sharp.
+    adaptiveStream: false,
     dynacast: true,
+    rtcConfig: {
+      iceTransportPolicy: iceTransportPolicy,
+    },
     videoCaptureDefaults: {
       resolution: VideoPresets.h1080.resolution,
     },
     publishDefaults: {
       videoEncoding: {
-        maxBitrate: 3000000,
+        maxBitrate: 6_000_000, // 6 Mbps — higher than Zoom for calligraphy detail
         maxFramerate: 30,
       },
+      // Simulcast layers are the LOWER alternatives for bandwidth-constrained
+      // subscribers. The main track (1080p) is implicit — don't list it here
+      // or LiveKit gets confused about which layer is which.
       videoSimulcastLayers: [
-        VideoPresets.h1080,
         VideoPresets.h720,
-        VideoPresets.h360,
+        VideoPresets.h540,
       ],
+      // For calligraphy, resolution > framerate. When bandwidth drops,
+      // keep pen strokes sharp even if video becomes slightly choppy.
+      degradationPreference: 'maintain-resolution',
+      videoCodec: 'h264', // H.264 produces sharper output than VP8 on mobile cameras
       screenShareEncoding: {
-        maxBitrate: 3000000,
+        maxBitrate: 6_000_000,
         maxFramerate: 30,
       }
     },
-  }), []);
+  }), [isCamOn, isMicOn, iceTransportPolicy]);
+  // Separate refs for video and audio streams so we can control them independently
+  const videoStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (permissionsGranted) return;
     
-    let activeStream: MediaStream;
+    let audioStream: MediaStream;
     async function setupPreview() {
       try {
-        // Constrain PreJoin preview to 720p to eliminate local browser lag before joining
+        // Only request MIC permission upfront — camera stays OFF until user turns it on.
+        // This is the correct behavior: no green camera light unless user explicitly enables it.
         const s = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: 1280 }, 
-            height: { ideal: 720 }, 
-            frameRate: { ideal: 30, max: 30 } 
-          }, 
+          video: false,
           audio: {
             echoCancellation: true,
             noiseSuppression: true
           } 
         });
-        s.getVideoTracks().forEach(t => t.enabled = false);
         s.getAudioTracks().forEach(t => t.enabled = false);
-        activeStream = s;
+        audioStream = s;
         setStream(s);
-        if (videoRef.current) {
-          videoRef.current.srcObject = s;
-        }
       } catch (err: any) {
         console.error("Permission error:", err);
         if (err.name === "NotAllowedError") {
-          setPermissionError("You denied camera/mic access. Please click the camera icon in your browser's address bar and allow access, then refresh.");
+          setPermissionError("You denied microphone access. Please click the camera icon in your browser's address bar and allow access, then refresh.");
         } else if (err.name === "NotFoundError") {
-          setPermissionError("No camera or microphone found. Please connect one and refresh.");
+          setPermissionError("No microphone found. Please connect one and refresh.");
         } else {
           setPermissionError(`Device error: ${err.message}`);
         }
@@ -98,17 +112,39 @@ export default function CalligroMeetRoom({
     setupPreview();
     
     return () => {
-      if (activeStream) {
-        activeStream.getTracks().forEach(t => t.stop());
+      if (audioStream) {
+        audioStream.getTracks().forEach(t => t.stop());
+      }
+      // Also stop camera if it was turned on
+      if (videoStreamRef.current) {
+        videoStreamRef.current.getTracks().forEach(t => t.stop());
+        videoStreamRef.current = null;
       }
     };
   }, [permissionsGranted]);
 
-  const toggleCam = () => {
-    if (stream) {
-      const newState = !isCamOn;
-      stream.getVideoTracks().forEach(t => t.enabled = newState);
-      setIsCamOn(newState);
+  const toggleCam = async () => {
+    if (isCamOn) {
+      // Turn OFF: physically stop the camera track so the green light goes away
+      if (videoStreamRef.current) {
+        videoStreamRef.current.getTracks().forEach(t => t.stop());
+        videoStreamRef.current = null;
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
+      setIsCamOn(false);
+    } else {
+      // Turn ON: request camera permission and start the stream
+      try {
+        const vs = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
+          audio: false,
+        });
+        videoStreamRef.current = vs;
+        if (videoRef.current) videoRef.current.srcObject = vs;
+        setIsCamOn(true);
+      } catch (err) {
+        console.error("Camera error:", err);
+      }
     }
   };
 
@@ -121,8 +157,14 @@ export default function CalligroMeetRoom({
   };
 
   const handleJoin = () => {
+    // Stop the preview mic stream — LiveKit will re-acquire devices with full quality settings
     if (stream) {
       stream.getTracks().forEach(t => t.stop());
+    }
+    // Stop the preview camera stream too
+    if (videoStreamRef.current) {
+      videoStreamRef.current.getTracks().forEach(t => t.stop());
+      videoStreamRef.current = null;
     }
     setPermissionsGranted(true);
   };
@@ -254,9 +296,19 @@ export default function CalligroMeetRoom({
               serverUrl={serverUrl}
               connect={true}
               options={roomOptions}
+              onDisconnected={(reason) => {
+                console.warn("[Resilience] Disconnected from room. Reason:", reason);
+                // 1 corresponds to "unknown" or network failure typically.
+                // Or if it's the first connection failure, we swap to relay to bypass UDP blocks.
+                if (iceTransportPolicy === "all") {
+                  console.warn("[Resilience] Attempting ICE Relay Fallback over TCP/TLS port 443...");
+                  setIceTransportPolicy("relay");
+                }
+              }}
               className="flex-1 flex flex-col overflow-hidden relative"
             >
-              <CalligroMeetLayout courseId={courseId} isTeacher={isTeacher} onLeave={onLeave} />
+              <ResilienceManager />
+              <CalligroMeetLayout courseId={courseId} isTeacher={isTeacher} userAvatar={userAvatar} onLeave={onLeave} />
               <RoomAudioRenderer />
             </LiveKitRoom>
           </motion.div>

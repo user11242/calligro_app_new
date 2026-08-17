@@ -115,6 +115,7 @@ class StudentService {
       return _firestore
           .collection('users')
           .where('role', isEqualTo: 'teacher')
+          .limit(50)
           .snapshots()
           .map((snapshot) => snapshot.docs
               .map((doc) => {...doc.data(), 'id': doc.id})

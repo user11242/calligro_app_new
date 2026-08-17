@@ -254,7 +254,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
           ),
           const SizedBox(height: 12),
           Text(
-            "\$${_totalEarnings.toStringAsFixed(0)}",
+            "\$${(_totalEarnings / 2).toStringAsFixed(0)}",
             style: const TextStyle(
               color: Colors.white,
               fontSize: 56,

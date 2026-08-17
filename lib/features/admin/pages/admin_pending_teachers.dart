@@ -263,9 +263,14 @@ class TeacherTile extends StatelessWidget {
 
                     try {
                       if (action == "approve") {
-                        await firestore.collection("users").doc(teacher.id).update({
+                        final batch = firestore.batch();
+                        batch.update(firestore.collection("users").doc(teacher.id), {
                           "status": "approved",
                         });
+                        batch.update(firestore.collection("teachers").doc(teacher.id), {
+                          "status": "approved",
+                        });
+                        await batch.commit();
                       } else {
                         // Use AdminService to perform full cleanup
                         await _adminService.rejectTeacher(teacher.id);

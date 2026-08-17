@@ -1425,5 +1425,33 @@
   "commissionRateLabel": "Commission Rate:",
   "yourShareLabel": "Your Share:",
   "noCommissionSet": "No Commission Set",
-  "noCommissionSetDescription": "Your earning percentage hasn't been set by the admin yet. Please contact support or wait for it to be assigned before publishing."
+  "noCommissionSetDescription": "Your earning percentage hasn't been set by the admin yet. Please contact support or wait for it to be assigned before publishing.",
+  "classRecordings": "Class Recordings",
+  "rewatchPastSessions": "Re-watch past sessions",
+  "noRecordingsAvailable": "No recordings available.",
+  "errorLoadingRecordings": "Error loading recordings.",
+  "tapToPlay": "Tap to play",
+  "classRecordingDate": "Class Recording - {date}",
+  "@classRecordingDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "showOriginal": "Show Original",
+  "blockedUsersTitle": "Blocked Users",
+  "blockedUsersSubtitle": "Manage people you have blocked",
+  "unblockUser": "Unblock",
+  "noBlockedUsers": "You haven't blocked anyone.",
+  "userUnblockedSuccess": "User unblocked successfully.",
+  "failedToUnblockUser": "Failed to unblock user:",
+  "userDataNotFound": "User data not found",
+  "reportPost": "Report Post",
+  "blockUser": "Block User",
+  "postReportedSuccess": "Thank you. This post has been reported for review.",
+  "blockUserConfirmTitle": "Block User",
+  "blockUserConfirmBody": "Are you sure you want to block this user? Their posts will be hidden from your feed.",
+  "block": "Block",
+  "userBlockedSuccess": "User blocked successfully."
 }

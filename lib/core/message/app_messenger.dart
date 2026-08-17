@@ -75,7 +75,17 @@ class AppMessenger {
               titleColor: finalTitleColor,
               messageColor: finalMessageColor,
               icon: icon,
-              onClose: () => Navigator.of(dialogContext, rootNavigator: true).pop(),
+              onClose: () {
+                final nav = Navigator.of(dialogContext, rootNavigator: true);
+                final route = ModalRoute.of(dialogContext);
+                if (route != null && route.isActive) {
+                  if (route.isCurrent) {
+                    nav.pop();
+                  } else {
+                    nav.removeRoute(route);
+                  }
+                }
+              },
             ),
           ),
         );

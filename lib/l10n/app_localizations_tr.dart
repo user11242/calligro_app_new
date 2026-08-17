@@ -3506,4 +3506,72 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get noCommissionSetDescription =>
       'Kazanç yüzdeniz henüz yönetici tarafından belirlenmedi. Lütfen yayınlamadan önce destek ile iletişime geçin veya atanmasını bekleyin.';
+
+  @override
+  String get classRecordings => 'Ders Kayıtları';
+
+  @override
+  String get rewatchPastSessions => 'Geçmiş oturumları tekrar izleyin';
+
+  @override
+  String get noRecordingsAvailable => 'Kayıt bulunamadı.';
+
+  @override
+  String get errorLoadingRecordings => 'Kayıtlar yüklenirken hata oluştu.';
+
+  @override
+  String get tapToPlay => 'Oynatmak için dokunun';
+
+  @override
+  String classRecordingDate(String date) {
+    return 'Ders Kaydı - $date';
+  }
+
+  @override
+  String get showOriginal => 'Orijinali Göster';
+
+  @override
+  String get blockedUsersTitle => 'Engellenen Kullanıcılar';
+
+  @override
+  String get blockedUsersSubtitle => 'Engellediğiniz kişileri yönetin';
+
+  @override
+  String get unblockUser => 'Engeli Kaldır';
+
+  @override
+  String get noBlockedUsers => 'Kimseyi engellemediniz.';
+
+  @override
+  String get userUnblockedSuccess =>
+      'Kullanıcının engeli başarıyla kaldırıldı.';
+
+  @override
+  String get failedToUnblockUser => 'Kullanıcının engeli kaldırılamadı:';
+
+  @override
+  String get userDataNotFound => 'Kullanıcı verisi bulunamadı';
+
+  @override
+  String get reportPost => 'Gönderiyi Şikayet Et';
+
+  @override
+  String get blockUser => 'Kullanıcıyı Engelle';
+
+  @override
+  String get postReportedSuccess =>
+      'Teşekkürler. Bu gönderi inceleme için rapor edildi.';
+
+  @override
+  String get blockUserConfirmTitle => 'Kullanıcıyı Engelle';
+
+  @override
+  String get blockUserConfirmBody =>
+      'Bu kullanıcıyı engellemek istediğinizden emin misiniz? Gönderileri akışınızdan gizlenecektir.';
+
+  @override
+  String get block => 'Engelle';
+
+  @override
+  String get userBlockedSuccess => 'Kullanıcı başarıyla engellendi.';
 }

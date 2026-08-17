@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:calligro_app/l10n/app_localizations.dart';
 import '../pages/google_register_wizard.dart';
 import 'link_account_dialog.dart';
@@ -186,6 +187,86 @@ class _LoginFormState extends State<LoginForm> {
     }
   }
 
+  Future<void> _handleAppleLogin() async {
+    final l10n = AppLocalizations.of(context)!;
+    final navigator = Navigator.of(context);
+    if (isLoading) return;
+
+    setState(() => isLoading = true);
+
+    try {
+      final result = await _authService.loginWithApple();
+      if (!mounted) return;
+
+      if (result == "ACCOUNT_EXISTS_DIFFERENT_CREDENTIAL") {
+        if (mounted) {
+          setState(() => isLoading = false);
+          final appleEmail = _authService.appleAuth.pendingEmail;
+          if (appleEmail != null) {
+            final role = await showDialog<String>(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => LinkAccountDialog(email: appleEmail, provider: 'apple'),
+            );
+
+            if (role != null && mounted) {
+              await _authService.saveUserFcmToken(FirebaseAuth.instance.currentUser!.uid);
+              String route = "/";
+              if (widget.returnTo != null && widget.returnTo != "/") {
+                route = widget.returnTo!;
+              }
+              navigator.pushNamedAndRemoveUntil(route, (route) => false);
+            }
+          }
+        }
+        return;
+      }
+
+      if (result == "NEEDS_ROLE" || result == null || (result != "student" && result != "teacher" && result != "admin")) {
+        setState(() => isLoading = false);
+      }
+
+      if (result == "NEEDS_ROLE") {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => const GoogleRegisterWizard(provider: 'apple'),
+        );
+      } else if (result == "student" || result == "teacher" || result == "admin") {
+        await _authService.saveUserFcmToken(FirebaseAuth.instance.currentUser!.uid);
+        if (mounted) {
+          String route = "/";
+          if (widget.returnTo != null && widget.returnTo != "/") {
+            route = widget.returnTo!;
+          }
+          navigator.pushNamedAndRemoveUntil(route, (route) => false);
+        }
+      } else if (result != null) {
+        String errorMessage = result;
+        if (result == "Teacher account pending approval") {
+          errorMessage = l10n.teacherAccountPendingApproval;
+        }
+
+        AppMessenger.showSnackBar(
+          context,
+          title: l10n.error,
+          message: errorMessage,
+          type: MessengerType.error,
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        AppMessenger.showSnackBar(
+          context,
+          title: l10n.error,
+          message: e.toString(),
+          type: MessengerType.error,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -237,27 +318,60 @@ class _LoginFormState extends State<LoginForm> {
         ),
         const SizedBox(height: 25),
         Center(
-          child: SizedBox(
-            height: 58,
-            width: 58,
-            child: ElevatedButton(
-              onPressed: isLoading ? null : _handleGoogleLogin,
-              style: ElevatedButton.styleFrom(
-                shape: const CircleBorder(),
-                padding: EdgeInsets.zero,
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-              ),
-              child: ClipOval(
-                child: Container(
-                  color: Colors.white,
-                  child: Image.asset(
-                    "assets/icons/circle_google_icon.png",
-                    fit: BoxFit.cover,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (Platform.isIOS) ...[
+                SizedBox(
+                  height: 58,
+                  width: 58,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : _handleAppleLogin,
+                    style: ElevatedButton.styleFrom(
+                      shape: const CircleBorder(),
+                      padding: EdgeInsets.zero,
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                    ),
+                    child: ClipOval(
+                      child: Container(
+                        color: Colors.white,
+                        child: const Center(
+                          child: Icon(
+                            Icons.apple,
+                            size: 32,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+              ],
+              SizedBox(
+                height: 58,
+                width: 58,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : _handleGoogleLogin,
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: EdgeInsets.zero,
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                  ),
+                  child: ClipOval(
+                    child: Container(
+                      color: Colors.white,
+                      child: Image.asset(
+                        "assets/icons/circle_google_icon.png",
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
         const SizedBox(height: 30),

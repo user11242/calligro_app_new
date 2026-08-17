@@ -104,14 +104,14 @@ service cloud.firestore {
     // =========================================================
     match /students/{studentId} {
       allow read: if true;
-      allow create: if isOwner(studentId) && request.resource.data.role == 'student';
+      allow create: if (isOwner(studentId) && request.resource.data.role == 'student') || isAdmin();
       allow update: if isOwner(studentId) || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /teachers/{teacherId} {
       allow read: if true;
-      allow create: if isOwner(teacherId) && request.resource.data.role == 'teacher' && request.resource.data.status == 'pending';
+      allow create: if (isOwner(teacherId) && request.resource.data.role == 'teacher' && request.resource.data.status == 'pending') || isAdmin();
       allow update: if isOwner(teacherId) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -206,6 +206,16 @@ service cloud.firestore {
         );
         allow create, update: if false; // Only Cloud Functions can write attendance
         allow delete: if false;
+      }
+      
+      // 🎥 CLASS RECORDINGS
+      match /recordings/{recordingId} {
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
+          get(/databases/$(database)/documents/courses/$(courseId)).data.enrolledStudents.hasAny([request.auth.uid]) ||
+          isAdmin()
+        );
+        allow write: if false; // Only written by LiveKit Cloud Functions
       }
     }
 
@@ -317,6 +327,17 @@ service cloud.firestore {
         resource.data.uid == request.auth.uid || isAdmin()
       );
       allow write: if false; // Only Cloud Functions write to orders
+    }
+
+    match /certificates/{certificateId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
     }
   }
 }

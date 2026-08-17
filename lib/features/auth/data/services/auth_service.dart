@@ -7,6 +7,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'email_service.dart';
 import 'email_auth_service.dart';
 import 'google_auth_service.dart';
+import 'apple_auth_service.dart';
 import 'otp_auth_service.dart';
 import 'fcm_service.dart';
 import 'package:flutter/foundation.dart';
@@ -15,8 +16,10 @@ import '../../../../core/utils/numeric_utils.dart';
 class AuthService {
   final EmailAuthService _emailAuth = EmailAuthService();
   final GoogleAuthService _googleAuth = GoogleAuthService.instance;
+  final AppleAuthService _appleAuth = AppleAuthService.instance;
 
   GoogleAuthService get googleAuth => _googleAuth;
+  AppleAuthService get appleAuth => _appleAuth;
   final OtpAuthService _otpAuth = OtpAuthService();
   final FcmService _fcmService = FcmService();
   final EmailService _emailService = EmailService();
@@ -124,6 +127,26 @@ class AuthService {
   }) {
     // ✅ No need to pass 'this'. GoogleAuthService handles the saving now.
     return _googleAuth.createGoogleUserWithRole(
+      role: role,
+      phone: phone,
+      portfolio: portfolio,
+      acceptedTerms: acceptedTerms,
+      spokenLanguages: spokenLanguages,
+    );
+  }
+
+  // ============ 🍏 APPLE METHODS ============
+
+  Future<String?> loginWithApple() => _appleAuth.signInWithApple(this);
+
+  Future<String?> createAppleUserWithRole({
+    required String role,
+    bool acceptedTerms = true,
+    String? phone,
+    String? portfolio,
+    List<String>? spokenLanguages,
+  }) {
+    return _appleAuth.createAppleUserWithRole(
       role: role,
       phone: phone,
       portfolio: portfolio,
@@ -402,6 +425,55 @@ class AuthService {
       return "student"; // Default fallback
     } catch (e) {
       debugPrint("Error linking account: $e");
+      rethrow;
+    }
+  }
+
+  /// Link the pending Apple account to the existing email/password account
+  Future<String?> linkAppleAccount(String email, String password) async {
+    try {
+      // 1. Re-authenticate
+      UserCredential userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email.trim(), 
+        password: password
+      );
+      
+      // 2. Get pending credential
+      final appleCred = _appleAuth.pendingAppleCredential;
+      if (appleCred == null) throw Exception("No pending Apple credential found");
+      
+      // 3. Link
+      await userCred.user!.linkWithCredential(appleCred);
+
+      // 4. Update Firestore authProvider to 'apple'
+      final uid = userCred.user!.uid;
+      final updates = {'authProvider': 'apple'};
+      
+      final batch = _firestore.batch();
+      batch.update(_firestore.collection("users").doc(uid), updates);
+      
+      final userDoc = await _firestore.collection("users").doc(uid).get();
+      if (userDoc.exists) {
+        final role = (userDoc.data() as Map<String, dynamic>)["role"];
+        if (role == "student") {
+          batch.update(_firestore.collection("students").doc(uid), updates);
+        } else if (role == "teacher") {
+          batch.update(_firestore.collection("teachers").doc(uid), updates);
+        }
+      }
+      
+      await batch.commit();
+      
+      // 5. Cleanup
+      _appleAuth.clearPendingCredential();
+      
+      // 6. Return role
+      if (userDoc.exists) {
+        return (userDoc.data() as Map<String, dynamic>)["role"];
+      }
+      return "student"; // Default fallback
+    } catch (e) {
+      debugPrint("Error linking Apple account: $e");
       rethrow;
     }
   }

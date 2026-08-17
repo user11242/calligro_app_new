@@ -23,7 +23,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   final AdminService _adminService = AdminService();
 
   String _userName = "Admin";
-  String _userEmail = "admin@calligro.com";
+  String _userEmail = "admin@calligroacademy.com";
   String _userProfileImage = "";
   bool _isLoading = true;
 

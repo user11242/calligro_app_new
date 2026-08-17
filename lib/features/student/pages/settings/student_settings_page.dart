@@ -11,6 +11,7 @@ import '../../../teacher/pages/settings/edit_profile_page.dart';
 import '../../../teacher/pages/settings/language_settings_page.dart';
 import '../../../teacher/pages/settings/help_center_page.dart';
 import '../../../teacher/pages/settings/security_page.dart';
+import '../../../community/pages/blocked_users_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calligro_app/core/services/iap_service.dart';
@@ -273,6 +274,22 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
                 },
               ),
 
+              // 3. Blocked Users
+              _buildSettingsItem(
+                context,
+                icon: Icons.block,
+                title: AppLocalizations.of(context)!.blockedUsersTitle,
+                subtitle: AppLocalizations.of(context)!.blockedUsersSubtitle,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BlockedUsersPage(),
+                    ),
+                  );
+                },
+              ),
+
               const SizedBox(height: 24),
 
               // --- PREFERENCES SECTION ---
@@ -288,9 +305,15 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
                   });
                   final uid = FirebaseAuth.instance.currentUser?.uid;
                   if (uid != null) {
-                    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+                    final batch = FirebaseFirestore.instance.batch();
+                    batch.update(FirebaseFirestore.instance.collection('users').doc(uid), {
                       'wantsSocialNotifications': newValue,
-                    }).catchError((e) {
+                    });
+                    batch.update(FirebaseFirestore.instance.collection('students').doc(uid), {
+                      'wantsSocialNotifications': newValue,
+                    });
+                    
+                    await batch.commit().catchError((e) {
                       debugPrint("Failed to update notification preference: $e");
                       // Revert on failure
                       if (mounted) {

@@ -516,9 +516,14 @@ class AdminActiveTeachersPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(teacherId).update({
+      final batch = FirebaseFirestore.instance.batch();
+      batch.update(FirebaseFirestore.instance.collection('users').doc(teacherId), {
         'approved': false,
       });
+      batch.update(FirebaseFirestore.instance.collection('teachers').doc(teacherId), {
+        'approved': false,
+      });
+      await batch.commit();
 
       if (context.mounted) {
         AppMessenger.showSnackBar(

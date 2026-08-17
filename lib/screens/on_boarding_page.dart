@@ -154,7 +154,7 @@ class _OnboardingPageState extends State<OnboardingPage> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _controller = VideoPlayerController.asset(
-      'assets/videos/calligro_onBoarding_video.mp4',
+      'assets/videos/new_onboarding.mp4',
     )..initialize().then((_) {
         _controller.setLooping(true);
         _controller.setVolume(0);

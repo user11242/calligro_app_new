@@ -22,6 +22,29 @@ class TranslationService {
     }
   }
 
+  // Domain-specific terms to avoid Google Translate errors (e.g. Ruq'ah as Patch)
+  final Map<String, String> _calligraphyTerms = {
+    'رقعة': 'Ruq\'ah',
+    'الرقعة': 'Ruq\'ah',
+    'ديواني': 'Diwani',
+    'الديواني': 'Diwani',
+    'نسخ': 'Naskh',
+    'النسخ': 'Naskh',
+    'ثلث': 'Thuluth',
+    'الثلث': 'Thuluth',
+    'كوفي': 'Kufic',
+    'الكوفي': 'Kufic',
+  };
+
+  String _preProcessText(String text, String target) {
+    if (target == 'ar') return text;
+    String processed = text;
+    _calligraphyTerms.forEach((ar, eng) {
+      processed = processed.replaceAll(ar, eng);
+    });
+    return processed;
+  }
+
   /// Translates text from source to target.
   Future<String> translate({
     required String text,
@@ -37,16 +60,22 @@ class TranslationService {
     }
     
     try {
+      final textToTranslate = _preProcessText(text, target);
       final translation = await _translator.translate(
-        text,
+        textToTranslate,
         from: source ?? 'auto',
         to: target,
       );
       
       // Store in cache
-      final result = translation.text;
-      _cache[cacheKey] = result;
+      String result = translation.text;
       
+      // Post-process any weird lingering translations just in case
+      if (target == 'en') {
+        result = result.replaceAll(RegExp(r'\bpatch\b', caseSensitive: false), 'Ruq\'ah');
+      }
+
+      _cache[cacheKey] = result;
       return result;
     } catch (e) {
       return text;

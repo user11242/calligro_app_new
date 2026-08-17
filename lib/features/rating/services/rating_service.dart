@@ -40,10 +40,20 @@ class RatingService {
       final teacherDoc = await teacherRef.get();
 
       if (teacherDoc.exists) {
-        await teacherRef.update({
+        final batch = _firestore.batch();
+        
+        batch.update(teacherRef, {
           'totalStars': FieldValue.increment(rating),
           'reviewCount': FieldValue.increment(1),
         });
+
+        // Sync to teachers collection
+        batch.update(_firestore.collection('teachers').doc(teacherId), {
+          'totalStars': FieldValue.increment(rating),
+          'reviewCount': FieldValue.increment(1),
+        });
+
+        await batch.commit();
       }
     } catch (e) {
       throw Exception('Failed to submit rating: $e');

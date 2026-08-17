@@ -75,9 +75,9 @@ export default function PrivacyPage() {
                       </p>
                    </div>
                    <div className="glass p-6 rounded-[32px] border-white/5">
-                      <p className="text-sm font-black text-white mb-2">{t("privacy.jitsi.title")}</p>
+                      <p className="text-sm font-black text-white mb-2">{t("privacy.livekit.title")}</p>
                       <p className="text-[10px] text-white/40 leading-relaxed">
-                         {t("privacy.jitsi.content")}
+                         {t("privacy.livekit.content")}
                       </p>
                    </div>
                 </div>

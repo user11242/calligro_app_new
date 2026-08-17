@@ -273,11 +273,7 @@ class _CoursePricePageState extends State<CoursePricePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Real-time Breakdown Table
-                      if (_price > 0)
-                        widget.hasCommissionRate
-                            ? _buildPriceBreakdown()
-                            : _buildCommissionWarning(),
+                      // Removed Real-time Breakdown Table per request
                     ],
                   ),
                 ),

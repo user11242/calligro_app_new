@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/theme/colors.dart';
@@ -5,8 +6,13 @@ import '../../../l10n/app_localizations.dart';
 
 class GoogleHintDialog extends StatelessWidget {
   final VoidCallback onContinue;
+  final VoidCallback? onAppleContinue;
 
-  const GoogleHintDialog({super.key, required this.onContinue});
+  const GoogleHintDialog({
+    super.key, 
+    required this.onContinue,
+    this.onAppleContinue,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +30,9 @@ class GoogleHintDialog extends StatelessWidget {
               const Icon(Icons.login, color: AppColors.white, size: 48),
               const SizedBox(height: 16),
               Text(
-                AppLocalizations.of(context)!.continueRegistrationWithGoogle,
+                AppLocalizations.of(context)!.localeName == 'ar' 
+                  ? (Platform.isIOS ? 'أكمل التسجيل باستخدام Google أو Apple' : 'أكمل التسجيل باستخدام Google')
+                  : (Platform.isIOS ? 'Continue registration with Google or Apple' : AppLocalizations.of(context)!.continueRegistrationWithGoogle),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 18,
@@ -54,6 +62,30 @@ class GoogleHintDialog extends StatelessWidget {
                 ),
                 onPressed: onContinue, // ✅ no Navigator.pop here
               ),
+              
+              if (Platform.isIOS && onAppleContinue != null) ...[
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.white,
+                    foregroundColor: AppColors.black87,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.apple,
+                    size: 28,
+                    color: Colors.black,
+                  ),
+                  label: Text(
+                    AppLocalizations.of(context)!.localeName == 'ar' ? 'المتابعة باستخدام Apple' : 'Continue with Apple',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: onAppleContinue,
+                ),
+              ],
 
               const SizedBox(height: 12),
 

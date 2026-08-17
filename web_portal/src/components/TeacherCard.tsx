@@ -1,5 +1,5 @@
 "use client";
-import { CheckCircle2, BookOpen, ArrowRight } from "lucide-react";
+import { CheckCircle2, ArrowRight, Star } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -26,59 +26,43 @@ export default function TeacherCard({ teacher }: TeacherCardProps) {
   };
 
   return (
-    <div className="group relative">
-      {/* Background Glow */}
-      <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-transparent rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-all duration-700" />
-      
-      <div className="relative bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden transition-all duration-700 hover:bg-white/[0.05] hover:border-primary/20 hover:-translate-y-2">
-        {/* Artistic Backdrop Element */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/10 transition-colors duration-700" />
-
-        <div className="flex flex-col items-center text-center">
-          {/* Avatar Section */}
-          <div className="relative mb-6">
-            <div className="w-32 h-32 rounded-3xl overflow-hidden border-2 border-white/10 p-1 group-hover:border-primary/40 transition-all duration-700 transform group-hover:rotate-3">
-              <Image 
-                src={formatImageUrl(teacher.photoUrl) || "/images/placeholder.png"} 
-                alt={teacher.fullName || teacher.name}
-                width={128}
-                height={128}
-                className="w-full h-full object-cover rounded-2xl grayscale-[50%] group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-115"
-              />
-            </div>
-            <div className="absolute -bottom-2 -right-2 bg-primary text-black p-2 rounded-2xl shadow-2xl border-4 border-secondary-dark ring-4 ring-primary/20">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
+    <Link href={`/teachers/${teacher.uid}`} className="group block h-full">
+      <div className="bg-[#181818] border border-white/5 rounded-[2rem] p-8 transition-all duration-500 hover:bg-[#222222] hover:border-white/10 flex flex-col items-center text-center h-full">
+        {/* Avatar Section */}
+        <div className="relative mb-6">
+          <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-white/5 transition-transform duration-500 group-hover:scale-105">
+            <Image 
+              src={formatImageUrl(teacher.photoUrl) || "/images/placeholder.png"} 
+              alt={teacher.fullName || teacher.name}
+              width={112}
+              height={112}
+              className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-500"
+            />
           </div>
-
-          {/* Name & Title */}
-          <div className="space-y-2 mb-6">
-            <h3 className="text-2xl font-black font-outfit uppercase tracking-tighter text-white group-hover:text-primary transition-colors duration-500">
-              {teacher.fullName || teacher.name}
-            </h3>
-          </div>
-
-          {/* Bio / Stats */}
-          {teacher.bio && (
-            <p className="text-white/40 text-sm line-clamp-2 mb-6 px-4 leading-relaxed">
-              {teacher.bio}
-            </p>
-          )}
-
-          <div className="grid grid-cols-1 w-full gap-4 pt-6 border-t border-white/5">
-            <Link 
-              href={`/courses?search=${encodeURIComponent(teacher.name)}`}
-              className="flex items-center justify-center gap-3 w-full bg-white/5 hover:bg-primary hover:text-black border border-white/10 hover:border-primary px-6 py-4 rounded-2xl transition-all duration-500 group/btn"
-            >
-              <BookOpen className="w-5 h-5" />
-              <span className="text-xs font-black uppercase tracking-widest">
-                {t("course.learn_more")}
-              </span>
-              <ArrowRight className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-            </Link>
+          <div className="absolute -bottom-1 -right-1 bg-[#E8C468] text-black p-1.5 rounded-full shadow-lg border-[3px] border-[#181818]">
+            <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
+
+        {/* Name & Title */}
+        <div className="space-y-1 mb-6 flex-grow">
+          <h3 className="text-2xl font-bold font-outfit uppercase tracking-wider text-white group-hover:text-[#E8C468] transition-colors duration-300">
+            {teacher.fullName || teacher.name}
+          </h3>
+          <div className="flex items-center justify-center gap-1 mt-2">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-4 h-4 fill-[#E8C468] text-[#E8C468]" />
+            ))}
+            <span className="text-white/40 text-xs font-bold ml-2">5.0</span>
+          </div>
+        </div>
+
+        {/* Action button */}
+        <div className="w-full flex items-center justify-center gap-2 pt-6 border-t border-white/5 text-white/50 group-hover:text-[#E8C468] transition-colors text-xs font-bold uppercase tracking-widest mt-2">
+          <span>{t("teachers.view_profile") || "View Profile"}</span>
+          <ArrowRight className={`w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300`} />
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }

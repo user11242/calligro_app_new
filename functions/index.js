@@ -102,7 +102,7 @@ exports.sendEmailOtp = https.onRequest({ secrets: [brevoApiKey] }, async (req, r
     const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
     const sendSmtpEmail = {
       to: [{ email }],
-      sender: { email: "no-reply@calligro.digital", name: "Calligro" },
+      sender: { email: "no-reply@calligroacademy.com", name: "Calligro" },
       subject: "Your OTP Code",
       textContent: `Your OTP is ${otp}. It is valid for 10 minutes.`,
     };
@@ -702,6 +702,17 @@ exports.verifyPurchase = onCall(async (request) => {
       enrolledCourses: admin.firestore.FieldValue.arrayUnion(courseId),
     });
 
+    // Generate Certificate Instantly
+    const certRef = admin.firestore().collection("certificates").doc();
+    batch.set(certRef, {
+      studentId: uid,
+      studentName: userData.name || "Student",
+      courseId: courseId,
+      courseName: courseData.courseName || courseData.courseTitle || "Untitled Course",
+      teacherId: courseData.teacherId || "",
+      issueDate: admin.firestore.FieldValue.serverTimestamp()
+    });
+
     await batch.commit();
     console.log(`🏆 Successfully Enrolled User ${uid} in Course ${courseId}`);
 
@@ -824,6 +835,17 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
         enrolledCourses: admin.firestore.FieldValue.arrayUnion(String(courseId))
       });
 
+      // 5. Generate Certificate Instantly
+      const certRef = admin.firestore().collection("certificates").doc();
+      batch.set(certRef, {
+        studentId: userId,
+        studentName: event.data.attributes.user_name || "Academy Student",
+        courseId: String(courseId),
+        courseName: courseData.courseName || courseData.courseTitle || "Unknown Course",
+        teacherId: courseData.teacherId || "",
+        issueDate: admin.firestore.FieldValue.serverTimestamp()
+      });
+
       await batch.commit();
 
       console.log(`✅ Enrollment & Transaction completed for ${userId}`);
@@ -901,6 +923,17 @@ exports.enrollInFreeCourse = onCall(
         academyProfit: 0,
         storeFee: 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Generate Certificate Instantly
+      const certRef = admin.firestore().collection("certificates").doc();
+      batch.set(certRef, {
+        studentId: uid,
+        studentName: userData.name || "Academy Student",
+        courseId: String(courseId),
+        courseName: courseData.courseName || courseData.courseTitle || courseData.title || "Untitled Course",
+        teacherId: courseData.teacherId || "",
+        issueDate: admin.firestore.FieldValue.serverTimestamp()
       });
 
       await batch.commit();

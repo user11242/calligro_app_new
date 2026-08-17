@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:calligro_app/features/meet/pages/calligro_meet_page.dart';
+import 'package:calligro_app/features/meet/pages/calligro_pre_join_page.dart';
+import 'package:calligro_app/core/services/meet_debug_service.dart';
 
 class LiveKitMeetService {
   static final LiveKitMeetService _instance = LiveKitMeetService._internal();
   factory LiveKitMeetService() => _instance;
   LiveKitMeetService._internal();
 
+  bool _isJoining = false;
+
   Future<void> joinMeeting({
     required BuildContext context,
     required String courseId,
+    bool isTeacher = false,
   }) async {
+    if (_isJoining) {
+      MeetDebugService().log("⚠️ joinMeeting called but _isJoining is already true (ignored double-tap)");
+      return;
+    }
+    _isJoining = true;
+
     try {
+      MeetDebugService().log("🟢 joinMeeting started for course $courseId");
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -20,10 +31,12 @@ class LiveKitMeetService {
         ),
       );
 
+      MeetDebugService().log("⏳ Requesting LiveKit token...");
       final result = await FirebaseFunctions.instance
           .httpsCallable('livekit-generateLiveKitToken')
           .call({'courseId': courseId});
 
+      MeetDebugService().log("✅ Token received, popping loading dialog");
       Navigator.pop(context); // Close loading
 
       final data = result.data as Map<dynamic, dynamic>;
@@ -34,15 +47,17 @@ class LiveKitMeetService {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CalligroMeetPage(
+          builder: (_) => CalligroPreJoinPage(
             token: token,
             serverUrl: serverUrl,
             roomName: roomName,
             courseId: courseId,
+            isTeacher: isTeacher,
           ),
         ),
       );
     } catch (e) {
+      MeetDebugService().log("❌ Token generation failed: $e. Popping top route.");
       Navigator.pop(context); // Close loading if error
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -50,6 +65,9 @@ class LiveKitMeetService {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      _isJoining = false;
+      MeetDebugService().log("🏁 joinMeeting finished");
     }
   }
 }

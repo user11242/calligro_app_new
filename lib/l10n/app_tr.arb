@@ -1120,5 +1120,33 @@
   "commissionRateLabel": "Komisyon Oranı:",
   "yourShareLabel": "Payınız:",
   "noCommissionSet": "Komisyon Belirlenmedi",
-  "noCommissionSetDescription": "Kazanç yüzdeniz henüz yönetici tarafından belirlenmedi. Lütfen yayınlamadan önce destek ile iletişime geçin veya atanmasını bekleyin."
+  "noCommissionSetDescription": "Kazanç yüzdeniz henüz yönetici tarafından belirlenmedi. Lütfen yayınlamadan önce destek ile iletişime geçin veya atanmasını bekleyin.",
+  "classRecordings": "Ders Kayıtları",
+  "rewatchPastSessions": "Geçmiş oturumları tekrar izleyin",
+  "noRecordingsAvailable": "Kayıt bulunamadı.",
+  "errorLoadingRecordings": "Kayıtlar yüklenirken hata oluştu.",
+  "tapToPlay": "Oynatmak için dokunun",
+  "classRecordingDate": "Ders Kaydı - {date}",
+  "@classRecordingDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "showOriginal": "Orijinali Göster",
+  "blockedUsersTitle": "Engellenen Kullanıcılar",
+  "blockedUsersSubtitle": "Engellediğiniz kişileri yönetin",
+  "unblockUser": "Engeli Kaldır",
+  "noBlockedUsers": "Kimseyi engellemediniz.",
+  "userUnblockedSuccess": "Kullanıcının engeli başarıyla kaldırıldı.",
+  "failedToUnblockUser": "Kullanıcının engeli kaldırılamadı:",
+  "userDataNotFound": "Kullanıcı verisi bulunamadı",
+  "reportPost": "Gönderiyi Şikayet Et",
+  "blockUser": "Kullanıcıyı Engelle",
+  "postReportedSuccess": "Teşekkürler. Bu gönderi inceleme için rapor edildi.",
+  "blockUserConfirmTitle": "Kullanıcıyı Engelle",
+  "blockUserConfirmBody": "Bu kullanıcıyı engellemek istediğinizden emin misiniz? Gönderileri akışınızdan gizlenecektir.",
+  "block": "Engelle",
+  "userBlockedSuccess": "Kullanıcı başarıyla engellendi."
 }

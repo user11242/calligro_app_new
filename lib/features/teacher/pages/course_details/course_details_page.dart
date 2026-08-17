@@ -19,6 +19,13 @@ import 'package:calligro_app/core/services/translation_service.dart';
 import 'package:calligro_app/features/student/widgets/course_share_card.dart';
 import 'package:calligro_app/core/utils/share_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:calligro_app/core/widgets/meet_debug_console_sheet.dart';
+import 'package:calligro_app/core/services/meet_debug_service.dart';
+
+
+import 'package:calligro_app/features/teacher/pages/course_details/recordings_page.dart';
+
+import 'package:calligro_app/features/teacher/pages/course_details/video_player_page.dart';
 
 class CourseDetailsPage extends StatefulWidget {
   final String courseId;
@@ -85,16 +92,24 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       length: 3,
       vsync: this,
     ); // Always 3 tabs (Overview, Schedule, Classroom)
-    _checkUserRole();
-    // _loadInitialData() moved to didChangeDependencies directly or via a flag if needed,
-    // but typically safe to call there for localization updates.
-    _fetchFullCourseData();
+    
+    // ✅ Use addPostFrameCallback to safely access AppLocalizations.of(context)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadInitialData(); 
+        _checkUserRole();
+        _fetchFullCourseData();
+      }
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadInitialData();
+    // ⚠️ DO NOT call _loadInitialData() here!
+    // didChangeDependencies() fires every time the Navigator updates its
+    // InheritedWidget (e.g., when CalligroMeetPage is pushed/popped), which
+    // was causing setState() → full rebuild → killing the meeting page.
   }
 
   Future<void> _checkUserRole() async {
@@ -436,6 +451,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         await LiveKitMeetService().joinMeeting(
           context: context,
           courseId: widget.courseId,
+          isTeacher: isTeacher,
         )
             .timeout(
               const Duration(seconds: 10),
@@ -577,6 +593,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                 onPressed: () => Navigator.pop(context),
               ),
               actions: [
+
                 IconButton(
                   icon: Container(
                     padding: const EdgeInsets.all(8),
@@ -1647,16 +1664,8 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         children: [
           _buildDynamicSchedulingCard(),
           const SizedBox(height: 32),
-          _buildSectionTitle(
-            isTeacher
-                ? AppLocalizations.of(context)!.toolsRequirements
-                : AppLocalizations.of(context)!.assignments,
-            isTeacher
-                ? Icons.auto_awesome_mosaic_rounded
-                : Icons.folder_special_rounded,
-          ),
-          const SizedBox(height: 20),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isTeacher) ...[
                 Expanded(
@@ -1686,9 +1695,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                       : AppLocalizations.of(context)!.myAssignments,
                   subtitle: isTeacher
                       ? AppLocalizations.of(context)!.submissions
-                      : AppLocalizations.of(
-                          context,
-                        )!.submitYourWork, // New subtitle for student
+                      : AppLocalizations.of(context)!.submitYourWork,
                   icon: Icons.folder_special_rounded,
                   color: Colors.blueAccent,
                   onTap: () => Navigator.push(
@@ -1702,9 +1709,52 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                   ),
                 ),
               ),
+              if (!isTeacher) ...[
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildActionCard(
+                    title: AppLocalizations.of(context)!.classRecordings,
+                    subtitle: AppLocalizations.of(context)!.rewatchPastSessions,
+                    icon: Icons.video_library_rounded,
+                    color: Colors.purpleAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RecordingsPage(courseId: widget.courseId),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           ),
           if (isTeacher) ...[
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    title: AppLocalizations.of(context)!.classRecordings,
+                    subtitle: AppLocalizations.of(context)!.rewatchPastSessions,
+                    icon: Icons.video_library_rounded,
+                    color: Colors.purpleAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RecordingsPage(courseId: widget.courseId),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Spacer(),
+              ],
+            ),
             const SizedBox(height: 40),
             const SizedBox(height: 8),
             Text(
@@ -2057,12 +2107,14 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       children: [
         Icon(icon, color: AppColors.accentGold, size: 22),
         const SizedBox(width: 10),
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],
@@ -2236,6 +2288,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     required VoidCallback onTap,
   }) {
     return Container(
+      width: double.infinity,
       constraints: const BoxConstraints(
         minHeight: 150,
       ), // Changed from fixed height to minHeight and slightly increased
@@ -2290,18 +2343,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                     fontWeight: FontWeight.w900,
                     fontSize: 18, // Reduced from 20
                     letterSpacing: -0.5,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
-                    fontSize: 11, // Reduced from 12
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2622,3 +2663,4 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     return false;
   }
 }
+

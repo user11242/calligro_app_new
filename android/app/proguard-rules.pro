@@ -64,25 +64,7 @@
 -dontwarn com.google.android.play.core.splitinstall.**
 -dontwarn com.google.android.play.core.tasks.**
 
-# --- Jitsi Meet SDK (CRITICAL: prevents crash on release builds) ---
--keep class org.jitsi.meet.** { *; }
--keep class org.jitsi.meet.sdk.** { *; }
--keep class org.jitsi.meet.sdk.JitsiMeetActivity { *; }
--keep class org.jitsi.meet.sdk.JitsiMeetView { *; }
--keep class org.jitsi.meet.sdk.JitsiMeetViewListener { *; }
--keep class org.jitsi.meet.sdk.JitsiMeetConferenceOptions { *; }
 
-# --- WebRTC (Jitsi dependency) ---
--keep class org.webrtc.** { *; }
--dontwarn org.webrtc.**
-
-# --- React Native (Jitsi uses React Native internally) ---
--keep class com.facebook.react.** { *; }
--keep class com.facebook.hermes.** { *; }
--keep class com.facebook.jni.** { *; }
--dontwarn com.facebook.react.**
--dontwarn com.facebook.hermes.**
--dontwarn com.facebook.jni.**
 
 # --- OkHttp (used by Jitsi for network calls) ---
 -dontwarn okhttp3.**

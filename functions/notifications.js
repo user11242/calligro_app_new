@@ -138,7 +138,7 @@ function getLocalizedText(lang, key, params = {}) {
         ${bodyText}
       </div>
       <div class="button-container">
-        <a href="https://calligro.digital" class="button">${t.header}</a>
+        <a href="https://calligroacademy.com" class="button">${t.header}</a>
       </div>
     </div>
     <div class="footer">
@@ -245,7 +245,7 @@ async function sendEmail({ email, subjectKey, bodyKey, params = {}, lang = "en" 
                 "content-type": "application/json",
             },
             body: JSON.stringify({
-                sender: { email: "no-reply@calligro.digital", name: "Calligro Team" },
+                sender: { email: "no-reply@calligroacademy.com", name: "Calligro Team" },
                 to: [{ email }],
                 subject: subject,
                 htmlContent: htmlContent,

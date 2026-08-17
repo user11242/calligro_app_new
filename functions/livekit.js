@@ -1,7 +1,9 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
-const { AccessToken, EgressClient } = require("livekit-server-sdk");
+const { AccessToken, EgressClient, RoomServiceClient } = require("livekit-server-sdk");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const crypto = require("crypto");
 
 // --------------------
@@ -9,6 +11,10 @@ const crypto = require("crypto");
 // --------------------
 const livekitApiKey = defineSecret("LIVEKIT_API_KEY");
 const livekitApiSecret = defineSecret("LIVEKIT_API_SECRET");
+const r2AccessKey = defineSecret("CLOUDFLARE_R2_ACCESS_KEY");
+const r2SecretKey = defineSecret("CLOUDFLARE_R2_SECRET_KEY");
+const r2Endpoint = defineSecret("CLOUDFLARE_R2_ENDPOINT");
+const r2PublicUrl = defineSecret("CLOUDFLARE_R2_PUBLIC_URL");
 
 // --------------------
 // Helper: Hash Room Name
@@ -20,7 +26,12 @@ function hashRoomName(input) {
 // --------------------
 // Generate LiveKit Token
 // --------------------
-exports.generateLiveKitToken = onCall({ secrets: [livekitApiKey, livekitApiSecret] }, async (request) => {
+exports.generateLiveKitToken = onCall({ 
+  secrets: [livekitApiKey, livekitApiSecret],
+  cpu: 0.333,
+  memory: "256MiB",
+  maxInstances: 10,
+}, async (request) => {
   // 1. Verify Authentication
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "You must be logged in to join a classroom.");
@@ -127,16 +138,129 @@ exports.generateLiveKitToken = onCall({ secrets: [livekitApiKey, livekitApiSecre
 });
 
 // --------------------
-// Start Automated YouTube Egress
+// Server-Side Moderation (Teacher Only)
+// --------------------
+exports.moderateParticipant = onCall({ 
+  secrets: [livekitApiKey, livekitApiSecret],
+  cpu: 0.333,
+  memory: "256MiB",
+  maxInstances: 1,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+
+  const { courseId, targetIdentity, action } = request.data;
+  if (!courseId || !action) {
+    throw new HttpsError("invalid-argument", "courseId and action are required.");
+  }
+
+  const uid = request.auth.uid;
+
+  // Verify the caller is the teacher of this course
+  const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
+  if (!courseSnap.exists) throw new HttpsError("not-found", "Course not found.");
+  const courseData = courseSnap.data();
+  if (courseData.teacherId !== uid) {
+    throw new HttpsError("permission-denied", "Only the teacher can moderate participants.");
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const rawSeed = `Calligro_${courseId}_SecureSalt2026_${today}`;
+  const secureRoomName = `CG_${hashRoomName(rawSeed).substring(0, 40)}`;
+
+  // ---------- STOP RECORDING ----------
+  if (action === "stop_recording") {
+    const egressClient = new EgressClient(
+      "https://calligro-54copltu.livekit.cloud",
+      livekitApiKey.value(),
+      livekitApiSecret.value()
+    );
+    const roomService = new RoomServiceClient(
+      "https://calligro-54copltu.livekit.cloud",
+      livekitApiKey.value(),
+      livekitApiSecret.value()
+    );
+    try {
+      const egresses = await egressClient.listEgress({ roomName: secureRoomName });
+      const toStop = egresses.filter(e => e.status <= 1);
+      if (toStop.length > 0) {
+        await Promise.all(toStop.map(e => egressClient.stopEgress(e.egressId)));
+      }
+      await admin.firestore()
+        .collection("courses").doc(courseId)
+        .collection("activeSessions").doc(today)
+        .set({ status: "ended", endedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      // Delete the room to disconnect all participants cleanly
+      try { await roomService.deleteRoom(secureRoomName); } catch (_) {}
+      return { status: "stopped", count: toStop.length };
+    } catch (error) {
+      console.error("Stop egress error:", error);
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", "Failed to stop recording.");
+    }
+  }
+
+  // ---------- PARTICIPANT MODERATION ----------
+  if (!targetIdentity) {
+    throw new HttpsError("invalid-argument", "targetIdentity is required for moderation actions.");
+  }
+
+  const roomService = new RoomServiceClient(
+    "https://calligro-54copltu.livekit.cloud",
+    livekitApiKey.value(),
+    livekitApiSecret.value()
+  );
+
+  try {
+    if (action === "mute_mic") {
+      // Get participant's tracks and mute the microphone track
+      const participant = await roomService.getParticipant(secureRoomName, targetIdentity);
+      for (const track of participant.tracks) {
+        if (track.type === 0) { // AUDIO = 0
+          await roomService.mutePublishedTrack(secureRoomName, targetIdentity, track.sid, true);
+          break;
+        }
+      }
+      return { success: true, action: "muted_mic" };
+    }
+
+    if (action === "mute_camera") {
+      const participant = await roomService.getParticipant(secureRoomName, targetIdentity);
+      for (const track of participant.tracks) {
+        if (track.type === 1) { // VIDEO = 1
+          await roomService.mutePublishedTrack(secureRoomName, targetIdentity, track.sid, true);
+          break;
+        }
+      }
+      return { success: true, action: "muted_camera" };
+    }
+
+    if (action === "kick") {
+      await roomService.removeParticipant(secureRoomName, targetIdentity);
+      return { success: true, action: "kicked" };
+    }
+
+    throw new HttpsError("invalid-argument", `Unknown action: ${action}`);
+  } catch (error) {
+    console.error("Moderation error:", error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", "Moderation action failed.");
+  }
+});
+
+// --------------------
+// Start Automated R2 Recording (Track Composite — teacher cam + mic)
 // --------------------
 exports.startAutomatedRecording = onCall({ 
   secrets: [
     livekitApiKey, 
     livekitApiSecret, 
-    "YOUTUBE_CLIENT_ID", 
-    "YOUTUBE_CLIENT_SECRET", 
-    "YOUTUBE_REFRESH_TOKEN"
-  ] 
+    r2AccessKey,
+    r2SecretKey,
+    r2Endpoint
+  ],
+  cpu: 0.333,
+  memory: "256MiB",
+  maxInstances: 1,
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
@@ -150,10 +274,10 @@ exports.startAutomatedRecording = onCall({
     if (!courseSnap.exists) throw new HttpsError("not-found", "Course not found.");
     
     const courseData = courseSnap.data();
-    // Temporarily disabled for testing so anyone can trigger the recording
-    // if (courseData.teacherId !== uid) {
-    //   throw new HttpsError("permission-denied", "Only the teacher can start recording.");
-    // }
+    // Only the teacher can start the recording
+    if (courseData.teacherId !== uid) {
+      throw new HttpsError("permission-denied", "Only the teacher can start recording.");
+    }
 
     const today = new Date().toISOString().split('T')[0];
     const rawSeed = `Calligro_${courseId}_SecureSalt2026_${today}`;
@@ -165,52 +289,216 @@ exports.startAutomatedRecording = onCall({
       livekitApiSecret.value()
     );
 
-    // Don't start another if one is already active
+    // Don't start another egress if one is already active for this room
     const activeEgresses = await egressClient.listEgress({ roomName: secureRoomName });
-    if (activeEgresses.length > 0) {
-      return { status: "already_recording", message: "Recording is already active." };
+    const activeOnes = activeEgresses.filter(e => e.status <= 1); // 0=Starting, 1=Active
+    if (activeOnes.length > 0) {
+      return { status: "already_recording", egressId: activeOnes[0].egressId };
     }
 
-    const { setupYouTubeLiveStream } = require("./youtube");
-    const { rtmpUrl, videoId } = await setupYouTubeLiveStream(courseId, courseData.title);
+    // Set up the R2 upload path: courses/{courseId}/{timestamp}.mp4
+    const timestamp = Date.now();
+    const filepath = `courses/${courseId}/${timestamp}.mp4`;
 
-    // Generate a dedicated read-only Egress Token
-    const egressToken = new AccessToken(livekitApiKey.value(), livekitApiSecret.value(), {
-      identity: `egress_${courseId}`,
-      name: "Recording Bot",
-      ttl: "4h",
-    });
-    egressToken.addGrant({
-      roomJoin: true,
-      room: secureRoomName,
-      canPublish: false,
-      canSubscribe: true,
-      hidden: true, // Hide from other participants
-    });
-    const tokenString = await egressToken.toJwt();
-
-    // The custom URL must be publicly accessible by LiveKit's cloud servers.
-    const customLayoutUrl = `https://www.calligro.digital/courses/${courseId}/recording?token=${tokenString}`;
-
-    const streamOutput = {
-      protocol: 0, // RTMP
-      urls: [rtmpUrl]
+    const fileOutput = {
+      fileType: 0, // FileType.MP4 (0)
+      filepath: filepath,
+      s3: {
+        accessKey: r2AccessKey.value(),
+        secret: r2SecretKey.value(),
+        endpoint: r2Endpoint.value(),
+        bucket: "calligro-recordings"
+      }
     };
 
-    const egressInfo = await egressClient.startWebEgress(
-      customLayoutUrl,
-      streamOutput,
-      { roomName: secureRoomName }
+    // Use TrackCompositeEgress: captures the teacher's camera + mic tracks directly.
+    // This runs purely server-side — no headless browser needed.
+    const egressInfo = await egressClient.startTrackCompositeEgress(
+      secureRoomName,
+      { file: fileOutput }, // pass fileOutput instead of streamOutput
+      {
+        identity: uid,                  // teacher's LiveKit identity
+        videoWidth: 1280,
+        videoHeight: 720,
+        videoFramerate: 30,
+        audioBitrate: 128000,
+        videoBitrate: 3000000,
+      }
     );
+
+    // Store egressId in Firestore so we can track it
+    const today2 = new Date().toISOString().split('T')[0];
+    await admin.firestore()
+      .collection("courses").doc(courseId)
+      .collection("activeSessions").doc(today2)
+      .set({
+        egressId: egressInfo.egressId,
+        roomName: secureRoomName,
+        r2FilePath: filepath, // save the path so webhook can construct the full URL later
+        startedAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "active",
+      }, { merge: true });
 
     return { 
       status: "started", 
-      egressId: egressInfo.egressId,
-      videoId: videoId
+      egressId: egressInfo.egressId
     };
   } catch (error) {
     console.error("LiveKit Egress Error:", error);
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "Failed to start LiveKit Egress.");
   }
+});
+
+// --------------------
+// LiveKit Webhook Receiver
+// --------------------
+const { onRequest } = require("firebase-functions/v2/https");
+const { WebhookReceiver } = require("livekit-server-sdk");
+
+exports.livekitWebhook = onRequest({
+  secrets: [livekitApiKey, livekitApiSecret, r2PublicUrl]
+}, async (req, res) => {
+  try {
+    const receiver = new WebhookReceiver(
+      livekitApiKey.value(),
+      livekitApiSecret.value()
+    );
+    
+    // Use rawBody to preserve the exact payload for the sha256 checksum
+    const bodyString = req.rawBody ? req.rawBody.toString('utf8') : req.body;
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+
+    const event = await receiver.receive(bodyString, authHeader);
+    console.log("LiveKit Webhook Received:", event.event);
+
+    if (event.event === "egress_ended") {
+      const egressInfo = event.egressInfo;
+      const egressId = egressInfo.egressId;
+      console.log(`Egress ${egressId} ended with status ${egressInfo.status}`);
+
+      // Search for the active session in Firestore to update it
+      // Since we don't know the courseId directly from the webhook, we can query by egressId
+      const activeSessionsSnapshot = await admin.firestore().collectionGroup("activeSessions")
+        .where("egressId", "==", egressId)
+        .limit(1)
+        .get();
+
+      if (!activeSessionsSnapshot.empty) {
+        const sessionDoc = activeSessionsSnapshot.docs[0];
+        const data = sessionDoc.data();
+        const courseId = sessionDoc.ref.parent.parent.id;
+        
+        if (egressInfo.status === 3 || egressInfo.status === "EGRESS_COMPLETE") {
+          // Construct the full public URL
+          const publicDomain = r2PublicUrl.value().replace(/\/$/, ""); // remove trailing slash
+          const r2FilePath = data.r2FilePath;
+          const fullUrl = `${publicDomain}/${r2FilePath}`;
+
+          // Save the recording to a subcollection "recordings" under the course
+          await admin.firestore().collection("courses").doc(courseId).collection("recordings").add({
+            egressId: egressId,
+            roomName: data.roomName,
+            videoUrl: fullUrl,
+            r2FilePath: r2FilePath,
+            recordedAt: data.startedAt || admin.firestore.FieldValue.serverTimestamp(),
+            duration: egressInfo.details?.timeElapsed || 0
+          });
+          
+          // Also update the activeSession status
+          await sessionDoc.ref.update({ status: "completed", videoUrl: fullUrl });
+          console.log(`Successfully saved recording URL: ${fullUrl}`);
+        } else {
+          await sessionDoc.ref.update({ status: "failed", error: egressInfo.error });
+          console.error(`Egress ${egressId} failed: ${egressInfo.error}`);
+        }
+      } else {
+        console.warn(`No active session found for egressId ${egressId}`);
+      }
+    }
+
+    res.status(200).send("ok");
+  } catch (error) {
+    console.error("Error processing LiveKit webhook:", error);
+    res.status(400).send("Webhook error");
+  }
+});
+
+exports.generateR2UploadUrl = onCall({
+  secrets: [r2AccessKey, r2SecretKey, r2Endpoint],
+  cpu: 0.333,
+  memory: "256MiB",
+  maxInstances: 10,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+
+  const { courseId, contentType = "video/webm" } = request.data;
+  if (!courseId) throw new HttpsError("invalid-argument", "courseId is required.");
+
+  const uid = request.auth.uid;
+  
+  // Verify the caller is the teacher of this course
+  const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
+  if (!courseSnap.exists) throw new HttpsError("not-found", "Course not found.");
+  if (courseSnap.data().teacherId !== uid) {
+    throw new HttpsError("permission-denied", "Only the teacher can upload recordings.");
+  }
+
+  const s3Client = new S3Client({
+    region: "auto",
+    endpoint: r2Endpoint.value(),
+    credentials: {
+      accessKeyId: r2AccessKey.value(),
+      secretAccessKey: r2SecretKey.value(),
+    },
+  });
+
+  const timestamp = new Date().getTime();
+  const fileExtension = contentType.includes("mp4") ? "mp4" : "webm";
+  const r2FilePath = `courses/${courseId}/recordings/web_recording_${timestamp}.${fileExtension}`;
+
+  const command = new PutObjectCommand({
+    Bucket: "calligro-recordings",
+    Key: r2FilePath,
+    ContentType: contentType,
+  });
+
+  // URL valid for 3 hours to allow slow uploads
+  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 * 3 });
+
+  return { uploadUrl, r2FilePath };
+});
+
+exports.saveRecordingMetadata = onCall({
+  secrets: [r2PublicUrl],
+  cpu: 0.166,
+  memory: "256MiB",
+  maxInstances: 10,
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+
+  const { courseId, r2FilePath, duration } = request.data;
+  if (!courseId || !r2FilePath) throw new HttpsError("invalid-argument", "Missing arguments.");
+
+  const uid = request.auth.uid;
+  const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
+  if (!courseSnap.exists) throw new HttpsError("not-found", "Course not found.");
+  if (courseSnap.data().teacherId !== uid) {
+    throw new HttpsError("permission-denied", "Only the teacher can save recordings.");
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const publicUrlBase = r2PublicUrl.value().endsWith('/') ? r2PublicUrl.value().slice(0, -1) : r2PublicUrl.value();
+  const videoUrl = `${publicUrlBase}/${r2FilePath}`;
+
+  await admin.firestore().collection("courses").doc(courseId).collection("recordings").add({
+    roomName: `CG_Manual_${today}`,
+    videoUrl: videoUrl,
+    r2FilePath: r2FilePath,
+    recordedAt: admin.firestore.FieldValue.serverTimestamp(),
+    duration: duration || 0,
+    source: "web_client"
+  });
+
+  return { success: true, videoUrl };
 });

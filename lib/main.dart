@@ -8,7 +8,9 @@
   import 'package:firebase_auth/firebase_auth.dart';
   import 'package:firebase_app_check/firebase_app_check.dart';
   import 'package:flutter_dotenv/flutter_dotenv.dart';
+  import 'dart:ui'; // Import for PlatformDispatcher
   import 'package:calligro_app/screens/splash_screen.dart'; // Import SplashScreen
+  import 'package:firebase_crashlytics/firebase_crashlytics.dart';
   // --- YOUR FILES ---
   import 'package:calligro_app/firebase_options.dart';
   import 'package:calligro_app/features/auth/data/services/google_auth_service.dart';
@@ -135,6 +137,13 @@
     // 2. Initialize Firebase
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+    // ✅ Setup Crashlytics
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+
     // ✅ Initialize App Check (Debug Mode for local testing)
     await FirebaseAppCheck.instance.activate(
       appleProvider: AppleProvider.debug,
@@ -162,12 +171,17 @@
     // 💰 IAP Setup
     IAPService().initialize();
     IAPService().fetchProducts([
-      'com.yazan.calligro.tier_50',
-      'com.yazan.calligro.tier_60',
-      'com.yazan.calligro.tier_70',
-      'com.yazan.calligro.tier_80',
-      'com.yazan.calligro.tier_90',
       'com.yazan.calligro.tier_100',
+      'com.yazan.calligro.tier_110',
+      'com.yazan.calligro.tier_120',
+      'com.yazan.calligro.tier_130',
+      'com.yazan.calligro.tier_140',
+      'com.yazan.calligro.tier_150',
+      'com.yazan.calligro.tier_160',
+      'com.yazan.calligro.tier_170',
+      'com.yazan.calligro.tier_180',
+      'com.yazan.calligro.tier_190',
+      'com.yazan.calligro.tier_200',
     ]);
 
     // 🌍 Register timeago locales
@@ -257,76 +271,86 @@
     runApp(
       ChangeNotifierProvider(
         create: (context) => LocaleProvider(),
-        child: Consumer<LocaleProvider>(
-          builder: (context, provider, child) {
-            return MaterialApp(
-              navigatorKey: DeepLinkService().navigatorKey, // ✅ Navigation without context
-              debugShowCheckedModeBanner: false,
-              locale: provider.locale,
-              localizationsDelegates: const [
-                AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              supportedLocales: const [Locale('en'), Locale('ar'), Locale('tr')],
-              // ✅ Start with Splash Screen -> AuthWrapper -> Home/Onboarding
-              initialRoute: '/splash',
-              routes: {
-                '/splash': (context) => const SplashScreen(),
-                '/': (context) => const AuthWrapper(),
-                // --- AUTH ---
-                '/onBoarding': (context) => const OnboardingPage(),
-                '/LoginPage': (context) => const LoginPage(),
-                '/RegisterPage': (context) => const RegisterPage(),
-                '/forgotPassword': (context) => const ForgotPasswordPage(),
-
-                // --- DASHBOARDS ---
-                // '/': (context) => const StudentDashboardPage(), // Removed to rely on AuthWrapper via Splash
-                '/studentDashboard': (context) => const StudentDashboardPage(),
-                '/teacherDashboard': (context) => const TeacherDashboardPage(),
-
-                // --- ADMIN ---
-                '/adminDashboard': (context) => const AdminDashboardPage(),
-                '/adminUsers': (context) => AdminUsersPage(),
-                '/adminPendingTeachers': (context) => AdminPendingTeachersPage(),
-
-                // --- TEACHER FEATURES ---
-                '/addCourse': (context) => const AddCourseDashboardPage(),
-
-                // --- PROFILE ---
-                '/ProfilePage': (context) => const TeacherProfileTab(
-                  userName: "User",
-                  userEmail: "",
-                  userProfileImage: "",
-                  courseCount: "0",
-                  studentCount: "0",
-                  earnings: "0",
-                ),
-
-                // --- COMMUNITY ---
-                '/community': (context) => CommunityPage(
-                  onProfileTap: (userId, userRole) {
-                    Navigator.of(context).pushNamed('/ProfilePage');
-                  },
-                ),
-
-                // --- COURSE ---
-                '/coursePreview': (context) {
-                  final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
-                  return CoursePreviewPage(
-                    courseId: args['courseId'],
-                    courseData: args['courseData'],
-                  );
-                },
-                '/postDetails': (context) {
-                  final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
-                  return SinglePostPage(postId: args['postId']);
-                },
-              },
-            );
-          },
-        ),
+        child: const CalligroApp(),
       ),
     );
   }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CalligroApp — Stable root widget
+// Uses Selector (not Consumer) so that locale changes update ONLY the locale
+// property of MaterialApp. The MaterialApp widget itself is NEVER recreated,
+// which means the Navigator and every route on the stack remain intact even
+// when LocaleProvider.notifyListeners() fires (e.g. on startup from
+// _loadLocale(), or when the user changes language in settings).
+// ─────────────────────────────────────────────────────────────────────────────
+class CalligroApp extends StatelessWidget {
+  const CalligroApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<LocaleProvider, Locale?>(
+      selector: (_, provider) => provider.locale,
+      builder: (context, locale, child) {
+        return MaterialApp(
+          navigatorKey: DeepLinkService().navigatorKey,
+          debugShowCheckedModeBanner: false,
+          locale: locale,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('en'), Locale('ar'), Locale('tr')],
+          initialRoute: '/splash',
+          routes: {
+            '/splash': (context) => const SplashScreen(),
+            '/': (context) => const AuthWrapper(),
+            // --- AUTH ---
+            '/onBoarding': (context) => const OnboardingPage(),
+            '/LoginPage': (context) => const LoginPage(),
+            '/RegisterPage': (context) => const RegisterPage(),
+            '/forgotPassword': (context) => const ForgotPasswordPage(),
+            // --- DASHBOARDS ---
+            '/studentDashboard': (context) => const StudentDashboardPage(),
+            '/teacherDashboard': (context) => const TeacherDashboardPage(),
+            // --- ADMIN ---
+            '/adminDashboard': (context) => const AdminDashboardPage(),
+            '/adminUsers': (context) => AdminUsersPage(),
+            '/adminPendingTeachers': (context) => AdminPendingTeachersPage(),
+            // --- TEACHER FEATURES ---
+            '/addCourse': (context) => const AddCourseDashboardPage(),
+            // --- PROFILE ---
+            '/ProfilePage': (context) => const TeacherProfileTab(
+              userName: "User",
+              userEmail: "",
+              userProfileImage: "",
+              courseCount: "0",
+              studentCount: "0",
+              earnings: "0",
+            ),
+            // --- COMMUNITY ---
+            '/community': (context) => CommunityPage(
+              onProfileTap: (userId, userRole) {
+                Navigator.of(context).pushNamed('/ProfilePage');
+              },
+            ),
+            // --- COURSE ---
+            '/coursePreview': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
+              return CoursePreviewPage(
+                courseId: args['courseId'],
+                courseData: args['courseData'],
+              );
+            },
+            '/postDetails': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
+              return SinglePostPage(postId: args['postId']);
+            },
+          },
+        );
+      },
+    );
+  }
+}

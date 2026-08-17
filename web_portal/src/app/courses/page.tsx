@@ -155,6 +155,24 @@ export default function CoursesPage() {
                 </div>
               </div>
 
+              {/* Verify Certificate Button */}
+              <div className="pt-8">
+                <a 
+                  href="/verify"
+                  className="group relative flex items-center justify-between bg-gradient-to-r from-[#d4af37]/10 to-transparent border border-[#d4af37]/20 rounded-2xl p-5 hover:bg-[#d4af37]/20 hover:border-[#d4af37]/40 transition-all duration-300"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-white font-bold text-lg mb-1">{t("portal.verify_btn_title") || "Verify a Certificate"}</span>
+                    <span className="text-white/50 text-xs">{t("portal.verify_btn_subtitle") || "Check the authenticity of an ID"}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-[#d4af37] flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)] group-hover:scale-110 transition-transform">
+                    <svg className="w-5 h-5 text-[#111111]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </a>
+              </div>
+
             </div>
           </div>
 

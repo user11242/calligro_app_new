@@ -51,7 +51,7 @@ export default function TermsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                    <div className="glass p-4 rounded-2xl border-white/5">
                       <p className="text-[10px] text-white/20 uppercase font-black mb-1">{t("terms.email")}</p>
-                      <p className="text-sm text-primary">support@calligro.com</p>
+                      <p className="text-sm text-primary">support@calligroacademy.com</p>
                    </div>
                    <div className="glass p-4 rounded-2xl border-white/5">
                       <p className="text-[10px] text-white/20 uppercase font-black mb-1">{t("terms.office")}</p>

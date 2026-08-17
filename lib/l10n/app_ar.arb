@@ -1173,5 +1173,33 @@
   "commissionRateLabel": "نسبة العمولة:",
   "yourShareLabel": "حصتك:",
   "noCommissionSet": "لم يتم تعيين عمولة",
-  "noCommissionSetDescription": "لم يتم تعيين نسبة أرباحك من قبل المسؤول بعد. يرجى الاتصال بالدعم أو الانتظار حتى يتم تعيينها قبل النشر."
+  "noCommissionSetDescription": "لم يتم تعيين نسبة أرباحك من قبل المسؤول بعد. يرجى الاتصال بالدعم أو الانتظار حتى يتم تعيينها قبل النشر.",
+  "classRecordings": "تسجيلات الحصص",
+  "rewatchPastSessions": "أعد مشاهدة الحصص السابقة",
+  "noRecordingsAvailable": "لا توجد تسجيلات متاحة.",
+  "errorLoadingRecordings": "حدث خطأ أثناء تحميل التسجيلات.",
+  "tapToPlay": "انقر للتشغيل",
+  "classRecordingDate": "تسجيل الحصة - {date}",
+  "@classRecordingDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "showOriginal": "عرض النص الأصلي",
+  "blockedUsersTitle": "المستخدمون المحظورون",
+  "blockedUsersSubtitle": "إدارة الأشخاص الذين قمت بحظرهم",
+  "unblockUser": "إلغاء الحظر",
+  "noBlockedUsers": "لم تقم بحظر أي شخص.",
+  "userUnblockedSuccess": "تم إلغاء حظر المستخدم بنجاح.",
+  "failedToUnblockUser": "فشل في إلغاء حظر المستخدم:",
+  "userDataNotFound": "لم يتم العثور على بيانات المستخدم",
+  "reportPost": "الإبلاغ عن المنشور",
+  "blockUser": "حظر المستخدم",
+  "postReportedSuccess": "شكراً لك. تم الإبلاغ عن هذا المنشور للمراجعة.",
+  "blockUserConfirmTitle": "حظر المستخدم",
+  "blockUserConfirmBody": "هل أنت متأكد أنك تريد حظر هذا المستخدم؟ سيتم إخفاء منشوراته من يومياتك.",
+  "block": "حظر",
+  "userBlockedSuccess": "تم حظر المستخدم بنجاح."
 }

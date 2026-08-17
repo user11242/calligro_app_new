@@ -63,7 +63,7 @@ class EmailService {
       final body = jsonEncode({
         "sender": {
           "name": "Calligro Team",
-          "email": "no-reply@calligro.digital", // ✅ Keep your verified email
+          "email": "no-reply@calligroacademy.com", // ✅ Keep your verified email
         },
         "to": [
           {"email": email},

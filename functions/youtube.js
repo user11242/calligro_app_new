@@ -29,7 +29,7 @@ async function getYouTubeClient() {
 /**
  * Gets the Playlist ID for a course, creating it if it doesn't exist.
  */
-async function getOrCreateCoursePlaylist(courseId, courseName) {
+async function getOrCreateCoursePlaylist(courseId, courseName, teacherName = '') {
   const db = admin.firestore();
   const courseRef = db.collection('courses').doc(courseId);
   const courseDoc = await courseRef.get();
@@ -44,11 +44,15 @@ async function getOrCreateCoursePlaylist(courseId, courseName) {
 
   // Playlist doesn't exist, create it
   const youtube = await getYouTubeClient();
+  const playlistTitle = teacherName 
+    ? `${teacherName}: ${courseName || courseId}` 
+    : `Calligro Course: ${courseName || courseId}`;
+
   const response = await youtube.playlists.insert({
     part: 'snippet,status',
     requestBody: {
       snippet: {
-        title: `Calligro Course: ${courseName || courseId}`,
+        title: playlistTitle,
         description: 'Automated recordings for Calligro classes.',
       },
       status: {
@@ -69,10 +73,12 @@ async function getOrCreateCoursePlaylist(courseId, courseName) {
  * Creates a Live Broadcast, Live Stream, binds them, and adds to playlist.
  * Returns the RTMP Stream URL.
  */
-async function setupYouTubeLiveStream(courseId, courseName) {
+async function setupYouTubeLiveStream(courseId, courseName, teacherName = '') {
   const youtube = await getYouTubeClient();
   const dateStr = new Date().toLocaleString();
-  const title = `Live Class: ${courseName || courseId} - ${dateStr}`;
+  const title = teacherName 
+    ? `${teacherName}: ${courseName || courseId} - ${dateStr}`
+    : `Live Class: ${courseName || courseId} - ${dateStr}`;
 
   // 1. Create Broadcast
   const broadcastRes = await youtube.liveBroadcasts.insert({
@@ -125,7 +131,7 @@ async function setupYouTubeLiveStream(courseId, courseName) {
   });
 
   // 4. Add Broadcast Video to Course Playlist
-  const playlistId = await getOrCreateCoursePlaylist(courseId, courseName);
+  const playlistId = await getOrCreateCoursePlaylist(courseId, courseName, teacherName);
   await youtube.playlistItems.insert({
     part: 'snippet',
     requestBody: {

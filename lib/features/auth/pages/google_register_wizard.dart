@@ -22,7 +22,9 @@ import '../widgets/google_register_widgets/../verification/universal_otp_step.da
 import '../widgets/google_register_widgets/step_teacher_finish.dart';
 
 class GoogleRegisterWizard extends StatefulWidget {
-  const GoogleRegisterWizard({super.key});
+  final String provider;
+
+  const GoogleRegisterWizard({super.key, this.provider = 'google'});
 
   @override
   State<GoogleRegisterWizard> createState() => _GoogleRegisterWizardState();
@@ -318,13 +320,21 @@ class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
     final navigator = Navigator.of(context);
     setState(() => isLoading = true);
     
-    final result = await _authService.createGoogleUserWithRole(
-      role: selectedRole,
-      phone: fullPhoneNumber,
-      portfolio: selectedRole == 'teacher' ? portfolioController.text : null,
-      acceptedTerms: true,
-      spokenLanguages: selectedRole == 'teacher' ? _selectedLanguages : null,
-    );
+    final result = widget.provider == 'apple'
+        ? await _authService.createAppleUserWithRole(
+            role: selectedRole,
+            phone: fullPhoneNumber,
+            portfolio: selectedRole == 'teacher' ? portfolioController.text : null,
+            acceptedTerms: true,
+            spokenLanguages: selectedRole == 'teacher' ? _selectedLanguages : null,
+          )
+        : await _authService.createGoogleUserWithRole(
+            role: selectedRole,
+            phone: fullPhoneNumber,
+            portfolio: selectedRole == 'teacher' ? portfolioController.text : null,
+            acceptedTerms: true,
+            spokenLanguages: selectedRole == 'teacher' ? _selectedLanguages : null,
+          );
 
     if (!mounted) return;
     setState(() => isLoading = false);
