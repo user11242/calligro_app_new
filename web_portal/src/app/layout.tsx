@@ -10,8 +10,46 @@ const amiri = Amiri({ weight: ["400", "700"], subsets: ["arabic"], variable: "--
 const marhey = Marhey({ weight: ["300", "400", "500", "600", "700"], subsets: ["arabic"], variable: "--font-marhey" });
 
 export const metadata: Metadata = {
-  title: "Calligro Academy | Master the Art of Arabic Calligraphy",
-  description: "Enroll in world-class calligraphy courses, join live sessions, and master the ancient art with modern experts.",
+  metadataBase: new URL('https://calligroacademy.com'),
+  title: {
+    default: "Calligro Academy | Master the Art of Arabic Calligraphy",
+    template: "%s | Calligro Academy",
+  },
+  description: "Enroll in world-class calligraphy courses with global master teachers. Master the ancient art today and get a 50% discount on all courses!",
+  openGraph: {
+    title: "Calligro Academy | Master the Art of Arabic Calligraphy",
+    description: "Enroll in world-class calligraphy courses with global master teachers. Master the ancient art today and get a 50% discount on all courses!",
+    url: "https://calligroacademy.com",
+    siteName: "Calligro Academy",
+    images: [
+      {
+        url: "/assets/images/Logo.png",
+        width: 800,
+        height: 600,
+        alt: "Calligro Academy Logo",
+      },
+    ],
+    locale: "en_US",
+    alternateLocale: "ar_AR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Calligro Academy | Master the Art of Arabic Calligraphy",
+    description: "Enroll in world-class calligraphy courses with global master teachers. Master the ancient art today and get a 50% discount on all courses!",
+    images: ["/assets/images/Logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   icons: {
     icon: "/assets/images/Logo.png",
     shortcut: "/assets/images/Logo.png",

@@ -59,155 +59,178 @@ extension LocalizedArtist on GalleryArtist {
 extension LocalizedString on String {
   String localizedName(BuildContext context) {
     final locale = Localizations.localeOf(context).languageCode;
-    final clean = trim().replaceAll('آ', 'ا').replaceAll('إ', 'ا').replaceAll('أ', 'ا').toLowerCase();
+    // Remove diacritics and normalize
+    final clean = trim()
+        .replaceAll('آ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('أ', 'ا')
+        .replaceAll('ّ', '')
+        .toLowerCase();
 
     final Map<String, Map<String, String>> translations = {
-      'ali ghalib': {
+      'ali ghalib|علي غالب': {
         'en': 'Ali Ghalib',
         'ar': 'علي غالب',
         'tr': 'Ali Galip',
       },
-      'abbas albaghdadi': {
+      'abbas albaghdadi|عباس البغدادي|albaghdadi': {
         'en': 'Abbas Al-Baghdadi',
         'ar': 'عباس البغدادي',
         'tr': 'Abbas el-Bağdadi',
       },
-      'albaghdadi': {
-        'en': 'Abbas Al-Baghdadi',
-        'ar': 'عباس البغدادي',
-        'tr': 'Abbas el-Bağdadi',
-      },
-      'ottoman': {
+      'ottoman|عثماني': {
         'en': 'Ottoman Maps',
         'ar': 'الخرائط العثمانية',
         'tr': 'Osmanlı Haritaları',
       },
-      'varieties': {
+      'varieties|منوعات': {
         'en': 'Varieties',
         'ar': 'منوعات',
         'tr': 'Çeşitler',
       },
-      'riqaa': {
+      'riqaa|رقاع|رقعة': {
         'en': 'Riqaa Script',
         'ar': 'خط الرقعة',
         'tr': 'Rika Hattı',
       },
-      'diwani': {
+      'diwani|ديواني': {
         'en': 'Diwani Script',
         'ar': 'الخط الديواني',
         'tr': 'Divani Hattı',
       },
-      'naskh': {
+      'naskh|نسخ': {
         'en': 'Naskh Script',
         'ar': 'خط النسخ',
         'tr': 'Nesih Hattı',
       },
-      'thuluth': {
+      'thuluth|ثلث': {
         'en': 'Thuluth Script',
         'ar': 'خط الثلث',
         'tr': 'Sülüs Hattı',
       },
-      'احمد الكامل': {
+      'ahmed kamil|احمد الكامل|احمد كامل': {
         'en': 'Ahmed Kamil',
         'ar': 'أحمد الكامل',
         'tr': 'Ahmet Kamil',
       },
-      'اسماعيل حقي': {
+      'ismail hakki|اسماعيل حقي': {
         'en': 'Ismail Hakki',
         'ar': 'إسماعيل حقي',
         'tr': 'İsmail Hakkı',
       },
-      'سامي افندي': {
+      'sami|سامي': {
         'en': 'Sami Efendi',
         'ar': 'سامي أفندي',
         'tr': 'Sami Efendi',
       },
-      'محمد شوقي': {
+      'sevki|شوقي': {
         'en': 'Mehmet Sevki',
         'ar': 'محمد شوقي',
         'tr': 'Mehmet Şevki',
       },
-      'حامد الامدي': {
+      'amidi|حامد|الامدي': {
         'en': 'Hamid Al-Amidi',
         'ar': 'حامد الآمدي',
         'tr': 'Hamid Aytaç',
       },
-      'حافظ عثمان': {
+      'hafiz osman|حافظ عثمان': {
         'en': 'Hafiz Osman',
         'ar': 'حافظ عثمان',
         'tr': 'Hafız Osman',
       },
-      'مصطفى راقم': {
+      'rakim|راقم': {
         'en': 'Mustafa Rakim',
         'ar': 'مصطفى راقم',
         'tr': 'Mustafa Rakım',
       },
-      'هاشم البغدادي': {
+      'hashim|هاشم': {
         'en': 'Hashim Al-Baghdadi',
         'ar': 'هاشم البغدادي',
         'tr': 'Haşim el-Bağdadi',
       },
-      'حسن رضا': {
+      'rida|رضا': {
         'en': 'Hasan Rida',
         'ar': 'حسن رضا',
         'tr': 'Hasan Rıza',
       },
-      'عارف': {
+      'arif|عارف': {
         'en': 'Arif Efendi',
         'ar': 'عارف أفندي',
         'tr': 'Arif Efendi',
       },
-      'بقّال': {
+      'ahmad al-arif|احمد العارف': {
+        'en': 'Ahmad Al-Arif',
+        'ar': 'أحمد العارف',
+        'tr': 'Ahmet El-Arif',
+      },
+      'bakkal|بقّال|بقال': {
         'en': 'Bakkal Arif',
         'ar': 'بقّال عارف',
         'tr': 'Bakkal Arif',
       },
-      'زهدي': {
+      'zuhdi|زهدي': {
         'en': 'Ismail Zuhdi',
         'ar': 'إسماعيل زُهدي',
         'tr': 'İsmail Zühdi',
       },
-      'حليم': {
+      'halim|حليم': {
         'en': 'Halim Ozyazici',
         'ar': 'حليم أوزيازجي',
         'tr': 'Halim Özyazıcı',
       },
-      'حمدالله': {
+      'hamdullah|حمدالله|حمد الله': {
         'en': 'Sheikh Hamdullah',
         'ar': 'الشيخ حمد الله الأماسي',
         'tr': 'Şeyh Hamdullah',
       },
-      'شفيق': {
+      'shafiq|شفيق': {
         'en': 'Shafiq Bey',
         'ar': 'شفيق بك',
         'tr': 'Şefik Bey',
       },
-      'نظيف': {
+      'nazif|نظيف|ناظف': {
         'en': 'Nazif Bey',
         'ar': 'محمد ناظف بك',
         'tr': 'Nazif Bey',
       },
-      'ياقوت': {
+      'yaqut|ياقوت': {
         'en': 'Yaqut al-Mustaasimi',
         'ar': 'ياقوت المستعصمي',
         'tr': 'Yâkût el-Müsta\'sımî',
       },
-      'مصطفى عزت': {
+      'izzat|عزت': {
         'en': 'Mustafa Izzat',
         'ar': 'مصطفى عزت',
         'tr': 'Mustafa İzzet',
       },
     };
 
-    for (var entry in translations.values) {
-      final en = entry['en']!.toLowerCase();
-      final ar = entry['ar']!.replaceAll('آ', 'ا').replaceAll('إ', 'ا').replaceAll('أ', 'ا').toLowerCase();
-      final tr = entry['tr']!.toLowerCase();
+    for (var entry in translations.entries) {
+      final keyWords = entry.key.split('|');
+      
+      final en = entry.value['en']!.toLowerCase();
+      final ar = entry.value['ar']!.replaceAll('آ', 'ا').replaceAll('إ', 'ا').replaceAll('أ', 'ا').replaceAll('ّ', '').toLowerCase();
+      final tr = entry.value['tr']!.toLowerCase();
 
-      if (clean == en || clean == ar || clean == tr || 
-          clean.contains(en) || clean.contains(ar) || clean.contains(tr) ||
-          toLowerCase().contains(en)) {
-        return entry[locale] ?? this;
+      bool matched = false;
+
+      // Match by exact canonical names
+      if (clean == en || clean == ar || clean == tr) {
+         matched = true;
+      }
+
+      // Match by aliases inside the key
+      if (!matched) {
+         for (final kw in keyWords) {
+            if (clean.contains(kw) || kw.contains(clean) && clean.length > 3) {
+               matched = true;
+               break;
+            }
+         }
+      }
+
+      if (matched) {
+        return entry.value[locale] ?? this;
       }
     }
 

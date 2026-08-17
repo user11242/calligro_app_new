@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
+import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/features/student/data/services/student_service.dart';
@@ -752,7 +753,18 @@ class _StudentHomePageState extends State<StudentHomePage> {
                 return SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: enabled ? () => _launchClass(meetLink) : null,
+                    onPressed: enabled ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CourseDetailsPage(
+                            courseId: course['id'],
+                            courseData: course,
+                            heroTag: 'hero_join_${course['id']}',
+                          ),
+                        ),
+                      );
+                    } : null,
                     icon: const Icon(Icons.videocam),
                     label: Text(
                       enabled ? l10n.joinClassNow : l10n.classNotStarted,
@@ -785,11 +797,27 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
   Future<void> _launchClass(String? url) async {
     if (url == null || url.isEmpty) return;
-    final Uri uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    
+    String cleanUrl = url.trim();
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      cleanUrl = 'https://$cleanUrl';
+    }
+
+    try {
+      final Uri uri = Uri.parse(cleanUrl);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
+          if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text("Could not launch meeting link")),
+             );
+          }
+        }
+      }
+    } catch (e) {
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text("Could not launch meeting link")),
+           SnackBar(content: Text("Could not launch meeting link: $e")),
          );
       }
     }
@@ -1758,29 +1786,23 @@ class _CountdownTimerState extends State<_CountdownTimer> {
 
       final now = DateTime.now();
       
-      // 1. Check if course hasn't even started yet
-      if (startDate != null && startDate.isAfter(now)) {
-        final diffToStart = startDate.difference(now);
-        if (mounted) {
-          setState(() => _remaining = diffToStart);
-          widget.onTimerUpdate?.call(_remaining);
-        }
-        return;
-      }
-
       DateTime? nextSession;
       bool isCurrentlyLive = false;
 
-      // 2. Loop through the next 7 days for the weekly schedule
-      // CRITICAL: We MUST use 'en_US' here because the DB stores English day names
       final dayFormat = DateFormat('EEEE', 'en_US');
       
-      for (int i = -1; i < 7; i++) {
-          final checkDate = now.add(Duration(days: i));
+      for (int i = -1; i <= 30; i++) {
+          final checkDate = DateTime(now.year, now.month, now.day + i);
+          
+          if (startDate != null) {
+             final startDay = DateTime(startDate.year, startDate.month, startDate.day);
+             final checkDay = DateTime(checkDate.year, checkDate.month, checkDate.day);
+             if (checkDay.isBefore(startDay)) continue;
+          }
+
           final dayName = dayFormat.format(checkDate);
           
           if (selectedDays.contains(dayName)) {
-              // Fix: Convert UTC startTime to local before using hour/minute
               final localStartTime = startTime.toLocal();
               final sessionTime = DateTime(
                   checkDate.year,
@@ -1790,28 +1812,30 @@ class _CountdownTimerState extends State<_CountdownTimer> {
                   localStartTime.minute,
               );
 
-              // --- DYNAMIC DURATION LOGIC ---
               Duration sessionDuration = const Duration(minutes: 90);
               if (widget.course['endTime'] != null) {
                  DateTime? endDateTime;
                  if (widget.course['endTime'] is Timestamp) {
-                   endDateTime = (widget.course['endTime'] as Timestamp).toDate();
+                   endDateTime = (widget.course['endTime'] as Timestamp).toDate().toLocal();
                  } else if (widget.course['endTime'] is DateTime) {
-                   endDateTime = widget.course['endTime'];
+                   endDateTime = widget.course['endTime'].toLocal();
                  }
                  
-                 // We need the original start time to calculate duration difference
                  DateTime? originalStartDateTime;
                  if (widget.course['startTime'] is Timestamp) {
-                   originalStartDateTime = (widget.course['startTime'] as Timestamp).toDate();
+                   originalStartDateTime = (widget.course['startTime'] as Timestamp).toDate().toLocal();
                  } else if (widget.course['startTime'] is DateTime) {
-                   originalStartDateTime = widget.course['startTime'];
+                   originalStartDateTime = widget.course['startTime'].toLocal();
                  }
 
                  if (endDateTime != null && originalStartDateTime != null) {
-                   sessionDuration = endDateTime.difference(originalStartDateTime);
-                   // Sanity check for negative or zero duration
-                   if (sessionDuration.inMinutes <= 0) {
+                   final dummyStart = DateTime(2000, 1, 1, originalStartDateTime.hour, originalStartDateTime.minute);
+                   final dummyEnd = DateTime(2000, 1, 1, endDateTime.hour, endDateTime.minute);
+                   var diff = dummyEnd.difference(dummyStart);
+                   if (diff.isNegative) diff = diff + const Duration(days: 1);
+                   
+                   sessionDuration = diff;
+                   if (sessionDuration.inMinutes <= 0 || sessionDuration.inHours > 6) {
                      sessionDuration = const Duration(minutes: 90);
                    }
                  }

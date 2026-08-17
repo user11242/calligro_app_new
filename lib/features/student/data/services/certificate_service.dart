@@ -103,11 +103,16 @@ class CertificateService {
     return _firestore
         .collection('certificates')
         .where('studentId', isEqualTo: user.uid)
-        .orderBy('issueDate', descending: true)
+        // Removed .orderBy to prevent missing composite index errors!
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => CertificateModel.fromFirestore(doc))
-            .toList())
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((doc) => CertificateModel.fromFirestore(doc))
+              .toList();
+          // Sort locally by issueDate descending
+          list.sort((a, b) => b.issueDate.compareTo(a.issueDate));
+          return list;
+        })
         .handleError((e) {
           debugPrint("Error fetching certificates: $e");
           return <CertificateModel>[];

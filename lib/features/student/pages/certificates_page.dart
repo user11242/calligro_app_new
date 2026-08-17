@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/features/student/data/services/certificate_service.dart';
+import 'package:calligro_app/features/student/pages/certificate_view_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CertificatesPage extends StatelessWidget {
   const CertificatesPage({super.key});
@@ -111,25 +113,55 @@ class CertificatesPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Certificate ID', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  const SizedBox(height: 4),
-                  Text(
-                    cert.id,
-                    style: const TextStyle(color: AppColors.accentGold, fontWeight: FontWeight.bold),
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Certificate ID', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            cert.id,
+                            style: const TextStyle(color: AppColors.accentGold, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: cert.id));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Certificate ID copied to clipboard')),
+                            );
+                          },
+                          child: const Icon(Icons.copy, color: Colors.white54, size: 16),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.copy, color: Colors.white54, size: 20),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(text: cert.id));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Certificate ID copied to clipboard')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CertificateViewPage(certificate: cert),
+                    ),
                   );
                 },
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('View'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accentGold,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  minimumSize: Size.zero,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
             ],
           ),

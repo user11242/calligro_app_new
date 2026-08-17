@@ -299,38 +299,76 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                         (data['studentsEnrolled'] as int? ?? 0);
                   }
 
-                  DateTime? startDate = (data['startDate'] is Timestamp)
-                      ? (data['startDate'] as Timestamp).toDate().toLocal()
-                      : null;
+                  DateTime? finalClassTime;
                   DateTime? timeOnly = (data['selectedTime'] is Timestamp)
                       ? (data['selectedTime'] as Timestamp).toDate().toLocal()
                       : null;
-                  DateTime? finalClassTime;
+                  final selectedDays = List<String>.from(data['selectedDays'] ?? []);
 
-                  if (startDate != null && timeOnly != null) {
-                    finalClassTime = DateTime(
-                      startDate.year,
-                      startDate.month,
-                      startDate.day,
-                      timeOnly.hour,
-                      timeOnly.minute,
-                    );
+                  if (timeOnly != null && selectedDays.isNotEmpty) {
+                    final dayFormat = DateFormat('EEEE', 'en_US');
+                    for (int i = -1; i <= 30; i++) {
+                      final checkDate = DateTime(now.year, now.month, now.day + i);
+                      
+                      DateTime? startDate = (data['startDate'] is Timestamp)
+                          ? (data['startDate'] as Timestamp).toDate().toLocal()
+                          : null;
+                      
+                      if (startDate != null) {
+                         final startDay = DateTime(startDate.year, startDate.month, startDate.day);
+                         final checkDay = DateTime(checkDate.year, checkDate.month, checkDate.day);
+                         if (checkDay.isBefore(startDay)) continue;
+                      }
+
+                      if (selectedDays.contains(dayFormat.format(checkDate))) {
+                        final sessionTime = DateTime(
+                          checkDate.year,
+                          checkDate.month,
+                          checkDate.day,
+                          timeOnly.hour,
+                          timeOnly.minute,
+                        );
+                        
+                        // We use a hardcoded 90 minutes for the teacher "is live" check 
+                        // to keep it simple and consistent with the student defaults.
+                        final sessionEndTime = sessionTime.add(const Duration(minutes: 90));
+
+                        if (now.isAfter(sessionTime) && now.isBefore(sessionEndTime)) {
+                           finalClassTime = sessionTime;
+                           break;
+                        }
+                        if (sessionTime.isAfter(now)) {
+                           finalClassTime = sessionTime;
+                           break;
+                        }
+                      }
+                    }
                   } else {
-                    finalClassTime = startDate ?? timeOnly;
+                    // Fallback to startDate if selectedDays is missing
+                    DateTime? startDate = (data['startDate'] is Timestamp)
+                        ? (data['startDate'] as Timestamp).toDate().toLocal()
+                        : null;
+                    if (startDate != null && timeOnly != null) {
+                      finalClassTime = DateTime(
+                        startDate.year,
+                        startDate.month,
+                        startDate.day,
+                        timeOnly.hour,
+                        timeOnly.minute,
+                      );
+                    } else {
+                      finalClassTime = startDate ?? timeOnly;
+                    }
+
+                    if (finalClassTime != null) {
+                      while (finalClassTime!.isBefore(now.subtract(const Duration(minutes: 90)))) {
+                        finalClassTime = finalClassTime.add(const Duration(days: 7));
+                      }
+                    }
                   }
 
                   if (finalClassTime != null) {
-                    while (finalClassTime!.isBefore(
-                      now.subtract(const Duration(minutes: 90)),
-                    )) {
-                      finalClassTime = finalClassTime.add(
-                        const Duration(days: 7),
-                      );
-                    }
-                    if (endDate != null &&
-                        finalClassTime.isBefore(
-                          endDate.add(const Duration(days: 1)),
-                        )) {
+                    if (endDate == null || finalClassTime.isBefore(endDate.add(const Duration(days: 1)))) {
                       scheduleList.add({
                         'data': data,
                         'time': finalClassTime,
