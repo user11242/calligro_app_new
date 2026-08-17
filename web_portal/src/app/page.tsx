@@ -88,7 +88,29 @@ export default function Home() {
         // Fetch teachers
         const tQuery = query(collection(db, "users"), where("role", "==", "teacher"), limit(3));
         const tSnap = await getDocs(tQuery);
-        setTeachers(tSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        
+        const teachersData = await Promise.all(tSnap.docs.map(async (docSnap) => {
+          const tData = docSnap.data();
+          let studentsCount = 0;
+          try {
+            const courseQuery = query(collection(db, "courses"), where("teacherId", "==", docSnap.id));
+            const courseSnap = await getDocs(courseQuery);
+            courseSnap.docs.forEach(cDoc => {
+              const cData = cDoc.data();
+              if (cData.enrolledStudents && Array.isArray(cData.enrolledStudents)) {
+                studentsCount += cData.enrolledStudents.length;
+              }
+              if (cData.studentsEnrolled) {
+                studentsCount += Number(cData.studentsEnrolled);
+              }
+            });
+          } catch (e) {
+            console.error("Error fetching courses for teacher:", e);
+          }
+          return { id: docSnap.id, ...tData, studentsCount };
+        }));
+        
+        setTeachers(teachersData);
 
         // Fetch courses for the slider
         const cQuery = query(collection(db, "courses"), limit(6));
@@ -888,7 +910,7 @@ export default function Home() {
                   <div className="flex items-center gap-1.5">
                     <Users className="w-4 h-4 text-white/40" />
                     <span className="text-white/50 text-sm font-medium">
-                      {teacher.followerCount || 0} {t("home.teachers.students").toLowerCase()}
+                      {teacher.studentsCount || 0} {t("home.teachers.students").toLowerCase()}
                     </span>
                   </div>
                 </div>
