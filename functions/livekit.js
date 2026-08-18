@@ -124,7 +124,7 @@ exports.generateLiveKitToken = onCall({
     return {
       token,
       roomName: secureRoomName,
-      serverUrl: "ws://96.30.198.187:7880",
+      serverUrl: "wss://calligro-54copltu.livekit.cloud",
     };
   } catch (error) {
     console.error("LiveKit Token Generation Error:", error);
