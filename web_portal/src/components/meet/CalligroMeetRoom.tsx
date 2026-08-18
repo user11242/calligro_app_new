@@ -73,7 +73,7 @@ export default function CalligroMeetRoom({
         maxFramerate: 30,
       }
     },
-  }), [isCamOn, isMicOn, iceTransportPolicy]);
+  }), [iceTransportPolicy]);
   // Separate refs for video and audio streams so we can control them independently
   const videoStreamRef = useRef<MediaStream | null>(null);
 

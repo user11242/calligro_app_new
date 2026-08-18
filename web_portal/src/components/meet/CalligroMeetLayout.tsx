@@ -155,7 +155,7 @@ export default function CalligroMeetLayout({
   
   const teacherParticipant = participants.find(p => {
     // Force the local user as teacher if the prop is true
-    if (isTeacher && p.identity === localParticipant.identity) return true;
+    if (isTeacher && localParticipant && p.identity === localParticipant.identity) return true;
     
     try {
       const meta = JSON.parse(p.metadata || "{}");
