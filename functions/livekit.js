@@ -320,8 +320,7 @@ exports.startAutomatedRecording = onCall({
       videoTrackId,
       {
         options: {
-          // By omitting the preset, LiveKit will natively encode the MP4 matching 
-          // the exact aspect ratio of the input track (e.g. 9:16 for portrait).
+          preset: EncodingOptionsPreset.PORTRAIT_H264_1080P_30
         },
         webhooks: [{
           url: "https://livekit-livekitwebhook-yc7sgeqhya-uc.a.run.app"

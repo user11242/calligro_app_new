@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:calligro_app/core/services/security_service.dart';
@@ -24,6 +25,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   void initState() {
     super.initState();
     SecurityService().enableScreenshotProtection();
+    // Allow device rotation while watching the video
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     initializePlayer();
   }
 
@@ -72,6 +79,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   void dispose() {
     SecurityService().disableScreenshotProtection();
+    // Restore orientation lock to portrait when leaving the player
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     _videoPlayerController.dispose();
     _chewieController?.dispose();
     super.dispose();
@@ -130,7 +142,11 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
           Center(
             child: _chewieController != null &&
                     _chewieController!.videoPlayerController.value.isInitialized
-                ? Chewie(controller: _chewieController!)
+                ? InteractiveViewer(
+                    minScale: 1.0,
+                    maxScale: 4.0,
+                    child: Chewie(controller: _chewieController!),
+                  )
                 : const CircularProgressIndicator(color: AppColors.accentGold),
           ),
         ],
