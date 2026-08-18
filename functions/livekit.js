@@ -281,9 +281,9 @@ exports.startAutomatedRecording = onCall({
     const secureRoomName = `CG_${hashRoomName(rawSeed).substring(0, 40)}`;
 
     const egressClient = new EgressClient(
-      "http://96.30.198.187:7880",
-      "APICFTjxXVwXvnq",
-      "K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA"
+      "https://calligro-54copltu.livekit.cloud",
+      livekitApiKey.value(),
+      livekitApiSecret.value()
     );
 
     // Don't start another egress if one is already active for this room
@@ -363,8 +363,8 @@ exports.livekitWebhook = onRequest({
 }, async (req, res) => {
   try {
     const receiver = new WebhookReceiver(
-      "APICFTjxXVwXvnq",
-      "K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA"
+      livekitApiKey.value(),
+      livekitApiSecret.value()
     );
     
     // Use rawBody to preserve the exact payload for the sha256 checksum
