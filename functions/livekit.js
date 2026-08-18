@@ -73,8 +73,8 @@ exports.generateLiveKitToken = onCall({
     const secureRoomName = `CG_${hashRoomName(rawSeed).substring(0, 40)}`;
 
     // 5. Generate Token
-    const apiKey = "APICFTjxXVwXvnq";
-    const apiSecret = "K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA";
+    const apiKey = livekitApiKey.value();
+    const apiSecret = livekitApiSecret.value();
 
     const participantName = userData.name || userData.displayName || "Student";
     
