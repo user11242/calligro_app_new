@@ -1453,5 +1453,20 @@
   "blockUserConfirmTitle": "Block User",
   "blockUserConfirmBody": "Are you sure you want to block this user? Their posts will be hidden from your feed.",
   "block": "Block",
-  "userBlockedSuccess": "User blocked successfully."
+  "userBlockedSuccess": "User blocked successfully.",
+  "waitingForOthersToJoin": "Waiting for others to join...",
+  "cancelConnection": "Cancel Connection",
+  "startRecording": "Start Recording",
+  "reconnecting": "Reconnecting...",
+  "connectionDropped": "Your connection dropped. Trying to restore the session.",
+  "connectionLost": "Connection Lost",
+  "sessionEndedOrCouldNotBeEstablished": "The classroom session has ended or could not be established.",
+  "returnToApp": "Return to App",
+  "recordingStarted": "Recording Started",
+  "classIsBeingRecorded": "Class is now being recorded",
+  "recordingError": "Recording Error",
+  "recordingTimeout": "Recording timeout: tracks never published.",
+  "lesson": "Lesson",
+  "editTitle": "Edit Title",
+  "recordingTitle": "Recording Title"
 }

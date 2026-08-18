@@ -8,6 +8,10 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/features/meet/controllers/connection_resilience_controller.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:calligro_app/l10n/app_localizations.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 // Top-level callback for foreground service (required by package but we just need the service alive)
 @pragma('vm:entry-point')
@@ -77,6 +81,12 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   @override
   void initState() {
     super.initState();
+    WakelockPlus.enable();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     WidgetsBinding.instance.addObserver(this);
     _initForegroundTask();
     _resilienceController = ConnectionResilienceController();
@@ -97,30 +107,29 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     _log('Creating new Room instance with HD quality settings');
     final room = Room(
       roomOptions: RoomOptions(
-        // ── Camera Capture: 720p @ 30fps ──────────────────────────
-        // Captures at 720p which is the sweet spot for mobile phones.
-        // 1080p on mobile burns battery and most phone cameras compress
-        // heavily anyway, so 720p gives the best quality-per-watt.
+        // ── Camera Capture: 1080p @ 30fps ──────────────────────────
+        // Captures at 1080p for perfect cloud recordings.
+        // We rely on Simulcast to automatically downscale this for students
+        // to save their battery and bandwidth.
         defaultCameraCaptureOptions: CameraCaptureOptions(
           cameraPosition: _cameraPosition,
           params: VideoParametersPresets.h1080_43,
           maxFrameRate: 30,
         ),
         // ── Video Publishing: aggressive encoding for calligraphy sharpness ──
-        // Google Meet/Zoom use ~4-5 Mbps for 1080p. Our previous 3 Mbps cap
-        // was causing LiveKit's adaptive system to over-compress fine details
-        // like pen strokes and Arabic letters. Bumping to 4.5 Mbps with
-        // a higher top simulcast layer fixes the blurriness on iPhones.
+        // Google Meet/Zoom use ~4-5 Mbps for 1080p. Our 6 Mbps cap
+        // ensures the top Simulcast layer (which Egress records) is crystal clear.
         defaultVideoPublishOptions: const VideoPublishOptions(
           videoEncoding: VideoEncoding(
             maxBitrate: 6000000, // 6 Mbps — maximum sharpness for calligraphy
             maxFramerate: 30,
           ),
-          simulcast: false,
+          simulcast: true,
           // For calligraphy, resolution > framerate. When bandwidth drops,
           // keep pen strokes sharp even if video becomes slightly choppy.
           degradationPreference: DegradationPreference.maintainResolution,
           videoCodec: 'h264', // Hardware-accelerated and generally sharper on mobile
+          backupVideoCodec: BackupVideoCodec(codec: 'vp8'), // Fallback for older Androids
         ),
         // ── Audio: crystal clear voice with noise suppression ──
         defaultAudioPublishOptions: const AudioPublishOptions(
@@ -140,10 +149,10 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
           speakerOn: true,
         ),
         // ── Adaptive Stream + Dynacast for smart bandwidth usage ──
-        // DISABLED adaptive stream — it auto-downscales to 360p/720p based
-        // on the video widget's physical pixel size on screen. We ALWAYS
-        // want the full 1080p stream for razor-sharp pen strokes.
-        adaptiveStream: false,
+        // ENABLED adaptive stream — LiveKit will automatically send the
+        // lightweight 360p or 720p layer to students on mobile phones,
+        // while the server records the full 1080p stream.
+        adaptiveStream: true,
         dynacast: true,
       ),
     );
@@ -488,6 +497,8 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
 
   @override
   void dispose() {
+    WakelockPlus.disable();
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     WidgetsBinding.instance.removeObserver(this);
     FlutterForegroundTask.stopService();
     _logScroll.dispose();
@@ -506,19 +517,50 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     if (_isRecording || !mounted) return;
     setState(() => _isRecording = true);
     try {
-      _log("🔴 Starting automated R2 recording...");
+      _log("🔴 Waiting for camera/mic tracks to publish...");
+      
+      String? audioTrackId;
+      String? videoTrackId;
+      
+      // Wait until both tracks are successfully published to LiveKit (timeout after 20s)
+      int waitMs = 0;
+      while (mounted && waitMs < 20000) {
+        audioTrackId = _room?.localParticipant?.audioTrackPublications.firstOrNull?.sid;
+        videoTrackId = _room?.localParticipant?.videoTrackPublications.firstOrNull?.sid;
+        
+        if (audioTrackId != null && videoTrackId != null) break;
+        await Future.delayed(const Duration(milliseconds: 500));
+        waitMs += 500;
+      }
+
+      if (audioTrackId == null && videoTrackId == null) {
+         _log("❌ Recording timeout: tracks never published.");
+         if (mounted) {
+           setState(() => _isRecording = false);
+           AppMessenger.showSnackBar(context, title: AppLocalizations.of(context)!.recordingError, message: AppLocalizations.of(context)!.recordingTimeout, type: MessengerType.error);
+         }
+         return;
+      }
+      
+      if (!mounted) return;
+
+      _log("🔴 Starting automated R2 recording with tracks: Video=$videoTrackId, Audio=$audioTrackId");
       await FirebaseFunctions.instance
           .httpsCallable('livekit-startAutomatedRecording')
-          .call({'courseId': widget.courseId});
+          .call({
+            'courseId': widget.courseId,
+            'audioTrackId': audioTrackId,
+            'videoTrackId': videoTrackId,
+          });
       _log("✅ Recording started successfully");
       if (mounted) {
-        AppMessenger.showSnackBar(context, title: "Recording Started", message: "Class is now being recorded to Cloudflare", type: MessengerType.success);
+        AppMessenger.showSnackBar(context, title: AppLocalizations.of(context)!.recordingStarted, message: AppLocalizations.of(context)!.classIsBeingRecorded, type: MessengerType.success);
       }
     } catch (e) {
       _log("❌ Recording failed: $e");
       if (mounted) {
         setState(() => _isRecording = false);
-        AppMessenger.showSnackBar(context, title: "Recording Error", message: e.toString(), type: MessengerType.error);
+        AppMessenger.showSnackBar(context, title: AppLocalizations.of(context)!.recordingError, message: e.toString(), type: MessengerType.error);
       }
     }
   }
@@ -575,7 +617,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                   Navigator.pop(context);
                 },
                 icon: const Icon(Icons.close, color: Colors.redAccent, size: 18),
-                label: const Text("Cancel Connection", style: TextStyle(color: Colors.redAccent)),
+                label: Text(AppLocalizations.of(context)!.cancelConnection, style: const TextStyle(color: Colors.redAccent)),
               ),
             ],
           ),
@@ -586,12 +628,15 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   }
 
   Widget _buildConnectedBody(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     return SafeArea(
       child: Stack(
           children: [
             Column(
               children: [
                 // Top Bar
+                if (!isLandscape)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   color: const Color(0xFF13151A),
@@ -631,12 +676,44 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                             ),
                           ),
                           const SizedBox(width: 8),
-                          if (widget.isTeacher) ...[
+                          if (_isRecording) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'REC',
+                                    style: TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ] else if (widget.isTeacher) ...[
                             IconButton(
-                              icon: _isRecording
-                                  ? const Icon(Icons.radio_button_checked, color: Colors.red)
-                                  : const Icon(Icons.radio_button_unchecked, color: Colors.white54),
-                              onPressed: _isRecording ? null : () => _startRecording(),
+                              icon: const Icon(Icons.radio_button_unchecked, color: Colors.white54),
+                              tooltip: AppLocalizations.of(context)!.startRecording,
+                              onPressed: () => _startRecording(),
                             ),
                             const SizedBox(width: 8),
                           ],
@@ -656,11 +733,12 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
             // Video Grid
             Expanded(
               child: _participantTracks.isEmpty
-                  ? const Center(child: Text("Waiting for others to join...", style: TextStyle(color: Colors.white54)))
+                  ? Center(child: Text(AppLocalizations.of(context)!.waitingForOthersToJoin, style: const TextStyle(color: Colors.white54)))
                   : _buildGoogleMeetLayout(),
             ),
 
             // Bottom Controls
+            if (!isLandscape)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               color: const Color(0xFF13151A),
@@ -790,8 +868,11 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   Widget _buildGoogleMeetLayout() {
     if (_participantTracks.isEmpty) return const SizedBox();
     
-    // Priority 1: Screen Share
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     ParticipantTrack? focusTrack;
+    
+    // Priority 1: Screen Share
     for (var track in _participantTracks) {
       if (track.videoTrack?.source == TrackSource.screenShareVideo) {
         focusTrack = track;
@@ -799,20 +880,15 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       }
     }
 
-    // Priority 2: Active Speaker
-    if (focusTrack == null && _room?.activeSpeakers.isNotEmpty == true) {
-      final speaker = _room!.activeSpeakers.first;
+    // Priority 2: Teacher (ALWAYS the big screen if no screen share)
+    if (focusTrack == null) {
       for (var track in _participantTracks) {
-        if (track.participant.identity == speaker.identity && track.videoTrack?.source != TrackSource.screenShareVideo) {
+        // Local participant if we are the teacher
+        if (track.participant == _room?.localParticipant && widget.isTeacher) {
           focusTrack = track;
           break;
         }
-      }
-    }
-
-    // Priority 3: Teacher
-    if (focusTrack == null) {
-      for (var track in _participantTracks) {
+        // Remote participant who is a teacher
         try {
           final meta = track.participant.metadata;
           if (meta != null && meta.contains('"role":"moderator"')) {
@@ -820,6 +896,17 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
             break;
           }
         } catch (_) {}
+      }
+    }
+
+    // Priority 3: Active Speaker (Fallback if no teacher)
+    if (focusTrack == null && _room?.activeSpeakers.isNotEmpty == true) {
+      final speaker = _room!.activeSpeakers.first;
+      for (var track in _participantTracks) {
+        if (track.participant.identity == speaker.identity && track.videoTrack?.source != TrackSource.screenShareVideo) {
+          focusTrack = track;
+          break;
+        }
       }
     }
 
@@ -833,18 +920,18 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
         // Main View (takes up remaining space)
         Expanded(
           child: Container(
-            margin: const EdgeInsets.all(8),
+            margin: isLandscape ? EdgeInsets.zero : const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF13151A),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white10),
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(isLandscape ? 0 : 24),
+              border: isLandscape ? null : Border.all(color: Colors.white10),
             ),
             clipBehavior: Clip.antiAlias,
             child: ParticipantWidget(track: focusTrack),
           ),
         ),
         // Carousel View (Horizontal strip at bottom)
-        if (carouselTracks.isNotEmpty)
+        if (carouselTracks.isNotEmpty && !isLandscape)
           SizedBox(
             height: 140,
             child: ListView.builder(
@@ -902,9 +989,9 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Reconnecting...',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.reconnecting,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -913,7 +1000,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Your connection dropped. Trying to restore the session.',
+                  AppLocalizations.of(context)!.connectionDropped,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.4),
@@ -936,23 +1023,21 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Connection Lost',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.connectionLost,
+                  style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'The session could not be restored.',
+                  AppLocalizations.of(context)!.sessionEndedOrCouldNotBeEstablished,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 24),

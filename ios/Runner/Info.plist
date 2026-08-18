@@ -50,6 +50,8 @@
 	<string>We may need your location to help you find nearby teachers or community members.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need access to your photo library to let you select a masterpiece to upload.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Calligro needs permission to save student homework submissions and certificates directly to your Photos.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>

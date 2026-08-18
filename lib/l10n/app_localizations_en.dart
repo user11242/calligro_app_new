@@ -3568,4 +3568,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get userBlockedSuccess => 'User blocked successfully.';
+
+  @override
+  String get waitingForOthersToJoin => 'Waiting for others to join...';
+
+  @override
+  String get cancelConnection => 'Cancel Connection';
+
+  @override
+  String get startRecording => 'Start Recording';
+
+  @override
+  String get reconnecting => 'Reconnecting...';
+
+  @override
+  String get connectionDropped =>
+      'Your connection dropped. Trying to restore the session.';
+
+  @override
+  String get connectionLost => 'Connection Lost';
+
+  @override
+  String get sessionEndedOrCouldNotBeEstablished =>
+      'The classroom session has ended or could not be established.';
+
+  @override
+  String get returnToApp => 'Return to App';
+
+  @override
+  String get recordingStarted => 'Recording Started';
+
+  @override
+  String get classIsBeingRecorded => 'Class is now being recorded';
+
+  @override
+  String get recordingError => 'Recording Error';
+
+  @override
+  String get recordingTimeout => 'Recording timeout: tracks never published.';
+
+  @override
+  String get lesson => 'Lesson';
+
+  @override
+  String get editTitle => 'Edit Title';
+
+  @override
+  String get recordingTitle => 'Recording Title';
 }

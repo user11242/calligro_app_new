@@ -44,10 +44,7 @@ export default function CalligroMeetRoom({
   // High-performance video settings tuned for Calligraphy classes
   // Deps include isCamOn/isMicOn so publishDefaults correctly reflects the lobby state at join time
   const roomOptions = useMemo<RoomOptions>(() => ({
-    // DISABLED adaptive stream — it was auto-downscaling to 360p/720p based
-    // on the video element's pixel size on screen. For calligraphy we ALWAYS
-    // want the full 1080p stream so every pen stroke is razor-sharp.
-    adaptiveStream: false,
+    adaptiveStream: true, // Now fully aligned with mobile app settings
     dynacast: true,
     rtcConfig: {
       iceTransportPolicy: iceTransportPolicy,
@@ -55,22 +52,22 @@ export default function CalligroMeetRoom({
     videoCaptureDefaults: {
       resolution: VideoPresets.h1080.resolution,
     },
+    audioPublishDefaults: {
+      dtx: true, // Saves bandwidth when silent
+      red: true, // Redundant Audio Data prevents dropped packets
+    },
     publishDefaults: {
       videoEncoding: {
         maxBitrate: 6_000_000, // 6 Mbps — higher than Zoom for calligraphy detail
         maxFramerate: 30,
       },
-      // Simulcast layers are the LOWER alternatives for bandwidth-constrained
-      // subscribers. The main track (1080p) is implicit — don't list it here
-      // or LiveKit gets confused about which layer is which.
       videoSimulcastLayers: [
         VideoPresets.h720,
         VideoPresets.h540,
       ],
-      // For calligraphy, resolution > framerate. When bandwidth drops,
-      // keep pen strokes sharp even if video becomes slightly choppy.
       degradationPreference: 'maintain-resolution',
-      videoCodec: 'h264', // H.264 produces sharper output than VP8 on mobile cameras
+      videoCodec: 'h264', 
+      backupCodec: { codec: 'vp8' }, // Fallback for older devices like Androids
       screenShareEncoding: {
         maxBitrate: 6_000_000,
         maxFramerate: 30,

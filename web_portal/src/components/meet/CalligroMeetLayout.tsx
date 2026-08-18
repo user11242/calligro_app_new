@@ -13,8 +13,9 @@ import {
   useIsMuted,
   useEnsureTrackRef,
   useLocalParticipant,
+  useRoomContext,
 } from "@livekit/components-react";
-import { Track, ParticipantEvent, ConnectionState } from "livekit-client";
+import { Track, ParticipantEvent, ConnectionState, RoomEvent } from "livekit-client";
 import { Users, MessageSquare, PhoneOff, ShieldCheck, PenTool, Hand, Compass, WifiOff, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ParticipantsPanel from "./ParticipantsPanel";
@@ -146,29 +147,34 @@ export default function CalligroMeetLayout({
   );
 
   const participants = useParticipants();
+  const { localParticipant } = useLocalParticipant();
   
   // Logic to determine the focus track (Main View)
   const screenShareTracks = tracks.filter((t) => t.source === Track.Source.ScreenShare);
   const activeSpeakers = participants.filter(p => p.isSpeaking);
   
   const teacherParticipant = participants.find(p => {
+    // Force the local user as teacher if the prop is true
+    if (isTeacher && p.identity === localParticipant.identity) return true;
+    
     try {
       const meta = JSON.parse(p.metadata || "{}");
       return meta.role === "moderator";
     } catch { return false; }
   });
 
-  // Priority: 1. Screen Share -> 2. Active Speaker -> 3. Teacher -> 4. Local fallback
+  // Priority: 1. Screen Share -> 2. Teacher -> 3. Active Speaker -> 4. Local fallback
   let focusTrack: TrackReferenceOrPlaceholder | null = null;
   if (screenShareTracks.length > 0) {
     focusTrack = screenShareTracks[0];
-  } else if (activeSpeakers.length > 0) {
-    const speaker = activeSpeakers[0];
-    focusTrack = tracks.find(t => t.participant.identity === speaker.identity && t.source !== Track.Source.ScreenShare) || null;
+  } else if (teacherParticipant) {
+    // The Teacher's camera is ALWAYS the main focus, regardless of who is speaking.
+    focusTrack = tracks.find(t => t.participant.identity === teacherParticipant.identity && t.source !== Track.Source.ScreenShare) || null;
   }
   
-  if (!focusTrack && teacherParticipant) {
-    focusTrack = tracks.find(t => t.participant.identity === teacherParticipant.identity && t.source !== Track.Source.ScreenShare) || null;
+  if (!focusTrack && activeSpeakers.length > 0) {
+    const speaker = activeSpeakers[0];
+    focusTrack = tracks.find(t => t.participant.identity === speaker.identity && t.source !== Track.Source.ScreenShare) || null;
   }
 
   if (!focusTrack && tracks.length > 0) {
@@ -191,10 +197,27 @@ export default function CalligroMeetLayout({
   // Focus Mode is active if Whiteboard is ON or someone is Screen Sharing
   const isFocusMode = isWhiteboardActive || isScreenSharing;
 
-  const { localParticipant } = useLocalParticipant();
-
   // Data channel for handling events
   const { send, message } = useDataChannel("classroom-events");
+  const room = useRoomContext();
+
+  // Play join/leave sounds
+  useEffect(() => {
+    const onParticipantConnected = () => {
+      new Audio('/sounds/join.wav').play().catch((e) => console.log("Audio play blocked", e));
+    };
+    const onParticipantDisconnected = () => {
+      new Audio('/sounds/leave.wav').play().catch((e) => console.log("Audio play blocked", e));
+    };
+
+    room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
+    room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
+
+    return () => {
+      room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
+      room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
+    };
+  }, [room]);
 
   useEffect(() => {
     if (!message) return;

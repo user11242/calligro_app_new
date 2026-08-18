@@ -1201,5 +1201,20 @@
   "blockUserConfirmTitle": "حظر المستخدم",
   "blockUserConfirmBody": "هل أنت متأكد أنك تريد حظر هذا المستخدم؟ سيتم إخفاء منشوراته من يومياتك.",
   "block": "حظر",
-  "userBlockedSuccess": "تم حظر المستخدم بنجاح."
+  "userBlockedSuccess": "تم حظر المستخدم بنجاح.",
+  "waitingForOthersToJoin": "في انتظار انضمام الآخرين...",
+  "cancelConnection": "إلغاء الاتصال",
+  "startRecording": "بدء التسجيل",
+  "reconnecting": "جاري إعادة الاتصال...",
+  "connectionDropped": "انقطع الاتصال. جاري محاولة استعادة الجلسة.",
+  "connectionLost": "تم فقدان الاتصال",
+  "sessionEndedOrCouldNotBeEstablished": "انتهت جلسة الفصل الدراسي أو تعذر إنشاؤها.",
+  "returnToApp": "العودة للتطبيق",
+  "recordingStarted": "بدأ التسجيل",
+  "classIsBeingRecorded": "يتم الآن تسجيل الحصة",
+  "recordingError": "خطأ في التسجيل",
+  "recordingTimeout": "انتهت مهلة التسجيل: لم يتم نشر المسارات أبدًا.",
+  "lesson": "الدرس",
+  "editTitle": "تعديل العنوان",
+  "recordingTitle": "عنوان التسجيل"
 }

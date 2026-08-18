@@ -3563,4 +3563,51 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get userBlockedSuccess => 'تم حظر المستخدم بنجاح.';
+
+  @override
+  String get waitingForOthersToJoin => 'في انتظار انضمام الآخرين...';
+
+  @override
+  String get cancelConnection => 'إلغاء الاتصال';
+
+  @override
+  String get startRecording => 'بدء التسجيل';
+
+  @override
+  String get reconnecting => 'جاري إعادة الاتصال...';
+
+  @override
+  String get connectionDropped => 'انقطع الاتصال. جاري محاولة استعادة الجلسة.';
+
+  @override
+  String get connectionLost => 'تم فقدان الاتصال';
+
+  @override
+  String get sessionEndedOrCouldNotBeEstablished =>
+      'انتهت جلسة الفصل الدراسي أو تعذر إنشاؤها.';
+
+  @override
+  String get returnToApp => 'العودة للتطبيق';
+
+  @override
+  String get recordingStarted => 'بدأ التسجيل';
+
+  @override
+  String get classIsBeingRecorded => 'يتم الآن تسجيل الحصة';
+
+  @override
+  String get recordingError => 'خطأ في التسجيل';
+
+  @override
+  String get recordingTimeout =>
+      'انتهت مهلة التسجيل: لم يتم نشر المسارات أبدًا.';
+
+  @override
+  String get lesson => 'الدرس';
+
+  @override
+  String get editTitle => 'تعديل العنوان';
+
+  @override
+  String get recordingTitle => 'عنوان التسجيل';
 }

@@ -39,22 +39,6 @@ class FollowService {
         .collection('users')
         .doc(currentUserId);
 
-    // --- Fetch Roles ---
-    final targetDocSnapshot = await targetUserDocRef.get();
-    final currentDocSnapshot = await currentUserDocRef.get();
-    
-    final targetRole = (targetDocSnapshot.data() as Map<String, dynamic>?)?['role'] as String? ?? 'student';
-    final currentRole = (currentDocSnapshot.data() as Map<String, dynamic>?)?['role'] as String? ?? 'student';
-
-    final DocumentReference targetRoleDocRef = _firestore
-        .collection(targetRole == 'teacher' ? 'teachers' : 'students')
-        .doc(targetUserId);
-
-    final DocumentReference currentRoleDocRef = _firestore
-        .collection(currentRole == 'teacher' ? 'teachers' : 'students')
-        .doc(currentUserId);
-
-
     // --- Logic ---
     if (isFollowing) {
       // --- UNFOLLOW logic ---
@@ -62,9 +46,6 @@ class FollowService {
       batch.update(targetUserDocRef, {
         'followerCount': FieldValue.increment(-1),
       }); // 2. Decrement their count
-      batch.update(targetRoleDocRef, {
-        'followerCount': FieldValue.increment(-1),
-      }); // Decrement their count in role collection
 
       batch.delete(
         currentUserFollowingRef,
@@ -72,22 +53,16 @@ class FollowService {
       batch.update(currentUserDocRef, {
         'followingCount': FieldValue.increment(-1),
       }); // 4. Decrement our count
-      batch.update(currentRoleDocRef, {
-        'followingCount': FieldValue.increment(-1),
-      }); // Decrement our count in role collection
     } else {
       // --- FOLLOW logic ---
       final timestamp = FieldValue.serverTimestamp();
       batch.set(targetUserFollowersRef, {
         'followerId': currentUserId,
         'timestamp': timestamp,
-      }); // 1. Add to their followers — Cloud Function watches this to send push + in-app notification
+      }); // 1. Add to their followers
       batch.update(targetUserDocRef, {
         'followerCount': FieldValue.increment(1),
       }); // 2. Increment their count
-      batch.update(targetRoleDocRef, {
-        'followerCount': FieldValue.increment(1),
-      }); // Increment their count in role collection
 
       batch.set(currentUserFollowingRef, {
         'timestamp': timestamp,
@@ -95,9 +70,6 @@ class FollowService {
       batch.update(currentUserDocRef, {
         'followingCount': FieldValue.increment(1),
       }); // 4. Increment our count
-      batch.update(currentRoleDocRef, {
-        'followingCount': FieldValue.increment(1),
-      }); // Increment our count in role collection
     }
 
     // Commit all operations at once

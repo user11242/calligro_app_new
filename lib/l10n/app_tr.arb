@@ -1148,5 +1148,8 @@
   "blockUserConfirmTitle": "Kullanıcıyı Engelle",
   "blockUserConfirmBody": "Bu kullanıcıyı engellemek istediğinizden emin misiniz? Gönderileri akışınızdan gizlenecektir.",
   "block": "Engelle",
-  "userBlockedSuccess": "Kullanıcı başarıyla engellendi."
+  "userBlockedSuccess": "Kullanıcı başarıyla engellendi.",
+  "lesson": "Ders",
+  "editTitle": "Başlığı Düzenle",
+  "recordingTitle": "Kayıt Başlığı"
 }

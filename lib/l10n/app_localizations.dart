@@ -6675,6 +6675,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'User blocked successfully.'**
   String get userBlockedSuccess;
+
+  /// No description provided for @waitingForOthersToJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for others to join...'**
+  String get waitingForOthersToJoin;
+
+  /// No description provided for @cancelConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel Connection'**
+  String get cancelConnection;
+
+  /// No description provided for @startRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Recording'**
+  String get startRecording;
+
+  /// No description provided for @reconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting...'**
+  String get reconnecting;
+
+  /// No description provided for @connectionDropped.
+  ///
+  /// In en, this message translates to:
+  /// **'Your connection dropped. Trying to restore the session.'**
+  String get connectionDropped;
+
+  /// No description provided for @connectionLost.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection Lost'**
+  String get connectionLost;
+
+  /// No description provided for @sessionEndedOrCouldNotBeEstablished.
+  ///
+  /// In en, this message translates to:
+  /// **'The classroom session has ended or could not be established.'**
+  String get sessionEndedOrCouldNotBeEstablished;
+
+  /// No description provided for @returnToApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to App'**
+  String get returnToApp;
+
+  /// No description provided for @recordingStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording Started'**
+  String get recordingStarted;
+
+  /// No description provided for @classIsBeingRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Class is now being recorded'**
+  String get classIsBeingRecorded;
+
+  /// No description provided for @recordingError.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording Error'**
+  String get recordingError;
+
+  /// No description provided for @recordingTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording timeout: tracks never published.'**
+  String get recordingTimeout;
+
+  /// No description provided for @lesson.
+  ///
+  /// In en, this message translates to:
+  /// **'Lesson'**
+  String get lesson;
+
+  /// No description provided for @editTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Title'**
+  String get editTitle;
+
+  /// No description provided for @recordingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording Title'**
+  String get recordingTitle;
 }
 
 class _AppLocalizationsDelegate

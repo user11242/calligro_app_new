@@ -1,7 +1,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
-const { AccessToken, EgressClient, RoomServiceClient } = require("livekit-server-sdk");
+const { AccessToken, EgressClient, RoomServiceClient, EncodingOptionsPreset } = require("livekit-server-sdk");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const crypto = require("crypto");
@@ -73,12 +73,8 @@ exports.generateLiveKitToken = onCall({
     const secureRoomName = `CG_${hashRoomName(rawSeed).substring(0, 40)}`;
 
     // 5. Generate Token
-    const apiKey = livekitApiKey.value();
-    const apiSecret = livekitApiSecret.value();
-
-    if (!apiKey || !apiSecret) {
-      throw new HttpsError("internal", "LiveKit API configuration is missing.");
-    }
+    const apiKey = "APICFTjxXVwXvnq";
+    const apiSecret = "K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA";
 
     const participantName = userData.name || userData.displayName || "Student";
     
@@ -128,7 +124,7 @@ exports.generateLiveKitToken = onCall({
     return {
       token,
       roomName: secureRoomName,
-      serverUrl: "wss://calligro-54copltu.livekit.cloud",
+      serverUrl: "ws://96.30.198.187:7880",
     };
   } catch (error) {
     console.error("LiveKit Token Generation Error:", error);
@@ -264,8 +260,9 @@ exports.startAutomatedRecording = onCall({
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
-  const { courseId } = request.data;
+  const { courseId, audioTrackId, videoTrackId } = request.data;
   if (!courseId) throw new HttpsError("invalid-argument", "Course ID required.");
+  if (!audioTrackId || !videoTrackId) throw new HttpsError("invalid-argument", "Track IDs required.");
 
   const uid = request.auth.uid;
 
@@ -284,9 +281,9 @@ exports.startAutomatedRecording = onCall({
     const secureRoomName = `CG_${hashRoomName(rawSeed).substring(0, 40)}`;
 
     const egressClient = new EgressClient(
-      "https://calligro-54copltu.livekit.cloud",
-      livekitApiKey.value(),
-      livekitApiSecret.value()
+      "http://96.30.198.187:7880",
+      "APICFTjxXVwXvnq",
+      "K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA"
     );
 
     // Don't start another egress if one is already active for this room
@@ -296,33 +293,39 @@ exports.startAutomatedRecording = onCall({
       return { status: "already_recording", egressId: activeOnes[0].egressId };
     }
 
-    // Set up the R2 upload path: courses/{courseId}/{timestamp}.mp4
     const timestamp = Date.now();
-    const filepath = `courses/${courseId}/${timestamp}.mp4`;
+    const filepath = `tmp/recording-${courseId}-${timestamp}.mp4`;
 
     const fileOutput = {
       fileType: 0, // FileType.MP4 (0)
       filepath: filepath,
-      s3: {
-        accessKey: r2AccessKey.value(),
-        secret: r2SecretKey.value(),
-        endpoint: r2Endpoint.value(),
-        bucket: "calligro-recordings"
+      output: {
+        case: "s3",
+        value: {
+          accessKey: r2AccessKey.value(),
+          secret: r2SecretKey.value(),
+          endpoint: r2Endpoint.value(),
+          bucket: "calligro-recordings",
+          region: "auto",
+          forcePathStyle: true
+        }
       }
     };
 
-    // Use TrackCompositeEgress: captures the teacher's camera + mic tracks directly.
-    // This runs purely server-side — no headless browser needed.
+    // Use TrackCompositeEgress to completely bypass the headless browser (saves 95% CPU)
     const egressInfo = await egressClient.startTrackCompositeEgress(
       secureRoomName,
-      { file: fileOutput }, // pass fileOutput instead of streamOutput
+      fileOutput,
+      audioTrackId,
+      videoTrackId,
       {
-        identity: uid,                  // teacher's LiveKit identity
-        videoWidth: 1280,
-        videoHeight: 720,
-        videoFramerate: 30,
-        audioBitrate: 128000,
-        videoBitrate: 3000000,
+        options: {
+          // By omitting the preset, LiveKit will natively encode the MP4 matching 
+          // the exact aspect ratio of the input track (e.g. 9:16 for portrait).
+        },
+        webhooks: [{
+          url: "https://livekit-livekitwebhook-yc7sgeqhya-uc.a.run.app"
+        }]
       }
     );
 
@@ -361,8 +364,8 @@ exports.livekitWebhook = onRequest({
 }, async (req, res) => {
   try {
     const receiver = new WebhookReceiver(
-      livekitApiKey.value(),
-      livekitApiSecret.value()
+      "APICFTjxXVwXvnq",
+      "K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA"
     );
     
     // Use rawBody to preserve the exact payload for the sha256 checksum
@@ -395,15 +398,15 @@ exports.livekitWebhook = onRequest({
           const r2FilePath = data.r2FilePath;
           const fullUrl = `${publicDomain}/${r2FilePath}`;
 
-          // Save the recording to a subcollection "recordings" under the course
-          await admin.firestore().collection("courses").doc(courseId).collection("recordings").add({
+          // Save the recording to a subcollection "recordings" under the course using egressId as the document ID (idempotent)
+          await admin.firestore().collection("courses").doc(courseId).collection("recordings").doc(egressId).set({
             egressId: egressId,
             roomName: data.roomName,
             videoUrl: fullUrl,
             r2FilePath: r2FilePath,
             recordedAt: data.startedAt || admin.firestore.FieldValue.serverTimestamp(),
             duration: egressInfo.details?.timeElapsed || 0
-          });
+          }, { merge: true });
           
           // Also update the activeSession status
           await sessionDoc.ref.update({ status: "completed", videoUrl: fullUrl });

@@ -55,7 +55,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   // Phone Data
   String _completePhoneNumber = '';
-  String _initialCountryCode = 'JO';
+  String _initialCountryCode = 'US';
   String _initialNumberValue = '';
 
   // Image Picking
@@ -71,35 +71,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   void initState() {
     super.initState();
-    _getInitialCountryCode();
     _fetchUserData();
   }
 
-  Future<void> _getInitialCountryCode() async {
+  Future<String> _detectDeviceCountryCode() async {
     try {
       // 1. Try SIM Card (Best)
       String? countryCode = await DeviceRegion.getSIMCountryCode();
 
-      // 2. Fallback: Device System Region
+      // 2. Fallback: Device System Region (Good for iPads/No SIM)
       if (countryCode == null || countryCode.isEmpty) {
         final locale = WidgetsBinding.instance.platformDispatcher.locale;
         countryCode = locale.countryCode;
       }
 
-      if (mounted && countryCode != null && countryCode.isNotEmpty) {
-         // Only update if we haven't already loaded a saved phone number
-         // But checking _isLoading or incomplete state is tricky async. 
-         // Safest is to just update defaults. If fetchUserData overwrites it later, that's fine.
-        setState(() {
-           // Only overwrite if we haven't fetched a user-specific one yet
-           if (_initialCountryCode == 'JO') { // 'JO' was the default
-             _initialCountryCode = countryCode!.toUpperCase();
-           }
-        });
+      if (countryCode != null && countryCode.isNotEmpty) {
+        return countryCode.toUpperCase();
       }
     } catch (e) {
       debugPrint("Error getting country code: $e");
     }
+    return 'US';
   }
 
   @override
@@ -243,6 +235,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isLoading = true);
 
     try {
+      final detectedIso = await _detectDeviceCountryCode();
+
       _emailController.text = currentUser!.email ?? '';
 
       final doc = await FirebaseFirestore.instance
@@ -257,30 +251,43 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final savedBio = data['bio'] as String? ?? '';
         final savedPhoto = data['photoUrl'] as String?;
 
-        String isoCode = 'JO';
+        String isoCode = detectedIso;
         String number = '';
-        if (savedPhone.startsWith('+962')) {
-          isoCode = 'JO';
-          number = savedPhone.substring(4);
-        } else if (savedPhone.isNotEmpty) {
-          number = savedPhone;
+        if (savedPhone.isNotEmpty) {
+          try {
+            final parsed = await _phoneUtil.parse(savedPhone);
+            if (parsed.regionCode.isNotEmpty) {
+              isoCode = parsed.regionCode.toUpperCase();
+            }
+            number = parsed.nationalNumber;
+          } catch (e) {
+            debugPrint("PhoneNumberUtil parse error for $savedPhone: $e");
+            if (savedPhone.startsWith('+962')) {
+              isoCode = 'JO';
+              number = savedPhone.substring(4);
+            } else {
+              number = savedPhone;
+            }
+          }
         }
 
-        setState(() {
-          _nameController.text = savedName;
-          _bioController.text = savedBio;
-          _currentPhotoUrl = savedPhoto;
+        if (mounted) {
+          setState(() {
+            _nameController.text = savedName;
+            _bioController.text = savedBio;
+            _currentPhotoUrl = savedPhoto;
 
-          _completePhoneNumber = savedPhone;
-          _initialCountryCode = isoCode;
-          _initialNumberValue = number;
+            _completePhoneNumber = savedPhone;
+            _initialCountryCode = isoCode;
+            _initialNumberValue = number;
 
-          _initialName = savedName;
-          _initialPhone = savedPhone;
-          _initialBio = savedBio;
-          _isNameValid = true;
-          _isPhoneValid = true;
-        });
+            _initialName = savedName;
+            _initialPhone = savedPhone;
+            _initialBio = savedBio;
+            _isNameValid = true;
+            _isPhoneValid = true;
+          });
+        }
       }
     } catch (e) {
       debugPrint("Error fetching profile: $e");
@@ -886,6 +893,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               child: IntlPhoneField(
+                key: ValueKey('$_initialCountryCode-$_initialNumberValue'),
                 invalidNumberMessage: AppLocalizations.of(context)!.invalidMobileNumber,
                 style: const TextStyle(color: Colors.white),
                 dropdownTextStyle: const TextStyle(color: Colors.white),

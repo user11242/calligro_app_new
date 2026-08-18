@@ -1,12 +1,16 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:calligro_app/core/services/security_service.dart';
+import 'package:calligro_app/core/theme/colors.dart';
+import 'package:calligro_app/l10n/app_localizations.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final String videoUrl;
+  final String title;
 
-  const VideoPlayerPage({Key? key, required this.videoUrl}) : super(key: key);
+  const VideoPlayerPage({Key? key, required this.videoUrl, required this.title}) : super(key: key);
 
   @override
   State<VideoPlayerPage> createState() => _VideoPlayerPageState();
@@ -39,6 +43,20 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       autoPlay: true,
       looping: false,
       aspectRatio: _videoPlayerController.value.aspectRatio,
+      allowFullScreen: true,
+      allowMuting: true,
+      materialProgressColors: ChewieProgressColors(
+        playedColor: AppColors.accentGold,
+        handleColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.2),
+        bufferedColor: Colors.white.withValues(alpha: 0.5),
+      ),
+      cupertinoProgressColors: ChewieProgressColors(
+        playedColor: AppColors.accentGold,
+        handleColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.2),
+        bufferedColor: Colors.white.withValues(alpha: 0.5),
+      ),
       errorBuilder: (context, errorMessage) {
         return Center(
           child: Text(
@@ -61,18 +79,61 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('Class Recording', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.black.withValues(alpha: 0.4),
+        elevation: 0,
+        title: Text(
+          widget.title, 
+          style: const TextStyle(
+            color: Colors.white, 
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
+          ),
+        ),
       ),
-      body: Center(
-        child: _chewieController != null &&
-                _chewieController!.videoPlayerController.value.isInitialized
-            ? Chewie(controller: _chewieController!)
-            : const CircularProgressIndicator(color: Colors.greenAccent),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Blurred Video Background ──
+          if (_videoPlayerController.value.isInitialized)
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _videoPlayerController.value.size.width,
+                height: _videoPlayerController.value.size.height,
+                child: VideoPlayer(_videoPlayerController),
+              ),
+            ),
+            
+          // ── Heavy Blur Filter Overlay ──
+          if (_videoPlayerController.value.isInitialized)
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 60.0, sigmaY: 60.0),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.4),
+              ),
+            ),
+
+          // ── Main Video Player ──
+          Center(
+            child: _chewieController != null &&
+                    _chewieController!.videoPlayerController.value.isInitialized
+                ? Chewie(controller: _chewieController!)
+                : const CircularProgressIndicator(color: AppColors.accentGold),
+          ),
+        ],
       ),
     );
   }
