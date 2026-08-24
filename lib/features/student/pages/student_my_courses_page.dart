@@ -21,6 +21,8 @@ class StudentMyCoursesPage extends StatefulWidget {
 
 class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
   CourseStatusFilter _selectedFilter = CourseStatusFilter.all;
+  int _currentPage = 1;
+  final int _itemsPerPage = 5;
 
   @override
   Widget build(BuildContext context) {
@@ -81,22 +83,83 @@ class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
                   );
                 }
 
-                return SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final doc = filteredCourses[index];
-                        final data = doc.data() as Map<String, dynamic>;
-                        final status = _getCourseStatus(data);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 20),
-                          child: _buildCourseCard(context, doc.id, data, status),
-                        );
-                      },
-                      childCount: filteredCourses.length,
+                final int totalPages = (filteredCourses.length / _itemsPerPage).ceil();
+                
+                if (_currentPage > totalPages && totalPages > 0) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _currentPage = 1);
+                  });
+                }
+
+                final int startIndex = (_currentPage - 1) * _itemsPerPage;
+                int endIndex = startIndex + _itemsPerPage;
+                if (endIndex > filteredCourses.length) {
+                  endIndex = filteredCourses.length;
+                }
+                
+                final paginatedCourses = startIndex < filteredCourses.length 
+                    ? filteredCourses.sublist(startIndex, endIndex)
+                    : <DocumentSnapshot>[];
+
+                return SliverMainAxisGroup(
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final doc = paginatedCourses[index];
+                            final data = doc.data() as Map<String, dynamic>;
+                            final status = _getCourseStatus(data);
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 20),
+                              child: _buildCourseCard(context, doc.id, data, status),
+                            );
+                          },
+                          childCount: paginatedCourses.length,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (totalPages > 1)
+                      SliverToBoxAdapter(
+                        child: Container(
+                          padding: const EdgeInsets.only(bottom: 40, top: 10),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left, color: Colors.white),
+                                onPressed: _currentPage > 1
+                                    ? () => setState(() => _currentPage--)
+                                    : null,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _currentPage > 1 ? Colors.white10 : Colors.transparent,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Text(
+                                '$_currentPage / $totalPages',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right, color: Colors.white),
+                                onPressed: _currentPage < totalPages
+                                    ? () => setState(() => _currentPage++)
+                                    : null,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _currentPage < totalPages ? Colors.white10 : Colors.transparent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),
@@ -182,7 +245,10 @@ class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
   Widget _buildFilterChip(String label, CourseStatusFilter filter) {
     final isSelected = _selectedFilter == filter;
     return GestureDetector(
-      onTap: () => setState(() => _selectedFilter = filter),
+      onTap: () => setState(() {
+        _selectedFilter = filter;
+        _currentPage = 1;
+      }),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(

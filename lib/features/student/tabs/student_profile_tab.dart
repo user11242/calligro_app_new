@@ -13,7 +13,7 @@ import '../../../../core/widgets/profile_image_viewer.dart';
 import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/follow_list_bottom_sheet.dart';
 import 'package:calligro_app/features/student/pages/settings/student_settings_page.dart';
-import 'package:calligro_app/features/student/pages/certificates_page.dart';
+
 import 'package:calligro_app/features/student/pages/public_profile/public_student_profile_page.dart';
 import 'package:calligro_app/features/teacher/pages/public_profile/public_teacher_profile_page.dart';
 
@@ -495,32 +495,7 @@ class _StudentProfileTabState extends State<StudentProfileTab>
             const SizedBox(height: 12),
           ],
 
-          const SizedBox(height: 10),
 
-          // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const CertificatesPage()),
-                    );
-                  },
-                  icon: const Icon(Icons.workspace_premium, size: 18),
-                  label: Text(AppLocalizations.of(context)!.certificates),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentGold.withOpacity(0.15),
-                    foregroundColor: AppColors.accentGold,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );

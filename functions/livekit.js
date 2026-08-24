@@ -30,7 +30,7 @@ exports.generateLiveKitToken = onCall({
   secrets: [livekitApiKey, livekitApiSecret],
   cpu: 0.333,
   memory: "256MiB",
-  maxInstances: 10,
+  maxInstances: 1,
 }, async (request) => {
   // 1. Verify Authentication
   if (!request.auth) {
@@ -124,7 +124,7 @@ exports.generateLiveKitToken = onCall({
     return {
       token,
       roomName: secureRoomName,
-      serverUrl: "wss://calligro-54copltu.livekit.cloud",
+      serverUrl: "wss://96.30.198.187.nip.io",
     };
   } catch (error) {
     console.error("LiveKit Token Generation Error:", error);
@@ -141,6 +141,7 @@ exports.moderateParticipant = onCall({
   cpu: 0.333,
   memory: "256MiB",
   maxInstances: 1,
+  region: "us-east1",
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
@@ -166,12 +167,12 @@ exports.moderateParticipant = onCall({
   // ---------- STOP RECORDING ----------
   if (action === "stop_recording") {
     const egressClient = new EgressClient(
-      "https://calligro-54copltu.livekit.cloud",
+      "https://96.30.198.187.nip.io",
       livekitApiKey.value(),
       livekitApiSecret.value()
     );
     const roomService = new RoomServiceClient(
-      "https://calligro-54copltu.livekit.cloud",
+      "https://96.30.198.187.nip.io",
       livekitApiKey.value(),
       livekitApiSecret.value()
     );
@@ -201,7 +202,7 @@ exports.moderateParticipant = onCall({
   }
 
   const roomService = new RoomServiceClient(
-    "https://calligro-54copltu.livekit.cloud",
+    "https://96.30.198.187.nip.io",
     livekitApiKey.value(),
     livekitApiSecret.value()
   );
@@ -257,10 +258,11 @@ exports.startAutomatedRecording = onCall({
   cpu: 0.333,
   memory: "256MiB",
   maxInstances: 1,
+  region: "us-east1",
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
-  const { courseId, audioTrackId, videoTrackId } = request.data;
+  const { courseId, audioTrackId, videoTrackId, orientation } = request.data;
   if (!courseId) throw new HttpsError("invalid-argument", "Course ID required.");
   if (!audioTrackId || !videoTrackId) throw new HttpsError("invalid-argument", "Track IDs required.");
 
@@ -281,7 +283,7 @@ exports.startAutomatedRecording = onCall({
     const secureRoomName = `CG_${hashRoomName(rawSeed).substring(0, 40)}`;
 
     const egressClient = new EgressClient(
-      "https://calligro-54copltu.livekit.cloud",
+      "https://96.30.198.187.nip.io",
       livekitApiKey.value(),
       livekitApiSecret.value()
     );
@@ -312,16 +314,21 @@ exports.startAutomatedRecording = onCall({
       }
     };
 
-    // Use TrackCompositeEgress to completely bypass the headless browser (saves 95% CPU)
+    // Choose preset based on orientation (default to portrait if not specified)
+    const preset = orientation === 'landscape' 
+        ? EncodingOptionsPreset.H264_1080P_30 
+        : EncodingOptionsPreset.PORTRAIT_H264_1080P_30;
+
+    console.log(`Starting TrackCompositeEgress: room=${secureRoomName}, audio=${audioTrackId}, video=${videoTrackId}, orientation=${orientation}, preset=${preset}`);
+
+    // Use the new TrackCompositeOptions API (3-arg form) so encodingOptions is properly applied
     const egressInfo = await egressClient.startTrackCompositeEgress(
       secureRoomName,
       fileOutput,
-      audioTrackId,
-      videoTrackId,
       {
-        options: {
-          preset: EncodingOptionsPreset.PORTRAIT_H264_1080P_30
-        },
+        audioTrackId: audioTrackId,
+        videoTrackId: videoTrackId,
+        encodingOptions: preset,
         webhooks: [{
           url: "https://livekit-livekitwebhook-yc7sgeqhya-uc.a.run.app"
         }]
@@ -378,6 +385,8 @@ exports.livekitWebhook = onRequest({
       const egressInfo = event.egressInfo;
       const egressId = egressInfo.egressId;
       console.log(`Egress ${egressId} ended with status ${egressInfo.status}`);
+      console.log(`Egress timing: startedAt=${egressInfo.startedAt}, endedAt=${egressInfo.endedAt}`);
+      console.log(`Egress fileResults:`, JSON.stringify(egressInfo.fileResults));
 
       // Search for the active session in Firestore to update it
       // Since we don't know the courseId directly from the webhook, we can query by egressId
@@ -390,6 +399,46 @@ exports.livekitWebhook = onRequest({
         const sessionDoc = activeSessionsSnapshot.docs[0];
         const data = sessionDoc.data();
         const courseId = sessionDoc.ref.parent.parent.id;
+        
+        // Calculate duration from our own Firestore startedAt timestamp
+        // This is the wall-clock time of the actual meeting, much more accurate
+        // than LiveKit's egress duration which includes startup/teardown overhead
+        let durationSeconds = 0;
+        try {
+          if (data.startedAt) {
+            const startMs = data.startedAt.toMillis ? data.startedAt.toMillis() : data.startedAt;
+            durationSeconds = Math.round((Date.now() - startMs) / 1000);
+            console.log(`Duration from Firestore startedAt: ${durationSeconds}s`);
+            // Subtract ~8 seconds for typical egress teardown overhead
+            durationSeconds = Math.max(1, durationSeconds - 8);
+            console.log(`Adjusted duration (minus teardown): ${durationSeconds}s`);
+          }
+        } catch (durErr) {
+          console.error("Error calculating duration from Firestore:", durErr);
+        }
+
+        // Fallback: if Firestore timestamp failed, try LiveKit's fileResults
+        if (durationSeconds <= 0) {
+          try {
+            if (egressInfo.fileResults && egressInfo.fileResults.length > 0 && egressInfo.fileResults[0].duration) {
+              const durNs = BigInt(egressInfo.fileResults[0].duration);
+              durationSeconds = Number(durNs / BigInt(1000000000));
+              // LiveKit egress duration includes ~20s overhead, subtract it
+              durationSeconds = Math.max(1, durationSeconds - 20);
+              console.log(`Duration from fileResults (adjusted): ${durationSeconds}s`);
+            } else if (egressInfo.endedAt && egressInfo.startedAt) {
+              const startNs = BigInt(egressInfo.startedAt);
+              const endNs = BigInt(egressInfo.endedAt);
+              if (endNs > startNs) {
+                durationSeconds = Number((endNs - startNs) / BigInt(1000000000));
+                durationSeconds = Math.max(1, durationSeconds - 20);
+                console.log(`Duration from egress timestamps (adjusted): ${durationSeconds}s`);
+              }
+            }
+          } catch (durErr) {
+            console.error("Error calculating duration from egress:", durErr);
+          }
+        }
         
         if (egressInfo.status === 3 || egressInfo.status === "EGRESS_COMPLETE") {
           // Construct the full public URL
@@ -404,12 +453,12 @@ exports.livekitWebhook = onRequest({
             videoUrl: fullUrl,
             r2FilePath: r2FilePath,
             recordedAt: data.startedAt || admin.firestore.FieldValue.serverTimestamp(),
-            duration: egressInfo.details?.timeElapsed || 0
+            duration: durationSeconds
           }, { merge: true });
           
           // Also update the activeSession status
           await sessionDoc.ref.update({ status: "completed", videoUrl: fullUrl });
-          console.log(`Successfully saved recording URL: ${fullUrl}`);
+          console.log(`Successfully saved recording URL: ${fullUrl}, duration: ${durationSeconds}s`);
         } else {
           await sessionDoc.ref.update({ status: "failed", error: egressInfo.error });
           console.error(`Egress ${egressId} failed: ${egressInfo.error}`);
@@ -430,7 +479,7 @@ exports.generateR2UploadUrl = onCall({
   secrets: [r2AccessKey, r2SecretKey, r2Endpoint],
   cpu: 0.333,
   memory: "256MiB",
-  maxInstances: 10,
+  maxInstances: 1,
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
@@ -475,7 +524,7 @@ exports.saveRecordingMetadata = onCall({
   secrets: [r2PublicUrl],
   cpu: 0.166,
   memory: "256MiB",
-  maxInstances: 10,
+  maxInstances: 1,
 }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 

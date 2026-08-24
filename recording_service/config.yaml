@@ -1,0 +1,12 @@
+api_key: "APICFTjxXVwXvnq"
+api_secret: "K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA"
+ws_url: "ws://127.0.0.1:7880"
+
+redis:
+  address: "127.0.0.1:6379"
+
+storage:
+  backup_dir: "/tmp/egress_backup"
+
+logging:
+  level: "info"

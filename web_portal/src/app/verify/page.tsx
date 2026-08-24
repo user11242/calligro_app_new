@@ -50,39 +50,14 @@ export default function VerifySearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent flex flex-col relative text-[#FDFBF7] overflow-hidden">
+    <div className="min-h-screen bg-[#1F1F1F] flex flex-col relative text-[#FDFBF7] overflow-hidden">
       
-      {/* ── DYNAMIC BACKGROUND ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-[url('/images/noise.png')] opacity-[0.03] mix-blend-overlay" />
-      
-      {/* Animated Glow Orbs */}
-      <div className="fixed top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#E8C468]/10 blur-[120px] rounded-full pointer-events-none z-0 animate-pulse-slow" />
-      <div className="fixed bottom-0 right-0 w-[800px] h-[800px] bg-[#1a1508]/40 blur-[150px] rounded-full pointer-events-none z-0" />
-
       <div className="relative z-50">
         <Navbar />
       </div>
       
       <main className="flex-grow flex items-center justify-center p-6 relative z-10 w-full h-full">
         
-        {/* Floating Particles (CSS only) */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 opacity-20">
-          {[...Array(15)].map((_, i) => (
-            <div 
-              key={i}
-              className="absolute bg-[#E8C468] rounded-full animate-float"
-              style={{
-                width: Math.random() * 4 + 1 + 'px',
-                height: Math.random() * 4 + 1 + 'px',
-                top: Math.random() * 100 + '%',
-                left: Math.random() * 100 + '%',
-                animationDuration: (Math.random() * 10 + 10) + 's',
-                animationDelay: (Math.random() * 5) + 's',
-              }}
-            />
-          ))}
-        </div>
-
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}

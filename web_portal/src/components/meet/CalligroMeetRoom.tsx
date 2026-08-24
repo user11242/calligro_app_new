@@ -11,6 +11,7 @@ import CalligroMeetLayout from "./CalligroMeetLayout";
 import ResilienceManager from "./ResilienceManager";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface CalligroMeetRoomProps {
   token: string;
@@ -29,6 +30,7 @@ export default function CalligroMeetRoom({
   userAvatar,
   onLeave,
 }: CalligroMeetRoomProps) {
+  const { t, locale } = useTranslation();
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   
@@ -183,10 +185,10 @@ export default function CalligroMeetRoom({
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              className="relative z-10 w-full max-w-[800px] mx-4 p-6 bg-white/[0.02] backdrop-blur-3xl border border-white/[0.08] rounded-[2rem] shadow-2xl flex flex-col md:flex-row items-center gap-8"
+              className={`relative z-10 w-full max-w-[1100px] mx-4 p-8 bg-[#13151A]/80 backdrop-blur-3xl border border-white/[0.08] rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-10`}
             >
-              {/* Left Side: Video Preview */}
-              <div className="w-full md:w-3/5 aspect-video bg-black/40 rounded-2xl overflow-hidden border border-white/5 relative flex items-center justify-center shadow-inner group">
+              {/* Video Preview - Larger (like Google Meet) */}
+              <div className="w-full md:w-[65%] aspect-video bg-black/50 rounded-2xl overflow-hidden border border-white/5 relative flex items-center justify-center shadow-inner group">
                 {!stream && !permissionError && (
                   <div className="flex flex-col items-center gap-3 text-white/40">
                     <Video className="w-8 h-8 animate-pulse" />
@@ -199,7 +201,7 @@ export default function CalligroMeetRoom({
                     <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
                       <VideoOff className="w-6 h-6 text-white/40" />
                     </div>
-                    <span className="text-white/40 text-sm font-medium">Camera is off</span>
+                    <span className="text-white/40 text-sm font-medium">{t('meet.camera_off')}</span>
                   </div>
                 )}
 
@@ -238,28 +240,28 @@ export default function CalligroMeetRoom({
                   <div className="absolute top-4 left-4 flex gap-2 z-20 pointer-events-none">
                     <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10 text-white text-[10px] font-semibold tracking-wide ${isCamOn ? 'bg-black/50' : 'bg-red-500/50'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${isCamOn ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`} />
-                      {isCamOn ? 'Camera On' : 'Camera Off'}
+                      {isCamOn ? t('meet.camera_on') : t('meet.camera_off')}
                     </div>
                     <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10 text-white text-[10px] font-semibold tracking-wide ${isMicOn ? 'bg-black/50' : 'bg-red-500/50'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${isMicOn ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`} />
-                      {isMicOn ? 'Mic Active' : 'Mic Muted'}
+                      {isMicOn ? t('meet.mic_active') : t('meet.mic_muted')}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Right Side: Content & Button */}
-              <div className="w-full md:w-2/5 flex flex-col pt-2 pb-4 md:py-4 md:pr-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 w-max mb-6">
-                  <span className="text-[10px] font-bold text-primary tracking-[0.2em] uppercase">Ready to Join</span>
+              {/* Content & Button - Side column */}
+              <div className="w-full md:w-[35%] flex flex-col justify-center py-4 md:px-4">
+                <div className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-primary/10 border border-primary/20 w-max mb-6 mx-auto md:mx-0">
+                  <span className="text-[11px] font-bold text-primary tracking-[0.2em] uppercase">{t('meet.ready_to_join')}</span>
                 </div>
 
-                <h2 className="text-3xl font-semibold text-white tracking-tight mb-3 font-outfit">
-                  Enter Studio
+                <h2 className="text-4xl font-semibold text-white tracking-tight mb-4 font-outfit text-center md:text-start">
+                  {t('meet.enter_studio')}
                 </h2>
                 
-                <p className="text-white/40 text-[14px] font-light leading-relaxed mb-8">
-                  Check your camera positioning and microphone before entering the classroom. 
+                <p className="text-white/50 text-[15px] font-light leading-relaxed mb-8 text-center md:text-start">
+                  {t('meet.check_camera')}
                 </p>
 
                 {permissionError && (
@@ -271,9 +273,9 @@ export default function CalligroMeetRoom({
                 <button
                   onClick={handleJoin}
                   disabled={!stream}
-                  className="w-full py-4 bg-primary hover:bg-primary/90 disabled:bg-primary/30 disabled:text-black/30 disabled:cursor-not-allowed text-black font-semibold text-[15px] rounded-xl transition-all duration-200 active:scale-[0.98] shadow-[0_0_20px_rgba(212,175,55,0.2)] hover:shadow-[0_0_30px_rgba(212,175,55,0.4)]"
+                  className="w-full py-4 bg-primary hover:bg-primary/90 disabled:bg-primary/30 disabled:text-black/30 disabled:cursor-not-allowed text-black font-bold text-[16px] rounded-xl transition-all duration-200 active:scale-[0.98] shadow-[0_0_20px_rgba(212,175,55,0.2)] hover:shadow-[0_0_30px_rgba(212,175,55,0.4)]"
                 >
-                  Join Classroom
+                  {t('meet.join_classroom')}
                 </button>
               </div>
             </motion.div>

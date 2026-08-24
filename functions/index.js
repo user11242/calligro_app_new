@@ -637,6 +637,12 @@ exports.verifyPurchase = onCall(async (request) => {
     const userData = userSnap.data() || {};
     const courseData = courseSnap.data() || {};
 
+    const maxStudents = Number(courseData.maxStudents || 0);
+    const enrolledCount = Number(courseData.enrolledCount || 0);
+    if (maxStudents > 0 && enrolledCount >= maxStudents) {
+      throw new HttpsError("failed-precondition", "This course is fully booked.");
+    }
+
     // Fetch Teacher to get precise commission rate
     let commissionRate = 0.0; // Default fallback if no teacher
     if (courseData.teacherId) {
@@ -702,17 +708,6 @@ exports.verifyPurchase = onCall(async (request) => {
       enrolledCourses: admin.firestore.FieldValue.arrayUnion(courseId),
     });
 
-    // Generate Certificate Instantly
-    const certRef = admin.firestore().collection("certificates").doc();
-    batch.set(certRef, {
-      studentId: uid,
-      studentName: userData.name || "Student",
-      courseId: courseId,
-      courseName: courseData.courseName || courseData.courseTitle || "Untitled Course",
-      teacherId: courseData.teacherId || "",
-      issueDate: admin.firestore.FieldValue.serverTimestamp()
-    });
-
     await batch.commit();
     console.log(`🏆 Successfully Enrolled User ${uid} in Course ${courseId}`);
 
@@ -770,6 +765,16 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
       // Fetch Course & Teacher to get precise commission rate
       const courseSnap = await admin.firestore().collection("courses").doc(String(courseId)).get();
       const courseData = courseSnap.data() || {};
+      
+      const maxStudents = Number(courseData.maxStudents || 0);
+      const enrolledCount = Number(courseData.enrolledCount || 0);
+      if (maxStudents > 0 && enrolledCount >= maxStudents) {
+        console.error(`🚨 CRITICAL: User ${userId} paid for full course ${courseId}. Needs manual refund.`);
+        // We still enroll them since they paid, or we could abort, but usually for webhooks 
+        // if they already paid, we should just alert the admin and perhaps still fulfill it or handle manually.
+        // For strict security, we can just log it and proceed, or we can throw. 
+        // Let's log it strongly.
+      }
       
       let commissionRate = 0; // Default fallback to 0 for safety
       if (courseData.teacherId) {
@@ -835,17 +840,6 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
         enrolledCourses: admin.firestore.FieldValue.arrayUnion(String(courseId))
       });
 
-      // 5. Generate Certificate Instantly
-      const certRef = admin.firestore().collection("certificates").doc();
-      batch.set(certRef, {
-        studentId: userId,
-        studentName: event.data.attributes.user_name || "Academy Student",
-        courseId: String(courseId),
-        courseName: courseData.courseName || courseData.courseTitle || "Unknown Course",
-        teacherId: courseData.teacherId || "",
-        issueDate: admin.firestore.FieldValue.serverTimestamp()
-      });
-
       await batch.commit();
 
       console.log(`✅ Enrollment & Transaction completed for ${userId}`);
@@ -890,6 +884,12 @@ exports.enrollInFreeCourse = onCall(
       const courseData = courseSnap.data();
       const price = Number(courseData.price || 0);
       
+      const maxStudents = Number(courseData.maxStudents || 0);
+      const enrolledCount = Number(courseData.enrolledCount || 0);
+      if (maxStudents > 0 && enrolledCount >= maxStudents) {
+        throw new HttpsError("failed-precondition", "This course is fully booked.");
+      }
+      
       if (price > 0) {
         throw new HttpsError("permission-denied", "Cannot enroll in paid course for free.");
       }
@@ -923,17 +923,6 @@ exports.enrollInFreeCourse = onCall(
         academyProfit: 0,
         storeFee: 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // Generate Certificate Instantly
-      const certRef = admin.firestore().collection("certificates").doc();
-      batch.set(certRef, {
-        studentId: uid,
-        studentName: userData.name || "Academy Student",
-        courseId: String(courseId),
-        courseName: courseData.courseName || courseData.courseTitle || courseData.title || "Untitled Course",
-        teacherId: courseData.teacherId || "",
-        issueDate: admin.firestore.FieldValue.serverTimestamp()
       });
 
       await batch.commit();

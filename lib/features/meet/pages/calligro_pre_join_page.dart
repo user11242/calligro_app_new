@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:calligro_app/core/services/meet_debug_service.dart';
+import 'package:calligro_app/l10n/app_localizations.dart';
 
 class CalligroPreJoinPage extends StatefulWidget {
   final String token;
@@ -27,8 +28,8 @@ class CalligroPreJoinPage extends StatefulWidget {
 }
 
 class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
-  bool _isMicOn = true;
-  bool _isCameraOn = true;
+  bool _isMicOn = false;
+  bool _isCameraOn = false;
   CameraPosition _cameraPosition = CameraPosition.front;
   LocalVideoTrack? _cameraTrack;
   bool _isJoining = false;
@@ -70,6 +71,7 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFF0F1115),
       appBar: AppBar(
@@ -86,18 +88,18 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                "Ready to Join?",
-                style: TextStyle(
+              Text(
+                l10n.readyToJoin,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                "Configure your audio and video before entering.",
-                style: TextStyle(
+              Text(
+                l10n.configureAudioVideo,
+                style: const TextStyle(
                   color: Colors.white54,
                   fontSize: 16,
                 ),
@@ -160,7 +162,7 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                   _buildToggleBtn(
                     icon: _isMicOn ? Icons.mic : Icons.mic_off,
                     isActive: _isMicOn,
-                    label: _isMicOn ? "Mic On" : "Mic Off",
+                    label: _isMicOn ? l10n.micOn : l10n.micOff,
                     onTap: () async {
                       if (!_isMicOn) {
                         final status = await Permission.microphone.request();
@@ -178,7 +180,7 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                   _buildToggleBtn(
                     icon: _isCameraOn ? Icons.videocam : Icons.videocam_off,
                     isActive: _isCameraOn,
-                    label: _isCameraOn ? "Cam On" : "Cam Off",
+                    label: _isCameraOn ? l10n.camOn : l10n.camOff,
                     onTap: () async {
                       if (_isCameraOn) {
                         await _cameraTrack?.stop();
@@ -194,8 +196,6 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                             final track = await LocalVideoTrack.createCameraTrack(
                               CameraCaptureOptions(
                                 cameraPosition: _cameraPosition,
-                                params: VideoParametersPresets.h720_43,
-                                maxFrameRate: 30,
                               ),
                             );
                             setState(() {
@@ -216,7 +216,7 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                     _buildToggleBtn(
                       icon: Icons.flip_camera_ios,
                       isActive: true,
-                      label: "Flip Cam",
+                      label: l10n.flipCam,
                       onTap: () async {
                         setState(() {
                           _cameraPosition = _cameraPosition == CameraPosition.front 
@@ -227,8 +227,6 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                           await _cameraTrack!.restartTrack(
                             CameraCaptureOptions(
                               cameraPosition: _cameraPosition,
-                              params: VideoParametersPresets.h720_43,
-                              maxFrameRate: 30,
                             )
                           );
                         }
@@ -286,9 +284,9 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                     elevation: 5,
                     shadowColor: const Color(0xFFEBB937).withOpacity(0.5),
                   ),
-                  child: const Text(
-                    "Join Classroom",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  child: Text(
+                    l10n.joinClassroom,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

@@ -16,6 +16,8 @@ import { createCheckoutSession } from "@/app/actions/payment";
 import { formatImageUrl } from "@/lib/utils";
 import { getFlagFromPhoneNumber } from "@/lib/countryUtils";
 import { useTranslation } from "@/hooks/useTranslation";
+import { translateText } from "@/lib/translateText";
+import AutoTranslatedText from "@/components/AutoTranslatedText";
 
 // --- ICON REGISTRY MATCHING APP ---
 const ICON_REGISTRY: Record<string, any> = {
@@ -97,8 +99,25 @@ export default function CourseDetailsPage() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [title, setTitle] = useState("Untitled Course");
+  const [desc, setDesc] = useState("No description available.");
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+
+  // Handle Translations explicitly like CourseCard
+  useEffect(() => {
+    if (!course) return;
+    const rawTitle = course.courseName || course.courseTitle || "Untitled Course";
+    const rawDesc = course.courseDescription || course.description || "No description available.";
+    
+    setTitle(rawTitle);
+    setDesc(rawDesc);
+
+    if (locale !== "ar") {
+      if (rawTitle) translateText(rawTitle, locale, "ar").then(setTitle);
+      if (rawDesc) translateText(rawDesc, locale, "ar").then(setDesc);
+    }
+  }, [course, locale]);
 
   useEffect(() => {
     if (!id) return;
@@ -146,13 +165,15 @@ export default function CourseDetailsPage() {
   const formatDate = (ts: any) => {
     if (!ts) return "TBD";
     const date = ts.toDate ? ts.toDate() : new Date(ts);
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const targetLocale = locale === 'ar' ? 'ar-EG' : locale === 'tr' ? 'tr-TR' : 'en-US';
+    return date.toLocaleDateString(targetLocale, { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const formatTime = (ts: any) => {
     if (!ts) return "TBD";
     const date = ts.toDate ? ts.toDate() : new Date(ts);
-    return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+    const targetLocale = locale === 'ar' ? 'ar-EG' : locale === 'tr' ? 'tr-TR' : 'en-US';
+    return date.toLocaleTimeString(targetLocale, { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   const handleBuyNow = async () => {
@@ -270,6 +291,17 @@ export default function CourseDetailsPage() {
   const tools = course.requiredTools || [];
   const avgRating = teacher ? (teacher.totalStars / (teacher.reviewCount || 1)).toFixed(1) : "0.0";
 
+  let isEnded = false;
+  if (course.endDate) {
+    const end = course.endDate.toDate ? course.endDate.toDate() : new Date(course.endDate);
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (today > endDay) {
+      isEnded = true;
+    }
+  }
+
   return (
     <main className="min-h-screen academy-bg pb-40">
       <Navbar />
@@ -312,7 +344,7 @@ export default function CourseDetailsPage() {
                 {/* Course Name - Higher, Smaller, No Italic */}
                 <div className="space-y-6">
                   <h1 className="text-3xl md:text-5xl lg:text-7xl font-black font-outfit text-white uppercase tracking-tighter leading-[0.85] max-w-5xl [text-shadow:0_10px_40px_rgba(0,0,0,0.6)]">
-                    {course.courseName || course.courseTitle || "Untitled Course"}
+                    {title}
                   </h1>
                   <div className="h-1 w-24 bg-primary mx-auto rounded-full shadow-[0_0_20px_#EEE593] opacity-60" />
                 </div>
@@ -412,7 +444,7 @@ export default function CourseDetailsPage() {
           {/* Description */}
           <CollapsibleSection title={t("course.description")} icon={Info} isSmallTitle={true} defaultExpanded={true}>
             <p className="text-lg md:text-xl text-white/50 leading-[1.8] font-medium whitespace-pre-wrap text-start px-2">
-              {course.courseDescription || course.description || "No description available."}
+              {desc}
             </p>
           </CollapsibleSection>
 
@@ -495,7 +527,7 @@ export default function CourseDetailsPage() {
                   <motion.div
                     key={i}
                     whileHover={{ x: 10 }}
-                    className="glass-premium p-8 rounded-[2.5rem] flex items-center gap-8 border border-white/5 hover:border-primary/30 transition-all duration-500 bg-black/20 group/step cursor-default"
+                    className="glass-premium p-8 rounded-[2.5rem] flex items-center gap-8 border border-white/5 hover:border-primary/30 transition-all duration-500 bg-black/20 group/step cursor-default overflow-hidden relative"
                   >
                     <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 group-hover/step:bg-primary group-hover/step:border-primary transition-all duration-500 shrink-0">
                       <span className="text-2xl font-black font-outfit text-white/20 group-hover/step:text-black transition-colors">
@@ -504,14 +536,14 @@ export default function CourseDetailsPage() {
                     </div>
                     <div className="flex-grow">
                       <h4 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
-                        {title}
+                        <AutoTranslatedText text={title} />
                       </h4>
                     </div>
                     <Lock className="w-6 h-6 text-white/10 group-hover:text-primary/40 transition-colors shrink-0" />
                   </motion.div>
                 );
               }) : (
-                <div className="text-center py-24 glass-premium rounded-[3rem] text-white/20 text-xl border-white/5 bg-black/10">
+                <div className="text-center py-24 glass-premium rounded-[3rem] text-white/20 text-xl border-white/5 bg-black/10 overflow-hidden relative">
                   {t("course.curriculum_coming")}
                 </div>
               )}
@@ -528,13 +560,13 @@ export default function CourseDetailsPage() {
                   <motion.div 
                     key={i}
                     whileHover={{ scale: 1.05, y: -5 }}
-                    className="glass-premium px-8 py-6 rounded-[2rem] flex items-center gap-6 border border-white/5 hover:border-primary/40 transition-all duration-500 bg-white/[0.02] shadow-xl"
+                    className="glass-premium px-8 py-6 rounded-[2rem] flex items-center gap-6 border border-white/5 hover:border-primary/40 transition-all duration-500 bg-white/[0.02] shadow-xl overflow-hidden relative"
                   >
                     <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 text-primary group-hover:scale-110 transition-transform">
                       <ToolIcon className="w-6 h-6" />
                     </div>
                     <span className="font-black text-white/90 tracking-tight text-lg">
-                      {tool.name}
+                      <AutoTranslatedText text={tool.name} />
                     </span>
                   </motion.div>
                 );
@@ -558,131 +590,129 @@ export default function CourseDetailsPage() {
             {/* Animated Golden Pulse Background */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-primary/20 rounded-full blur-[120px] pointer-events-none group-hover/pay:bg-primary/30 transition-all duration-1000" />
             
-            <div className="relative z-10 bg-black/40 rounded-[2.8rem] p-8 md:p-10 h-full flex flex-col">
-              <div className="text-center mb-8">
-                <div className="mb-6 inline-flex flex-col items-center">
-                  <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/40 mb-4 group-hover/pay:scale-110 transition-transform shadow-[0_0_30px_rgba(238,229,147,0.2)]">
-                    {isEnrolled ? (
-                      <CheckCircle2 className="w-10 h-10 text-primary drop-shadow-[0_0_15px_rgba(238,229,147,0.8)]" />
-                    ) : (
-                      <Award className="w-10 h-10 text-primary drop-shadow-[0_0_15px_rgba(238,229,147,0.8)]" />
-                    )}
+            <div className="relative z-10 bg-[#0A0A0A]/80 backdrop-blur-xl rounded-[2.8rem] p-8 md:p-10 h-full flex flex-col border border-white/5 shadow-2xl">
+              {isEnrolled ? (
+                <div className="flex flex-col items-center text-center mb-8">
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 mb-4 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-400" />
                   </div>
-                  <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] mb-2 opacity-80">
-                    {isEnrolled ? t("course.current_status") : t("course.tuition_fee")}
-                  </p>
-                  <div className="h-1 w-12 bg-primary rounded-full mx-auto shadow-[0_0_10px_rgba(238,229,147,0.5)]" />
+                  <span className="text-sm font-black text-white/50 tracking-[0.2em] uppercase mb-1">
+                    {t("course.enrolled")}
+                  </span>
+                  <h2 className="text-3xl font-black font-outfit text-primary tracking-tighter uppercase">
+                    {t("course.lifetime_access")}
+                  </h2>
                 </div>
-
-                {isEnrolled ? (
-                  <div className="flex flex-col items-center gap-2 mt-4">
-                    <span className="text-xl font-black text-white/90 tracking-[0.2em] uppercase">{t("course.enrolled")}</span>
-                    <h2 className="text-3xl md:text-4xl font-black font-outfit text-primary tracking-tighter uppercase drop-shadow-[0_5px_15px_rgba(238,229,147,0.3)] mt-2">
-                      {t("course.lifetime_access")}
-                    </h2>
+              ) : (
+                <div className="text-center mb-8">
+                  <div className="mb-6 inline-flex flex-col items-center">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/40 mb-4 shadow-[0_0_30px_rgba(238,229,147,0.2)]">
+                      <Award className="w-10 h-10 text-primary drop-shadow-[0_0_15px_rgba(238,229,147,0.8)]" />
+                    </div>
+                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] mb-2 opacity-80">
+                      {t("course.tuition_fee")}
+                    </p>
+                    <div className="h-1 w-12 bg-primary rounded-full mx-auto shadow-[0_0_10px_rgba(238,229,147,0.5)]" />
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4 mt-2">
+                  <div className="flex flex-col items-center gap-2 mt-2">
                     <div className="flex items-center gap-4">
-                      <span className="text-white/30 text-3xl font-bold line-through tracking-tighter">${Number(course.price).toFixed(0)}</span>
-                      <h2 className="text-7xl md:text-8xl font-black font-outfit text-white tracking-tighter drop-shadow-[0_10px_30_rgba(255,255,255,0.2)]">
+                      <span className="text-white/30 text-2xl font-bold line-through tracking-tighter">${Number(course.price).toFixed(0)}</span>
+                      <h2 className="text-6xl md:text-7xl font-black font-outfit text-white tracking-tighter drop-shadow-[0_10px_30_rgba(255,255,255,0.2)]">
                         ${(Number(course.price) / 2).toFixed(0)}
                       </h2>
                     </div>
                   </div>
-                )}
-              </div>
-
-              {/* Premium Feature List */}
-              <div className="space-y-5 mb-10 relative z-10 py-6 border-y border-white/10">
-                <div className="flex items-center gap-5 group/feature">
-                  <div className="w-10 h-10 rounded-[12px] bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/50 group-hover/feature:bg-primary/20 transition-all duration-300">
-                    <ShieldCheck className="w-5 h-5 text-white/50 group-hover/feature:text-primary transition-colors" />
-                  </div>
-                  <span className="text-white/80 text-sm font-bold tracking-tight group-hover/feature:text-white transition-colors">{t("course.direct_enrollment")}</span>
-                </div>
-                <div className="flex items-center gap-5 group/feature">
-                  <div className="w-10 h-10 rounded-[12px] bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/50 group-hover/feature:bg-primary/20 transition-all duration-300">
-                    <Video className="w-5 h-5 text-white/50 group-hover/feature:text-primary transition-colors" />
-                  </div>
-                  <span className="text-white/80 text-sm font-bold tracking-tight group-hover/feature:text-white transition-colors">
-                    {t("course.meet_feature")}
-                  </span>
-                </div>
-                <div className="flex items-center gap-5 group/feature">
-                  <div className="w-10 h-10 rounded-[12px] bg-white/5 flex items-center justify-center border border-white/10 group-hover/feature:border-primary/50 group-hover/feature:bg-primary/20 transition-all duration-300">
-                    <Award className="w-5 h-5 text-white/50 group-hover/feature:text-primary transition-colors" />
-                  </div>
-                  <span className="text-white/80 text-sm font-bold tracking-tight group-hover/feature:text-white transition-colors">{t("course.certified_instructor")}</span>
-                </div>
-              </div>
-
-              <div className="relative z-10 mt-auto">
-                {isEnrolled ? (
-                  <div className="space-y-5">
-                    <div className="p-8 rounded-[2rem] bg-gradient-to-b from-primary/10 to-transparent border border-primary/20 text-center relative overflow-hidden group/classroom hover:border-primary/40 transition-colors">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(238,229,147,0.15)_0%,transparent_100%)] opacity-0 group-hover/classroom:opacity-100 transition-opacity duration-700" />
-                      
-                      <div className="relative z-10">
-                        <div className="w-16 h-16 bg-black/40 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-5 border border-primary/30 shadow-[0_0_30px_rgba(238,229,147,0.2)]">
-                          <Video className="w-8 h-8 text-primary" />
-                        </div>
-                        <h3 className="text-xl font-black font-outfit text-white mb-3 uppercase tracking-tighter">
-                          {t("course.classroom_access")}
-                        </h3>
-                        <p className="text-xs text-white/60 font-medium leading-relaxed px-2">
-                          {t("course.classroom_desc")}
-                        </p>
-
-                        {(course.calligroMeetLink || course.googleMeetLink) && (
-                          <Link
-                            href={`/courses/${id}/classroom`}
-                            className="btn-gold w-full flex items-center justify-center gap-3 py-4 mt-6 shadow-[0_10px_30px_-10px_rgba(238,229,147,0.5)] text-[15px] group/join"
-                          >
-                            <Video className="w-5 h-5 group-hover/join:scale-110 transition-transform" />
-                            <span className="uppercase tracking-widest font-black">{t("course.join_live")}</span>
-                          </Link>
-                        )}
+                  
+                  {/* Capacity Progress Bar */}
+                  {(course.maxStudents > 0) && (
+                    <div className="mt-8 w-full">
+                      <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider mb-2">
+                        <span className="text-white/40">
+                          {course.enrolledStudents?.length || 0} {t("course.enrolled")}
+                        </span>
+                        <span className="text-primary">
+                          {course.maxStudents} {t("course.max") || "Max"}
+                        </span>
                       </div>
+                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden shadow-inner">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, Math.round(((course.enrolledStudents?.length || 0) / course.maxStudents) * 100))}%` }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                          className="h-full bg-gradient-to-r from-primary/50 to-primary rounded-full"
+                        />
+                      </div>
+                      {((course.maxStudents - (course.enrolledStudents?.length || 0)) <= 4) && (
+                        <p className="text-center text-[10px] text-red-400 font-bold uppercase tracking-widest mt-3 animate-pulse">
+                          {t("course.few_seats_left") || "Only a few seats left!"}
+                        </p>
+                      )}
                     </div>
+                  )}
+                </div>
+              )}
 
-                    {/* Certificate Button */}
-                    <Link
-                      href={`/courses/${id}/certificate`}
-                      className="w-full flex items-center justify-center gap-3 py-4 border-2 border-primary/20 text-primary rounded-[1.5rem] hover:bg-primary/10 hover:border-primary/40 transition-all uppercase tracking-widest font-black text-xs group/cert"
-                    >
-                      <Award className="w-5 h-5 group-hover/cert:rotate-12 transition-transform" />
-                      <span>{t("course.download_certificate")}</span>
-                    </Link>
-
-                    {/* App Links */}
-                    <div className="grid grid-cols-2 gap-3 mt-2">
-                      <Link href="/download" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-black text-[10px] uppercase tracking-[0.1em] hover:bg-white hover:text-black transition-all group/app">
-                        <Apple className="w-4 h-4 fill-current group-hover/app:scale-110 transition-transform" />
-                        App Store
-                      </Link>
-                      <Link href="/download" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-black text-[10px] uppercase tracking-[0.1em] hover:bg-white hover:text-black transition-all group/app">
-                        <Play className="w-4 h-4 fill-current group-hover/app:scale-110 transition-transform" />
-                        Play Store
-                      </Link>
-                    </div>
+              {/* Minimalist Feature List */}
+              <div className="flex flex-col gap-5 mb-8">
+                <div className="flex items-center gap-4 group/feature">
+                  <ShieldCheck className="w-5 h-5 text-white/40 group-hover/feature:text-primary transition-colors" />
+                  <span className="text-white/70 text-sm font-medium tracking-tight group-hover/feature:text-white transition-colors">{t("course.direct_enrollment")}</span>
+                </div>
+                {!isEnded && (
+                  <div className="flex items-center gap-4 group/feature">
+                    <Video className="w-5 h-5 text-white/40 group-hover/feature:text-primary transition-colors" />
+                    <span className="text-white/70 text-sm font-medium tracking-tight group-hover/feature:text-white transition-colors">
+                      {t("course.meet_feature")}
+                    </span>
                   </div>
+                )}
+                <div className="flex items-center gap-4 group/feature">
+                  <Award className="w-5 h-5 text-white/40 group-hover/feature:text-primary transition-colors" />
+                  <span className="text-white/70 text-sm font-medium tracking-tight group-hover/feature:text-white transition-colors">{t("course.certified_instructor")}</span>
+                </div>
+              </div>
+
+              {/* Actions Section */}
+              <div className="mt-auto flex flex-col gap-4">
+                {isEnrolled ? (
+                  <>
+                    {!isEnded && (course.calligroMeetLink || course.googleMeetLink) && (
+                      <Link
+                        href={`/courses/${id}/classroom`}
+                        className="w-full flex items-center justify-center gap-3 py-4 rounded-[1.5rem] bg-white/5 border border-white/10 hover:bg-primary/10 hover:border-primary/30 hover:text-primary text-white transition-all group/join"
+                      >
+                        <Video className="w-5 h-5 group-hover/join:scale-110 transition-transform" />
+                        <span className="uppercase tracking-widest font-black text-sm">{t("course.join_live")}</span>
+                      </Link>
+                    )}
+
+                    {isEnded && (
+                      <Link
+                        href={`/courses/${id}/certificate`}
+                        className="btn-gold w-full flex items-center justify-center gap-3 py-4 text-sm group/cert"
+                      >
+                        <Award className="w-5 h-5 group-hover/cert:rotate-12 transition-transform" />
+                        <span className="uppercase tracking-widest font-black">{t("course.download_certificate")}</span>
+                      </Link>
+                    )}
+                  </>
                 ) : (
                   <button
                     onClick={handleBuyNow}
                     disabled={joining}
-                    className="btn-gold w-full text-xl py-5 rounded-[1.5rem] shadow-[0_20px_50px_-10px_rgba(238,229,147,0.4)] disabled:opacity-50 group/buy flex items-center justify-center"
+                    className="btn-gold w-full text-lg py-4 rounded-[1.5rem] shadow-[0_20px_50px_-10px_rgba(238,229,147,0.4)] disabled:opacity-50 group/buy flex items-center justify-center"
                   >
                     {joining ? (
                       <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                     ) : (
-                      <div className="flex items-center gap-4 group-hover/buy:scale-105 transition-transform">
+                      <div className="flex items-center gap-3 group-hover/buy:scale-105 transition-transform">
                         <span className="font-black uppercase tracking-widest">{t("course.buy_now")}</span>
-                        <Sparkles className="w-6 h-6 animate-pulse" />
+                        <Sparkles className="w-5 h-5 animate-pulse" />
                       </div>
                     )}
                   </button>
                 )}
+
               </div>
 
               {process.env.NODE_ENV === "development" && !isEnrolled && (

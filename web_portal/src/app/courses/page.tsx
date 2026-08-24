@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { db, auth } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -10,15 +11,28 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function CoursesPage() {
+  const searchParams = useSearchParams();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams?.get("q") || "");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const { t } = useTranslation();
 
-  const categories = ["All", "Beginner", "Intermediate", "Advanced"];
+  const categories = ["All", ...(currentUser ? ["MyCourses"] : []), "Beginner", "Intermediate", "Advanced"];
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedCategory]);
+
+  useEffect(() => {
+    const q = searchParams?.get("q");
+    if (q !== null && q !== undefined) {
+      setSearch(q);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -61,10 +75,20 @@ export default function CoursesPage() {
        c.selectedCategory?.toLowerCase().includes(searchTerm) ||
        c.courseDescription?.toLowerCase().includes(searchTerm));
     
-    const matchesCategory = selectedCategory === "All" || c.selectedCategory === selectedCategory;
+    const enrolledStudents = Array.isArray(c.enrolledStudents) ? c.enrolledStudents : [];
+    const isEnrolled = currentUser ? enrolledStudents.includes(currentUser.uid) : false;
+    
+    const matchesCategory = 
+      selectedCategory === "All" || 
+      (selectedCategory === "MyCourses" && isEnrolled) ||
+      (selectedCategory !== "MyCourses" && c.selectedCategory === selectedCategory);
     
     return matchesSearch && matchesCategory;
   });
+
+  const coursesPerPage = 5;
+  const totalPages = Math.ceil(filteredCourses.length / coursesPerPage);
+  const paginatedCourses = filteredCourses.slice((currentPage - 1) * coursesPerPage, currentPage * coursesPerPage);
 
   return (
     <main className="min-h-screen bg-transparent selection:bg-[#E8C468]/30 relative text-[#FDFBF7]">
@@ -90,7 +114,10 @@ export default function CoursesPage() {
               {/* Massive Title Area */}
               <div className="space-y-6">
                 <div className="w-12 h-1 bg-[#E8C468] rounded-full" />
-                <h1 className="text-5xl md:text-6xl lg:text-[70px] font-black font-outfit uppercase tracking-tighter leading-[1] text-white">
+                <h1 
+                  className="text-5xl md:text-6xl lg:text-[70px] font-black font-outfit uppercase tracking-tighter text-white" 
+                  style={{ lineHeight: '1.3' }}
+                >
                   {t("portal.title") || "Courses"}
                 </h1>
                 <p className="text-white/50 text-base leading-relaxed max-w-sm">
@@ -118,8 +145,7 @@ export default function CoursesPage() {
               {/* Enhanced Categories List (Larger, more structured) */}
               <div className="space-y-6 pt-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">Categories</span>
-                  <span className="text-[11px] font-bold text-[#E8C468]">{filteredCourses.length} {t("portal.available") || "Available"}</span>
+                  <span className="text-[11px] text-white/40 font-black uppercase tracking-[0.2em]">{t("categories.title")}</span>
                 </div>
                 
                 <div className="flex flex-row lg:flex-col gap-2 lg:gap-3 overflow-x-auto hide-scrollbar pb-4 lg:pb-0">
@@ -188,7 +214,7 @@ export default function CoursesPage() {
             ) : filteredCourses.length > 0 ? (
               <div className="flex flex-col relative pb-[20vh]">
                 <AnimatePresence>
-                  {filteredCourses.map((course, idx) => {
+                  {paginatedCourses.map((course, idx) => {
                     return (
                       <motion.div
                         key={course.id}
@@ -204,6 +230,29 @@ export default function CoursesPage() {
                     );
                   })}
                 </AnimatePresence>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center space-x-6 rtl:space-x-reverse pt-12 border-t border-white/5 mt-12">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-5 py-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none rounded-xl text-white text-sm font-bold uppercase tracking-widest transition-all border border-white/10"
+                    >
+                      {t("pagination.prev") || "Prev"}
+                    </button>
+                    <span className="text-white/60 text-sm font-bold tracking-widest">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-5 py-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none rounded-xl text-white text-sm font-bold uppercase tracking-widest transition-all border border-white/10"
+                    >
+                      {t("pagination.next") || "Next"}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <motion.div 

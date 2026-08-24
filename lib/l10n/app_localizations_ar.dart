@@ -2327,7 +2327,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bankName => 'اسم البنك';
 
   @override
-  String get iban => 'رقم الآيبان (IBAN)';
+  String get iban => 'رقم الحساب المصرفي الدولي (IBAN)';
 
   @override
   String get payoutsProcessedMonthly =>
@@ -2769,7 +2769,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get myLearning => 'دروسي';
 
   @override
-  String get certificates => 'الشهادات';
+  String get certificates => 'Certificates';
 
   @override
   String get goodMorning => 'صباح الخير';
@@ -3610,4 +3610,110 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get recordingTitle => 'عنوان التسجيل';
+
+  @override
+  String get bankDetailsCaps => 'بيانات الحساب البنكي';
+
+  @override
+  String get billingAddressCaps => 'عنوان إرسال الفواتير';
+
+  @override
+  String get accountHolderFullName => 'الاسم الكامل لصاحب الحساب';
+
+  @override
+  String get swiftBicCode => 'رمز سويفت / BIC';
+
+  @override
+  String get country => 'البلد';
+
+  @override
+  String get city => 'المدينة';
+
+  @override
+  String get streetAddress => 'عنوان الشارع';
+
+  @override
+  String get postalCode => 'الرمز البريدي';
+
+  @override
+  String get leaveClass => 'مغادرة الحصة';
+
+  @override
+  String get leaveClassroomConfirmation =>
+      'هل أنت متأكد أنك تريد مغادرة الفصل؟';
+
+  @override
+  String get leave => 'مغادرة';
+
+  @override
+  String get endMeetingForEveryone => 'إنهاء الاجتماع للجميع';
+
+  @override
+  String get endMeetingConfirmation =>
+      'هل أنت متأكد أنك تريد إنهاء الاجتماع للجميع؟';
+
+  @override
+  String get endForAll => 'إنهاء للجميع';
+
+  @override
+  String get connectingToClassroom => 'جاري الاتصال بالفصل...';
+
+  @override
+  String get connectingDisclaimer =>
+      'يرجى الانتظار بينما نقوم بإنشاء اتصال آمن.';
+
+  @override
+  String get readyToJoin => 'مستعد للانضمام؟';
+
+  @override
+  String get configureAudioVideo => 'قم بإعداد الصوت والفيديو قبل الانضمام.';
+
+  @override
+  String get micOn => 'الميكروفون يعمل';
+
+  @override
+  String get micOff => 'الميكروفون مغلق';
+
+  @override
+  String get camOn => 'الكاميرا تعمل';
+
+  @override
+  String get camOff => 'الكاميرا مغلقة';
+
+  @override
+  String get flipCam => 'قلب الكاميرا';
+
+  @override
+  String get joinClassroom => 'الانضمام للفصل';
+
+  @override
+  String get startingClassroom => 'جاري بدء الحصة...';
+
+  @override
+  String get pleaseWaitConnecting =>
+      'يرجى الانتظار بينما نقوم بالاتصال بالفصل.';
+
+  @override
+  String get viewAndManageStudents => 'عرض وإدارة طلابك المسجلين';
+
+  @override
+  String get bankInfoEnglishDisclaimer =>
+      'يرجى التأكد من إدخال جميع المعلومات البنكية بالأحرف الإنجليزية لتجنب تأخير أو فشل التحويل.';
+
+  @override
+  String get contactInformationCaps => 'معلومات الاتصال';
+
+  @override
+  String get exactNameOnBankAccountHint =>
+      'الاسم بالضبط كما يظهر في حسابك البنكي';
+
+  @override
+  String get swiftCodeHint => 'رمز من 8 أو 11 حرفاً';
+
+  @override
+  String get ibanHint => 'يبدأ برمز البلد، بدون مسافات';
+
+  @override
+  String get recordingExpirationNote =>
+      'ملاحظة: كل تسجيل سيكون متاحاً لمدة أسبوعين من تاريخ نشره.';
 }

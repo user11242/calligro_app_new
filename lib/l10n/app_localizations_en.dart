@@ -3615,4 +3615,110 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recordingTitle => 'Recording Title';
+
+  @override
+  String get bankDetailsCaps => 'BANK ACCOUNT DETAILS';
+
+  @override
+  String get billingAddressCaps => 'BILLING ADDRESS';
+
+  @override
+  String get accountHolderFullName => 'Account Holder Full Name';
+
+  @override
+  String get swiftBicCode => 'SWIFT / BIC Code';
+
+  @override
+  String get country => 'Country';
+
+  @override
+  String get city => 'City';
+
+  @override
+  String get streetAddress => 'Street Address';
+
+  @override
+  String get postalCode => 'Postal Code';
+
+  @override
+  String get leaveClass => 'Leave Class';
+
+  @override
+  String get leaveClassroomConfirmation =>
+      'Are you sure you want to leave the classroom?';
+
+  @override
+  String get leave => 'Leave';
+
+  @override
+  String get endMeetingForEveryone => 'End Meeting for Everyone';
+
+  @override
+  String get endMeetingConfirmation =>
+      'Are you sure you want to end the meeting for everyone?';
+
+  @override
+  String get endForAll => 'End for All';
+
+  @override
+  String get connectingToClassroom => 'Connecting to Classroom...';
+
+  @override
+  String get connectingDisclaimer =>
+      'Please wait while we establish a secure connection.';
+
+  @override
+  String get readyToJoin => 'Ready to join?';
+
+  @override
+  String get configureAudioVideo =>
+      'Configure your audio and video before joining.';
+
+  @override
+  String get micOn => 'Mic On';
+
+  @override
+  String get micOff => 'Mic Off';
+
+  @override
+  String get camOn => 'Camera On';
+
+  @override
+  String get camOff => 'Camera Off';
+
+  @override
+  String get flipCam => 'Flip Camera';
+
+  @override
+  String get joinClassroom => 'Join Classroom';
+
+  @override
+  String get startingClassroom => 'Starting Classroom...';
+
+  @override
+  String get pleaseWaitConnecting =>
+      'Please wait while we connect you to the classroom.';
+
+  @override
+  String get viewAndManageStudents => 'View and manage your enrolled students';
+
+  @override
+  String get bankInfoEnglishDisclaimer =>
+      'Please ensure all bank information is entered in English letters to prevent transfer delays or failures.';
+
+  @override
+  String get contactInformationCaps => 'CONTACT INFORMATION';
+
+  @override
+  String get exactNameOnBankAccountHint => 'Exact name on bank account';
+
+  @override
+  String get swiftCodeHint => '8 or 11 character code';
+
+  @override
+  String get ibanHint => 'Starts with country code, no spaces';
+
+  @override
+  String get recordingExpirationNote =>
+      'Note: Each recording will be available for two weeks from its published date.';
 }

@@ -33,6 +33,10 @@ function getLocalizedText(lang, key, params = {}) {
             new_reply_body: "{userName} replied to your comment.",
             new_teacher_title: "New Teacher Registration 🎓",
             new_teacher_body: "{teacherName} is waiting for approval.",
+            new_announcement_title: "📢 {courseName}",
+            new_announcement_body: "{teacherName}: {message}",
+            session_rescheduled_title: "Session Rescheduled ⏰",
+            session_rescheduled_body: "The session for '{courseName}' has been moved.",
         },
         ar: {
             new_enrollment_title: "طالب جديد مسجل! 🎓",
@@ -57,6 +61,10 @@ function getLocalizedText(lang, key, params = {}) {
             new_reply_body: "رد {userName} على تعليقك.",
             new_teacher_title: "معلم جديد ينتظر 🎓",
             new_teacher_body: "{teacherName} ينتظر الموافقة.",
+            new_announcement_title: "📢 {courseName}",
+            new_announcement_body: "{teacherName}: {message}",
+            session_rescheduled_title: "إعادة جدولة الجلسة ⏰",
+            session_rescheduled_body: "تم تغيير موعد جلسة '{courseName}'.",
         },
         tr: {
             new_enrollment_title: "Yeni Öğrenci Kaydoldu! 🎓",
@@ -81,6 +89,10 @@ function getLocalizedText(lang, key, params = {}) {
             new_reply_body: "{userName} yorumunuza yanıt verdi.",
             new_teacher_title: "Yeni Eğitmen Kaydı 🎓",
             new_teacher_body: "{teacherName} onay bekliyor.",
+            new_announcement_title: "📢 {courseName}",
+            new_announcement_body: "{teacherName}: {message}",
+            session_rescheduled_title: "Oturum Yeniden Planlandı ⏰",
+            session_rescheduled_body: "'{courseName}' kursunun oturum saati değiştirildi.",
         },
     };
 
@@ -292,6 +304,85 @@ exports.notifyTeacherOnEnrollment = onDocumentUpdated("courses/{courseId}", asyn
         bodyKey: "new_enrollment_body",
         params: { studentName, courseName: afterData.courseName || afterData.courseTitle || "your course" }
     });
+});
+
+// ------------------------------------------------------------------------
+// Trigger 1.5: New Announcement (Notifies Enrolled Students)
+// ------------------------------------------------------------------------
+exports.notifyStudentsOnAnnouncement = onDocumentCreated("courses/{courseId}/announcements/{announcementId}", async (event) => {
+    const announcementData = event.data.data();
+    if (!announcementData) return null;
+
+    // Get course to find enrolled students and teacher info
+    const courseDoc = await admin.firestore().collection("courses").doc(event.params.courseId).get();
+    if (!courseDoc.exists) return null;
+    
+    const courseData = courseDoc.data();
+    const enrolledStudents = courseData.enrolledStudents || [];
+    if (enrolledStudents.length === 0) return null;
+
+    const courseName = courseData.courseName || courseData.courseTitle || "Course";
+    const teacherName = announcementData.senderName || "Instructor";
+
+    // Send push to all enrolled students
+    const promises = enrolledStudents.map(studentId => 
+        sendNotification({
+            receiverId: studentId,
+            type: "announcement",
+            titleKey: "new_announcement_title",
+            bodyKey: "new_announcement_body",
+            params: { teacherName, courseName, message: announcementData.message || "" },
+            payload: {
+                route: '/courseDetails',
+                courseId: event.params.courseId
+            }
+        })
+    );
+
+    await Promise.all(promises);
+    return null;
+});
+
+// ------------------------------------------------------------------------
+// Trigger 1.6: Session Reschedule (Notifies Enrolled Students)
+// ------------------------------------------------------------------------
+exports.notifyStudentsOnReschedule = onDocumentUpdated("courses/{courseId}", async (event) => {
+    const beforeData = event.data.before.data();
+    const afterData = event.data.after.data();
+
+    // Check if rescheduledSession was added or updated
+    const beforeReschedule = beforeData.rescheduledSession || null;
+    const afterReschedule = afterData.rescheduledSession || null;
+
+    // If there's no reschedule now, or it didn't change, ignore
+    if (!afterReschedule) return null;
+    if (beforeReschedule && beforeReschedule.newStartTime && afterReschedule.newStartTime && 
+        beforeReschedule.newStartTime.isEqual(afterReschedule.newStartTime)) {
+        return null;
+    }
+
+    const enrolledStudents = afterData.enrolledStudents || [];
+    if (enrolledStudents.length === 0) return null;
+
+    const courseName = afterData.courseName || afterData.courseTitle || "Course";
+
+    // Send push to all enrolled students
+    const promises = enrolledStudents.map(studentId => 
+        sendNotification({
+            receiverId: studentId,
+            type: "reschedule",
+            titleKey: "session_rescheduled_title",
+            bodyKey: "session_rescheduled_body",
+            params: { courseName },
+            payload: {
+                route: '/courseDetails',
+                courseId: event.params.courseId
+            }
+        })
+    );
+
+    await Promise.all(promises);
+    return null;
 });
 
 // ------------------------------------------------------------------------

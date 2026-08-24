@@ -1,0 +1,32 @@
+port: 7880
+bind_addresses:
+  - "0.0.0.0"
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true
+
+redis:
+  address: "127.0.0.1:6379"
+
+keys:
+  APICFTjxXVwXvnq: K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA
+
+# ── Built-in TURN Server ──────────────────────────────────────
+# Enables relay for students behind strict firewalls (universities,
+# corporate networks) that block direct UDP connections.
+turn:
+  enabled: true
+  domain: 96.30.198.187.nip.io
+  # We use 5349 (standard TURN-TLS port) because Caddy is already using 443
+  tls_port: 5349
+  # UDP TURN (faster relay when UDP is allowed but direct connection fails)
+  udp_port: 3478
+  external_tls: true
+
+webhook:
+  api_key: APICFTjxXVwXvnq
+  urls:
+    - https://livekit-livekitwebhook-yc7sgeqhya-uc.a.run.app
+

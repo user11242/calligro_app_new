@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useLocale } from "@/context/LocaleContext";
-import { translateText } from "@/lib/actions/translator";
+import { translateText } from "@/lib/translateText";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface AutoTranslatedTextProps {
@@ -30,7 +30,7 @@ export default function AutoTranslatedText({ text, className }: AutoTranslatedTe
       setLastProcessed({ text, locale });
       
       try {
-        const translated = await translateText(text, locale);
+        const translated = await translateText(text, locale, "ar");
         setDisplayText(translated);
       } catch (error) {
         console.error("Translation error component:", error);

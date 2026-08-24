@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { auth, db } from "@/lib/firebase";
@@ -19,6 +20,8 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -52,6 +55,13 @@ export default function Navbar() {
   const handleLogout = async () => {
     await signOut(auth);
     window.location.href = "/";
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/courses?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
   };
 
   return (
@@ -103,21 +113,23 @@ export default function Navbar() {
             </div>
 
             {/* Premium Full-Size Search Bar */}
-            <div className="relative w-full max-w-md group" dir={isRTL ? "rtl" : "ltr"}>
+            <form onSubmit={handleSearch} className="relative w-full max-w-md group" dir={isRTL ? "rtl" : "ltr"}>
               <div className={`absolute inset-y-0 ${isRTL ? 'right-4' : 'left-4'} flex items-center pointer-events-none transition-colors group-focus-within:text-primary text-white/40`}>
                 <Search className="w-4 h-4" />
               </div>
               <input 
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("nav.search") || "What do you want to learn today?"}
                 className={`w-full bg-black/20 border border-white/10 rounded-full py-2.5 ${isRTL ? 'pr-12 pl-6' : 'pl-12 pr-6'} text-white placeholder:text-white/40 focus:outline-none focus:border-primary/50 focus:bg-black/60 focus:ring-[3px] focus:ring-primary/10 transition-all duration-300 font-medium text-sm shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)] hover:bg-white/5 hover:border-white/20`}
               />
               <div className={`absolute inset-y-0 ${isRTL ? 'left-1.5' : 'right-1.5'} flex items-center`}>
-                <button className="bg-primary/90 hover:bg-primary text-black text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full transition-all opacity-0 group-focus-within:opacity-100 scale-90 group-focus-within:scale-100 shadow-[0_0_15px_rgba(235,185,55,0.4)]">
-                  {t("nav.search") || "Search"}
+                <button type="submit" className="bg-primary/90 hover:bg-primary text-black text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full transition-all opacity-0 group-focus-within:opacity-100 scale-90 group-focus-within:scale-100 shadow-[0_0_15px_rgba(235,185,55,0.4)] whitespace-nowrap overflow-hidden">
+                  {locale === 'ar' ? "بحث" : locale === 'tr' ? "Ara" : "Search"}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
 
           {/* Desktop Actions */}

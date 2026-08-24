@@ -155,8 +155,8 @@ export default function LoginPage() {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-white/5"></div>
               </div>
-              <div className="relative flex justify-center text-[10px] uppercase tracking-[0.3em] font-black text-white/20">
-                <span className="bg-[#0A0A0C] px-4">{t("login.secure_gateway")}</span>
+              <div className="relative flex justify-center text-[10px] uppercase tracking-[0.3em] font-black text-white">
+                <span className="bg-[#1A1A1A] px-4">{t("login.secure_gateway")}</span>
               </div>
             </div>
 

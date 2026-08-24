@@ -31,14 +31,16 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
     setState(() => _isPosting = true);
 
     try {
+      final message = _messageController.text.trim();
+      
       await FirebaseFirestore.instance
           .collection('courses')
           .doc(widget.courseId)
           .collection('announcements')
           .add({
-            'message': _messageController.text.trim(),
+            'message': message,
             'timestamp': FieldValue.serverTimestamp(),
-            'senderName': 'Instructor', // You can fetch the real user name here
+            'senderName': 'Instructor',
             'type': 'teacher_post',
           });
 

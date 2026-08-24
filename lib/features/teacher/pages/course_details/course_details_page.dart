@@ -410,10 +410,11 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       }
 
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         AppMessenger.showSnackBar(
           context,
-          title: "Starting Classroom",
-          message: "Please wait while we connect to Calligro Classroom...",
+          title: l10n.startingClassroom,
+          message: l10n.pleaseWaitConnecting,
           type: MessengerType.info,
         );
       }
@@ -1758,7 +1759,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
             const SizedBox(height: 40),
             const SizedBox(height: 8),
             Text(
-              "View and manage your enrolled students.",
+              AppLocalizations.of(context)!.viewAndManageStudents,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.5),
                 fontSize: 12,

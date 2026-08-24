@@ -22,8 +22,8 @@ class _AdminHomeTabState extends State<AdminHomeTab> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     
-    return StreamBuilder<Map<String, dynamic>>(
-      stream: _adminService.getGlobalStats(),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _adminService.getGlobalStats(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text("${l10n.error}: ${snapshot.error}", style: const TextStyle(color: Colors.redAccent)));

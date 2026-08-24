@@ -25,11 +25,19 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
   // --- CONTROLLERS ---
   final TextEditingController _cliqAliasController = TextEditingController();
   final TextEditingController _cliqNameController = TextEditingController();
-  final TextEditingController _wuNameController = TextEditingController();
-  final TextEditingController _wuCityController = TextEditingController();
-  final TextEditingController _wuPhoneController = TextEditingController();
-  final TextEditingController _wuPurposeController = TextEditingController();
-  final TextEditingController _paypalEmailController = TextEditingController();
+  // Bank Transfer Controllers
+  final TextEditingController _bankNameController = TextEditingController();
+  final TextEditingController _bankAccountNameController = TextEditingController();
+  final TextEditingController _swiftController = TextEditingController();
+  final TextEditingController _ibanController = TextEditingController();
+  final TextEditingController _countryController = TextEditingController();
+  final TextEditingController _cityController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _postalCodeController = TextEditingController();
+
+  // User Contact Info
+  String _userEmail = '';
+  String _userPhone = '';
 
   @override
   void initState() {
@@ -41,11 +49,14 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
   void dispose() {
     _cliqAliasController.dispose();
     _cliqNameController.dispose();
-    _wuNameController.dispose();
-    _wuCityController.dispose();
-    _wuPhoneController.dispose();
-    _wuPurposeController.dispose();
-    _paypalEmailController.dispose();
+    _bankNameController.dispose();
+    _bankAccountNameController.dispose();
+    _swiftController.dispose();
+    _ibanController.dispose();
+    _countryController.dispose();
+    _cityController.dispose();
+    _streetController.dispose();
+    _postalCodeController.dispose();
     super.dispose();
   }
 
@@ -60,8 +71,15 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
           .doc(currentUser!.uid)
           .get();
 
-      if (doc.exists && doc.data()!.containsKey('payoutSettings')) {
-        final data = doc.data()!['payoutSettings'] as Map<String, dynamic>;
+      if (doc.exists) {
+        final docData = doc.data()!;
+        setState(() {
+          _userEmail = docData['email'] ?? currentUser?.email ?? '';
+          _userPhone = docData['phone'] ?? '';
+        });
+
+        if (docData.containsKey('payoutSettings')) {
+          final data = docData['payoutSettings'] as Map<String, dynamic>;
 
         setState(() {
           // Set both the UI selection and the "Saved" tracker
@@ -73,17 +91,18 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
           _cliqAliasController.text = cliq['alias'] ?? '';
           _cliqNameController.text = cliq['holderName'] ?? '';
 
-          // Load WU
-          final wu = data['western'] ?? {};
-          _wuNameController.text = wu['fullName'] ?? '';
-          _wuCityController.text = wu['city'] ?? '';
-          _wuPhoneController.text = wu['phone'] ?? '';
-          _wuPurposeController.text = wu['purpose'] ?? '';
-
-          // Load PayPal
-          final paypal = data['paypal'] ?? {};
-          _paypalEmailController.text = paypal['email'] ?? '';
+          // Load Bank Transfer
+          final bank = data['bankTransfer'] ?? {};
+          _bankNameController.text = bank['bankName'] ?? '';
+          _bankAccountNameController.text = bank['accountName'] ?? '';
+          _swiftController.text = bank['swift'] ?? '';
+          _ibanController.text = bank['iban'] ?? '';
+          _countryController.text = bank['country'] ?? '';
+          _cityController.text = bank['city'] ?? '';
+          _streetController.text = bank['street'] ?? '';
+          _postalCodeController.text = bank['postalCode'] ?? '';
         });
+        }
       }
     } catch (e) {
       debugPrint("Error loading payout settings: $e");
@@ -153,10 +172,8 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
     switch (key) {
       case 'cliq':
         return 'CliQ';
-      case 'western':
-        return AppLocalizations.of(context)!.westernUnion;
-      case 'paypal':
-        return AppLocalizations.of(context)!.paypal;
+      case 'bankTransfer':
+        return AppLocalizations.of(context)!.bankTransfer;
       default:
         return key;
     }
@@ -178,17 +195,16 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
                 'holderName': _cliqNameController.text.trim(),
               }
             : null,
-        'western': _selectedMethod == 'western'
+        'bankTransfer': _selectedMethod == 'bankTransfer'
             ? {
-                'fullName': _wuNameController.text.trim(),
-                'city': _wuCityController.text.trim(),
-                'phone': _wuPhoneController.text.trim(),
-                'purpose': _wuPurposeController.text.trim(),
-              }
-            : null,
-        'paypal': _selectedMethod == 'paypal'
-            ? {
-                'email': _paypalEmailController.text.trim(),
+                'bankName': _bankNameController.text.trim(),
+                'accountName': _bankAccountNameController.text.trim(),
+                'swift': _swiftController.text.trim(),
+                'iban': _ibanController.text.trim(),
+                'country': _countryController.text.trim(),
+                'city': _cityController.text.trim(),
+                'street': _streetController.text.trim(),
+                'postalCode': _postalCodeController.text.trim(),
               }
             : null,
       };
@@ -298,15 +314,9 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildMethodCard(
-                              value: "western",
-                              assetPath: "assets/backgrounds/union.png",
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildMethodCard(
-                              value: "paypal",
-                              assetPath: "assets/backgrounds/paypal.png",
+                              value: "bankTransfer",
+                              title: AppLocalizations.of(context)!.bankTransfer,
+                              iconData: Icons.account_balance,
                             ),
                           ),
                         ],
@@ -427,67 +437,160 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
           ],
         );
 
-      case 'western':
+      case 'bankTransfer':
         return Column(
-          key: const ValueKey('western'),
+          key: const ValueKey('bankTransfer'),
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // User Contact Info (Read Only)
             _buildSectionHeader(
-              AppLocalizations.of(context)!.wuMoneyTransferCaps,
+              AppLocalizations.of(context)!.contactInformationCaps,
+            ),
+            const SizedBox(height: 15),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: AppColors.cardBackground.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.email, color: Colors.grey, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _userEmail.isNotEmpty ? _userEmail : 'N/A',
+                      style: const TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: AppColors.cardBackground.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.phone, color: Colors.grey, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: Text(
+                        _userPhone.isNotEmpty ? _userPhone : 'N/A',
+                        style: const TextStyle(color: Colors.grey, fontSize: 16),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      AppLocalizations.of(context)!.bankInfoEnglishDisclaimer,
+                      style: TextStyle(
+                        color: Colors.blue[100],
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _buildSectionHeader(
+              AppLocalizations.of(context)!.bankDetailsCaps,
             ),
             const SizedBox(height: 15),
             _buildTextField(
-              label: AppLocalizations.of(context)!.receiverFullName,
-              controller: _wuNameController,
-              icon: Icons.person_pin_outlined,
+              label: AppLocalizations.of(context)!.bankName,
+              controller: _bankNameController,
+              icon: Icons.account_balance,
               isRequired: true,
               textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 15),
             _buildTextField(
-              label: AppLocalizations.of(context)!.cityCountry,
-              controller: _wuCityController,
+              label: AppLocalizations.of(context)!.accountHolderFullName,
+              hint: AppLocalizations.of(context)!.exactNameOnBankAccountHint,
+              controller: _bankAccountNameController,
+              icon: Icons.person,
+              isRequired: true,
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              label: AppLocalizations.of(context)!.swiftBicCode,
+              controller: _swiftController,
+              icon: Icons.code,
+              isRequired: true,
+              textCapitalization: TextCapitalization.characters,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              label: AppLocalizations.of(context)!.iban,
+              hint: AppLocalizations.of(context)!.ibanHint,
+              controller: _ibanController,
+              icon: Icons.numbers,
+              isRequired: true,
+              textCapitalization: TextCapitalization.characters,
+            ),
+            const SizedBox(height: 30),
+            _buildSectionHeader(
+              AppLocalizations.of(context)!.billingAddressCaps,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              label: AppLocalizations.of(context)!.country,
+              controller: _countryController,
+              icon: Icons.public,
+              isRequired: true,
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              label: AppLocalizations.of(context)!.city,
+              controller: _cityController,
               icon: Icons.location_city,
-              hint: "e.g. Amman, Jordan",
               isRequired: true,
               textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 15),
             _buildTextField(
-              label: AppLocalizations.of(context)!.phoneNumber,
-              controller: _wuPhoneController,
-              icon: Icons.phone_iphone,
+              label: AppLocalizations.of(context)!.streetAddress,
+              controller: _streetController,
+              icon: Icons.map,
               isRequired: true,
-              keyboardType: TextInputType.phone,
+              textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 15),
             _buildTextField(
-              label: AppLocalizations.of(context)!.purposeOfTransferOptional,
-              controller: _wuPurposeController,
-              icon: Icons.info_outline,
-              hint: AppLocalizations.of(context)!.optional,
-              isRequired: false,
-              textCapitalization: TextCapitalization.sentences,
-            ),
-          ],
-        );
-
-      case 'paypal':
-        return Column(
-          key: const ValueKey('paypal'),
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader(
-              AppLocalizations.of(context)!.paypal,
-            ),
-            const SizedBox(height: 15),
-            _buildTextField(
-              label: AppLocalizations.of(context)!.paypalEmail,
-              controller: _paypalEmailController,
-              icon: Icons.email_outlined,
-              hint: "e.g. yourname@paypal.com",
+              label: AppLocalizations.of(context)!.postalCode,
+              controller: _postalCodeController,
+              icon: Icons.markunread_mailbox,
               isRequired: true,
-              keyboardType: TextInputType.emailAddress,
+              keyboardType: TextInputType.number,
             ),
           ],
         );
@@ -677,9 +780,25 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
         },
         decoration: InputDecoration(
           labelText: label,
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
           labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+          suffixIcon: hint != null
+              ? Tooltip(
+                  message: hint,
+                  triggerMode: TooltipTriggerMode.tap,
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[850],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  textStyle: const TextStyle(color: Colors.white, fontSize: 13),
+                  child: Icon(
+                    Icons.info_outline,
+                    color: Colors.white.withOpacity(0.4),
+                    size: 20,
+                  ),
+                )
+              : null,
           prefixIcon: icon != null
               ? Icon(icon, color: AppColors.accentGold, size: 22)
               : null,

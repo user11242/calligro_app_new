@@ -10,6 +10,7 @@ import Image from "next/image";
 import { Star, ArrowRight, Play, Layout, Users, Sparkles, Search, BookOpen, Clock, ChevronRight, ChevronLeft, CheckCircle, TrendingUp, Quote, Trophy, Medal, Map, Award } from "lucide-react";
 import { formatImageUrl } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
+import AutoTranslatedText from "@/components/AutoTranslatedText";
 
 // Safe date formatter for Firebase Timestamps or strings
 const formatCourseDate = (dateVal: any, locale: string) => {
@@ -736,7 +737,7 @@ export default function Home() {
                   {/* Default State (Collapsed) */}
                   <div className="absolute inset-0 z-20 flex flex-col justify-end p-4 md:p-6 opacity-100 group-hover:opacity-0 transition-opacity duration-300 bg-gradient-to-t from-black/90 via-black/40 to-transparent">
                     <h3 className="text-white font-bold font-outfit text-xl line-clamp-3 leading-snug text-center md:text-right">
-                      {course.courseName || course.title || t("home.courses.title")}
+                      <AutoTranslatedText text={course.courseName || course.title || t("home.courses.title")} />
                     </h3>
                   </div>
 
@@ -749,7 +750,7 @@ export default function Home() {
                         </span>
                       )}
                       <h3 className="text-2xl md:text-3xl font-black font-outfit text-white mb-4 leading-tight line-clamp-3">
-                        {course.courseName || course.title}
+                        <AutoTranslatedText text={course.courseName || course.title} />
                       </h3>
                       <div className="flex flex-wrap items-center gap-4 text-white/80 font-medium text-sm md:text-base">
                         {course.teacherName && (

@@ -1651,7 +1651,7 @@ PODS:
     - Flutter
     - PhoneNumberKit/PhoneNumberKitCore (= 3.6.6)
   - PhoneNumberKit/PhoneNumberKitCore (3.6.6)
-  - photo_manager (3.8.3):
+  - photo_manager (3.12.0):
     - Flutter
     - FlutterMacOS
   - PromisesObjC (2.4.1)
@@ -1940,7 +1940,7 @@ SPEC CHECKSUMS:
   permission_handler_apple: 92d754bbaa7361d436db2d6c3c1c2a0fdcec462e
   phone_number: 3768a56d2f5ae18d44abddfd0c82e0e56e6d74e7
   PhoneNumberKit: 224cf8f99f903a6488ce8a30e05a8216021d80a4
-  photo_manager: fe4cbb0808b96f8be4af7ce6ae18dcd9c9b983c6
+  photo_manager: c303e4476f6c220274119f0212a7753e45edd4a2
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
@@ -1958,6 +1958,6 @@ SPEC CHECKSUMS:
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
   WebRTC-SDK: 40d4f5ba05cadff14e4db5614aec402a633f007e
 
-PODFILE CHECKSUM: ca8430fa7ddadc8f5078eb1271cfb7d6b465f65e
+PODFILE CHECKSUM: 8ba15d60b17fa5a95785e72a2c0f076e3291eaf6
 
 COCOAPODS: 1.16.2

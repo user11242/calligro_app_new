@@ -576,6 +576,7 @@
   "preview": "Ön İzleme",
   "viewDetails": "Detayları Gör",
   "enrollNow": "Şimdi Kaydol",
+  "fullyBooked": "Tamamen Dolu",
   "goToCourse": "Kursa Git",
   "overview": "Genel Bakış",
   "classroom": "Sınıf",
@@ -799,7 +800,7 @@
   "courseNameTemplate": "{subject} {level} Seviyesi Kursu",
   "exploreCourses": "Kursları Keşfet",
   "myLearning": "Derslerim",
-  "certificates": "Sertifikalar",
+
   "goodMorning": "Günaydın",
   "goodAfternoon": "Tünaydın",
   "goodEvening": "İyi Akşamlar",

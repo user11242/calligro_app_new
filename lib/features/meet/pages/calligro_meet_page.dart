@@ -12,6 +12,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'dart:async';
 
 // Top-level callback for foreground service (required by package but we just need the service alive)
 @pragma('vm:entry-point')
@@ -76,6 +77,32 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   late final ConnectionResilienceController _resilienceController;
   
   bool _isAudioOnlyMode = false;
+
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  Future<void> _playJoinSound() async {
+    try {
+      await _audioPlayer.play(AssetSource('sounds/join.wav'));
+    } catch (e) {
+      _log('🔇 Failed to play join sound: $e');
+    }
+  }
+
+  Future<void> _playLeaveSound() async {
+    try {
+      await _audioPlayer.play(AssetSource('sounds/leave.wav'));
+    } catch (e) {
+      _log('🔇 Failed to play leave sound: $e');
+    }
+  }
+
+  // ── Meeting Duration Timer ──────────────────────────────
+  DateTime? _meetingStartTime;
+  Timer? _durationTimer;
+  Duration _meetingDuration = Duration.zero;
+
+  // ── Active Speakers ────────────────────────────────────
+  Set<String> _activeSpeakerIdentities = {};
   bool _wasCameraEnabledBeforeBackground = false;
 
   @override
@@ -180,10 +207,12 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       })
       ..on<ParticipantConnectedEvent>((e) {
         _log('👤 Participant joined: ${e.participant.identity}');
+        _playJoinSound();
         _sortParticipants();
       })
       ..on<ParticipantDisconnectedEvent>((e) {
         _log('👤 Participant left: ${e.participant.identity}');
+        _playLeaveSound();
         _sortParticipants();
       })
       ..on<TrackSubscribedEvent>((e) {
@@ -213,6 +242,34 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
           e.connectionQuality, 
           () => _showAudioOnlyPrompt(),
         );
+      })
+      ..on<ActiveSpeakersChangedEvent>((e) {
+        if (mounted) {
+          setState(() {
+            _activeSpeakerIdentities = e.speakers.map((s) => s.identity).toSet();
+          });
+        }
+      })
+      ..on<TrackMutedEvent>((e) {
+        _log('🔇 Track muted: ${e.publication.kind} from ${e.participant.identity}');
+        _sortParticipants();
+      })
+      ..on<TrackUnmutedEvent>((e) {
+        _log('🔊 Track unmuted: ${e.publication.kind} from ${e.participant.identity}');
+        _sortParticipants();
+      })
+      ..on<DataReceivedEvent>((e) {
+        // Listen for "end meeting" command from the teacher
+        try {
+          final decoded = utf8.decode(e.data);
+          final msg = jsonDecode(decoded);
+          if (msg['type'] == 'end_meeting_for_all') {
+            _log('🛑 Teacher ended the meeting for everyone');
+            if (mounted) {
+              Navigator.pop(context);
+            }
+          }
+        } catch (_) {}
       });
 
     try {
@@ -245,8 +302,6 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
         await room.localParticipant?.setCameraEnabled(true,
             cameraCaptureOptions: CameraCaptureOptions(
               cameraPosition: _cameraPosition,
-              params: VideoParametersPresets.h1080_43,
-              maxFrameRate: 30,
             ));
         _log('Camera enabled');
       }
@@ -261,6 +316,17 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       
       final joinTime = DateTime.now().millisecondsSinceEpoch - startTime;
       _log('[TELEMETRY] ConnectSuccess | OS: ${Theme.of(context).platform.name} | Region/Course: ${widget.courseId} | JoinTime: ${joinTime}ms');
+      
+      // Start meeting duration timer
+      _meetingStartTime = DateTime.now();
+      _durationTimer?.cancel();
+      _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) {
+          setState(() {
+            _meetingDuration = DateTime.now().difference(_meetingStartTime!);
+          });
+        }
+      });
       
       if (mounted) setState(() { _isConnected = true; });
 
@@ -477,18 +543,34 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     List<ParticipantTrack> tracks = [];
     if (room.localParticipant != null) {
       final lp = room.localParticipant!;
-      if (lp.videoTrackPublications.isNotEmpty) {
-        tracks.add(ParticipantTrack(participant: lp, videoTrack: lp.videoTrackPublications.first.track));
-      } else {
-        tracks.add(ParticipantTrack(participant: lp, videoTrack: null));
-      }
+      // Find the camera track specifically (not screen share)
+      final cameraPub = lp.videoTrackPublications
+          .where((pub) => pub.source == TrackSource.camera)
+          .firstOrNull;
+      tracks.add(ParticipantTrack(
+        participant: lp,
+        videoTrack: cameraPub?.track,
+      ));
     }
 
     for (var p in room.remoteParticipants.values) {
-      if (p.videoTrackPublications.isNotEmpty) {
-        tracks.add(ParticipantTrack(participant: p, videoTrack: p.videoTrackPublications.first.track));
-      } else {
-        tracks.add(ParticipantTrack(participant: p, videoTrack: null));
+      // Find the camera track specifically (not screen share)
+      final cameraPub = p.videoTrackPublications
+          .where((pub) => pub.source == TrackSource.camera)
+          .firstOrNull;
+      tracks.add(ParticipantTrack(
+        participant: p,
+        videoTrack: cameraPub?.track,
+      ));
+      // Also add screen share as a separate track if present
+      final screenPub = p.videoTrackPublications
+          .where((pub) => pub.source == TrackSource.screenShareVideo)
+          .firstOrNull;
+      if (screenPub?.track != null) {
+        tracks.add(ParticipantTrack(
+          participant: p,
+          videoTrack: screenPub!.track,
+        ));
       }
     }
 
@@ -497,6 +579,8 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
 
   @override
   void dispose() {
+    _audioPlayer.dispose();
+    _durationTimer?.cancel();
     WakelockPlus.disable();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     WidgetsBinding.instance.removeObserver(this);
@@ -516,6 +600,10 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   Future<void> _startRecording() async {
     if (_isRecording || !mounted) return;
     setState(() => _isRecording = true);
+    
+    // Capture orientation synchronously before async gap
+    final currentOrientation = MediaQuery.of(context).orientation == Orientation.landscape ? 'landscape' : 'portrait';
+    
     try {
       _log("🔴 Waiting for camera/mic tracks to publish...");
       
@@ -544,13 +632,14 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       
       if (!mounted) return;
 
-      _log("🔴 Starting automated R2 recording with tracks: Video=$videoTrackId, Audio=$audioTrackId");
-      await FirebaseFunctions.instance
+      _log("🔴 Starting automated R2 recording with tracks: Video=$videoTrackId, Audio=$audioTrackId, Orientation=$currentOrientation");
+      await FirebaseFunctions.instanceFor(region: 'us-east1')
           .httpsCallable('livekit-startAutomatedRecording')
           .call({
             'courseId': widget.courseId,
             'audioTrackId': audioTrackId,
             'videoTrackId': videoTrackId,
+            'orientation': currentOrientation,
           });
       _log("✅ Recording started successfully");
       if (mounted) {
@@ -563,6 +652,105 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
         AppMessenger.showSnackBar(context, title: AppLocalizations.of(context)!.recordingError, message: e.toString(), type: MessengerType.error);
       }
     }
+  }
+
+  // ── Leave Confirmation Dialog ────────────────────────────────────────
+  Future<void> _showLeaveConfirmation() async {
+    final l10n = AppLocalizations.of(context)!;
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF13151A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l10n.leaveClass,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          l10n.leaveClassroomConfirmation,
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(l10n.leave, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (result == true && mounted) {
+      _log('☎️ User confirmed leave via dialog');
+      Navigator.pop(context);
+    }
+  }
+
+  // ── End Meeting for All (Teacher only) ────────────────────────────────
+  Future<void> _endMeetingForAll() async {
+    final l10n = AppLocalizations.of(context)!;
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF13151A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          l10n.endMeetingForEveryone,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          l10n.endMeetingConfirmation,
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(l10n.endForAll, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (result == true && mounted) {
+      _log('🛑 Teacher ending meeting for all participants');
+      try {
+        // Send "end meeting" signal via LiveKit data channel to all participants
+        final message = jsonEncode({'type': 'end_meeting_for_all'});
+        await _room?.localParticipant?.publishData(
+          utf8.encode(message),
+          reliable: true,
+        );
+        // Small delay to let the message propagate before we disconnect
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        _log('⚠️ Failed to send end-meeting signal: $e');
+      }
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  // ── Format duration as MM:SS ──────────────────────────────────────────
+  String _formatDuration(Duration d) {
+    final hours = d.inHours;
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    if (hours > 0) return '$hours:$minutes:$seconds';
+    return '$minutes:$seconds';
   }
 
   @override
@@ -584,46 +772,79 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   }
 
   Widget _buildConnectingBody(BuildContext context) {
-    return Stack(
-      children: [
-        Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: Color(0xFFEBB937)),
-              const SizedBox(height: 24),
-              const Text(
-                "CONNECTING TO SECURE CLASSROOM...",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      color: const Color(0xFF0F1115),
+      child: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1C23),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEBB937).withOpacity(0.15),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: const CircularProgressIndicator(
+                    color: Color(0xFFEBB937),
+                    strokeWidth: 3,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                "This may take up to 15 seconds on 4G/Cellular networks.\nPlease do not close the app.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11,
+                const SizedBox(height: 40),
+                Text(
+                  l10n.connectingToClassroom,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-              TextButton.icon(
-                onPressed: () {
-                  _log("⚠️ User explicitly pressed 'Cancel Connection' button!");
-                  Navigator.pop(context);
-                },
-                icon: const Icon(Icons.close, color: Colors.redAccent, size: 18),
-                label: Text(AppLocalizations.of(context)!.cancelConnection, style: const TextStyle(color: Colors.redAccent)),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    l10n.connectingDisclaimer,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 48),
+                TextButton.icon(
+                  onPressed: () {
+                    _log("⚠️ User explicitly pressed 'Cancel Connection' button!");
+                    Navigator.pop(context);
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.redAccent.withOpacity(0.1),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  icon: const Icon(Icons.close, color: Colors.redAccent, size: 20),
+                  label: Text(
+                    l10n.cancelConnection,
+                    style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        _buildDebugConsole(),
-      ],
+          _buildDebugConsole(),
+        ],
+      ),
     );
   }
 
@@ -647,35 +868,27 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                         children: [
                           const Icon(Icons.security, color: Colors.green, size: 16),
                           const SizedBox(width: 8),
-                          Text(
-                            widget.roomName.length > 15 ? widget.roomName.substring(0, 15) + "..." : widget.roomName,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          // Meeting Duration Timer
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              _formatDuration(_meetingDuration),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
                           ),
                         ],
                       ),
                       Row(
                         children: [
-                          // Debug toggle button
-                          GestureDetector(
-                            onTap: () => setState(() => _showDebug = !_showDebug),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: _showDebug ? Colors.orange.withValues(alpha: 0.3) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: _showDebug ? Colors.orange : Colors.white24,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.bug_report,
-                                color: _showDebug ? Colors.orange : Colors.white54,
-                                size: 18,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
                           if (_isRecording) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -717,12 +930,11 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                             ),
                             const SizedBox(width: 8),
                           ],
+                          // Leave or End for All button (depending on role)
                           IconButton(
                             icon: const Icon(Icons.call_end, color: Colors.red),
-                            onPressed: () {
-                              _log("☎️ User explicitly pressed 'Red Phone' button to leave!");
-                              Navigator.pop(context);
-                            },
+                            tooltip: widget.isTeacher ? AppLocalizations.of(context)!.endForAll : AppLocalizations.of(context)!.leave,
+                            onPressed: widget.isTeacher ? _endMeetingForAll : _showLeaveConfirmation,
                           ),
                         ],
                       ),
@@ -766,13 +978,11 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                         if (turningOn) {
                            await p.setCameraEnabled(true, cameraCaptureOptions: CameraCaptureOptions(
                              cameraPosition: _cameraPosition,
-                             params: VideoParametersPresets.h1080_43,
-                             maxFrameRate: 30,
                            ));
                         } else {
                            await p.setCameraEnabled(false);
                         }
-                        if (mounted) setState(() {});
+                        _sortParticipants();
                       }
                     },
                   ),
@@ -792,8 +1002,6 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                           if (track != null) {
                             await track.restartTrack(CameraCaptureOptions(
                               cameraPosition: _cameraPosition,
-                              params: VideoParametersPresets.h1080_43,
-                              maxFrameRate: 30,
                             ));
                           }
                         }
@@ -915,42 +1123,50 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
 
     final carouselTracks = _participantTracks.where((t) => t != focusTrack).toList();
 
-    return Column(
+    return Stack(
       children: [
-        // Main View (takes up remaining space)
-        Expanded(
+        // Main View (Teacher / Focus) - Takes up the entire screen edge-to-edge
+        Positioned.fill(
           child: Container(
-            margin: isLandscape ? EdgeInsets.zero : const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(isLandscape ? 0 : 24),
-              border: isLandscape ? null : Border.all(color: Colors.white10),
-            ),
+            decoration: const BoxDecoration(color: Colors.black),
             clipBehavior: Clip.antiAlias,
             child: ParticipantWidget(track: focusTrack),
           ),
         ),
-        // Carousel View (Horizontal strip at bottom)
+        
+        // Carousel View (Floating horizontal strip at the bottom right)
         if (carouselTracks.isNotEmpty && !isLandscape)
-          SizedBox(
-            height: 140,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              itemCount: carouselTracks.length,
-              itemBuilder: (context, index) {
-                return Container(
-                  width: 120,
-                  margin: const EdgeInsets.only(right: 8, bottom: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF13151A),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white10),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: ParticipantWidget(track: carouselTracks[index]),
-                );
-              },
+          Positioned(
+            bottom: 16,
+            right: 16,
+            left: 16,
+            child: SizedBox(
+              height: 120, // PiP height
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                reverse: true, // Align items to the bottom right corner
+                itemCount: carouselTracks.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    width: 90, // PiP width
+                    margin: const EdgeInsets.only(left: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF13151A),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white24, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: ParticipantWidget(track: carouselTracks[index]),
+                  );
+                },
+              ),
             ),
           ),
       ],
@@ -1145,44 +1361,77 @@ class ParticipantWidget extends StatelessWidget {
         qualityColor = Colors.white38;
     }
 
+    // Active speaker glow
+    final isSpeaking = track.participant.isSpeaking;
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF13151A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: isSpeaking ? const Color(0xFF22C55E) : Colors.white12,
+          width: isSpeaking ? 2.5 : 1,
+        ),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          if (isSpeaking)
+            BoxShadow(
+              color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+              blurRadius: 16,
+              spreadRadius: 2,
+            )
+          else
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
         ],
       ),
-      clipBehavior: Clip.hardEdge,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (isCameraOn && track.videoTrack != null)
-            VideoTrackRenderer(track.videoTrack as VideoTrack)
-          else
-            Container(
-              color: const Color(0xFF1A1C23),
-              child: Center(
-                child: (avatarUrl != null && avatarUrl.isNotEmpty)
-                    ? CircleAvatar(
-                        radius: 40,
-                        backgroundImage: NetworkImage(avatarUrl),
-                      )
-                    : CircleAvatar(
-                        radius: 40,
-                        backgroundColor: const Color(0xFFEBB937),
-                        child: Text(
-                          displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
-                        ),
-                      ),
-              ),
-            ),
+          // Read the LIVE video track directly from the participant's publications
+          // instead of relying on the stale ParticipantTrack.videoTrack reference.
+          // This fixes the grey screen caused by stale track references.
+          Builder(
+            builder: (context) {
+              // Get the live camera track from the participant's current publications
+              VideoTrack? liveVideoTrack;
+              try {
+                final camPub = track.participant.videoTrackPublications
+                    .where((pub) => pub.source == TrackSource.camera)
+                    .firstOrNull;
+                if (camPub != null && camPub.track != null && camPub.track is VideoTrack && !camPub.muted) {
+                  liveVideoTrack = camPub.track as VideoTrack;
+                }
+              } catch (_) {}
+
+              if (isCameraOn && liveVideoTrack != null)
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: VideoTrackRenderer(liveVideoTrack),
+                );
+              else
+                return Container(
+                  color: const Color(0xFF1A1C23),
+                  child: Center(
+                    child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                        ? CircleAvatar(
+                            radius: 40,
+                            backgroundImage: NetworkImage(avatarUrl),
+                          )
+                        : CircleAvatar(
+                            radius: 40,
+                            backgroundColor: const Color(0xFFEBB937),
+                            child: Text(
+                              displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
+                            ),
+                          ),
+                  ),
+                );
+            },
+          ),
 
           // ── Connection Quality Indicator (top-left) ──
           Positioned(

@@ -114,7 +114,14 @@ class RecordingsPage extends StatelessWidget {
               ),
             );
           }
-          final docs = snapshot.data?.docs ?? [];
+          // Filter out recordings older than 14 days to match Cloudflare R2 retention
+          final fourteenDaysAgo = DateTime.now().subtract(const Duration(days: 14));
+          final docs = (snapshot.data?.docs ?? []).where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final recordedAt = data['recordedAt'] as Timestamp?;
+            if (recordedAt == null) return true; // Keep if no date (fallback)
+            return recordedAt.toDate().isAfter(fourteenDaysAgo);
+          }).toList();
           if (docs.isEmpty) {
             return Center(
               child: Column(
@@ -137,8 +144,35 @@ class RecordingsPage extends StatelessWidget {
               ),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          return Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        l10n.recordingExpirationNote,
+                        style: TextStyle(
+                          color: Colors.blue[100],
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             itemCount: docs.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -154,6 +188,29 @@ class RecordingsPage extends StatelessWidget {
               final lessonNumber = docs.length - index;
               final customTitle = data['title'] as String?;
               final displayTitle = customTitle ?? '${l10n.lesson} $lessonNumber';
+
+              final dynamic durationRaw = data['duration'];
+              int durationSeconds = 0;
+              if (durationRaw != null) {
+                if (durationRaw is num) {
+                  durationSeconds = durationRaw > 100000000 ? (durationRaw / 1000000000).round() : durationRaw.round();
+                } else if (durationRaw is String) {
+                  final parsed = double.tryParse(durationRaw) ?? 0;
+                  durationSeconds = parsed > 100000000 ? (parsed / 1000000000).round() : parsed.round();
+                }
+              }
+              
+              String durationStr = '';
+              if (durationSeconds > 0) {
+                final h = durationSeconds ~/ 3600;
+                final m = (durationSeconds % 3600) ~/ 60;
+                final s = durationSeconds % 60;
+                if (h > 0) {
+                  durationStr = '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+                } else {
+                  durationStr = '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+                }
+              }
 
               return Container(
                 decoration: BoxDecoration(
@@ -180,79 +237,129 @@ class RecordingsPage extends StatelessWidget {
                         );
                       }
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: AppColors.accentGold.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.play_arrow_rounded,
-                            color: AppColors.accentGold,
-                            size: 28,
-                          ),
-                        ),
-                        title: Text(
-                          displayTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_rounded,
-                                color: Colors.white.withValues(alpha: 0.5),
-                                size: 14,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                dateStr,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  fontSize: 13,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. "Thumbnail" Play Box (Right side in RTL)
+                            Container(
+                              width: 110,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppColors.accentGold.withValues(alpha: 0.15),
+                                    const Color(0xFF121418), // Deep dark, giving it a sleek studio feel
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.accentGold.withValues(alpha: 0.15),
+                                  width: 1,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '1080p',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.play_arrow_rounded,
+                                    color: AppColors.accentGold,
+                                    size: 32,
                                   ),
-                                ),
+                                  if (durationStr.isNotEmpty)
+                                    Positioned(
+                                      bottom: 4,
+                                      right: 4,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.7),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          durationStr,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            fontFeatures: [FontFeature.tabularFigures()],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(Icons.edit_outlined, color: Colors.white.withValues(alpha: 0.5), size: 22),
-                          onPressed: () {
-                            _showEditTitleDialog(context, l10n, doc.id, displayTitle);
-                          },
+                            ),
+                            const SizedBox(width: 14),
+                            
+                            // 2. Title and Date (Middle)
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    displayTitle,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      Text(
+                                        dateStr,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(alpha: 0.5),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        '•',
+                                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                                      ),
+                                      Text(
+                                        '1080p',
+                                        style: TextStyle(
+                                          color: AppColors.accentGold.withValues(alpha: 0.8),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            // 3. Edit Button (Left side in RTL)
+                            IconButton(
+                              icon: Icon(Icons.edit_outlined, color: Colors.white.withValues(alpha: 0.5), size: 20),
+                              onPressed: () {
+                                _showEditTitleDialog(context, l10n, doc.id, displayTitle);
+                              },
+                              padding: const EdgeInsets.only(left: 4, top: 4),
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
                   ),
                 ),
               );
             },
+                ),
+              ),
+            ],
           );
         },
       ),

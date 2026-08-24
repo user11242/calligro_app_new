@@ -7,7 +7,6 @@ import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/features/student/data/services/student_service.dart';
-import 'package:calligro_app/features/student/data/services/certificate_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -110,20 +109,13 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
           if (reviewQuery.docs.isEmpty) {
             if (mounted) {
-              // Generate certificate in background
-              CertificateService().generateCertificateIfMissing(
-                courseId: doc.id,
-                courseName: CourseUtils.getLocalizedCourseName(context, data),
-                teacherId: data['teacherId'] ?? '',
-              );
-              
               showCourseCompletionRatingDialog(
                 context: context,
                 courseId: doc.id,
                 courseName: CourseUtils.getLocalizedCourseName(context, data),
                 teacherId: data['teacherId'] ?? '',
               );
-              break; 
+              break;
             }
           }
         }
@@ -134,16 +126,16 @@ class _StudentHomePageState extends State<StudentHomePage> {
   }
 
   void _precacheGalleryImages() {
-    final List<String> galleryImages = []; // Removed broken placeholder Unsplash URLs
+    final List<String> galleryImages =
+        []; // Removed broken placeholder Unsplash URLs
     WidgetsBinding.instance.addPostFrameCallback((_) {
       for (final url in galleryImages) {
         if (url.isNotEmpty) {
-           precacheImage(CachedNetworkImageProvider(url), context);
+          precacheImage(CachedNetworkImageProvider(url), context);
         }
       }
     });
   }
-
 
   String _getGreeting(BuildContext context) {
     final hour = DateTime.now().hour;
@@ -167,10 +159,14 @@ class _StudentHomePageState extends State<StudentHomePage> {
           return _buildHomeScaffold(context, l10n, student);
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting && !widget.isGuestMode && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !widget.isGuestMode &&
+            !snapshot.hasData) {
           return const Scaffold(
             backgroundColor: AppColors.primary,
-            body: Center(child: CircularProgressIndicator(color: AppColors.accentGold)),
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.accentGold),
+            ),
           );
         }
 
@@ -180,114 +176,131 @@ class _StudentHomePageState extends State<StudentHomePage> {
     );
   }
 
-  Widget _buildHomeScaffold(BuildContext context, AppLocalizations l10n, StudentUserModel student) {
+  Widget _buildHomeScaffold(
+    BuildContext context,
+    AppLocalizations l10n,
+    StudentUserModel student,
+  ) {
     return Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: AppColors.primary,
-           drawer: StudentDrawer(
-             student: student,
-             isGuestMode: widget.isGuestMode,
-             onGoToCourses: widget.onGoToCourses,
-           ),
-           drawerEnableOpenDragGesture: false,
-          body: Stack(
-            children: [
-              // 🌌 Ambient Background Glow
-              Positioned(
-                top: -150,
-                right: -100,
-                child: Container(
-                  width: 400,
-                  height: 400,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.accentGold.withOpacity(0.1),
-                  ),
-                ).animate().fadeIn(duration: 1000.ms).scale(begin: const Offset(0.8, 0.8)),
-              ),
-
-              CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  // --- Header ---
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
-                      child: _buildPersonalizedHeader(l10n, student),
-                    ),
-                  ),
-
-                  // --- Statistics ---
-                  SliverToBoxAdapter(
-                    child: _buildStatsRow(student),
-                  ),
-
-                   // --- Next Session / Hero ---
-                      SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: widget.isGuestMode
-                            ? Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24),
-                                child: _buildAmbientVideoLoop(l10n),
-                              )
-                            : _buildDynamicHeroSection(l10n),
+      key: _scaffoldKey,
+      backgroundColor: AppColors.primary,
+      drawer: StudentDrawer(
+        student: student,
+        isGuestMode: widget.isGuestMode,
+        onGoToCourses: widget.onGoToCourses,
+      ),
+      drawerEnableOpenDragGesture: false,
+      body: Stack(
+        children: [
+          // 🌌 Ambient Background Glow
+          Positioned(
+            top: -150,
+            right: -100,
+            child:
+                Container(
+                      width: 400,
+                      height: 400,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.accentGold.withOpacity(0.1),
                       ),
-                    ),
+                    )
+                    .animate()
+                    .fadeIn(duration: 1000.ms)
+                    .scale(begin: const Offset(0.8, 0.8)),
+          ),
 
-                  // --- My Learning (Enrolled Courses) ---
-                  if (!widget.isGuestMode) ...[
-                    SliverToBoxAdapter(
-                      child: _buildSectionTitle(l10n.myLearning, () => widget.onGoToCourses?.call(l10n.myCourses)),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _buildEnrolledCoursesList(),
-                    ),
-                  ],
-
-                   // --- Gallery (Prototype) ---
-                   SliverToBoxAdapter(
-                     child: _buildSectionTitle(l10n.gallery, () {
-                       if (GuestGuard.check(context, isGuest: widget.isGuestMode)) {
-                         Navigator.push(context, MaterialPageRoute(builder: (context) => const GalleryPage()));
-                       }
-                     }),
-                   ),
-                   SliverToBoxAdapter(
-                     child: _buildGallerySection(),
-                   ),
-
-                  // --- Teachers ---
-                  SliverToBoxAdapter(
-                    child: _buildSectionTitle(l10n.instructors, () {
-                      if (GuestGuard.check(context, isGuest: widget.isGuestMode)) {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const TeachersPage()));
-                      }
-                    }),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _buildTeachersSection(),
-                  ),
-
-                  // --- Discovery (Trending Courses) ---
-                  SliverToBoxAdapter(
-                    child: _buildSectionTitle(l10n.exploreCourses, () => widget.onGoToCourses?.call(l10n.all)),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _buildExploreCoursesList(),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                ],
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // --- Header ---
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
+                  child: _buildPersonalizedHeader(l10n, student),
+                ),
               ),
+
+              // --- Statistics ---
+              SliverToBoxAdapter(child: _buildStatsRow(student)),
+
+              // --- Next Session / Hero ---
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: widget.isGuestMode
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: _buildAmbientVideoLoop(l10n),
+                        )
+                      : _buildDynamicHeroSection(l10n),
+                ),
+              ),
+
+              // --- My Learning (Enrolled Courses) ---
+              if (!widget.isGuestMode) ...[
+                SliverToBoxAdapter(
+                  child: _buildSectionTitle(
+                    l10n.myLearning,
+                    () => widget.onGoToCourses?.call(l10n.myCourses),
+                  ),
+                ),
+                SliverToBoxAdapter(child: _buildEnrolledCoursesList()),
+              ],
+
+              // --- Gallery (Prototype) ---
+              SliverToBoxAdapter(
+                child: _buildSectionTitle(l10n.gallery, () {
+                  if (GuestGuard.check(context, isGuest: widget.isGuestMode)) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const GalleryPage(),
+                      ),
+                    );
+                  }
+                }),
+              ),
+              SliverToBoxAdapter(child: _buildGallerySection()),
+
+              // --- Teachers ---
+              SliverToBoxAdapter(
+                child: _buildSectionTitle(l10n.instructors, () {
+                  if (GuestGuard.check(context, isGuest: widget.isGuestMode)) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TeachersPage(),
+                      ),
+                    );
+                  }
+                }),
+              ),
+              SliverToBoxAdapter(child: _buildTeachersSection()),
+
+              // --- Discovery (Trending Courses) ---
+              SliverToBoxAdapter(
+                child: _buildSectionTitle(
+                  l10n.exploreCourses,
+                  () => widget.onGoToCourses?.call(l10n.all),
+                ),
+              ),
+              SliverToBoxAdapter(child: _buildExploreCoursesList()),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
-        );
+        ],
+      ),
+    );
   }
 
   // --- UI COMPONENTS ---
 
-   Widget _buildPersonalizedHeader(AppLocalizations l10n, StudentUserModel student) {
+  Widget _buildPersonalizedHeader(
+    AppLocalizations l10n,
+    StudentUserModel student,
+  ) {
     return Row(
       children: [
         // --- Hamburger Menu ---
@@ -338,7 +351,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.accentGold.withOpacity(0.3), width: 2),
+              border: Border.all(
+                color: AppColors.accentGold.withOpacity(0.3),
+                width: 2,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.2),
@@ -350,11 +366,16 @@ class _StudentHomePageState extends State<StudentHomePage> {
             child: CircleAvatar(
               radius: 18, // Slightly smaller to fit with other icons
               backgroundColor: AppColors.cardBackground,
-              backgroundImage: (!widget.isGuestMode && student.photoUrl.isNotEmpty)
+              backgroundImage:
+                  (!widget.isGuestMode && student.photoUrl.isNotEmpty)
                   ? CachedNetworkImageProvider(student.photoUrl)
                   : null,
               child: (widget.isGuestMode || student.photoUrl.isEmpty)
-                  ? const Icon(Icons.person, color: AppColors.accentGold, size: 20)
+                  ? const Icon(
+                      Icons.person,
+                      color: AppColors.accentGold,
+                      size: 20,
+                    )
                   : null,
             ),
           ),
@@ -362,18 +383,17 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
         const SizedBox(width: 12),
 
-         // --- Notifications ---
-         _buildHeaderIconButton(
-           Icons.notifications_outlined,
-           () {
-             if (GuestGuard.check(context, isGuest: widget.isGuestMode)) {
-               Navigator.push(
-                 context,
-                 MaterialPageRoute(builder: (context) => const NotificationsPage()),
-               );
-             }
-           },
-         ).animate().fadeIn(delay: 800.ms).scale(),
+        // --- Notifications ---
+        _buildHeaderIconButton(Icons.notifications_outlined, () {
+          if (GuestGuard.check(context, isGuest: widget.isGuestMode)) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotificationsPage(),
+              ),
+            );
+          }
+        }).animate().fadeIn(delay: 800.ms).scale(),
       ],
     );
   }
@@ -416,8 +436,21 @@ class _StudentHomePageState extends State<StudentHomePage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(label, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ],
@@ -431,15 +464,23 @@ class _StudentHomePageState extends State<StudentHomePage> {
       stream: _enrolledCoursesStream,
       builder: (context, snapshot) {
         final courseCount = snapshot.data?.length ?? 0;
-        
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Row(
             children: [
-              _buildStatItem(Icons.auto_stories_rounded, courseCount.toString(), AppLocalizations.of(context)!.courses),
+              _buildStatItem(
+                Icons.auto_stories_rounded,
+                courseCount.toString(),
+                AppLocalizations.of(context)!.courses,
+              ),
               const SizedBox(width: 16),
               // Replaced Certificates with Following
-              _buildStatItem(Icons.people_outline, student.followingCount.toString(), AppLocalizations.of(context)!.following),
+              _buildStatItem(
+                Icons.people_outline,
+                student.followingCount.toString(),
+                AppLocalizations.of(context)!.following,
+              ),
             ],
           ),
         );
@@ -447,7 +488,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
     );
   }
 
-   Widget _buildDynamicHeroSection(AppLocalizations l10n) {
+  Widget _buildDynamicHeroSection(AppLocalizations l10n) {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _enrolledCoursesStream,
       builder: (context, snapshot) {
@@ -463,7 +504,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
         final activeCourses = snapshot.data!.where((course) {
           final endDateData = course['endDate'];
           if (endDateData == null) return true; // Assume ongoing if no end date
-          
+
           DateTime endDate;
           if (endDateData is Timestamp) {
             endDate = endDateData.toDate();
@@ -472,7 +513,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
           } else {
             return true;
           }
-          
+
           // Course is active if end date is in the future
           return endDate.isAfter(now);
         }).toList();
@@ -481,7 +522,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
         DateTime? getNextSession(Map<String, dynamic> course) {
           final startTimeData = course['startTime'];
           final selectedDays = List<String>.from(course['selectedDays'] ?? []);
-          
+
           if (startTimeData == null || selectedDays.isEmpty) return null;
 
           DateTime startTime;
@@ -501,56 +542,62 @@ class _StudentHomePageState extends State<StudentHomePage> {
           } else if (startDateData is DateTime) {
             startDate = startDateData.toLocal();
           }
-          
+
           if (startDate != null && startDate.isAfter(now)) {
             return startDate;
           }
 
           final dayFormat = DateFormat('EEEE', 'en_US');
-          
+
           for (int i = -1; i < 7; i++) {
-              final checkDate = now.add(Duration(days: i));
-              final dayName = dayFormat.format(checkDate);
-              
-              if (selectedDays.contains(dayName)) {
-                  final localStartTime = startTime.toLocal();
-                  final sessionTime = DateTime(
-                      checkDate.year,
-                      checkDate.month,
-                      checkDate.day,
-                      localStartTime.hour,
-                      localStartTime.minute,
+            final checkDate = now.add(Duration(days: i));
+            final dayName = dayFormat.format(checkDate);
+
+            if (selectedDays.contains(dayName)) {
+              final localStartTime = startTime.toLocal();
+              final sessionTime = DateTime(
+                checkDate.year,
+                checkDate.month,
+                checkDate.day,
+                localStartTime.hour,
+                localStartTime.minute,
+              );
+
+              Duration sessionDuration = const Duration(minutes: 90);
+              if (course['endTime'] != null) {
+                DateTime? endDateTime;
+                if (course['endTime'] is Timestamp) {
+                  endDateTime = (course['endTime'] as Timestamp).toDate();
+                } else if (course['endTime'] is DateTime)
+                  endDateTime = course['endTime'];
+
+                DateTime? originalStartDateTime;
+                if (course['startTime'] is Timestamp) {
+                  originalStartDateTime = (course['startTime'] as Timestamp)
+                      .toDate();
+                } else if (course['startTime'] is DateTime)
+                  originalStartDateTime = course['startTime'];
+
+                if (endDateTime != null && originalStartDateTime != null) {
+                  sessionDuration = endDateTime.difference(
+                    originalStartDateTime,
                   );
-
-                  Duration sessionDuration = const Duration(minutes: 90);
-                  if (course['endTime'] != null) {
-                     DateTime? endDateTime;
-                     if (course['endTime'] is Timestamp) {
-                       endDateTime = (course['endTime'] as Timestamp).toDate();
-                     } else if (course['endTime'] is DateTime) endDateTime = course['endTime'];
-                     
-                     DateTime? originalStartDateTime;
-                     if (course['startTime'] is Timestamp) {
-                       originalStartDateTime = (course['startTime'] as Timestamp).toDate();
-                     } else if (course['startTime'] is DateTime) originalStartDateTime = course['startTime'];
-
-                     if (endDateTime != null && originalStartDateTime != null) {
-                       sessionDuration = endDateTime.difference(originalStartDateTime);
-                       if (sessionDuration.inMinutes <= 0) sessionDuration = const Duration(minutes: 90);
-                     }
-                  }
-
-                  final sessionEndTime = sessionTime.add(sessionDuration);
-
-                  // If it's live right now, treat it as the most urgent (next session is essentially 'now')
-                  if (now.isAfter(sessionTime) && now.isBefore(sessionEndTime)) {
-                      return now;
-                  }
-                  
-                  if (sessionTime.isAfter(now)) {
-                      return sessionTime;
-                  }
+                  if (sessionDuration.inMinutes <= 0)
+                    sessionDuration = const Duration(minutes: 90);
+                }
               }
+
+              final sessionEndTime = sessionTime.add(sessionDuration);
+
+              // If it's live right now, treat it as the most urgent (next session is essentially 'now')
+              if (now.isAfter(sessionTime) && now.isBefore(sessionEndTime)) {
+                return now;
+              }
+
+              if (sessionTime.isAfter(now)) {
+                return sessionTime;
+              }
+            }
           }
           return null;
         }
@@ -559,13 +606,13 @@ class _StudentHomePageState extends State<StudentHomePage> {
         activeCourses.sort((a, b) {
           final nextA = getNextSession(a);
           final nextB = getNextSession(b);
-          
+
           // If both have no predictable session, they tie
           if (nextA == null && nextB == null) return 0;
           // Null means it has no next session scheduled, push to the end
           if (nextA == null) return 1;
           if (nextB == null) return -1;
-          
+
           // Compare dates (closer date comes first)
           return nextA.compareTo(nextB);
         });
@@ -583,7 +630,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
         return Column(
           children: [
             SizedBox(
-              height: 360, // Increased to accommodate Arabic text without overflow
+              height:
+                  360, // Increased to accommodate Arabic text without overflow
               child: PageView.builder(
                 controller: _heroPageController,
                 itemCount: activeCourses.length,
@@ -613,7 +661,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
         try {
           currentPage = _heroPageController.page?.round() ?? 0;
         } catch (_) {}
-        
+
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(count, (index) {
@@ -623,7 +671,9 @@ class _StudentHomePageState extends State<StudentHomePage> {
               height: 6,
               width: currentPage == index ? 18 : 6,
               decoration: BoxDecoration(
-                color: currentPage == index ? AppColors.accentGold : Colors.white24,
+                color: currentPage == index
+                    ? AppColors.accentGold
+                    : Colors.white24,
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -635,169 +685,226 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
   Widget _buildSessionCountdownCard(Map<String, dynamic> course) {
     final banner = course['courseBanner'] ?? '';
-    final meetLink = course['calligroMeetLink'] ?? course['googleMeetLink'] ?? ''; // Support both
+    final meetLink =
+        course['calligroMeetLink'] ??
+        course['googleMeetLink'] ??
+        ''; // Support both
     final l10n = AppLocalizations.of(context)!;
-    
+
     // Local state for the button enable/disable
     final ValueNotifier<bool> isButtonEnabled = ValueNotifier<bool>(false);
 
     return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.accentGold.withOpacity(0.1)),
-        image: DecorationImage(
-          image: banner.startsWith('assets') 
-              ? AssetImage(banner) as ImageProvider 
-              : CachedNetworkImageProvider(banner),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.7), // Darkened overlay as requested
-            BlendMode.darken,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 25,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentGold.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    l10n.nextSession.toUpperCase(),
-                    style: const TextStyle(color: AppColors.accentGold, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
-                  ),
-                ),
-                const Icon(Icons.auto_awesome, color: AppColors.accentGold, size: 20),
-              ],
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.accentGold.withOpacity(0.1)),
+            image: DecorationImage(
+              image: banner.startsWith('assets')
+                  ? AssetImage(banner) as ImageProvider
+                  : CachedNetworkImageProvider(banner),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                Colors.black.withOpacity(0.7), // Darkened overlay as requested
+                BlendMode.darken,
+              ),
             ),
-            const SizedBox(height: 16),
-            Text(CourseUtils.getLocalizedCourseName(context, course),
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.4),
+                blurRadius: 25,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.accentGold.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: AppColors.accentGold.withOpacity(0.2)),
+                        color: AppColors.accentGold.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.accentGold.withOpacity(0.5), width: 1),
-                            ),
-                            child: ProfileAvatar(
-                              radius: 14,
-                              imageUrl: (course['teacherPhoto'] ?? course['teacherProfilePic'])?.toString() ?? '',
-                              placeholderIcon: Icons.person,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            course['teacherName'] ?? 'Unknown',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(Icons.verified, color: AppColors.accentGold.withOpacity(0.8), size: 14),
-                        ],
+                      child: Text(
+                        l10n.nextSession.toUpperCase(),
+                        style: const TextStyle(
+                          color: AppColors.accentGold,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
                       ),
                     ),
+                    const Icon(
+                      Icons.auto_awesome,
+                      color: AppColors.accentGold,
+                      size: 20,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  CourseUtils.getLocalizedCourseName(context, course),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentGold.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: AppColors.accentGold.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.accentGold.withOpacity(
+                                      0.5,
+                                    ),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: ProfileAvatar(
+                                  radius: 14,
+                                  imageUrl:
+                                      (course['teacherPhoto'] ??
+                                              course['teacherProfilePic'])
+                                          ?.toString() ??
+                                      '',
+                                  placeholderIcon: Icons.person,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                course['teacherName'] ?? 'Unknown',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                Icons.verified,
+                                color: AppColors.accentGold.withOpacity(0.8),
+                                size: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _CountdownTimer(
+                  course: course,
+                  onTimerUpdate: (remaining) {
+                    isButtonEnabled.value = remaining <= Duration.zero;
+                  },
+                ),
+                const SizedBox(height: 20),
+                ValueListenableBuilder<bool>(
+                  valueListenable: isButtonEnabled,
+                  builder: (context, enabled, child) {
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: enabled
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CourseDetailsPage(
+                                      courseId: course['id'],
+                                      courseData: course,
+                                      heroTag: 'hero_join_${course['id']}',
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
+                        icon: const Icon(Icons.videocam),
+                        label: Text(
+                          enabled ? l10n.joinClassNow : l10n.classNotStarted,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: enabled
+                              ? AppColors.accentGold
+                              : Colors.white.withOpacity(0.05),
+                          foregroundColor: enabled
+                              ? Colors.black
+                              : Colors.white.withOpacity(0.3),
+                          disabledBackgroundColor: Colors.white.withOpacity(
+                            0.02,
+                          ),
+                          disabledForegroundColor: Colors.white.withOpacity(
+                            0.2,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: enabled
+                                  ? Colors.transparent
+                                  : Colors.white.withOpacity(0.05),
+                            ),
+                          ),
+                          elevation: enabled ? 8 : 0,
+                          shadowColor: AppColors.accentGold.withOpacity(0.3),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            _CountdownTimer(
-              course: course,
-              onTimerUpdate: (remaining) {
-                isButtonEnabled.value = remaining <= Duration.zero;
-              },
-            ),
-            const SizedBox(height: 20),
-            ValueListenableBuilder<bool>(
-              valueListenable: isButtonEnabled,
-              builder: (context, enabled, child) {
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: enabled ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CourseDetailsPage(
-                            courseId: course['id'],
-                            courseData: course,
-                            heroTag: 'hero_join_${course['id']}',
-                          ),
-                        ),
-                      );
-                    } : null,
-                    icon: const Icon(Icons.videocam),
-                    label: Text(
-                      enabled ? l10n.joinClassNow : l10n.classNotStarted,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: enabled ? AppColors.accentGold : Colors.white.withOpacity(0.05),
-                      foregroundColor: enabled ? Colors.black : Colors.white.withOpacity(0.3),
-                      disabledBackgroundColor: Colors.white.withOpacity(0.02),
-                      disabledForegroundColor: Colors.white.withOpacity(0.2),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: enabled ? Colors.transparent : Colors.white.withOpacity(0.05),
-                        ),
-                      ),
-                      elevation: enabled ? 8 : 0,
-                      shadowColor: AppColors.accentGold.withOpacity(0.3),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1, curve: Curves.easeOut).scaleXY(begin: 0.95, curve: Curves.easeOut);
+          ),
+        )
+        .animate()
+        .fadeIn(delay: 400.ms)
+        .slideY(begin: 0.1, curve: Curves.easeOut)
+        .scaleXY(begin: 0.95, curve: Curves.easeOut);
   }
 
   Future<void> _launchClass(String? url) async {
     if (url == null || url.isEmpty) return;
-    
+
     String cleanUrl = url.trim();
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
       cleanUrl = 'https://$cleanUrl';
@@ -808,24 +915,20 @@ class _StudentHomePageState extends State<StudentHomePage> {
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
         if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
           if (mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text("Could not launch meeting link")),
-             );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Could not launch meeting link")),
+            );
           }
         }
       }
     } catch (e) {
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text("Could not launch meeting link: $e")),
-         );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Could not launch meeting link: $e")),
+        );
       }
     }
   }
-
-
-
-
 
   Widget _buildAmbientVideoLoop(AppLocalizations l10n) {
     return Container(
@@ -889,13 +992,13 @@ class _StudentHomePageState extends State<StudentHomePage> {
                     letterSpacing: -0.5,
                   ),
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 Text(
                   l10n.heroSubtitle,
                   style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withOpacity(0.5),
                     fontSize: 15,
                     height: 1.5,
                     fontWeight: FontWeight.w400,
@@ -905,34 +1008,42 @@ class _StudentHomePageState extends State<StudentHomePage> {
                 const SizedBox(height: 24),
 
                 ElevatedButton(
-                  onPressed: () {
-                     // Scroll to "Explore Courses"
-                     widget.onGoToCourses?.call(null);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentGold,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 12,
-                    shadowColor: AppColors.accentGold.withOpacity(0.5),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        l10n.heroButton, 
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 16,
-                          letterSpacing: 0.3,
+                      onPressed: () {
+                        // Scroll to "Explore Courses"
+                        widget.onGoToCourses?.call(null);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accentGold,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 16,
                         ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 12,
+                        shadowColor: AppColors.accentGold.withOpacity(0.5),
                       ),
-                      const SizedBox(width: 10),
-                      const Icon(Icons.arrow_forward_rounded, size: 22),
-                    ],
-                  ),
-                ).animate().fadeIn(delay: 1100.ms).scale(begin: const Offset(0.95, 0.95)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            l10n.heroButton,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Icon(Icons.arrow_forward_rounded, size: 22),
+                        ],
+                      ),
+                    )
+                    .animate()
+                    .fadeIn(delay: 1100.ms)
+                    .scale(begin: const Offset(0.95, 0.95)),
               ],
             ),
           ),
@@ -948,10 +1059,20 @@ class _StudentHomePageState extends State<StudentHomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           TextButton(
             onPressed: onSeeAll,
-            child: Text(l10n.seeAll, style: const TextStyle(color: AppColors.accentGold, fontSize: 13)),
+            child: Text(
+              l10n.seeAll,
+              style: const TextStyle(color: AppColors.accentGold, fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -963,43 +1084,54 @@ class _StudentHomePageState extends State<StudentHomePage> {
     return SizedBox(
       height: 300,
       child: StreamBuilder<List<Map<String, dynamic>>>(
-         stream: _enrolledCoursesStream,
-         builder: (context, snapshot) {
-           if (snapshot.connectionState == ConnectionState.waiting) {
-             return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
-           }
-           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-             return Center(
-               child: Text(
-                 l10n.noEnrolledCourses,
-                 style: TextStyle(color: Colors.white.withOpacity(0.5)),
-               ),
-             );
-           }
-           final courses = snapshot.data!;
+        stream: _enrolledCoursesStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.accentGold),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Text(
+                l10n.noEnrolledCourses,
+                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            );
+          }
+          final courses = snapshot.data!;
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemCount: courses.length > 3 ? 3 : courses.length,
             separatorBuilder: (context, index) => const SizedBox(width: 16),
-            itemBuilder: (context, index) => _buildSimpleCourseCard(courses[index], heroPrefix: 'enrolled'),
+            itemBuilder: (context, index) =>
+                _buildSimpleCourseCard(courses[index], heroPrefix: 'enrolled'),
           );
         },
       ),
     );
   }
 
-  Widget _buildSimpleCourseCard(Map<String, dynamic> course, {required String heroPrefix}) {
-     final String heroTag = '${heroPrefix}_h_${course['id']}';
+  Widget _buildSimpleCourseCard(
+    Map<String, dynamic> course, {
+    required String heroPrefix,
+  }) {
+    final String heroTag = '${heroPrefix}_h_${course['id']}';
     final currentUser = FirebaseAuth.instance.currentUser;
     final dynamic studentsRaw = course['enrolledStudents'];
-    final List<dynamic> enrolledStudents = (studentsRaw is List) ? studentsRaw : [];
-    final bool isEnrolled = currentUser != null && enrolledStudents.contains(currentUser.uid);
+    final List<dynamic> enrolledStudents = (studentsRaw is List)
+        ? studentsRaw
+        : [];
+    final bool isEnrolled =
+        currentUser != null && enrolledStudents.contains(currentUser.uid);
     final String banner = course['courseBanner'] ?? '';
     final double price = (course['price'] ?? 0).toDouble();
     final bool isFree = price == 0;
-    final String level = _getCourseLevel(course['selectedCategory'] ?? 'Beginner');
+    final String level = _getCourseLevel(
+      course['selectedCategory'] ?? 'Beginner',
+    );
     final String teacherName = course['teacherName'] ?? 'Teacher';
     final String teacherPhoto = course['teacherProfilePic'] ?? '';
     final int studentCount = enrolledStudents.length;
@@ -1010,22 +1142,22 @@ class _StudentHomePageState extends State<StudentHomePage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => CourseDetailsPage(
-                  courseId: course['id'],
-                  courseData: course,
-                  heroTag: heroTag,
-                ),
+              builder: (context) => CourseDetailsPage(
+                courseId: course['id'],
+                courseData: course,
+                heroTag: heroTag,
+              ),
             ),
           );
         } else {
           Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => CoursePreviewPage(
-                  courseId: course['id'],
-                  courseData: course,
-                  heroTag: heroTag,
-                ),
+              builder: (context) => CoursePreviewPage(
+                courseId: course['id'],
+                courseData: course,
+                heroTag: heroTag,
+              ),
             ),
           );
         }
@@ -1054,7 +1186,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
                 child: SmartImage(
                   imageUrl: banner,
                   fit: BoxFit.cover,
-                  errorWidget: Image.asset('assets/courses_backgrounds/normal_writing.jpg', fit: BoxFit.cover),
+                  errorWidget: Image.asset(
+                    'assets/courses_backgrounds/normal_writing.jpg',
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
 
@@ -1091,11 +1226,15 @@ class _StudentHomePageState extends State<StudentHomePage> {
                           Colors.black.withOpacity(0.5),
                           isGlass: true,
                         ),
-                        
+
                         // Price Badge
                         if (!isEnrolled)
                           _buildMiniBadge(
-                            isFree ? AppLocalizations.of(context)!.free.toUpperCase() : "\$$price",
+                            isFree
+                                ? AppLocalizations.of(
+                                    context,
+                                  )!.free.toUpperCase()
+                                : "\$$price",
                             AppColors.accentGold,
                             textColor: Colors.black,
                           ),
@@ -1103,7 +1242,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
                     ),
                     const SizedBox(height: 8),
                     // Schedule Badge
-                    if (course['selectedDays'] != null && (course['selectedDays'] as List).isNotEmpty)
+                    if (course['selectedDays'] != null &&
+                        (course['selectedDays'] as List).isNotEmpty)
                       _buildScheduleBadge(course),
                   ],
                 ),
@@ -1115,101 +1255,129 @@ class _StudentHomePageState extends State<StudentHomePage> {
                 left: 0,
                 right: 0,
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(32),
+                  ),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white.withOpacity(0.2),
-                            Colors.white.withOpacity(0.05),
-                          ],
-                        ),
-                        border: Border(
-                          top: BorderSide(color: Colors.white.withOpacity(0.15)),
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (isEnrolled)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _buildEnrolledStatusBadge(),
-                            ),
-                          Text(CourseUtils.getLocalizedCourseName(context, course),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 16,
-                              height: 1.1,
-                              letterSpacing: -0.5,
-                              shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              // Teacher Avatar
-                              ProfileAvatar(
-                                radius: 14,
-                                imageUrl: teacherPhoto,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  teacherName,
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.2,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              // Student Count
-                              if (studentCount > 0) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.people_outline, color: AppColors.accentGold, size: 10),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        NumberFormat.decimalPattern(Localizations.localeOf(context).toString()).format(studentCount),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                    child:
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.2),
+                                Colors.white.withOpacity(0.05),
                               ],
+                            ),
+                            border: Border(
+                              top: BorderSide(
+                                color: Colors.white.withOpacity(0.15),
+                              ),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (isEnrolled)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _buildEnrolledStatusBadge(),
+                                ),
+                              Text(
+                                    CourseUtils.getLocalizedCourseName(
+                                      context,
+                                      course,
+                                    ),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 16,
+                                      height: 1.1,
+                                      letterSpacing: -0.5,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black,
+                                          blurRadius: 4,
+                                        ),
+                                      ],
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  )
+                                  .animate()
+                                  .fadeIn(delay: 200.ms)
+                                  .slideX(begin: -0.1),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  // Teacher Avatar
+                                  ProfileAvatar(
+                                    radius: 14,
+                                    imageUrl: teacherPhoto,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      teacherName,
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  // Student Count
+                                  if (studentCount > 0) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.people_outline,
+                                            color: AppColors.accentGold,
+                                            size: 10,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            NumberFormat.decimalPattern(
+                                              Localizations.localeOf(
+                                                context,
+                                              ).toString(),
+                                            ).format(studentCount),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ).animate().fadeIn(delay: 400.ms),
                             ],
-                          ).animate().fadeIn(delay: 400.ms),
-                        ],
-                      ),
-                    ).animate().shimmer(
-                      delay: 2000.ms,
-                      duration: 1500.ms,
-                      color: Colors.white.withOpacity(0.1),
-                    ),
+                          ),
+                        ).animate().shimmer(
+                          delay: 2000.ms,
+                          duration: 1500.ms,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
                   ),
                 ),
               ),
@@ -1235,7 +1403,11 @@ class _StudentHomePageState extends State<StudentHomePage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_rounded, color: Colors.greenAccent[400], size: 14),
+          Icon(
+            Icons.check_circle_rounded,
+            color: Colors.greenAccent[400],
+            size: 14,
+          ),
           const SizedBox(width: 6),
           Text(
             AppLocalizations.of(context)!.enrolled.toUpperCase(),
@@ -1269,7 +1441,9 @@ class _StudentHomePageState extends State<StudentHomePage> {
       }
     }
 
-    final List<String> localizedDays = days.map((d) => _getLocalizedDayShort(context, d.toString())).toList();
+    final List<String> localizedDays = days
+        .map((d) => _getLocalizedDayShort(context, d.toString()))
+        .toList();
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
@@ -1285,7 +1459,11 @@ class _StudentHomePageState extends State<StudentHomePage> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.calendar_today_rounded, color: AppColors.accentGold, size: 12),
+              const Icon(
+                Icons.calendar_today_rounded,
+                color: AppColors.accentGold,
+                size: 12,
+              ),
               const SizedBox(width: 6),
               Text(
                 "${localizedDays.join(', ')}${timeStr.isNotEmpty ? ' • $timeStr' : ''}",
@@ -1306,7 +1484,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
     final l10n = AppLocalizations.of(context)!;
     final d = day.toLowerCase();
     String translated = day;
-    
+
     if (d.contains('sun')) {
       translated = l10n.sunday;
     } else if (d.contains('mon')) {
@@ -1324,23 +1502,34 @@ class _StudentHomePageState extends State<StudentHomePage> {
     }
 
     // For Arabic, "الأحد" can be shortened to "أحد" by removing "ال"
-    if (Localizations.localeOf(context).languageCode == 'ar' && translated.startsWith('ال')) {
+    if (Localizations.localeOf(context).languageCode == 'ar' &&
+        translated.startsWith('ال')) {
       return translated.substring(2);
     }
     return translated;
   }
 
-  Widget _buildMiniBadge(String text, Color color, {bool isGlass = false, Color textColor = Colors.white}) {
+  Widget _buildMiniBadge(
+    String text,
+    Color color, {
+    bool isGlass = false,
+    Color textColor = Colors.white,
+  }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: isGlass ? 8 : 0, sigmaY: isGlass ? 8 : 0),
+        filter: ImageFilter.blur(
+          sigmaX: isGlass ? 8 : 0,
+          sigmaY: isGlass ? 8 : 0,
+        ),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(10),
-            border: isGlass ? Border.all(color: Colors.white.withOpacity(0.15)) : null,
+            border: isGlass
+                ? Border.all(color: Colors.white.withOpacity(0.15))
+                : null,
           ),
           child: Text(
             text,
@@ -1359,7 +1548,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
   String _getCourseLevel(String category) {
     final cat = category.toLowerCase();
     if (cat.contains('beginner')) return AppLocalizations.of(context)!.beginner;
-    if (cat.contains('intermediate')) return AppLocalizations.of(context)!.intermediate;
+    if (cat.contains('intermediate'))
+      return AppLocalizations.of(context)!.intermediate;
     if (cat.contains('advanced')) return AppLocalizations.of(context)!.advanced;
     return category;
   }
@@ -1374,21 +1564,29 @@ class _StudentHomePageState extends State<StudentHomePage> {
             return Center(
               child: Text(
                 "Error loading gallery",
-                style: TextStyle(color: Colors.redAccent.withOpacity(0.5), fontSize: 12),
+                style: TextStyle(
+                  color: Colors.redAccent.withOpacity(0.5),
+                  fontSize: 12,
+                ),
               ),
             );
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.accentGold),
+            );
           }
 
           final artists = snapshot.data ?? [];
-          final artistsWithPhoto = artists.where((a) => 
-            (a.photoUrl != null && a.photoUrl!.isNotEmpty) || 
-            a.id == "artist_ali_ghalib" || 
-            a.id == "artist_abbas_albaghdadi"
-          ).toList();
+          final artistsWithPhoto = artists
+              .where(
+                (a) =>
+                    (a.photoUrl != null && a.photoUrl!.isNotEmpty) ||
+                    a.id == "artist_ali_ghalib" ||
+                    a.id == "artist_abbas_albaghdadi",
+              )
+              .toList();
 
           if (artistsWithPhoto.isEmpty) {
             return Center(
@@ -1403,7 +1601,9 @@ class _StudentHomePageState extends State<StudentHomePage> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: artistsWithPhoto.length > 5 ? 5 : artistsWithPhoto.length,
+            itemCount: artistsWithPhoto.length > 5
+                ? 5
+                : artistsWithPhoto.length,
             separatorBuilder: (context, index) => const SizedBox(width: 16),
             itemBuilder: (context, index) {
               final artist = artistsWithPhoto[index];
@@ -1411,16 +1611,26 @@ class _StudentHomePageState extends State<StudentHomePage> {
                 onTap: () {
                   if (GuestGuard.check(context, isGuest: widget.isGuestMode)) {
                     final String name = artist.name;
-                    final bool isOttoman = name.contains("خرائط") || name.contains("وثائق") || name.contains("عثمانيه") || name.contains("Ottoman");
-                    final bool isRiqaa = name.contains("الرقاع") || name.contains("رقاع") || name.contains("Riqaa");
-                    final bool isDiwani = name.contains("ديواني") || name.contains("Diwani");
-                    final bool isMisc = name.contains("منوعات") || name.contains("Varieties");
+                    final bool isOttoman =
+                        name.contains("خرائط") ||
+                        name.contains("وثائق") ||
+                        name.contains("عثمانيه") ||
+                        name.contains("Ottoman");
+                    final bool isRiqaa =
+                        name.contains("الرقاع") ||
+                        name.contains("رقاع") ||
+                        name.contains("Riqaa");
+                    final bool isDiwani =
+                        name.contains("ديواني") || name.contains("Diwani");
+                    final bool isMisc =
+                        name.contains("منوعات") || name.contains("Varieties");
 
                     if (isOttoman || isRiqaa || isDiwani || isMisc) {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ArtistGalleryPage(artist: artist),
+                          builder: (context) =>
+                              ArtistGalleryPage(artist: artist),
                         ),
                       );
                     } else {
@@ -1435,100 +1645,115 @@ class _StudentHomePageState extends State<StudentHomePage> {
                 },
                 child: Container(
                   width: 280,
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBackground,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        if (artist.photoUrl != null && artist.photoUrl!.isNotEmpty)
-                          Positioned.fill(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  // Blurred background fill
-                                  CachedNetworkImage(
-                                    imageUrl: artist.photoUrl!,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => const Center(
-                                      child: CircularProgressIndicator(color: AppColors.accentGold, strokeWidth: 2),
-                                    ),
-                                    errorWidget: (context, url, error) => const Icon(Icons.error),
-                                  ),
-                                  BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                                    child: Container(color: Colors.black.withOpacity(0.3)),
-                                  ),
-                                  // Focused full-face image
-                                  CachedNetworkImage(
-                                    imageUrl: artist.photoUrl!,
-                                    fit: BoxFit.contain,
-                                    alignment: Alignment.center,
-                                    placeholder: (context, url) => const SizedBox.shrink(),
-                                    errorWidget: (context, url, error) => const SizedBox.shrink(),
-                                  ),
-                                  // Dark wash over everything to ensure text pops and looks sleek
-                                  Container(color: Colors.black.withOpacity(0.25)),
-                                ],
-                              ),
-                            ),
-                          )
-                        else if (artist.id == "artist_ali_ghalib" || artist.id == "artist_abbas_albaghdadi")
-                          Positioned.fill(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: Image.asset(
-                                'assets/images/gallery_placeholder_${artist.id.contains("ali") ? "1" : "2"}.jpg',
-                                fit: BoxFit.cover,
-                                color: Colors.black.withOpacity(0.3),
-                                colorBlendMode: BlendMode.darken,
-                              ),
-                            ),
-                          ),
-                        Container(
-                          decoration: BoxDecoration(
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBackground,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      if (artist.photoUrl != null &&
+                          artist.photoUrl!.isNotEmpty)
+                        Positioned.fill(
+                          child: ClipRRect(
                             borderRadius: BorderRadius.circular(24),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.8),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                // Blurred background fill
+                                CachedNetworkImage(
+                                  imageUrl: artist.photoUrl!,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => const Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.accentGold,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      const Icon(Icons.error),
+                                ),
+                                BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 12,
+                                    sigmaY: 12,
+                                  ),
+                                  child: Container(
+                                    color: Colors.black.withOpacity(0.3),
+                                  ),
+                                ),
+                                // Focused full-face image
+                                CachedNetworkImage(
+                                  imageUrl: artist.photoUrl!,
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.center,
+                                  placeholder: (context, url) =>
+                                      const SizedBox.shrink(),
+                                  errorWidget: (context, url, error) =>
+                                      const SizedBox.shrink(),
+                                ),
+                                // Dark wash over everything to ensure text pops and looks sleek
+                                Container(
+                                  color: Colors.black.withOpacity(0.25),
+                                ),
                               ],
                             ),
                           ),
-                          padding: const EdgeInsets.all(20),
-                          alignment: Alignment.bottomLeft,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                artist.localizedName(context),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
+                        )
+                      else if (artist.id == "artist_ali_ghalib" ||
+                          artist.id == "artist_abbas_albaghdadi")
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Image.asset(
+                              'assets/images/gallery_placeholder_${artist.id.contains("ali") ? "1" : "2"}.jpg',
+                              fit: BoxFit.cover,
+                              color: Colors.black.withOpacity(0.3),
+                              colorBlendMode: BlendMode.darken,
+                            ),
+                          ),
+                        ),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.8),
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                        padding: const EdgeInsets.all(20),
+                        alignment: Alignment.bottomLeft,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              artist.localizedName(context),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                );
+                ),
+              );
             },
           );
         },
@@ -1540,38 +1765,49 @@ class _StudentHomePageState extends State<StudentHomePage> {
     return SizedBox(
       height: 240,
       child: StreamBuilder<List<Map<String, dynamic>>>(
-         stream: _teachersStream,
-         builder: (context, snapshot) {
-           if (snapshot.connectionState == ConnectionState.waiting) {
-             return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
-           }
-           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-             return Center(
-               child: Text(
-                 "No teachers found",
-                 style: TextStyle(color: Colors.white.withOpacity(0.5)),
-               ),
-             );
-           }
-           final teachers = snapshot.data!;
-           final teachersWithPhoto = teachers.where((t) => t['photoUrl'] != null && t['photoUrl'].toString().trim().isNotEmpty).toList();
+        stream: _teachersStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.accentGold),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Text(
+                "No teachers found",
+                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            );
+          }
+          final teachers = snapshot.data!;
+          final teachersWithPhoto = teachers
+              .where(
+                (t) =>
+                    t['photoUrl'] != null &&
+                    t['photoUrl'].toString().trim().isNotEmpty,
+              )
+              .toList();
 
-           if (teachersWithPhoto.isEmpty) {
-             return Center(
-               child: Text(
-                 "No teachers found",
-                 style: TextStyle(color: Colors.white.withOpacity(0.5)),
-               ),
-             );
-           }
+          if (teachersWithPhoto.isEmpty) {
+            return Center(
+              child: Text(
+                "No teachers found",
+                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            );
+          }
 
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            itemCount: teachersWithPhoto.length > 3 ? 3 : teachersWithPhoto.length,
+            itemCount: teachersWithPhoto.length > 3
+                ? 3
+                : teachersWithPhoto.length,
             separatorBuilder: (context, index) => const SizedBox(width: 16),
-            itemBuilder: (context, index) => _buildTeacherCard(teachersWithPhoto[index]),
+            itemBuilder: (context, index) =>
+                _buildTeacherCard(teachersWithPhoto[index]),
           );
         },
       ),
@@ -1585,7 +1821,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => PublicTeacherProfilePage(userId: teacher['id'] ?? ''),
+              builder: (context) =>
+                  PublicTeacherProfilePage(userId: teacher['id'] ?? ''),
             ),
           );
         }
@@ -1650,53 +1887,59 @@ class _StudentHomePageState extends State<StudentHomePage> {
     return SizedBox(
       height: 300,
       child: StreamBuilder<List<Map<String, dynamic>>>(
-         stream: _featuredCoursesStream,
-         builder: (context, snapshot) {
-           if (snapshot.connectionState == ConnectionState.waiting) {
-             return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
-           }
-           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-             return Center(
-               child: Text(
-                 "No courses found",
-                 style: TextStyle(color: Colors.white.withOpacity(0.5)),
-               ),
-             );
-           }
-           
-           final currentUser = FirebaseAuth.instance.currentUser;
-           final courses = snapshot.data!.where((course) {
-             final dynamic studentsRaw = course['enrolledStudents'];
-             final List<dynamic> enrolledStudents = (studentsRaw is List) ? studentsRaw : [];
-             final bool isEnrolled = currentUser != null && enrolledStudents.contains(currentUser.uid);
+        stream: _featuredCoursesStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.accentGold),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Text(
+                "No courses found",
+                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            );
+          }
 
-             if (course['startDate'] != null) {
-               DateTime? start;
-               if (course['startDate'] is Timestamp) {
-                 start = (course['startDate'] as Timestamp).toDate();
-               } else if (course['startDate'] is DateTime) {
-                 start = course['startDate'];
-               }
-               
-               if (start != null) {
-                 final now = DateTime.now();
-                 // Hide started courses from non-enrolled students
-                 if (now.isAfter(start) && !isEnrolled) {
-                   return false; 
-                 }
-               }
-             }
-             return true;
-           }).toList();
+          final currentUser = FirebaseAuth.instance.currentUser;
+          final courses = snapshot.data!.where((course) {
+            final dynamic studentsRaw = course['enrolledStudents'];
+            final List<dynamic> enrolledStudents = (studentsRaw is List)
+                ? studentsRaw
+                : [];
+            final bool isEnrolled =
+                currentUser != null &&
+                enrolledStudents.contains(currentUser.uid);
 
-           if (courses.isEmpty) {
-             return Center(
-               child: Text(
-                 "No courses found",
-                 style: TextStyle(color: Colors.white.withOpacity(0.5)),
-               ),
-             );
-           }
+            if (course['startDate'] != null) {
+              DateTime? start;
+              if (course['startDate'] is Timestamp) {
+                start = (course['startDate'] as Timestamp).toDate();
+              } else if (course['startDate'] is DateTime) {
+                start = course['startDate'];
+              }
+
+              if (start != null) {
+                final now = DateTime.now();
+                // Hide started courses from non-enrolled students
+                if (now.isAfter(start) && !isEnrolled) {
+                  return false;
+                }
+              }
+            }
+            return true;
+          }).toList();
+
+          if (courses.isEmpty) {
+            return Center(
+              child: Text(
+                "No courses found",
+                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            );
+          }
 
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1704,23 +1947,18 @@ class _StudentHomePageState extends State<StudentHomePage> {
             physics: const BouncingScrollPhysics(),
             itemCount: courses.length > 3 ? 3 : courses.length,
             separatorBuilder: (context, index) => const SizedBox(width: 16),
-            itemBuilder: (context, index) => _buildSimpleCourseCard(courses[index], heroPrefix: 'featured'),
+            itemBuilder: (context, index) =>
+                _buildSimpleCourseCard(courses[index], heroPrefix: 'featured'),
           );
         },
       ),
     );
   }
 
-
-
   // --- Helper Methods ---
-
-
-
-
 }
 
- class _CountdownTimer extends StatefulWidget {
+class _CountdownTimer extends StatefulWidget {
   final Map<String, dynamic> course;
   final Function(Duration)? onTimerUpdate;
   const _CountdownTimer({required this.course, this.onTimerUpdate});
@@ -1731,7 +1969,9 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
 class _CountdownTimerState extends State<_CountdownTimer> {
   Timer? _timer;
-  Duration _remaining = const Duration(hours: 99); // Start with a safe "long wait" to avoid 0s blink
+  Duration _remaining = const Duration(
+    hours: 99,
+  ); // Start with a safe "long wait" to avoid 0s blink
 
   @override
   void initState() {
@@ -1740,7 +1980,10 @@ class _CountdownTimerState extends State<_CountdownTimer> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _calculateRemaining();
     });
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _calculateRemaining());
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _calculateRemaining(),
+    );
   }
 
   @override
@@ -1753,12 +1996,14 @@ class _CountdownTimerState extends State<_CountdownTimer> {
     try {
       final startTimeData = widget.course['startTime'];
       final startDateData = widget.course['startDate'];
-      final selectedDays = List<String>.from(widget.course['selectedDays'] ?? []);
-      
+      final selectedDays = List<String>.from(
+        widget.course['selectedDays'] ?? [],
+      );
+
       // Fallback: If data is missing, we keep it disabled
       if (startTimeData == null || selectedDays.isEmpty) {
         if (mounted) {
-          setState(() => _remaining = const Duration(hours: 99)); 
+          setState(() => _remaining = const Duration(hours: 99));
           widget.onTimerUpdate?.call(const Duration(hours: 99));
         }
         return;
@@ -1785,74 +2030,99 @@ class _CountdownTimerState extends State<_CountdownTimer> {
       }
 
       final now = DateTime.now();
-      
+
       DateTime? nextSession;
       bool isCurrentlyLive = false;
 
       final dayFormat = DateFormat('EEEE', 'en_US');
-      
+
       for (int i = -1; i <= 30; i++) {
-          final checkDate = DateTime(now.year, now.month, now.day + i);
-          
-          if (startDate != null) {
-             final startDay = DateTime(startDate.year, startDate.month, startDate.day);
-             final checkDay = DateTime(checkDate.year, checkDate.month, checkDate.day);
-             if (checkDay.isBefore(startDay)) continue;
-          }
+        final checkDate = DateTime(now.year, now.month, now.day + i);
 
-          final dayName = dayFormat.format(checkDate);
-          
-          if (selectedDays.contains(dayName)) {
-              final localStartTime = startTime.toLocal();
-              final sessionTime = DateTime(
-                  checkDate.year,
-                  checkDate.month,
-                  checkDate.day,
-                  localStartTime.hour,
-                  localStartTime.minute,
+        if (startDate != null) {
+          final startDay = DateTime(
+            startDate.year,
+            startDate.month,
+            startDate.day,
+          );
+          final checkDay = DateTime(
+            checkDate.year,
+            checkDate.month,
+            checkDate.day,
+          );
+          if (checkDay.isBefore(startDay)) continue;
+        }
+
+        final dayName = dayFormat.format(checkDate);
+
+        if (selectedDays.contains(dayName)) {
+          final localStartTime = startTime.toLocal();
+          final sessionTime = DateTime(
+            checkDate.year,
+            checkDate.month,
+            checkDate.day,
+            localStartTime.hour,
+            localStartTime.minute,
+          );
+
+          Duration sessionDuration = const Duration(minutes: 90);
+          if (widget.course['endTime'] != null) {
+            DateTime? endDateTime;
+            if (widget.course['endTime'] is Timestamp) {
+              endDateTime = (widget.course['endTime'] as Timestamp)
+                  .toDate()
+                  .toLocal();
+            } else if (widget.course['endTime'] is DateTime) {
+              endDateTime = widget.course['endTime'].toLocal();
+            }
+
+            DateTime? originalStartDateTime;
+            if (widget.course['startTime'] is Timestamp) {
+              originalStartDateTime = (widget.course['startTime'] as Timestamp)
+                  .toDate()
+                  .toLocal();
+            } else if (widget.course['startTime'] is DateTime) {
+              originalStartDateTime = widget.course['startTime'].toLocal();
+            }
+
+            if (endDateTime != null && originalStartDateTime != null) {
+              final dummyStart = DateTime(
+                2000,
+                1,
+                1,
+                originalStartDateTime.hour,
+                originalStartDateTime.minute,
               );
+              final dummyEnd = DateTime(
+                2000,
+                1,
+                1,
+                endDateTime.hour,
+                endDateTime.minute,
+              );
+              var diff = dummyEnd.difference(dummyStart);
+              if (diff.isNegative) diff = diff + const Duration(days: 1);
 
-              Duration sessionDuration = const Duration(minutes: 90);
-              if (widget.course['endTime'] != null) {
-                 DateTime? endDateTime;
-                 if (widget.course['endTime'] is Timestamp) {
-                   endDateTime = (widget.course['endTime'] as Timestamp).toDate().toLocal();
-                 } else if (widget.course['endTime'] is DateTime) {
-                   endDateTime = widget.course['endTime'].toLocal();
-                 }
-                 
-                 DateTime? originalStartDateTime;
-                 if (widget.course['startTime'] is Timestamp) {
-                   originalStartDateTime = (widget.course['startTime'] as Timestamp).toDate().toLocal();
-                 } else if (widget.course['startTime'] is DateTime) {
-                   originalStartDateTime = widget.course['startTime'].toLocal();
-                 }
-
-                 if (endDateTime != null && originalStartDateTime != null) {
-                   final dummyStart = DateTime(2000, 1, 1, originalStartDateTime.hour, originalStartDateTime.minute);
-                   final dummyEnd = DateTime(2000, 1, 1, endDateTime.hour, endDateTime.minute);
-                   var diff = dummyEnd.difference(dummyStart);
-                   if (diff.isNegative) diff = diff + const Duration(days: 1);
-                   
-                   sessionDuration = diff;
-                   if (sessionDuration.inMinutes <= 0 || sessionDuration.inHours > 6) {
-                     sessionDuration = const Duration(minutes: 90);
-                   }
-                 }
+              sessionDuration = diff;
+              if (sessionDuration.inMinutes <= 0 ||
+                  sessionDuration.inHours > 6) {
+                sessionDuration = const Duration(minutes: 90);
               }
-
-              final sessionEndTime = sessionTime.add(sessionDuration);
-
-              if (now.isAfter(sessionTime) && now.isBefore(sessionEndTime)) {
-                  isCurrentlyLive = true;
-                  break;
-              }
-              
-              if (sessionTime.isAfter(now)) {
-                  nextSession = sessionTime;
-                  break;
-              }
+            }
           }
+
+          final sessionEndTime = sessionTime.add(sessionDuration);
+
+          if (now.isAfter(sessionTime) && now.isBefore(sessionEndTime)) {
+            isCurrentlyLive = true;
+            break;
+          }
+
+          if (sessionTime.isAfter(now)) {
+            nextSession = sessionTime;
+            break;
+          }
+        }
       }
 
       if (mounted) {
@@ -1862,10 +2132,12 @@ class _CountdownTimerState extends State<_CountdownTimer> {
           } else if (nextSession != null) {
             _remaining = nextSession.difference(now);
           } else {
-            _remaining = const Duration(hours: 99); 
+            _remaining = const Duration(hours: 99);
           }
         });
-        widget.onTimerUpdate?.call(isCurrentlyLive ? Duration.zero : _remaining);
+        widget.onTimerUpdate?.call(
+          isCurrentlyLive ? Duration.zero : _remaining,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -1979,7 +2251,8 @@ class AmbientVideoPlayer extends StatefulWidget {
   State<AmbientVideoPlayer> createState() => _AmbientVideoPlayerState();
 }
 
-class _AmbientVideoPlayerState extends State<AmbientVideoPlayer> with WidgetsBindingObserver {
+class _AmbientVideoPlayerState extends State<AmbientVideoPlayer>
+    with WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _initialized = false;
   bool _hasError = false;
@@ -2032,7 +2305,7 @@ class _AmbientVideoPlayerState extends State<AmbientVideoPlayer> with WidgetsBin
       }
     } catch (error) {
       debugPrint('❌ VIDEO PLAYER ERROR (Attempt ${_retryCount + 1}): $error');
-      
+
       if (_retryCount < 3 && mounted) {
         _retryCount++;
         // exponential backoff
@@ -2060,7 +2333,8 @@ class _AmbientVideoPlayerState extends State<AmbientVideoPlayer> with WidgetsBin
     final controller = _controller;
     if (controller == null || !_initialized) return;
 
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       controller.pause();
     } else if (state == AppLifecycleState.resumed) {
       controller.play();
@@ -2080,7 +2354,11 @@ class _AmbientVideoPlayerState extends State<AmbientVideoPlayer> with WidgetsBin
       return Container(
         color: AppColors.cardBackground,
         child: const Center(
-          child: Icon(Icons.movie_filter_outlined, color: Colors.white54, size: 40),
+          child: Icon(
+            Icons.movie_filter_outlined,
+            color: Colors.white54,
+            size: 40,
+          ),
         ),
       );
     }

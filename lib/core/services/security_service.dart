@@ -7,9 +7,7 @@ import 'package:calligro_app/core/services/deep_link_service.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:screen_protector/screen_protector.dart';
-
 class SecurityService with WidgetsBindingObserver {
   static final SecurityService _instance = SecurityService._internal();
   factory SecurityService() => _instance;
@@ -50,6 +48,10 @@ class SecurityService with WidgetsBindingObserver {
     _isProtectionEnabled = true;
     try {
       await ScreenProtector.preventScreenshotOn();
+      if (Platform.isIOS) {
+        // Also enable data leakage protection for iOS multitasking view
+        await ScreenProtector.protectDataLeakageWithColor(Colors.black);
+      }
       debugPrint('🔓 SecurityService: screen_protector ON ENABLED');
     } catch (e) {
       debugPrint('❌ Failed to enable screenshot protection: $e');
@@ -61,6 +63,9 @@ class SecurityService with WidgetsBindingObserver {
     _isProtectionEnabled = false;
     try {
       await ScreenProtector.preventScreenshotOff();
+      if (Platform.isIOS) {
+        await ScreenProtector.protectDataLeakageWithColorOff();
+      }
       debugPrint('🔒 SecurityService: screen_protector OFF (DISABLED protection)');
     } catch (e) {
       debugPrint('❌ Failed to disable screenshot protection: $e');

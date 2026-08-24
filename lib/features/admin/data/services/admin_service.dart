@@ -10,32 +10,21 @@ class AdminService {
 
   // --- STATS ---
 
-  /// Returns a real-time stream of global counts and metrics
-  Stream<Map<String, dynamic>> getGlobalStats() {
-    // Using snapshots() ensures real-time updates. 
-    // We use .map to handle potential errors and ensure it emits even if empty.
-    final usersStream = _firestore.collection('users').snapshots();
-    final coursesStream = _firestore.collection('courses').snapshots();
-    final postsStream = _firestore.collection('community_posts').snapshots();
-    final pendingTeachersStream = _firestore.collection('users').where('role', isEqualTo: 'teacher').where('status', isEqualTo: 'pending').snapshots();
-    final withdrawalsStream = _firestore.collection('withdrawal_requests').where('status', isEqualTo: 'pending').snapshots();
+  /// Returns a future of global counts and metrics using optimized .count() aggregations
+  Future<Map<String, dynamic>> getGlobalStats() async {
+    final usersCount = await _firestore.collection('users').count().get();
+    final coursesCount = await _firestore.collection('courses').count().get();
+    final postsCount = await _firestore.collection('community_posts').count().get();
+    final pendingTeachersCount = await _firestore.collection('users').where('role', isEqualTo: 'teacher').where('status', isEqualTo: 'pending').count().get();
+    final withdrawalsCount = await _firestore.collection('withdrawal_requests').where('status', isEqualTo: 'pending').count().get();
 
-    return Rx.combineLatest5(
-      usersStream,
-      coursesStream,
-      postsStream,
-      pendingTeachersStream,
-      withdrawalsStream,
-      (users, courses, posts, pendingTeachers, withdrawals) {
-        return {
-          'totalUsers': users.docs.length,
-          'totalCourses': courses.docs.length,
-          'totalPosts': posts.docs.length,
-          'pendingTeachers': pendingTeachers.docs.length,
-          'pendingWithdrawals': withdrawals.docs.length,
-        };
-      },
-    );
+    return {
+      'totalUsers': usersCount.count ?? 0,
+      'totalCourses': coursesCount.count ?? 0,
+      'totalPosts': postsCount.count ?? 0,
+      'pendingTeachers': pendingTeachersCount.count ?? 0,
+      'pendingWithdrawals': withdrawalsCount.count ?? 0,
+    };
   }
 
   /// Fetches a merged stream of recent activities across the platform

@@ -31,6 +31,9 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
   String _searchText = "";
   String _selectedFilter = ""; // Initialized in didChangeDependencies
   late Stream<QuerySnapshot> _coursesStream;
+  
+  int _currentPage = 1;
+  final int _itemsPerPage = 5;
 
   @override
   bool get wantKeepAlive => true;
@@ -218,20 +221,84 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                     return _buildEmptyState(l10n.noCoursesMatchFilter);
                   }
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.only(
-                      top: 10,
-                      left: 16,
-                      right: 16,
-                      bottom: 100,
-                    ),
-                    itemCount: courses.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 20),
-                    itemBuilder: (context, index) {
-                      final doc = courses[index];
-                      return _buildAwesomeCourseCard(context, doc);
-                    },
+                  final int totalPages = (courses.length / _itemsPerPage).ceil();
+                  
+                  // Failsafe if we filtered and the page is now too high
+                  if (_currentPage > totalPages && totalPages > 0) {
+                    // Schedule state update after build
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) setState(() => _currentPage = 1);
+                    });
+                  }
+
+                  final int startIndex = (_currentPage - 1) * _itemsPerPage;
+                  int endIndex = startIndex + _itemsPerPage;
+                  if (endIndex > courses.length) {
+                    endIndex = courses.length;
+                  }
+                  
+                  // Protect against invalid range if failsafe hasn't triggered rebuild yet
+                  final paginatedCourses = startIndex < courses.length 
+                      ? courses.sublist(startIndex, endIndex)
+                      : <DocumentSnapshot>[];
+
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.only(
+                            top: 10,
+                            left: 16,
+                            right: 16,
+                            bottom: 20,
+                          ),
+                          itemCount: paginatedCourses.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 20),
+                          itemBuilder: (context, index) {
+                            final doc = paginatedCourses[index];
+                            return _buildAwesomeCourseCard(context, doc);
+                          },
+                        ),
+                      ),
+                      if (totalPages > 1)
+                        Container(
+                          padding: const EdgeInsets.only(bottom: 24, top: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left, color: Colors.white),
+                                onPressed: _currentPage > 1
+                                    ? () => setState(() => _currentPage--)
+                                    : null,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _currentPage > 1 ? Colors.white10 : Colors.transparent,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Text(
+                                '$_currentPage / $totalPages',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right, color: Colors.white),
+                                onPressed: _currentPage < totalPages
+                                    ? () => setState(() => _currentPage++)
+                                    : null,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: _currentPage < totalPages ? Colors.white10 : Colors.transparent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   );
                 },
               ),
@@ -298,7 +365,10 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
             ),
             child: TextField(
               controller: _searchController,
-              onChanged: (val) => setState(() => _searchText = val),
+              onChanged: (val) => setState(() {
+                _searchText = val;
+                _currentPage = 1;
+              }),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: AppLocalizations.of(context)!.searchCourseHint,
@@ -332,7 +402,10 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                         return;
                       }
                     }
-                    setState(() => _selectedFilter = filter);
+                    setState(() {
+                      _selectedFilter = filter;
+                      _currentPage = 1;
+                    });
                   },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),

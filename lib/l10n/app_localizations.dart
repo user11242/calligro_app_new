@@ -6765,6 +6765,204 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recording Title'**
   String get recordingTitle;
+
+  /// No description provided for @bankDetailsCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'BANK ACCOUNT DETAILS'**
+  String get bankDetailsCaps;
+
+  /// No description provided for @billingAddressCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'BILLING ADDRESS'**
+  String get billingAddressCaps;
+
+  /// No description provided for @accountHolderFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Holder Full Name'**
+  String get accountHolderFullName;
+
+  /// No description provided for @swiftBicCode.
+  ///
+  /// In en, this message translates to:
+  /// **'SWIFT / BIC Code'**
+  String get swiftBicCode;
+
+  /// No description provided for @country.
+  ///
+  /// In en, this message translates to:
+  /// **'Country'**
+  String get country;
+
+  /// No description provided for @city.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get city;
+
+  /// No description provided for @streetAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Street Address'**
+  String get streetAddress;
+
+  /// No description provided for @postalCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Postal Code'**
+  String get postalCode;
+
+  /// No description provided for @leaveClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave Class'**
+  String get leaveClass;
+
+  /// No description provided for @leaveClassroomConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to leave the classroom?'**
+  String get leaveClassroomConfirmation;
+
+  /// No description provided for @leave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get leave;
+
+  /// No description provided for @endMeetingForEveryone.
+  ///
+  /// In en, this message translates to:
+  /// **'End Meeting for Everyone'**
+  String get endMeetingForEveryone;
+
+  /// No description provided for @endMeetingConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to end the meeting for everyone?'**
+  String get endMeetingConfirmation;
+
+  /// No description provided for @endForAll.
+  ///
+  /// In en, this message translates to:
+  /// **'End for All'**
+  String get endForAll;
+
+  /// No description provided for @connectingToClassroom.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to Classroom...'**
+  String get connectingToClassroom;
+
+  /// No description provided for @connectingDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait while we establish a secure connection.'**
+  String get connectingDisclaimer;
+
+  /// No description provided for @readyToJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to join?'**
+  String get readyToJoin;
+
+  /// No description provided for @configureAudioVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure your audio and video before joining.'**
+  String get configureAudioVideo;
+
+  /// No description provided for @micOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Mic On'**
+  String get micOn;
+
+  /// No description provided for @micOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Mic Off'**
+  String get micOff;
+
+  /// No description provided for @camOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera On'**
+  String get camOn;
+
+  /// No description provided for @camOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera Off'**
+  String get camOff;
+
+  /// No description provided for @flipCam.
+  ///
+  /// In en, this message translates to:
+  /// **'Flip Camera'**
+  String get flipCam;
+
+  /// No description provided for @joinClassroom.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Classroom'**
+  String get joinClassroom;
+
+  /// No description provided for @startingClassroom.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting Classroom...'**
+  String get startingClassroom;
+
+  /// No description provided for @pleaseWaitConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait while we connect you to the classroom.'**
+  String get pleaseWaitConnecting;
+
+  /// No description provided for @viewAndManageStudents.
+  ///
+  /// In en, this message translates to:
+  /// **'View and manage your enrolled students'**
+  String get viewAndManageStudents;
+
+  /// No description provided for @bankInfoEnglishDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Please ensure all bank information is entered in English letters to prevent transfer delays or failures.'**
+  String get bankInfoEnglishDisclaimer;
+
+  /// No description provided for @contactInformationCaps.
+  ///
+  /// In en, this message translates to:
+  /// **'CONTACT INFORMATION'**
+  String get contactInformationCaps;
+
+  /// No description provided for @exactNameOnBankAccountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact name on bank account'**
+  String get exactNameOnBankAccountHint;
+
+  /// No description provided for @swiftCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'8 or 11 character code'**
+  String get swiftCodeHint;
+
+  /// No description provided for @ibanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts with country code, no spaces'**
+  String get ibanHint;
+
+  /// No description provided for @recordingExpirationNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note: Each recording will be available for two weeks from its published date.'**
+  String get recordingExpirationNote;
 }
 
 class _AppLocalizationsDelegate

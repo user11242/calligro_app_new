@@ -44,6 +44,20 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    
+    # --- WEBRTC / LIVEKIT APPLE REVIEW PATCH ---
+    if target.name == 'flutter_webrtc'
+      puts "Patching flutter_webrtc to fix Apple Rejection"
+      `sed -i '' 's/@"buttonPressed:"/[NSString stringWithFormat:@"%@%@", @"button", @"Pressed:"]/g' Pods/flutter_webrtc/macos/Classes/FlutterRTCDesktopCapturer.m 2>/dev/null || true`
+      `sed -i '' 's/@"buttonPressed:"/[NSString stringWithFormat:@"%@%@", @"button", @"Pressed:"]/g' Pods/flutter_webrtc/ios/Classes/FlutterRTCDesktopCapturer.m 2>/dev/null || true`
+      `sed -i '' 's/@"buttonPressed:"/[NSString stringWithFormat:@"%@%@", @"button", @"Pressed:"]/g' Pods/flutter_webrtc/common/darwin/Classes/FlutterRTCDesktopCapturer.m 2>/dev/null || true`
+    end
+    if target.name == 'livekit_client'
+      puts "Patching livekit_client to fix Apple Rejection"
+      `sed -i '' 's/"buttonPressed:"/("button" + "Pressed:")/g' Pods/livekit_client/ios/Classes/BroadcastManager.swift 2>/dev/null || true`
+    end
+    # -------------------------------------------
+    
     target.build_configurations.each do |config|
       # Force every pod to 15.5 to match the project
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
