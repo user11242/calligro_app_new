@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { db, auth } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
@@ -10,7 +10,7 @@ import { Search, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "@/hooks/useTranslation";
 
-export default function CoursesPage() {
+function CoursesPageContent() {
   const searchParams = useSearchParams();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -276,5 +276,13 @@ export default function CoursesPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function CoursesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-12 h-12 text-primary animate-spin" /></div>}>
+      <CoursesPageContent />
+    </Suspense>
   );
 }
