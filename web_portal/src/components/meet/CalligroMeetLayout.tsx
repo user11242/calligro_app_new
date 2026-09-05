@@ -15,14 +15,16 @@ import {
   useLocalParticipant,
   useRoomContext,
 } from "@livekit/components-react";
-import { Track, ParticipantEvent, ConnectionState, RoomEvent } from "livekit-client";
+import { Track, ParticipantEvent, ConnectionState, RoomEvent, DisconnectReason } from "livekit-client";
 import { Users, MessageSquare, PhoneOff, ShieldCheck, PenTool, Hand, Compass, WifiOff, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "@/hooks/useTranslation";
 import ParticipantsPanel from "./ParticipantsPanel";
 import ChatPanel from "./ChatPanel";
 import TeacherControls from "./TeacherControls";
 import StudentControls from "./StudentControls";
 import Whiteboard from "./Whiteboard";
+import CalligraphyBoard from "./CalligraphyBoard";
 import ProtractorOverlay from "./ProtractorOverlay";
 import LocalRecorderWrapper from "./LocalRecorderWrapper";
 import { auth, db } from "@/lib/firebase";
@@ -30,7 +32,8 @@ import { doc, getDoc } from "firebase/firestore";
 
 // Context to pass the local user's avatar down to CustomParticipantTile
 // (props don't survive GridLayout cloning reliably)
-const LocalAvatarContext = React.createContext<string | null>(null);
+export const LocalAvatarContext = React.createContext<string | null>(null);
+export const RaisedHandsContext = React.createContext<Set<string>>(new Set());
 
 // A wrapper for ParticipantTile that renders our custom avatar on top ONLY when the camera is off,
 // without breaking LiveKit's internal children rendering for the video track.
@@ -38,6 +41,7 @@ const CustomParticipantTile = React.forwardRef<HTMLDivElement, any>((props, ref)
   const { trackRef, className, style, ...rest } = props;
   // Read avatar from context (set by the parent CalligroMeetLayout)
   const localAvatarFromCtx = React.useContext(LocalAvatarContext);
+  const raisedHands = React.useContext(RaisedHandsContext);
   
   // Safely ensure we have a trackRef (either from props or LiveKit context)
   // useEnsureTrackRef is provided by LiveKit specifically for this situation
@@ -50,6 +54,7 @@ const CustomParticipantTile = React.forwardRef<HTMLDivElement, any>((props, ref)
   
   // Only show the avatar overlay if this is a Camera track (not Screen Share) and it is muted
   const shouldShowAvatar = isCameraTrack && isMuted;
+  const isHandRaised = participant ? raisedHands.has(participant.identity) : false;
   
   let avatarUrl = null;
   if (participant?.metadata) {
@@ -73,10 +78,24 @@ const CustomParticipantTile = React.forwardRef<HTMLDivElement, any>((props, ref)
   }, [avatarUrl]);
 
   return (
-    <div ref={ref} className={`relative overflow-hidden shadow-2xl border border-white/5 bg-[#13151A] ${className || ""}`} style={style} {...rest}>
+    <div ref={ref} className={`relative overflow-hidden shadow-2xl border ${isHandRaised ? 'border-[#EBB937]' : 'border-white/5'} bg-[#13151A] ${className || ""}`} style={style} {...rest}>
       {/* LiveKit natively renders video, audio, name, and connection quality here */}
       <ParticipantTile trackRef={trackRef} className="w-full h-full" />
       
+      {/* Hand Raised Badge */}
+      <AnimatePresence>
+        {isHandRaised && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            className="absolute top-2 right-2 z-20 bg-[#EBB937] p-1.5 rounded-full shadow-[0_0_15px_rgba(235,185,55,0.6)]"
+          >
+            <Hand className="w-4 h-4 text-black" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Our custom avatar overlay sitting on top of the native tile, hiding it if camera is disabled */}
       <AnimatePresence>
         {shouldShowAvatar && (
@@ -85,17 +104,17 @@ const CustomParticipantTile = React.forwardRef<HTMLDivElement, any>((props, ref)
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#13151A] pointer-events-none"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#13151A] pointer-events-none p-4"
           >
             {avatarUrl && !imageError ? (
               <img 
                 src={avatarUrl} 
                 alt={participant?.name || "Participant"} 
-                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)]"
+                className={`w-20 h-20 sm:w-28 sm:h-28 object-cover rounded-full border-[3px] sm:border-4 ${isHandRaised ? 'border-[#EBB937]' : 'border-white/10'} shadow-[0_0_40px_rgba(0,0,0,0.5)] shrink-0`}
                 onError={() => setImageError(true)}
               />
             ) : (
-              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-primary/20 border-4 border-primary/30 flex items-center justify-center text-primary font-bold text-4xl shadow-[0_0_30px_rgba(235,185,55,0.2)]">
+              <div className={`w-20 h-20 sm:w-28 sm:h-28 rounded-full shrink-0 ${isHandRaised ? 'bg-[#EBB937]/20 border-[#EBB937]' : 'bg-primary/20 border-primary/30'} border-[3px] sm:border-4 flex items-center justify-center text-primary font-bold text-2xl sm:text-4xl shadow-[0_0_30px_rgba(235,185,55,0.2)]`}>
                 {participant?.name?.[0]?.toUpperCase() || '?'}
               </div>
             )}
@@ -122,6 +141,7 @@ export default function CalligroMeetLayout({
   onLeave,
   isRecordingMode = false,
 }: CalligroMeetLayoutProps) {
+  const { t } = useTranslation();
   // Fetch the current user's photo from Firestore directly (most reliable source)
   const [localAvatar, setLocalAvatar] = useState<string | null>(userAvatarProp || null);
   useEffect(() => {
@@ -182,6 +202,13 @@ export default function CalligroMeetLayout({
   }
 
   const carouselTracks = tracks.filter(t => t !== focusTrack);
+  
+  let pipTrack: TrackReferenceOrPlaceholder | null = null;
+  if (carouselTracks.length > 0) {
+    pipTrack = carouselTracks.find(t => t.participant.isSpeaking) || null;
+    if (!pipTrack) pipTrack = carouselTracks.find(t => t.source === Track.Source.Camera && t.participant.isCameraEnabled) || null;
+    if (!pipTrack) pipTrack = carouselTracks[0];
+  }
 
   const [activeTab, setActiveTab] = useState<"chat" | "participants" | null>(null);
   const [isWhiteboardActive, setIsWhiteboardActive] = useState(false);
@@ -191,17 +218,20 @@ export default function CalligroMeetLayout({
   const [protractorAngle, setProtractorAngle] = useState(70);
   const constraintsRef = useRef<HTMLDivElement>(null);
 
+  const [isEnding, setIsEnding] = useState(false);
+  const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
+
   // Check if ANY track is a screen share to automatically trigger Focus Mode
   const isScreenSharing = tracks.some((t) => t.source === Track.Source.ScreenShare);
   
   // Focus Mode is active if Whiteboard is ON or someone is Screen Sharing
   const isFocusMode = isWhiteboardActive || isScreenSharing;
 
-  // Data channel for handling events
-  const { send, message } = useDataChannel("classroom-events");
+  // Listen on the default unnamed channel — Flutter's localParticipant.publishData() sends without a topic
+  const { send, message } = useDataChannel();
   const room = useRoomContext();
 
-  // Play join/leave sounds
+  // Play join/leave sounds and handle graceful server disconnection
   useEffect(() => {
     const onParticipantConnected = () => {
       new Audio('/sounds/join.wav').play().catch((e) => console.log("Audio play blocked", e));
@@ -209,37 +239,79 @@ export default function CalligroMeetLayout({
     const onParticipantDisconnected = () => {
       new Audio('/sounds/leave.wav').play().catch((e) => console.log("Audio play blocked", e));
     };
+    const onDisconnected = (reason?: DisconnectReason) => {
+      if (reason === DisconnectReason.ROOM_DELETED) {
+        setToastMessage(t("meet.teacher_ended"));
+        setIsEnding(true);
+        setTimeout(() => onLeave(), 2000);
+      }
+    };
 
     room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
     room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
+    room.on(RoomEvent.Disconnected, onDisconnected);
 
     return () => {
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
+      room.off(RoomEvent.Disconnected, onDisconnected);
     };
-  }, [room]);
+  }, [room, onLeave]);
 
   useEffect(() => {
     if (!message) return;
     try {
       const data = JSON.parse(new TextDecoder().decode(message.payload));
+      
+      const senderIdentity = message.from?.identity;
+
       if (data.type === "RAISE_HAND" || data.cmd === "raise_hand") {
         setToastMessage(`${data.name} raised their hand! ✋`);
         setTimeout(() => setToastMessage(null), 5000);
+        if (senderIdentity) {
+          setRaisedHands(prev => new Set(prev).add(senderIdentity));
+        }
+      }
+      if (data.cmd === "lower_hand") {
+        if (senderIdentity) {
+          setRaisedHands(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(senderIdentity);
+            return newSet;
+          });
+        }
+      }
+      
+      if (data.cmd === "force_lower_hand" && data.targetId) {
+        setRaisedHands(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.targetId);
+          return newSet;
+        });
       }
       
       // Teacher Commands -> Student Actions
       if (data.cmd === "mute_all" && !isTeacher) {
         localParticipant.setMicrophoneEnabled(false);
       }
-      if (data.cmd === "mute_student" && data.identity === localParticipant.identity) {
+      if ((data.cmd === "mute_student" || data.type === "force_mute_mic") && 
+          (data.identity === localParticipant.identity || data.targetId === localParticipant.identity)) {
         localParticipant.setMicrophoneEnabled(false);
       }
-      if (data.cmd === "disable_camera" && data.identity === localParticipant.identity) {
+      if ((data.cmd === "disable_camera" || data.type === "force_mute_camera") && 
+          (data.identity === localParticipant.identity || data.targetId === localParticipant.identity)) {
         localParticipant.setCameraEnabled(false);
       }
       if (data.cmd === "kick_student" && data.identity === localParticipant.identity) {
         setToastMessage("You have been removed from the class.");
+        setIsEnding(true);
+        setTimeout(() => onLeave(), 2000);
+      }
+      
+      if (data.type === "end_meeting_for_all") {
+        setToastMessage(t("meet.teacher_ended"));
+        setIsEnding(true);
+        // Use a small timeout so the user sees the message before unmounting
         setTimeout(() => onLeave(), 2000);
       }
 
@@ -307,6 +379,7 @@ export default function CalligroMeetLayout({
   };
 
   return (
+    <RaisedHandsContext.Provider value={raisedHands}>
     <div className="flex-1 flex overflow-hidden bg-[#0A0A0B] text-white font-outfit selection:bg-primary/30 relative">
       
       {/* Ambient Animated Background */}
@@ -317,7 +390,7 @@ export default function CalligroMeetLayout({
 
       {/* Reconnection / Disconnection Overlay */}
       <AnimatePresence>
-        {(connectionState === ConnectionState.Reconnecting || connectionState === ConnectionState.Disconnected) && (
+        {!isEnding && (connectionState === ConnectionState.Reconnecting || connectionState === ConnectionState.Disconnected) && (
           <motion.div
             key="reconnecting"
             initial={{ opacity: 0 }}
@@ -438,18 +511,18 @@ export default function CalligroMeetLayout({
             dragMomentum={false}
             className={`${
               isWhiteboardActive 
-                ? "absolute top-24 left-6 w-56 max-h-[70vh] z-[70] overflow-y-auto flex flex-col gap-2 rounded-2xl p-2 bg-[#13151A]/80 backdrop-blur-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-grab active:cursor-grabbing" 
-                : "flex-1 w-full h-full relative z-10 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col lg:flex-row gap-4"
+                ? "absolute top-24 left-6 w-[280px] sm:w-[350px] max-h-[70vh] z-[70] overflow-y-auto flex flex-col gap-2 rounded-2xl p-2 bg-[#13151A]/80 backdrop-blur-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] cursor-grab active:cursor-grabbing" 
+                : "flex-1 w-full h-full relative z-10 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col gap-4"
             } custom-participant-grid`}
           >
              <style dangerouslySetInnerHTML={{__html: `
                .custom-participant-grid .lk-participant-placeholder > svg {
                  display: none !important;
                }
-               /* Make grid layout single column when floating */
+               /* Adjust floating grid for many users */
                ${isWhiteboardActive ? `
                  .custom-participant-grid > div {
-                   grid-template-columns: 1fr !important;
+                   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
                    gap: 8px !important;
                  }
                  .custom-participant-grid .lk-participant-tile {
@@ -466,24 +539,21 @@ export default function CalligroMeetLayout({
                   <CustomParticipantTile className="rounded-xl" />
                 </GridLayout>
              ) : (
-                <>
-                  {/* Main Focus View */}
+                <div className="w-full h-full relative rounded-3xl overflow-hidden shadow-2xl bg-[#13151A] border border-white/5">
+                  {/* Main Focus View (Background) */}
                   {focusTrack && (
-                    <div className="flex-1 w-full h-full rounded-3xl overflow-hidden shadow-2xl relative bg-[#13151A] border border-white/5">
+                    <div className="absolute inset-0 z-0">
                       <CustomParticipantTile trackRef={focusTrack} className="w-full h-full" />
                     </div>
                   )}
-                  {/* Carousel Sidebar / Bottom Bar */}
-                  {carouselTracks.length > 0 && (
-                    <div className="w-full lg:w-72 h-36 lg:h-full flex flex-row lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto shrink-0 pb-2 lg:pb-0 pr-0 lg:pr-2 hide-scrollbar">
-                      {carouselTracks.map((t, idx) => (
-                        <div key={t.participant.identity + t.source} className="w-48 lg:w-full h-full lg:h-48 shrink-0 rounded-2xl overflow-hidden shadow-lg border border-white/10 bg-[#13151A]">
-                          <CustomParticipantTile trackRef={t} className="w-full h-full" />
-                        </div>
-                      ))}
+
+                  {/* Floating Single Participant PiP (App style) */}
+                  {pipTrack && (
+                    <div className="absolute bottom-24 left-4 md:bottom-8 md:left-8 z-20 w-[100px] h-[130px] sm:w-[140px] sm:h-[180px] pointer-events-auto rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-[#13151A] transition-all duration-300 hover:border-primary/50 hover:scale-105">
+                      <CustomParticipantTile trackRef={pipTrack} className="w-full h-full" />
                     </div>
                   )}
-                </>
+                </div>
              )}
              </LocalAvatarContext.Provider>
           </motion.div>
@@ -587,5 +657,6 @@ export default function CalligroMeetLayout({
         )}
       </AnimatePresence>
     </div>
+    </RaisedHandsContext.Provider>
   );
 }

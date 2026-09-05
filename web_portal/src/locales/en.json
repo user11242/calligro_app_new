@@ -63,12 +63,15 @@
   "course.enrolled": "Enrolled",
   "course.few_seats_left": "Only a few seats left!",
   "course.weekly_sessions": "Weekly Sessions: ",
+  "course.tuition_fee": "Course Tuition",
+  "course.platform_fee": "Service Fee (8%)",
+  "course.total_due": "Total Due",
+  "course.fee_tooltip": "Helps cover secure payment processing, global taxes, and platform maintenance.",
   "course.curriculum": "Curriculum",
   "course.curriculum_coming": "Curriculum details are coming soon.",
   "course.tools": "Tools Required",
   "course.no_tools": "No specific tools listed.",
   "course.current_status": "Current Status",
-  "course.tuition_fee": "Tuition Fee",
   "course.lifetime_access": "Lifetime Access",
   "course.direct_enrollment": "Direct Academy Enrollment",
   "course.certified_instructor": "Certified Instructor",
@@ -457,5 +460,6 @@
   "meet.camera_on": "Camera On",
   "meet.mic_active": "Mic Active",
   "meet.mic_muted": "Mic Muted",
-  "meet.authenticating": "Authenticating Secure Connection..."
+  "meet.authenticating": "Authenticating Secure Connection...",
+  "meet.teacher_ended": "The teacher has ended the class."
 }

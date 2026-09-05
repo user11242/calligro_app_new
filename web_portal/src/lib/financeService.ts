@@ -158,6 +158,103 @@ class FinanceService {
     });
   }
 
+  // --- TEACHER LEDGER ENGINE ---
+  getTeacherLedgers(callback: (ledgers: any[]) => void) {
+    const teachersQuery = query(collection(db, "users"), where("role", "==", "teacher"));
+    const coursesQuery = collection(db, "courses");
+    const txQuery = query(collection(db, "transactions"), where("status", "==", "completed"));
+    const withdrawalsQuery = collection(db, "withdrawal_requests");
+
+    return onSnapshot(teachersQuery, (tSnap) => {
+      onSnapshot(coursesQuery, (cSnap) => {
+        onSnapshot(txQuery, (txSnap) => {
+          onSnapshot(withdrawalsQuery, (wSnap) => {
+            // 1. Build Course Map to quickly get status
+            const courseMap = new Map();
+            const now = new Date();
+            cSnap.docs.forEach(doc => {
+              const data = doc.data();
+              const endDate = data.expiryDate?.toDate ? data.expiryDate.toDate() : 
+                              data.createdAt?.toDate ? new Date(data.createdAt.toDate().getTime() + 30 * 24 * 60 * 60 * 1000) : 
+                              new Date();
+              const payoutDate = new Date(endDate.getTime() + 2 * 24 * 60 * 60 * 1000);
+              
+              let status = "ongoing";
+              if (now >= endDate && now < payoutDate) status = "processing";
+              if (now >= payoutDate) status = "ready";
+              
+              courseMap.set(doc.id, {
+                title: data.title || data.courseName || "Untitled Course",
+                endDate,
+                payoutDate,
+                status
+              });
+            });
+
+            // 2. Process Withdrawals per teacher
+            const payoutsMap = new Map();
+            wSnap.docs.forEach(doc => {
+              const data = doc.data();
+              if (data.status === 'completed' && data.teacherId) {
+                const amount = Number(data.amount || 0);
+                payoutsMap.set(data.teacherId, (payoutsMap.get(data.teacherId) || 0) + amount);
+              }
+            });
+
+            // 3. Process Transactions per teacher
+            const txByTeacher = new Map();
+            txSnap.docs.forEach(doc => {
+              const data = doc.data();
+              const teacherId = data.teacherId;
+              if (!teacherId) return;
+              
+              const courseId = data.courseId;
+              const course = courseMap.get(courseId);
+              const cStatus = course?.status || 'ongoing';
+              const teacherShare = Number(data.teacherShare || 0);
+              
+              if (!txByTeacher.has(teacherId)) {
+                txByTeacher.set(teacherId, { locked: 0, matured: 0, txs: [] });
+              }
+              
+              const tData = txByTeacher.get(teacherId);
+              tData.txs.push({ ...data, courseStatus: cStatus, payoutDate: course?.payoutDate });
+              
+              if (cStatus === 'ready') {
+                tData.matured += teacherShare;
+              } else {
+                tData.locked += teacherShare;
+              }
+            });
+
+            // 4. Build Final Ledgers
+            const ledgers = tSnap.docs.map(doc => {
+              const data = doc.data();
+              const teacherId = doc.id;
+              const tData = txByTeacher.get(teacherId) || { locked: 0, matured: 0, txs: [] };
+              const lifetimePaid = payoutsMap.get(teacherId) || 0;
+              const availableBalance = Math.max(0, tData.matured - lifetimePaid);
+              
+              return {
+                id: teacherId,
+                name: data.name || "Unknown Teacher",
+                email: data.email || "",
+                photoUrl: data.photoUrl || "",
+                lockedBalance: tData.locked,
+                maturedEarnings: tData.matured,
+                lifetimePaid,
+                availableBalance,
+                transactions: tData.txs
+              };
+            });
+
+            callback(ledgers);
+          });
+        });
+      });
+    });
+  }
+
   // --- GLOBAL COUNTS FOR DASHBOARD ---
   getGlobalCounts(callback: (counts: { students: number, courses: number }) => void) {
     const studentsQuery = query(collection(db, "users"), where("role", "==", "student"));

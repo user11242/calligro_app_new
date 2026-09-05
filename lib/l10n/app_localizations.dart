@@ -6850,6 +6850,12 @@ abstract class AppLocalizations {
   /// **'End for All'**
   String get endForAll;
 
+  /// No description provided for @teacherEndedMeeting.
+  ///
+  /// In en, this message translates to:
+  /// **'The teacher has ended the meeting.'**
+  String get teacherEndedMeeting;
+
   /// No description provided for @connectingToClassroom.
   ///
   /// In en, this message translates to:
@@ -6963,6 +6969,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Note: Each recording will be available for two weeks from its published date.'**
   String get recordingExpirationNote;
+
+  /// No description provided for @teacherRecordingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'For the class to be recorded, please make sure to enable both your microphone and camera before joining.'**
+  String get teacherRecordingNote;
+
+  /// No description provided for @participants.
+  ///
+  /// In en, this message translates to:
+  /// **'Participants'**
+  String get participants;
+
+  /// No description provided for @noOtherParticipants.
+  ///
+  /// In en, this message translates to:
+  /// **'No other participants in the room yet.'**
+  String get noOtherParticipants;
+
+  /// No description provided for @adminLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get adminLabel;
+
+  /// No description provided for @confirmMuteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure?'**
+  String get confirmMuteTitle;
+
+  /// No description provided for @confirmMuteMic.
+  ///
+  /// In en, this message translates to:
+  /// **'This will mute the student\'s microphone.'**
+  String get confirmMuteMic;
+
+  /// No description provided for @confirmMuteCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'This will disable the student\'s camera.'**
+  String get confirmMuteCamera;
+
+  /// No description provided for @practiceSheetTemplateOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice Sheet Template (Optional)'**
+  String get practiceSheetTemplateOptional;
+
+  /// No description provided for @practiceSheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice Sheet'**
+  String get practiceSheet;
+
+  /// No description provided for @noneOption.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get noneOption;
+
+  /// No description provided for @downloadPrintPracticeSheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Download / Print Practice Sheet'**
+  String get downloadPrintPracticeSheet;
+
+  /// No description provided for @assignmentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Assignment'**
+  String get assignmentLabel;
+
+  /// No description provided for @teacherLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Teacher'**
+  String get teacherLabel;
+
+  /// No description provided for @studentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Student'**
+  String get studentLabel;
+
+  /// No description provided for @printAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Print'**
+  String get printAction;
+
+  /// No description provided for @raiseHand.
+  ///
+  /// In en, this message translates to:
+  /// **'Raise Hand'**
+  String get raiseHand;
+
+  /// No description provided for @studentRaisedHand.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} raised their hand! ✋'**
+  String studentRaisedHand(String name);
 }
 
 class _AppLocalizationsDelegate

@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { useLocalParticipant, TrackToggle, useDataChannel } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { useLocalParticipant, TrackToggle, useDataChannel, useRoomContext } from "@livekit/components-react";
+import { Track, RoomEvent } from "livekit-client";
 import { Hand, Monitor, MonitorOff } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function StudentControls() {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
-  const { send } = useDataChannel("classroom-events");
+  const room = useRoomContext();
+  const { send } = useDataChannel();
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
@@ -31,18 +32,38 @@ export default function StudentControls() {
   };
 
   const handleRaiseHand = async () => {
-    if (isHandRaised) return;
-    
-    setIsHandRaised(true);
+    const newState = !isHandRaised;
+    setIsHandRaised(newState);
     const encoder = new TextEncoder();
-    const data = encoder.encode(JSON.stringify({ cmd: "raise_hand", name: localParticipant.name || "Student" }));
+    const data = encoder.encode(JSON.stringify({ 
+      cmd: newState ? "raise_hand" : "lower_hand", 
+      name: localParticipant.name || "Student" 
+    }));
     send(data, { reliable: true });
-
-    // Reset after 5 seconds to allow raising again later
-    setTimeout(() => {
-      setIsHandRaised(false);
-    }, 5000);
   };
+  
+  // Listen for teacher force-lowering our hand
+  React.useEffect(() => {
+    const handleDataReceived = (payload: Uint8Array) => {
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload));
+        if (data.cmd === "force_lower_hand" && data.targetId === localParticipant.identity) {
+          setIsHandRaised(false);
+          const encoder = new TextEncoder();
+          const pData = encoder.encode(JSON.stringify({ 
+            cmd: "lower_hand", 
+            name: localParticipant.name || "Student" 
+          }));
+          send(pData, { reliable: true });
+        }
+      } catch (e) {}
+    };
+    
+    room.on(RoomEvent.DataReceived, handleDataReceived);
+    return () => {
+      room.off(RoomEvent.DataReceived, handleDataReceived);
+    };
+  }, [localParticipant, send, room]);
 
   return (
     <div className="flex items-center gap-1.5 lk-custom-toggles">
@@ -104,7 +125,6 @@ export default function StudentControls() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={handleRaiseHand}
-        disabled={isHandRaised}
         className={`px-4 py-3 rounded-full transition-colors duration-300 flex items-center gap-2 text-[13px] font-bold tracking-wide ${
           isHandRaised 
             ? "bg-primary text-black shadow-[0_0_20px_rgba(235,185,55,0.4)]" 

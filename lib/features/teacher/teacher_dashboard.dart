@@ -69,10 +69,16 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           .where('status', isEqualTo: 'completed')
           .get();
 
+      Future<QuerySnapshot> withdrawalsQueryFuture = FirebaseFirestore.instance
+          .collection('withdrawal_requests')
+          .where('teacherId', isEqualTo: user.uid)
+          .get();
+
       final List<dynamic> results = await Future.wait([
         userDocFuture,
         coursesQueryFuture,
         txQueryFuture,
+        withdrawalsQueryFuture,
       ]);
 
       if (!mounted) return;
@@ -96,6 +102,9 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       final int fetchedCourseCount = coursesQuery.size;
 
       int totalStudents = 0;
+      Map<String, DateTime> coursePayoutDates = {};
+      final now = DateTime.now();
+      
       for (var doc in coursesQuery.docs) {
         final data = doc.data() as Map<String, dynamic>;
         if (data['enrolledStudents'] is List) {
@@ -103,24 +112,52 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         } else {
           totalStudents += (data['studentsEnrolled'] as int? ?? 0);
         }
+        
+        // Calculate payout date for ledger math
+        DateTime endDate;
+        if (data['expiryDate'] != null && data['expiryDate'] is Timestamp) {
+          endDate = (data['expiryDate'] as Timestamp).toDate().toLocal();
+        } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
+          endDate = (data['createdAt'] as Timestamp).toDate().toLocal().add(const Duration(days: 30));
+        } else {
+          endDate = now;
+        }
+        coursePayoutDates[doc.id] = endDate.add(const Duration(days: 2));
       }
 
       final QuerySnapshot txQuery = results[2] as QuerySnapshot;
+      final QuerySnapshot wQuery = results[3] as QuerySnapshot;
+
+      // Calculate exact available balance
+      double availableBalance = 0.0;
+      for (var doc in txQuery.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final double share = (data['teacherShare'] ?? 0.0).toDouble();
+        final String courseId = data['courseId'] ?? '';
+        
+        DateTime? payoutDate = coursePayoutDates[courseId];
+        if (payoutDate != null && !now.isBefore(payoutDate)) {
+          availableBalance += share;
+        }
+      }
+      
+      double totalWithdrawn = 0.0;
+      for (var doc in wQuery.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['status'] != 'rejected') {
+          totalWithdrawn += (data['amount'] ?? data['netAmount'] ?? data['requestedAmount'] ?? 0.0).toDouble();
+        }
+      }
+      
+      availableBalance -= totalWithdrawn;
+      if (availableBalance < 0) availableBalance = 0;
 
       setState(() {
         _userName = fetchedName;
         _userEmail = fetchedEmail;
         _courseCount = fetchedCourseCount;
         _studentCount = totalStudents.toString();
-        
-        // Calculate earnings from transactions ledger
-        double totalEarnings = 0.0;
-        for (var doc in txQuery.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          final double share = (data['teacherShare'] ?? 0.0).toDouble();
-          totalEarnings += share;
-        }
-        _earnings = "\$${(totalEarnings / 2).toStringAsFixed(0)}";
+        _earnings = "\$${availableBalance.toStringAsFixed(0)}";
 
         if (fetchedPhotoUrl.isNotEmpty) {
           _userProfileImage = fetchedPhotoUrl;

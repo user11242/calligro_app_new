@@ -3656,6 +3656,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get endForAll => 'إنهاء للجميع';
 
   @override
+  String get teacherEndedMeeting => 'The teacher has ended the meeting.';
+
+  @override
   String get connectingToClassroom => 'جاري الاتصال بالفصل...';
 
   @override
@@ -3716,4 +3719,58 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get recordingExpirationNote =>
       'ملاحظة: كل تسجيل سيكون متاحاً لمدة أسبوعين من تاريخ نشره.';
+
+  @override
+  String get teacherRecordingNote =>
+      'لكي يتم تسجيل الحصة، يرجى التأكد من تفعيل الميكروفون والكاميرا قبل الدخول.';
+
+  @override
+  String get participants => 'المشاركون';
+
+  @override
+  String get noOtherParticipants => 'لا يوجد مشاركون آخرون في الغرفة حتى الآن.';
+
+  @override
+  String get adminLabel => 'المسؤول';
+
+  @override
+  String get confirmMuteTitle => 'هل أنت متأكد؟';
+
+  @override
+  String get confirmMuteMic => 'سيتم كتم ميكروفون الطالب.';
+
+  @override
+  String get confirmMuteCamera => 'سيتم تعطيل كاميرا الطالب.';
+
+  @override
+  String get practiceSheetTemplateOptional => 'قالب ورقة التمرين (اختياري)';
+
+  @override
+  String get practiceSheet => 'ورقة التمرين';
+
+  @override
+  String get noneOption => 'لا شيء';
+
+  @override
+  String get downloadPrintPracticeSheet => 'تحميل / طباعة ورقة التمرين';
+
+  @override
+  String get assignmentLabel => 'الواجب';
+
+  @override
+  String get teacherLabel => 'المعلم';
+
+  @override
+  String get studentLabel => 'الطالب';
+
+  @override
+  String get printAction => 'طباعة';
+
+  @override
+  String get raiseHand => 'رفع اليد';
+
+  @override
+  String studentRaisedHand(String name) {
+    return 'رفع $name يده! ✋';
+  }
 }

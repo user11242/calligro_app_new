@@ -1152,5 +1152,32 @@
   "userBlockedSuccess": "Kullanıcı başarıyla engellendi.",
   "lesson": "Ders",
   "editTitle": "Başlığı Düzenle",
-  "recordingTitle": "Kayıt Başlığı"
+  "recordingTitle": "Kayıt Başlığı",
+  "teacherRecordingNote": "Dersin kaydedilebilmesi için lütfen derse katılmadan önce mikrofon ve kameranızı açık olduğundan emin olun.",
+  "participants": "Katılımcılar",
+  "noOtherParticipants": "Henüz odada başka katılımcı yok.",
+  "adminLabel": "Yönetici",
+  "confirmMuteTitle": "Emin misiniz?",
+  "confirmMuteMic": "Öğrencinin mikrofonu sessize alınacak.",
+  "confirmMuteCamera": "Öğrencinin kamerası devre dışı bırakılacak.",
+  "confirm": "Onayla",
+  "cancel": "İptal",
+  "recordingExpirationNote": "Not: Her kayıt, yayınlandığı tarihten itibaren iki hafta süreyle erişilebilir olacaktır.",
+  "practiceSheetTemplateOptional": "Çalışma Kağıdı Şablonu (İsteğe Bağlı)",
+  "practiceSheet": "Çalışma Kağıdı",
+  "noneOption": "Hiçbiri",
+  "downloadPrintPracticeSheet": "Çalışma Kağıdını İndir / Yazdır",
+  "assignmentLabel": "Ödev",
+  "teacherLabel": "Öğretmen",
+  "studentLabel": "Öğrenci",
+  "printAction": "Yazdır",
+  "raiseHand": "El Kaldır",
+  "studentRaisedHand": "{name} el kaldırdı! ✋",
+  "@studentRaisedHand": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

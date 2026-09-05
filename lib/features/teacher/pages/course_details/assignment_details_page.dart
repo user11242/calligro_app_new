@@ -4,12 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:calligro_app/core/theme/colors.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class AssignmentDetailsPage extends StatefulWidget {
   final String courseId;
@@ -297,6 +302,10 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
                 _buildHeader(l10n, dueDate, isExpired)
                   .animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                 const SizedBox(height: 32),
+
+                if (widget.assignmentData['practiceSheet'] != null)
+                  _buildPracticeSheetSection(l10n, widget.assignmentData['practiceSheet'])
+                    .animate().fadeIn(duration: 400.ms, delay: 150.ms),
 
                 // Instructions
                 _buildSectionTitle(l10n.instructions, Icons.info_outline)
@@ -659,5 +668,213 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
           ),
       ],
     );
+  }
+
+  Widget _buildPracticeSheetSection(AppLocalizations l10n, String template) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(l10n.practiceSheet, Icons.print_rounded),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                icon: Icons.visibility_rounded,
+                label: l10n.preview,
+                onTap: () => _handlePracticeSheet(template, l10n, isPreview: true),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildActionButton(
+                icon: Icons.print_rounded,
+                label: l10n.printAction,
+                onTap: () => _handlePracticeSheet(template, l10n, isPreview: false),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  Widget _buildActionButton({required IconData icon, required String label, required VoidCallback onTap}) {
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [AppColors.accentGold.withOpacity(0.2), AppColors.accentGold.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: AppColors.accentGold.withOpacity(0.3)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: AppColors.accentGold),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.accentGold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handlePracticeSheet(String template, AppLocalizations l10n, {required bool isPreview}) {
+    if (isPreview) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Scaffold(
+            appBar: AppBar(
+              title: Text(
+                l10n.preview,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              backgroundColor: AppColors.primary,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+            body: PdfPreview(
+              build: (format) => _generatePdfBytes(template, l10n),
+              useActions: false, // Hides the action bar at the bottom
+              canChangePageFormat: false,
+              canChangeOrientation: false,
+              canDebug: false,
+              allowPrinting: false,
+              allowSharing: false,
+            ),
+          ),
+        ),
+      );
+    } else {
+      Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) => _generatePdfBytes(template, l10n),
+        name: 'Practice_Sheet_${widget.assignmentData['title']}',
+      );
+    }
+  }
+
+  Future<Uint8List> _generatePdfBytes(String template, AppLocalizations l10n) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final studentName = user?.displayName ?? l10n.studentLabel;
+    
+    // Fetch Teacher Name from Course
+    String teacherName = l10n.teacherLabel;
+    try {
+      final courseDoc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
+      if (courseDoc.exists) {
+        teacherName = courseDoc.data()?['teacherName'] ?? l10n.teacherLabel;
+      }
+    } catch (e) {
+      debugPrint("Error fetching teacher name: $e");
+    }
+
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final ttf = await PdfGoogleFonts.cairoRegular();
+    final ttfBold = await PdfGoogleFonts.cairoBold();
+
+    final pdfDoc = pw.Document();
+    
+    // Load background image
+    final bgImageBytes = await rootBundle.load('assets/images/papers/$template');
+    final bgImage = pw.MemoryImage(bgImageBytes.buffer.asUint8List());
+    
+    pdfDoc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: pw.EdgeInsets.zero,
+        theme: pw.ThemeData.withFont(
+          base: ttf,
+          bold: ttfBold,
+        ),
+        textDirection: isRtl ? pw.TextDirection.rtl : pw.TextDirection.ltr,
+        build: (pw.Context context) {
+          return pw.Stack(
+            children: [
+              // Background
+              pw.Positioned.fill(
+                child: pw.Image(bgImage, fit: pw.BoxFit.cover),
+              ),
+              // Text Overlay
+              pw.Positioned(
+                top: 15,
+                left: 25,
+                child: pw.Container(
+                  constraints: const pw.BoxConstraints(maxWidth: 450),
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: pw.BoxDecoration(
+                    color: const PdfColor(1, 1, 1, 0.85),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.Wrap(
+                        spacing: 20,
+                        runSpacing: 4,
+                        children: [
+                          pw.Text(
+                            '${l10n.assignmentLabel}: ${widget.assignmentData['title']}',
+                            style: const pw.TextStyle(
+                              fontSize: 12, 
+                              color: PdfColor(0.2, 0.2, 0.2),
+                            ),
+                          ),
+                          pw.Text(
+                            '${l10n.teacherLabel}: $teacherName', 
+                            style: const pw.TextStyle(
+                              fontSize: 12, 
+                              color: PdfColor(0.2, 0.2, 0.2),
+                            ),
+                          ),
+                          pw.Text(
+                            '${l10n.studentLabel}: $studentName', 
+                            style: const pw.TextStyle(
+                              fontSize: 12, 
+                              color: PdfColor(0.2, 0.2, 0.2),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (widget.assignmentData['instructions'] != null && widget.assignmentData['instructions'].toString().isNotEmpty)
+                        ...[
+                          pw.SizedBox(height: 6),
+                          pw.Text(
+                            '${l10n.instructions}: ${widget.assignmentData['instructions']}',
+                            style: const pw.TextStyle(
+                              fontSize: 12,
+                              color: PdfColor(0.2, 0.2, 0.2),
+                            ),
+                          ),
+                        ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdfDoc.save();
   }
 }

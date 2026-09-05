@@ -240,7 +240,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                   // Protect against invalid range if failsafe hasn't triggered rebuild yet
                   final paginatedCourses = startIndex < courses.length 
                       ? courses.sublist(startIndex, endIndex)
-                      : <DocumentSnapshot>[];
+                      : <QueryDocumentSnapshot>[];
 
                   return Column(
                     children: [

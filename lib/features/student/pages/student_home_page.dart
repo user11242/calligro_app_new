@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
+import 'package:calligro_app/core/widgets/auto_translated_text.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -752,7 +753,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Text(
+                AutoTranslatedText(
                   CourseUtils.getLocalizedCourseName(context, course),
                   style: const TextStyle(
                     color: Colors.white,
@@ -805,7 +806,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Text(
+                              AutoTranslatedText(
                                 course['teacherName'] ?? 'Unknown',
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -1287,7 +1288,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                                   padding: const EdgeInsets.only(bottom: 8),
                                   child: _buildEnrolledStatusBadge(),
                                 ),
-                              Text(
+                              AutoTranslatedText(
                                     CourseUtils.getLocalizedCourseName(
                                       context,
                                       course,
@@ -1321,7 +1322,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
-                                    child: Text(
+                                    child: AutoTranslatedText(
                                       teacherName,
                                       style: TextStyle(
                                         color: Colors.white.withOpacity(0.8),

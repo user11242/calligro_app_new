@@ -37,7 +37,7 @@ exports.generateLiveKitToken = onCall({
     throw new HttpsError("unauthenticated", "You must be logged in to join a classroom.");
   }
 
-  const { courseId } = request.data;
+  const { courseId, source } = request.data;
   if (!courseId) {
     throw new HttpsError("invalid-argument", "Course ID is required.");
   }
@@ -79,8 +79,9 @@ exports.generateLiveKitToken = onCall({
     const participantName = userData.name || userData.displayName || "Student";
     
     // Create LiveKit Access Token
+    const finalIdentity = (isTeacher && source === 'mobile') ? `${uid}_mobile` : uid;
     const at = new AccessToken(apiKey, apiSecret, {
-      identity: uid,
+      identity: finalIdentity,
       name: participantName,
       ttl: "4h",
     });
@@ -186,8 +187,13 @@ exports.moderateParticipant = onCall({
         .collection("courses").doc(courseId)
         .collection("activeSessions").doc(today)
         .set({ status: "ended", endedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-      // Delete the room to disconnect all participants cleanly
-      try { await roomService.deleteRoom(secureRoomName); } catch (_) {}
+        
+      // Delay the response by 5 seconds so the Flutter client doesn't disconnect immediately.
+      // Egress workers need a few seconds of active media streams to safely flush buffers 
+      // and finalize the MP4 file after stopEgress is called.
+      // If the client disconnects immediately, the tracks unpublish and cause a "pipeline frozen" error.
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
       return { status: "stopped", count: toStop.length };
     } catch (error) {
       console.error("Stop egress error:", error);

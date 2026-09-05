@@ -3661,6 +3661,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get endForAll => 'End for All';
 
   @override
+  String get teacherEndedMeeting => 'The teacher has ended the meeting.';
+
+  @override
   String get connectingToClassroom => 'Connecting to Classroom...';
 
   @override
@@ -3721,4 +3724,59 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get recordingExpirationNote =>
       'Note: Each recording will be available for two weeks from its published date.';
+
+  @override
+  String get teacherRecordingNote =>
+      'For the class to be recorded, please make sure to enable both your microphone and camera before joining.';
+
+  @override
+  String get participants => 'Participants';
+
+  @override
+  String get noOtherParticipants => 'No other participants in the room yet.';
+
+  @override
+  String get adminLabel => 'Admin';
+
+  @override
+  String get confirmMuteTitle => 'Are you sure?';
+
+  @override
+  String get confirmMuteMic => 'This will mute the student\'s microphone.';
+
+  @override
+  String get confirmMuteCamera => 'This will disable the student\'s camera.';
+
+  @override
+  String get practiceSheetTemplateOptional =>
+      'Practice Sheet Template (Optional)';
+
+  @override
+  String get practiceSheet => 'Practice Sheet';
+
+  @override
+  String get noneOption => 'None';
+
+  @override
+  String get downloadPrintPracticeSheet => 'Download / Print Practice Sheet';
+
+  @override
+  String get assignmentLabel => 'Assignment';
+
+  @override
+  String get teacherLabel => 'Teacher';
+
+  @override
+  String get studentLabel => 'Student';
+
+  @override
+  String get printAction => 'Print';
+
+  @override
+  String get raiseHand => 'Raise Hand';
+
+  @override
+  String studentRaisedHand(String name) {
+    return '$name raised their hand! ✋';
+  }
 }

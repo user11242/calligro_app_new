@@ -61,8 +61,11 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   bool _isConnected = false;
   bool _isReconnecting = false;
   bool _isDisconnected = false;
+  bool _isEndingMeeting = false;
   List<ParticipantTrack> _participantTracks = [];
   late CameraPosition _cameraPosition;
+  bool _isHandRaised = false;
+  final Set<String> _raisedHands = {};
 
   // ── Debug Console ──────────────────────────────
   final _debug = MeetDebugService();
@@ -102,7 +105,6 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   Duration _meetingDuration = Duration.zero;
 
   // ── Active Speakers ────────────────────────────────────
-  Set<String> _activeSpeakerIdentities = {};
   bool _wasCameraEnabledBeforeBackground = false;
 
   @override
@@ -190,6 +192,10 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     listener
       ..on<RoomDisconnectedEvent>((event) {
         _log('🔴 DISCONNECTED — reason: ${event.reason}');
+        if (_isEndingMeeting) {
+          _log('🔴 Ignoring disconnect UI because meeting is ending gracefully');
+          return;
+        }
         if (mounted) {
           setState(() {
             _isReconnecting = false;
@@ -231,6 +237,13 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       })
       ..on<LocalTrackPublishedEvent>((e) {
         _log('📤 Local track published: ${e.publication.kind}');
+        // Teacher turned on their mic or camera on the app — start recording
+        // if it hasn't started yet. The _isRecording guard inside _startRecording()
+        // ensures this can never create a duplicate recording.
+        if (widget.isTeacher && !_isRecording) {
+          _log('🎬 Local track published — triggering recording start.');
+          _startRecording();
+        }
         _sortParticipants();
       })
       ..on<LocalTrackUnpublishedEvent>((e) {
@@ -246,7 +259,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       ..on<ActiveSpeakersChangedEvent>((e) {
         if (mounted) {
           setState(() {
-            _activeSpeakerIdentities = e.speakers.map((s) => s.identity).toSet();
+            // Trigger rebuild to update PiP track if someone starts speaking
           });
         }
       })
@@ -263,10 +276,143 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
         try {
           final decoded = utf8.decode(e.data);
           final msg = jsonDecode(decoded);
+          
+          if (msg['cmd'] == 'raise_hand' || msg['cmd'] == 'lower_hand' || msg['cmd'] == 'force_lower_hand') {
+            final participantIdentity = e.participant?.identity;
+            
+            // Handle force_lower_hand specifically
+            if (msg['cmd'] == 'force_lower_hand') {
+              final targetId = msg['targetId'];
+              if (targetId != null) {
+                setState(() {
+                  _raisedHands.remove(targetId);
+                });
+                if (targetId == _room?.localParticipant?.identity) {
+                  setState(() => _isHandRaised = false);
+                  // Bounce back a standard lower_hand to sync everyone else
+                  final lp = _room?.localParticipant;
+                  if (lp != null) {
+                    lp.publishData(
+                      utf8.encode(jsonEncode({
+                        'cmd': 'lower_hand',
+                        'name': lp.name.isNotEmpty ? lp.name : (lp.identity.isNotEmpty ? lp.identity : "Student")
+                      })),
+                      reliable: true,
+                    );
+                  }
+                }
+              }
+              return;
+            }
+            
+            if (participantIdentity != null) {
+              setState(() {
+                if (msg['cmd'] == 'raise_hand') {
+                  _raisedHands.add(participantIdentity);
+                } else {
+                  _raisedHands.remove(participantIdentity);
+                  // If we are the target of lower_hand (teacher lowered it for us), reset our local button state
+                  if (participantIdentity == _room?.localParticipant?.identity) {
+                    _isHandRaised = false;
+                  }
+                }
+              });
+            }
+
+            if (msg['cmd'] == 'raise_hand') {
+              final studentName = msg['name'] ?? 'Student';
+              _log('✋ $studentName raised their hand');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.pan_tool, color: Colors.white, size: 18),
+                        const SizedBox(width: 12),
+                        Text(AppLocalizations.of(context)!.studentRaisedHand(studentName), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 3),
+                    behavior: SnackBarBehavior.floating,
+                    width: 320, // Make it a compact pill instead of full width
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    backgroundColor: const Color(0xFF1E2028).withValues(alpha: 0.95), // Subtle dark color instead of bright gold
+                  ),
+                );
+              }
+            }
+            return;
+          }
+          
+          if (msg['cmd'] == 'force_lower_hand' && msg['targetId'] == _room?.localParticipant?.identity) {
+            // Teacher explicitly lowered our hand
+            setState(() {
+              _isHandRaised = false;
+              if (_room?.localParticipant?.identity != null) {
+                _raisedHands.remove(_room!.localParticipant!.identity);
+              }
+            });
+            // We should also broadcast lower_hand so everyone else knows
+            final lp = _room?.localParticipant;
+            if (lp != null) {
+              final name = lp.name.isNotEmpty ? lp.name : (lp.identity.isNotEmpty ? lp.identity : "Student");
+              lp.publishData(
+                utf8.encode(jsonEncode({
+                  'cmd': 'lower_hand',
+                  'name': name
+                })),
+                reliable: true,
+              );
+            }
+            return;
+          }
+          
           if (msg['type'] == 'end_meeting_for_all') {
             _log('🛑 Teacher ended the meeting for everyone');
+            _isEndingMeeting = true;
             if (mounted) {
-              Navigator.pop(context);
+              AppMessenger.showSnackBar(
+                context,
+                title: AppLocalizations.of(context)!.classEnded,
+                message: AppLocalizations.of(context)!.teacherEndedMeeting,
+                type: MessengerType.info,
+              );
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) {
+                  Navigator.pop(context);
+                }
+              });
+            }
+          } else if (msg['targetId'] == _room?.localParticipant?.identity) {
+            // 🔐 SECURITY: Only obey mute commands from verified moderators (teacher).
+            // Without this check, any student could forge a mute command and silence others.
+            final senderMetadata = e.participant?.metadata ?? '';
+            bool isFromModerator = false;
+            try {
+              if (senderMetadata.isNotEmpty) {
+                final metaJson = jsonDecode(senderMetadata);
+                isFromModerator = metaJson['role'] == 'moderator';
+              }
+            } catch (_) {}
+
+            if (!isFromModerator) {
+              _log('⚠️ Ignoring mute command from non-moderator: ${e.participant?.identity}');
+              return;
+            }
+
+            if (msg['type'] == 'force_mute_mic') {
+              _log('🤫 Teacher muted your mic');
+              _room?.localParticipant?.setMicrophoneEnabled(false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('The teacher has muted your microphone.'), backgroundColor: Colors.orange));
+              }
+            } else if (msg['type'] == 'force_mute_camera') {
+              _log('🙈 Teacher disabled your camera');
+              _room?.localParticipant?.setCameraEnabled(false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('The teacher has disabled your camera.'), backgroundColor: Colors.orange));
+              }
             }
           }
         } catch (_) {}
@@ -314,9 +460,10 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       _sortParticipants();
       _log('✅ Fully connected. Participants: ${_participantTracks.length}');
       
-      final joinTime = DateTime.now().millisecondsSinceEpoch - startTime;
-      _log('[TELEMETRY] ConnectSuccess | OS: ${Theme.of(context).platform.name} | Region/Course: ${widget.courseId} | JoinTime: ${joinTime}ms');
-      
+      if (mounted) {
+        final joinTime = DateTime.now().millisecondsSinceEpoch - startTime;
+        _log('[TELEMETRY] ConnectSuccess | OS: ${Theme.of(context).platform.name} | Region/Course: ${widget.courseId} | JoinTime: ${joinTime}ms');
+      }
       // Start meeting duration timer
       _meetingStartTime = DateTime.now();
       _durationTimer?.cancel();
@@ -466,12 +613,14 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       }
     }
     
-    AppMessenger.showSnackBar(
-      context, 
-      title: 'Audio-Only Mode',
-      message: 'Audio-Only mode activated. Tap the video icon to resume video later.',
-      type: MessengerType.info,
-    );
+    if (mounted) {
+      AppMessenger.showSnackBar(
+        context, 
+        title: 'Audio-Only Mode',
+        message: 'Audio-Only mode activated. Tap the video icon to resume video later.',
+        type: MessengerType.info,
+      );
+    }
     if (mounted) setState(() {});
   }
 
@@ -597,42 +746,49 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     super.dispose();
   }
 
+  void _toggleOrientation() {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    if (isLandscape) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+    } else {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeRight,
+        DeviceOrientation.landscapeLeft,
+      ]);
+    }
+  }
+
   Future<void> _startRecording() async {
+    // Guard: prevent any possibility of a double recording.
+    // _isRecording is set synchronously (before any await) so it's safe
+    // even if two events fire nearly simultaneously in Dart's event loop.
     if (_isRecording || !mounted) return;
     setState(() => _isRecording = true);
-    
-    // Capture orientation synchronously before async gap
+
+    // Capture orientation synchronously before any async gap
     final currentOrientation = MediaQuery.of(context).orientation == Orientation.landscape ? 'landscape' : 'portrait';
-    
+
     try {
-      _log("🔴 Waiting for camera/mic tracks to publish...");
-      
-      String? audioTrackId;
-      String? videoTrackId;
-      
-      // Wait until both tracks are successfully published to LiveKit (timeout after 20s)
-      int waitMs = 0;
-      while (mounted && waitMs < 20000) {
-        audioTrackId = _room?.localParticipant?.audioTrackPublications.firstOrNull?.sid;
-        videoTrackId = _room?.localParticipant?.videoTrackPublications.firstOrNull?.sid;
-        
-        if (audioTrackId != null && videoTrackId != null) break;
-        await Future.delayed(const Duration(milliseconds: 500));
-        waitMs += 500;
+      // ── Find the best available tracks ──────────────────────────────
+      // We only want to record the tracks from the mobile app (local participant).
+      String? audioTrackId = _room?.localParticipant?.audioTrackPublications.firstOrNull?.sid;
+      String? videoTrackId = _room?.localParticipant?.videoTrackPublications.firstOrNull?.sid;
+
+      // ── Require BOTH tracks before calling the server ──────────────
+      // TrackCompositeEgress requires both audio AND video SIDs.
+      // If either is missing, release the lock and wait silently.
+      // LocalTrackPublishedEvent will re-trigger this once the missing track appears.
+      if (audioTrackId == null || videoTrackId == null) {
+        _log('⏳ Waiting for both tracks (audio=$audioTrackId, video=$videoTrackId). Recording starts automatically once camera & mic are both enabled.');
+        if (mounted) setState(() => _isRecording = false);
+        return;
       }
 
-      if (audioTrackId == null && videoTrackId == null) {
-         _log("❌ Recording timeout: tracks never published.");
-         if (mounted) {
-           setState(() => _isRecording = false);
-           AppMessenger.showSnackBar(context, title: AppLocalizations.of(context)!.recordingError, message: AppLocalizations.of(context)!.recordingTimeout, type: MessengerType.error);
-         }
-         return;
-      }
-      
       if (!mounted) return;
 
-      _log("🔴 Starting automated R2 recording with tracks: Video=$videoTrackId, Audio=$audioTrackId, Orientation=$currentOrientation");
+      _log('🔴 Starting recording — Video=$videoTrackId, Audio=$audioTrackId, Orientation=$currentOrientation');
       await FirebaseFunctions.instanceFor(region: 'us-east1')
           .httpsCallable('livekit-startAutomatedRecording')
           .call({
@@ -641,15 +797,28 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
             'videoTrackId': videoTrackId,
             'orientation': currentOrientation,
           });
-      _log("✅ Recording started successfully");
+
+      _log('✅ Recording started successfully');
       if (mounted) {
-        AppMessenger.showSnackBar(context, title: AppLocalizations.of(context)!.recordingStarted, message: AppLocalizations.of(context)!.classIsBeingRecorded, type: MessengerType.success);
+        AppMessenger.showSnackBar(
+          context,
+          title: AppLocalizations.of(context)!.recordingStarted,
+          message: AppLocalizations.of(context)!.classIsBeingRecorded,
+          type: MessengerType.success,
+        );
       }
     } catch (e) {
-      _log("❌ Recording failed: $e");
+      _log('❌ Recording failed: $e');
       if (mounted) {
+        // Release the lock so the event listeners can retry automatically
         setState(() => _isRecording = false);
-        AppMessenger.showSnackBar(context, title: AppLocalizations.of(context)!.recordingError, message: e.toString(), type: MessengerType.error);
+        // Only show error for real failures (not silent "no tracks" case above)
+        AppMessenger.showSnackBar(
+          context,
+          title: AppLocalizations.of(context)!.recordingError,
+          message: e.toString(),
+          type: MessengerType.error,
+        );
       }
     }
   }
@@ -728,8 +897,11 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     );
     if (result == true && mounted) {
       _log('🛑 Teacher ending meeting for all participants');
+      _isEndingMeeting = true;
+      
+      // 1. Send "end meeting" signal via LiveKit data channel as a UI fallback FIRST
+      // This ensures students receive the command to gracefully exit before the room is forcefully deleted.
       try {
-        // Send "end meeting" signal via LiveKit data channel to all participants
         final message = jsonEncode({'type': 'end_meeting_for_all'});
         await _room?.localParticipant?.publishData(
           utf8.encode(message),
@@ -740,6 +912,22 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       } catch (e) {
         _log('⚠️ Failed to send end-meeting signal: $e');
       }
+
+      // 2. Tell the server to forcibly delete the room and stop all recordings
+      try {
+        _log('☁️ Calling Cloud Function to delete room and stop egress...');
+        await FirebaseFunctions.instanceFor(region: 'us-east1')
+            .httpsCallable('livekit-moderateParticipant')
+            .call({
+              'courseId': widget.courseId,
+              'action': 'stop_recording',
+              'targetIdentity': _room?.localParticipant?.identity ?? 'teacher', // dummy value required by function signature
+            });
+        _log('✅ Cloud Function executed successfully.');
+      } catch (e) {
+        _log('⚠️ Cloud Function failed: $e');
+      }
+      
       if (mounted) Navigator.pop(context);
     }
   }
@@ -930,6 +1118,13 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                             ),
                             const SizedBox(width: 8),
                           ],
+                          // Rotate Screen Button
+                          IconButton(
+                            icon: const Icon(Icons.screen_rotation, color: Colors.white),
+                            tooltip: 'Rotate Screen',
+                            onPressed: _toggleOrientation,
+                          ),
+                          const SizedBox(width: 8),
                           // Leave or End for All button (depending on role)
                           IconButton(
                             icon: const Icon(Icons.call_end, color: Colors.red),
@@ -1007,6 +1202,19 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                         }
                       },
                     ),
+                  if (widget.isTeacher)
+                    _ControlButton(
+                      icon: Icons.people,
+                      isActive: true, // true gives it a neutral white24 background. false would make it red.
+                      onTap: _showParticipantsBottomSheet,
+                    ),
+                  if (!widget.isTeacher)
+                    _ControlButton(
+                      icon: Icons.pan_tool,
+                      color: _isHandRaised ? const Color(0xFFEBB937) : Colors.white24,
+                      iconColor: _isHandRaised ? Colors.black : Colors.white,
+                      onTap: _handleRaiseHand,
+                    ),
                 ],
               ),
             ),
@@ -1018,6 +1226,300 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
       ),
     );
   }
+
+  void _handleRaiseHand() async {
+    final newState = !_isHandRaised;
+    setState(() {
+      _isHandRaised = newState;
+      final lp = _room?.localParticipant;
+      if (lp != null) {
+        if (newState) {
+          _raisedHands.add(lp.identity);
+        } else {
+          _raisedHands.remove(lp.identity);
+        }
+      }
+    });
+    
+    final lp = _room?.localParticipant;
+    if (lp != null) {
+      final name = lp.name.isNotEmpty ? lp.name : (lp.identity.isNotEmpty ? lp.identity : "Student");
+      await lp.publishData(
+        utf8.encode(jsonEncode({
+          'cmd': newState ? 'raise_hand' : 'lower_hand',
+          'name': name
+        })),
+        reliable: true,
+      );
+    }
+  }
+
+  void _showParticipantsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF13151A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final localIdentity = _room?.localParticipant?.identity ?? '';
+        final uniqueParticipants = <String, Participant>{};
+        for (final t in _participantTracks) {
+          uniqueParticipants[t.participant.identity] = t.participant;
+        }
+        final allParticipants = uniqueParticipants.values.toList();
+        allParticipants.sort((a, b) {
+          final aIsLocal = a.identity == localIdentity;
+          final bIsLocal = b.identity == localIdentity;
+          if (aIsLocal && !bIsLocal) return -1;
+          if (!aIsLocal && bIsLocal) return 1;
+          return 0;
+        });
+
+        // Track locally-muted participants so icons update instantly
+        final mutedMic = <String, bool>{};
+        final mutedCamera = <String, bool>{};
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> confirmAndMute(Participant p, bool isMic) async {
+              final l10n = AppLocalizations.of(context)!;
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: const Color(0xFF1E2028),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: Text(
+                    l10n.confirmMuteTitle,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  content: Text(
+                    isMic ? l10n.confirmMuteMic : l10n.confirmMuteCamera,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text(l10n.cancel, style: const TextStyle(color: Colors.white54)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text(l10n.confirm),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                await _room?.localParticipant?.publishData(
+                  utf8.encode(jsonEncode({
+                    'type': isMic ? 'force_mute_mic' : 'force_mute_camera',
+                    'targetId': p.identity,
+                  })),
+                  reliable: true,
+                );
+                setSheetState(() {
+                  if (isMic) {
+                    mutedMic[p.identity] = true;
+                  } else {
+                    mutedCamera[p.identity] = true;
+                  }
+                });
+              }
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)!.participants,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white12,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${allParticipants.length}',
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  if (allParticipants.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          AppLocalizations.of(context)!.noOtherParticipants,
+                          style: const TextStyle(color: Colors.white54),
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: allParticipants.length,
+                        itemBuilder: (context, index) {
+                          final p = allParticipants[index];
+                          final isLocalUser = p.identity == localIdentity;
+                          final name = p.name.isNotEmpty ? p.name : p.identity;
+
+                          String? avatar;
+                          bool isModerator = false;
+                          try {
+                            if (p.metadata != null && p.metadata!.isNotEmpty) {
+                              final meta = jsonDecode(p.metadata!);
+                              avatar = meta['avatar'];
+                              isModerator = meta['role'] == 'moderator';
+                            }
+                          } catch (_) {}
+
+                          // Local override: once we send a mute command, flip the icon immediately
+                          final isMicOn = mutedMic.containsKey(p.identity) ? false : p.isMicrophoneEnabled();
+                          final isCamOn = mutedCamera.containsKey(p.identity) ? false : p.isCameraEnabled();
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: const Color(0xFFEBB937),
+                                  radius: 18,
+                                  backgroundImage: avatar != null && avatar.isNotEmpty
+                                      ? NetworkImage(avatar)
+                                      : null,
+                                  child: avatar == null || avatar.isEmpty
+                                      ? Text(
+                                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                          style: const TextStyle(
+                                              color: Colors.black, fontWeight: FontWeight.bold),
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          isLocalUser ? '$name (You)' : name,
+                                          style: const TextStyle(color: Colors.white),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (isModerator) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blueAccent.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: Colors.blueAccent),
+                                          ),
+                                          child: Text(
+                                            AppLocalizations.of(context)!.adminLabel,
+                                            style: const TextStyle(
+                                                color: Colors.blueAccent,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                if (_raisedHands.contains(p.identity)) ...[
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () {
+                                        // Teacher lowers the hand
+                                        _room?.localParticipant?.publishData(
+                                          utf8.encode(jsonEncode({
+                                            'cmd': 'force_lower_hand',
+                                            'targetId': p.identity,
+                                          })),
+                                          reliable: true,
+                                        );
+                                        // Optimitic update
+                                        setState(() {
+                                          _raisedHands.remove(p.identity);
+                                        });
+                                        setSheetState(() {});
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: Icon(Icons.pan_tool, color: Color(0xFFEBB937), size: 20),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
+                                if (!isLocalUser) ...[
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () => confirmAndMute(p, true),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Icon(
+                                          isMicOn ? Icons.mic : Icons.mic_off,
+                                          color: isMicOn ? Colors.white : Colors.red,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () => confirmAndMute(p, false),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Icon(
+                                          isCamOn ? Icons.videocam : Icons.videocam_off,
+                                          color: isCamOn ? Colors.white : Colors.red,
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
 
   Widget _buildDebugConsole() {
     if (!_showDebug) return const SizedBox.shrink();
@@ -1122,6 +1624,12 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     focusTrack ??= _participantTracks.first;
 
     final carouselTracks = _participantTracks.where((t) => t != focusTrack).toList();
+    ParticipantTrack? pipTrack;
+    if (carouselTracks.isNotEmpty) {
+      pipTrack = carouselTracks.firstWhereOrNull((t) => t.participant.isSpeaking);
+      pipTrack ??= carouselTracks.firstWhereOrNull((t) => t.videoTrack != null && !t.videoTrack!.muted);
+      pipTrack ??= carouselTracks.first;
+    }
 
     return Stack(
       children: [
@@ -1130,42 +1638,65 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
           child: Container(
             decoration: const BoxDecoration(color: Colors.black),
             clipBehavior: Clip.antiAlias,
-            child: ParticipantWidget(track: focusTrack),
+            child: ParticipantWidget(
+              track: focusTrack,
+              isHandRaised: _raisedHands.contains(focusTrack.participant.identity),
+            ),
           ),
         ),
         
-        // Carousel View (Floating horizontal strip at the bottom right)
-        if (carouselTracks.isNotEmpty && !isLandscape)
+        // Single Floating Participant PiP (App style)
+        if (pipTrack != null && !isLandscape)
           Positioned(
             bottom: 16,
-            right: 16,
             left: 16,
-            child: SizedBox(
-              height: 120, // PiP height
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                reverse: true, // Align items to the bottom right corner
-                itemCount: carouselTracks.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    width: 90, // PiP width
-                    margin: const EdgeInsets.only(left: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF13151A),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white24, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: ParticipantWidget(track: carouselTracks[index]),
-                  );
-                },
+            child: Container(
+              width: 100, // PiP width
+              height: 130, // PiP height
+              decoration: BoxDecoration(
+                color: const Color(0xFF13151A),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white24, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: ParticipantWidget(
+                track: pipTrack,
+                isHandRaised: _raisedHands.contains(pipTrack.participant.identity),
+              ),
+            ),
+          ),
+
+        // Landscape Controls Overlay
+        if (isLandscape)
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.screen_rotation, color: Colors.white),
+                    tooltip: 'Rotate Screen',
+                    onPressed: _toggleOrientation,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.call_end, color: Colors.red),
+                    tooltip: widget.isTeacher ? AppLocalizations.of(context)!.endForAll : AppLocalizations.of(context)!.leave,
+                    onPressed: widget.isTeacher ? _endMeetingForAll : _showLeaveConfirmation,
+                  ),
+                ],
               ),
             ),
           ),
@@ -1315,8 +1846,9 @@ class ParticipantTrack {
 
 class ParticipantWidget extends StatelessWidget {
   final ParticipantTrack track;
+  final bool isHandRaised;
 
-  const ParticipantWidget({Key? key, required this.track}) : super(key: key);
+  const ParticipantWidget({Key? key, required this.track, this.isHandRaised = false}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -1369,13 +1901,19 @@ class ParticipantWidget extends StatelessWidget {
         color: const Color(0xFF13151A),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSpeaking ? const Color(0xFF22C55E) : Colors.white12,
-          width: isSpeaking ? 2.5 : 1,
+          color: isSpeaking ? const Color(0xFF22C55E) : (isHandRaised ? const Color(0xFFEBB937) : Colors.white12),
+          width: isSpeaking || isHandRaised ? 2.5 : 1,
         ),
         boxShadow: [
           if (isSpeaking)
             BoxShadow(
               color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+              blurRadius: 16,
+              spreadRadius: 2,
+            )
+          else if (isHandRaised)
+            BoxShadow(
+              color: const Color(0xFFEBB937).withValues(alpha: 0.4),
               blurRadius: 16,
               spreadRadius: 2,
             )
@@ -1433,17 +1971,32 @@ class ParticipantWidget extends StatelessWidget {
             },
           ),
 
-          // ── Connection Quality Indicator (top-left) ──
+          // ── Connection Quality & Hand Raised Indicator (top-left) ──
           Positioned(
             top: 8,
             left: 8,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(qualityIcon, color: qualityColor, size: 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(qualityIcon, color: qualityColor, size: 14),
+                ),
+                if (isHandRaised) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBB937),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.pan_tool, color: Colors.black, size: 14),
+                  ),
+                ],
+              ],
             ),
           ),
             
@@ -1503,8 +2056,16 @@ class _ControlButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool isActive;
+  final Color? color;
+  final Color iconColor;
 
-  const _ControlButton({required this.icon, required this.onTap, this.isActive = true});
+  const _ControlButton({
+    required this.icon, 
+    required this.onTap, 
+    this.isActive = true,
+    this.color,
+    this.iconColor = Colors.white,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1513,10 +2074,10 @@ class _ControlButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isActive ? Colors.white24 : Colors.red.withValues(alpha: 0.8),
+          color: color ?? (isActive ? Colors.white24 : Colors.red.withValues(alpha: 0.8)),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white, size: 28),
+        child: Icon(icon, color: iconColor, size: 28),
       ),
     );
   }

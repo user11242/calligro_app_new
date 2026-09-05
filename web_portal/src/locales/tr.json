@@ -56,6 +56,10 @@
   "course.enrolled": "Kayıtlı",
   "course.few_seats_left": "Sınırlı kontenjan!",
   "course.weekly_sessions": "Haftalık Oturumlar: ",
+  "course.tuition_fee": "Eğitim Ücreti",
+  "course.platform_fee": "Hizmet Bedeli (8%)",
+  "course.total_due": "Toplam Tutar",
+  "course.fee_tooltip": "Güvenli ödeme işlemlerini, küresel vergileri ve platform bakımını kapsar.",
   "course.curriculum": "Müfredat",
   "course.curriculum_coming": "Müfredat detayları yakında eklenecektir.",
   "course.tools": "Gerekli Araçlar",
@@ -462,5 +466,6 @@
   "story_about.ch3.btn": "Yolculuğunuza Başlayın",
   "profile.certificates.official_ijazah": "Resmi İcazet",
   "profile.certificates.issue_date": "Veriliş Tarihi",
-  "profile.certificates.certificate_id": "Sertifika Kimliği"
+  "profile.certificates.certificate_id": "Sertifika Kimliği",
+  "meet.teacher_ended": "Öğretmen dersi bitirdi."
 }

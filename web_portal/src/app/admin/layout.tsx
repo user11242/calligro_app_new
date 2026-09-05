@@ -154,8 +154,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
     { icon: ShieldCheck, label: "Order Audit", href: "/admin/orders" },
     { icon: Wallet, label: "Finance & Oversight", href: "/admin/finance" },
-    { icon: BarChart3, label: "Course Analytics", href: "/admin/courses" },
-    { icon: UserCheck, label: "Teacher Commissions", href: "/admin/commissions" },
+    { icon: BarChart3, label: "Course Analytics", href: "/admin/analytics" },
+    { icon: UserCheck, label: "Accounting Ledger", href: "/admin/accounting" },
     { icon: FileText, label: "Executive Notes", href: "/admin/notes" },
   ];
 

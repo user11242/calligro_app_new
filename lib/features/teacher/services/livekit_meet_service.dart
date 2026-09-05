@@ -34,7 +34,10 @@ class LiveKitMeetService {
       MeetDebugService().log("⏳ Requesting LiveKit token...");
       final result = await FirebaseFunctions.instance
           .httpsCallable('livekit-generateLiveKitToken')
-          .call({'courseId': courseId});
+          .call({
+            'courseId': courseId,
+            'source': 'mobile',
+          });
 
       MeetDebugService().log("✅ Token received, popping loading dialog");
       Navigator.pop(context); // Close loading

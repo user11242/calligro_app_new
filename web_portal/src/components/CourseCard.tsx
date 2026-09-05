@@ -274,11 +274,11 @@ export default function CourseCard({ course }: CourseCardProps) {
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-1">{t("course.tuition")}</span>
                   <div className="flex items-end gap-3 group-hover:text-[#E8C468] transition-colors duration-500">
                     <span className="text-3xl md:text-4xl font-black font-outfit leading-none text-white">
-                      ${(price / 2).toFixed(0)}
+                      ${((price / 2) * 1.08).toFixed(0)}
                     </span>
                     {price > 0 && (
                       <span className="text-[10px] md:text-xs font-bold text-white/30 line-through decoration-white/20 mb-1">
-                        ${price.toFixed(0)}
+                        ${(price * 1.08).toFixed(0)}
                       </span>
                     )}
                   </div>

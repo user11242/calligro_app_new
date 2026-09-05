@@ -64,16 +64,20 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
           .where('teacherId', isEqualTo: _currentUserId)
           .get();
 
-      Map<String, DateTime?> courseEndDates = {};
+      Map<String, DateTime> coursePayoutDates = {};
+      final now = DateTime.now();
       for (var doc in coursesQuery.docs) {
         final data = doc.data();
-        DateTime? endDate;
-        if (data['endDate'] != null) {
-          endDate = (data['endDate'] is Timestamp)
-              ? (data['endDate'] as Timestamp).toDate().toLocal()
-              : null;
+        DateTime endDate;
+        if (data['expiryDate'] != null && data['expiryDate'] is Timestamp) {
+          endDate = (data['expiryDate'] as Timestamp).toDate().toLocal();
+        } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
+          endDate = (data['createdAt'] as Timestamp).toDate().toLocal().add(const Duration(days: 30));
+        } else {
+          endDate = now;
         }
-        courseEndDates[doc.id] = endDate;
+        // Money unlocks exactly 2 days after course end
+        coursePayoutDates[doc.id] = endDate.add(const Duration(days: 2));
       }
 
       // 3. Fetch Transactions and Calculate Earnings
@@ -87,9 +91,6 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
       double available = 0.0;
       double total = 0.0;
 
-      final now = DateTime.now();
-      final safetyWindow = now.subtract(const Duration(hours: 48));
-
       for (var doc in txQuery.docs) {
         final data = doc.data();
         final double teacherShare = (data['teacherShare'] ?? 0.0).toDouble();
@@ -97,9 +98,9 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
 
         total += teacherShare;
 
-        DateTime? endDate = courseEndDates[courseId];
+        DateTime? payoutDate = coursePayoutDates[courseId];
 
-        if (endDate == null || endDate.isAfter(safetyWindow)) {
+        if (payoutDate == null || now.isBefore(payoutDate)) {
           pending += teacherShare;
         } else {
           available += teacherShare;
@@ -254,7 +255,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
           ),
           const SizedBox(height: 12),
           Text(
-            "\$${(_totalEarnings / 2).toStringAsFixed(0)}",
+            "\$${_totalEarnings.toStringAsFixed(0)}",
             style: const TextStyle(
               color: Colors.white,
               fontSize: 56,

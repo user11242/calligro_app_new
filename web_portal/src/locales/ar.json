@@ -52,6 +52,9 @@
   "course.enrolled": "مسجل",
   "course.few_seats_left": "المقاعد محدودة!",
   "course.weekly_sessions": "الجلسات الأسبوعية: ",
+  "course.platform_fee": "رسوم الخدمة (8%)",
+  "course.total_due": "الإجمالي المستحق",
+  "course.fee_tooltip": "تساعد في تغطية رسوم الدفع الآمن، والضرائب العالمية، وصيانة المنصة.",
   "course.curriculum": "المنهج الدراسي",
   "course.curriculum_coming": "تفاصيل المنهج ستتوفر قريباً.",
   "course.tools": "الأدوات المطلوبة",
@@ -468,5 +471,6 @@
   "meet.camera_on": "الكاميرا تعمل",
   "meet.mic_active": "الميكروفون يعمل",
   "meet.mic_muted": "الميكروفون مكتوم",
-  "meet.authenticating": "جاري مصادقة الاتصال الآمن..."
+  "meet.authenticating": "جاري مصادقة الاتصال الآمن...",
+  "meet.teacher_ended": "لقد قام المعلم بإنهاء الحصة."
 }

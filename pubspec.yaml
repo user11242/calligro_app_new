@@ -2,10 +2,10 @@ name: calligro_app
 description: "A new Flutter project."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.1+80
+version: 1.0.8+88
 
 environment:
-  sdk: "3.9.2"  # Supports Dart 2.12 and higher (null safety)
+  sdk: ">=3.9.2 <4.0.0"  # Supports Dart 2.12 and higher (null safety)
 
 dependencies:
   flutter:
@@ -35,8 +35,8 @@ dependencies:
   googleapis_auth: ^2.0.0
   flutter_appauth: ^10.0.0
   intl: ^0.20.2
-  in_app_purchase: ^3.2.0  # ✅ REQUIRED for App Store/Play Store digital goods
-  livekit_client: ^2.4.0
+  in_app_purchase: ^3.3.0  # ✅ REQUIRED for App Store/Play Store digital goods
+  livekit_client: 2.10.0
   crypto: ^3.0.3
   
   # OTHER PACKAGES
@@ -82,6 +82,8 @@ dependencies:
   sign_in_with_apple: ^7.0.1
   firebase_crashlytics: ^5.2.7
   wakelock_plus: ^1.4.0
+  pdf: ^3.12.0
+  printing: ^5.14.3
   
 dev_dependencies:
   flutter_test:
@@ -96,6 +98,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/papers/
     - assets/images/artists/
     - assets/backgrounds/
     - assets/courses_backgrounds/

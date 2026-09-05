@@ -1272,5 +1272,31 @@
   "exactNameOnBankAccountHint": "الاسم بالضبط كما يظهر في حسابك البنكي",
   "swiftCodeHint": "رمز من 8 أو 11 حرفاً",
   "ibanHint": "يبدأ برمز البلد، بدون مسافات",
-  "recordingExpirationNote": "ملاحظة: كل تسجيل سيكون متاحاً لمدة أسبوعين من تاريخ نشره."
+  "recordingExpirationNote": "ملاحظة: كل تسجيل سيكون متاحاً لمدة أسبوعين من تاريخ نشره.",
+  "teacherRecordingNote": "لكي يتم تسجيل الحصة، يرجى التأكد من تفعيل الميكروفون والكاميرا قبل الدخول.",
+  "participants": "المشاركون",
+  "noOtherParticipants": "لا يوجد مشاركون آخرون في الغرفة حتى الآن.",
+  "adminLabel": "المسؤول",
+  "confirmMuteTitle": "هل أنت متأكد؟",
+  "confirmMuteMic": "سيتم كتم ميكروفون الطالب.",
+  "confirmMuteCamera": "سيتم تعطيل كاميرا الطالب.",
+  "confirm": "تأكيد",
+  "cancel": "إلغاء",
+  "practiceSheetTemplateOptional": "قالب ورقة التمرين (اختياري)",
+  "practiceSheet": "ورقة التمرين",
+  "noneOption": "لا شيء",
+  "downloadPrintPracticeSheet": "تحميل / طباعة ورقة التمرين",
+  "assignmentLabel": "الواجب",
+  "teacherLabel": "المعلم",
+  "studentLabel": "الطالب",
+  "printAction": "طباعة",
+  "raiseHand": "رفع اليد",
+  "studentRaisedHand": "رفع {name} يده! ✋",
+  "@studentRaisedHand": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

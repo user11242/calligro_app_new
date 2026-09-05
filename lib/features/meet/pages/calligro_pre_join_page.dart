@@ -46,6 +46,11 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
   @override
   void initState() {
     super.initState();
+    // Default mic to ON for teachers so recording can start automatically.
+    // Camera remains OFF — teacher can choose to enable it manually.
+    if (widget.isTeacher) {
+      _isMicOn = true;
+    }
     _fetchUserData();
   }
 
@@ -218,22 +223,56 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                       isActive: true,
                       label: l10n.flipCam,
                       onTap: () async {
-                        setState(() {
-                          _cameraPosition = _cameraPosition == CameraPosition.front 
-                              ? CameraPosition.back 
-                              : CameraPosition.front;
-                        });
-                        if (_cameraTrack != null) {
-                          await _cameraTrack!.restartTrack(
-                            CameraCaptureOptions(
-                              cameraPosition: _cameraPosition,
-                            )
+                        // ── Fix: stop & recreate the track so iOS actually flips ──
+                        final newPosition = _cameraPosition == CameraPosition.front
+                            ? CameraPosition.back
+                            : CameraPosition.front;
+                        await _cameraTrack?.stop();
+                        await _cameraTrack?.dispose();
+                        try {
+                          final newTrack = await LocalVideoTrack.createCameraTrack(
+                            CameraCaptureOptions(cameraPosition: newPosition),
                           );
+                          setState(() {
+                            _cameraTrack = newTrack;
+                            _cameraPosition = newPosition;
+                          });
+                        } catch (e) {
+                          debugPrint('Camera flip error: $e');
                         }
                       },
                     ),
                 ],
               ),
+              
+              // ── Teacher note: enable camera & mic for recording ──
+              if (widget.isTeacher) ...[
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEBB937).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFEBB937).withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, color: Color(0xFFEBB937), size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          l10n.teacherRecordingNote,
+                          style: const TextStyle(
+                            color: Color(0xFFEBB937),
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               
               const SizedBox(height: 60),
               

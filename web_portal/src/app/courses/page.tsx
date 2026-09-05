@@ -96,9 +96,6 @@ function CoursesPageContent() {
       {/* ── AMBIENT BACKGROUND ── */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-[url('/images/noise.png')] opacity-[0.03]" />
       
-      {/* Subtle Sidebar Glow */}
-      <div className="fixed top-0 right-0 w-[500px] h-full bg-[#E8C468]/[0.02] blur-[150px] pointer-events-none z-0" />
-
       <div className="relative z-50">
         <Navbar />
       </div>
@@ -167,14 +164,6 @@ function CoursesPageContent() {
                         }`}>
                           {t(`categories.${cat.toLowerCase()}`)}
                         </span>
-                        
-                        {/* Active Indicator Line */}
-                        {selectedCategory === cat && (
-                          <motion.div 
-                            layoutId="activeCategorySidebar"
-                            className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-[#E8C468] rounded-l-full"
-                          />
-                        )}
                       </div>
                     </button>
                   ))}

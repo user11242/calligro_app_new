@@ -187,7 +187,7 @@ export default function CourseDetailsPage() {
       setJoining(true);
       setError(null);
 
-      const studentPriceCents = Math.round((Number(course.price || 0) * 100) / 2);
+      const studentPriceCents = Math.round(((Number(course.price || 0) * 100) / 2) * 1.08);
       const courseName = course.courseName || course.courseTitle || "Untitled Course";
       const bannerUrl = formatImageUrl(course.courseBanner || course.thumbnailUrl);
       const teacherUrl = formatImageUrl(teacher?.photoUrl || course.teacherProfilePic);
@@ -388,15 +388,15 @@ export default function CourseDetailsPage() {
 
                   {/* Course Price */}
                   <div className="flex flex-col items-center gap-3">
-                    <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-1">{t("course.tuition_fee")}</span>
+                    <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-1">Total</span>
                     <div className="flex flex-col items-center">
                       <div className="flex items-center gap-4">
                         <span className="text-white/20 text-sm font-bold line-through">
-                          ${Number(course.price).toFixed(0)}
+                          ${(Number(course.price) * 1.08).toFixed(0)}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-4xl font-black font-outfit text-primary tracking-tighter">
-                            ${(Number(course.price) / 2).toFixed(0)}
+                            ${((Number(course.price) / 2) * 1.08).toFixed(0)}
                           </span>
                           <span className="text-[9px] font-black text-black bg-primary px-2 py-1 rounded-full shadow-[0_0_15px_rgba(238,229,147,0.3)]">
                             -50%
@@ -605,21 +605,37 @@ export default function CourseDetailsPage() {
                 </div>
               ) : (
                 <div className="text-center mb-8">
-                  <div className="mb-6 inline-flex flex-col items-center">
+                  <div className="mb-8 inline-flex flex-col items-center">
                     <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/40 mb-4 shadow-[0_0_30px_rgba(238,229,147,0.2)]">
                       <Award className="w-10 h-10 text-primary drop-shadow-[0_0_15px_rgba(238,229,147,0.8)]" />
                     </div>
-                    <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] mb-2 opacity-80">
-                      {t("course.tuition_fee")}
-                    </p>
-                    <div className="h-1 w-12 bg-primary rounded-full mx-auto shadow-[0_0_10px_rgba(238,229,147,0.5)]" />
                   </div>
-                  <div className="flex flex-col items-center gap-2 mt-2">
-                    <div className="flex items-center gap-4">
-                      <span className="text-white/30 text-2xl font-bold line-through tracking-tighter">${Number(course.price).toFixed(0)}</span>
-                      <h2 className="text-6xl md:text-7xl font-black font-outfit text-white tracking-tighter drop-shadow-[0_10px_30_rgba(255,255,255,0.2)]">
-                        ${(Number(course.price) / 2).toFixed(0)}
-                      </h2>
+
+                  <div className="w-full text-start bg-white/[0.02] rounded-2xl p-6 border border-white/10 shadow-inner mb-6">
+                    <div className="flex justify-between items-center text-sm font-medium mb-4">
+                      <span className="text-white/60">{t("course.tuition_fee") || "Tuition"}</span>
+                      <span className="text-white/90 font-outfit rtl:font-sans">${(Number(course.price) / 2).toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-sm font-medium pb-5 border-b border-white/10 mb-5 relative group/tooltip">
+                      <div className="flex items-center gap-2 cursor-help">
+                        <span className="text-white/60">{t("course.platform_fee") || "Service Fee (8%)"}</span>
+                        <Info className="w-4 h-4 text-white/30 group-hover/tooltip:text-primary transition-colors" />
+                        <div className="absolute top-8 start-0 w-48 bg-[#111] border border-white/10 rounded-xl p-3 text-[10px] leading-relaxed text-white/70 shadow-2xl opacity-0 group-hover/tooltip:opacity-100 pointer-events-none transition-opacity z-50">
+                          {t("course.fee_tooltip") || "Helps cover secure payment processing, global taxes, and platform maintenance."}
+                        </div>
+                      </div>
+                      <span className="text-white/90 font-outfit rtl:font-sans">${((Number(course.price) / 2) * 0.08).toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-2 pt-2">
+                      <span className="text-[11px] font-black text-primary uppercase tracking-[0.3em]">{t("course.total_due") || "Total Due"}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-white/30 text-lg font-bold line-through tracking-tighter">${(Number(course.price) * 1.08).toFixed(0)}</span>
+                        <h2 className="text-5xl md:text-6xl font-black font-outfit rtl:font-sans text-white tracking-tighter drop-shadow-[0_10px_30_rgba(255,255,255,0.2)]">
+                          ${((Number(course.price) / 2) * 1.08).toFixed(2)}
+                        </h2>
+                      </div>
                     </div>
                   </div>
                   

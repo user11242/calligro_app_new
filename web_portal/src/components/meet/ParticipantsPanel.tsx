@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { useParticipants } from "@livekit/components-react";
-import { Users, Mic, MicOff, Video, VideoOff, UserCheck, UserMinus, Loader2 } from "lucide-react";
+import { useParticipants, useDataChannel } from "@livekit/components-react";
+import { Users, Mic, MicOff, Video, VideoOff, UserCheck, UserMinus, Loader2, Hand } from "lucide-react";
 import { motion } from "framer-motion";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "@/lib/firebase";
+import { RaisedHandsContext } from "./CalligroMeetLayout";
 
 interface ParticipantsPanelProps {
   isTeacher: boolean;
@@ -14,6 +15,8 @@ interface ParticipantsPanelProps {
 
 export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsPanelProps) {
   const participants = useParticipants();
+  const { send } = useDataChannel();
+  const raisedHands = React.useContext(RaisedHandsContext);
   // Track which participant + action is currently loading to prevent double-clicks
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
@@ -64,6 +67,7 @@ export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsP
           } catch (e) {}
 
           const isRemoteTeacher = role === "moderator";
+          const isHandRaised = raisedHands.has(p.identity);
 
           return (
             <motion.div
@@ -112,6 +116,11 @@ export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsP
               </div>
 
               <div className="flex items-center gap-2.5">
+                {isHandRaised && (
+                  <div className="p-1.5 bg-[#EBB937]/20 rounded-full shadow-[0_0_15px_rgba(235,185,55,0.4)]">
+                    <Hand className="w-4 h-4 text-[#EBB937]" />
+                  </div>
+                )}
                 {p.isMicrophoneEnabled ? (
                   <div className="p-1.5 bg-green-500/10 rounded-full text-green-400">
                     <Mic className="w-3.5 h-3.5" />
@@ -134,6 +143,20 @@ export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsP
                 {/* Teacher Actions — server-side enforced */}
                 {isTeacher && !isRemoteTeacher && !p.isLocal && (
                   <div className="flex items-center gap-1 ml-1 pl-2 border-l border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isHandRaised && (
+                      <button
+                        onClick={() => {
+                          const encoder = new TextEncoder();
+                          send(encoder.encode(JSON.stringify({ cmd: "force_lower_hand", targetId: p.identity })), { reliable: true });
+                          // Force state update directly via context mutability is messy, 
+                          // but the data channel listener in layout handles this state globally!
+                        }}
+                        className="p-1 hover:bg-[#EBB937]/20 rounded transition-colors"
+                        title="Lower Student's Hand"
+                      >
+                        <Hand className="w-3.5 h-3.5 text-[#EBB937]" />
+                      </button>
+                    )}
                     <button
                       onClick={() => moderateParticipant("mute_mic", p.identity)}
                       disabled={pendingAction === `mute_mic_${p.identity}`}

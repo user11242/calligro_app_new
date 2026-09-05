@@ -30,6 +30,39 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
   // Points controller removed
   DateTime? _selectedDueDate;
   TimeOfDay? _selectedTime;
+  
+  String? _selectedPaperTemplate;
+  final List<String> _availablePapers = [
+    'paper1.jpg',
+    'paper2.jpg',
+    'paper3.jpg',
+    'paper4.jpg',
+    'paper5.jpg',
+  ];
+
+  DateTime? _courseStartDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourseStartDate();
+  }
+
+  Future<void> _fetchCourseStartDate() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
+      if (doc.exists && doc.data()!.containsKey('startDate')) {
+        final data = doc.data()!;
+        if (data['startDate'] is Timestamp) {
+          _courseStartDate = (data['startDate'] as Timestamp).toDate();
+        } else if (data['startDate'] != null) {
+          _courseStartDate = DateTime.parse(data['startDate'].toString());
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching course start date: $e");
+    }
+  }
 
   // --- LOGIC: CREATE ASSIGNMENT ---
   Future<void> _createAssignment() async {
@@ -64,6 +97,7 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
           'dueDate': Timestamp.fromDate(finalDeadline),
           'createdAt': FieldValue.serverTimestamp(),
           'submissionCount': 0,
+          if (_selectedPaperTemplate != null) 'practiceSheet': _selectedPaperTemplate,
         });
 
     _titleController.clear();
@@ -71,6 +105,7 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
     setState(() {
       _selectedDueDate = null;
       _selectedTime = null;
+      _selectedPaperTemplate = null;
     });
     
     if (!mounted) return;
@@ -141,13 +176,21 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
                     flex: 3,
                     child: InkWell(
                       onTap: () async {
+                        DateTime firstDate = DateTime.now();
+                        if (_courseStartDate != null && _courseStartDate!.isAfter(DateTime.now())) {
+                          firstDate = _courseStartDate!;
+                        }
+                        
+                        DateTime initialDate = DateTime.now().add(const Duration(days: 1));
+                        if (initialDate.isBefore(firstDate)) {
+                          initialDate = firstDate;
+                        }
+
                         final date = await showDatePicker(
                           context: context,
-                          initialDate: DateTime.now().add(
-                            const Duration(days: 1),
-                          ),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(
+                          initialDate: initialDate,
+                          firstDate: firstDate,
+                          lastDate: firstDate.add(
                             const Duration(days: 365),
                           ),
                           builder: (context, child) => Theme(
@@ -228,6 +271,99 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
                   const SizedBox(width: 12),
 
                 ],
+              ),
+              const SizedBox(height: 20),
+
+              // Paper Template Selection
+              Text(
+                AppLocalizations.of(context)!.practiceSheetTemplateOptional,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    // "None" option
+                    GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          _selectedPaperTemplate = null;
+                        });
+                      },
+                      child: Container(
+                        width: 70,
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _selectedPaperTemplate == null
+                                ? AppColors.accentGold
+                                : Colors.white12,
+                            width: _selectedPaperTemplate == null ? 2 : 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            AppLocalizations.of(context)!.noneOption,
+                            style: TextStyle(
+                              color: _selectedPaperTemplate == null
+                                  ? AppColors.accentGold
+                                  : Colors.white54,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Paper images
+                    ..._availablePapers.map((paper) {
+                      final isSelected = _selectedPaperTemplate == paper;
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            _selectedPaperTemplate = paper;
+                          });
+                        },
+                        child: Container(
+                          width: 70,
+                          margin: const EdgeInsets.only(right: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.accentGold
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                            image: DecorationImage(
+                              image: AssetImage('assets/images/papers/$paper'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          child: isSelected
+                              ? Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.3),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.accentGold,
+                                  ),
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
               ),
               const SizedBox(height: 30),
 

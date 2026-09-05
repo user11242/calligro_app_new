@@ -428,7 +428,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
             .doc(user?.uid)
             .get();
 
-        if (presenceSnap.exists) {
+        if (!isTeacher && presenceSnap.exists) {
           final data = presenceSnap.data();
           if (data != null && data.containsKey('lastHeartbeat')) {
             final lastBeat = (data['lastHeartbeat'] as Timestamp?)?.toDate();

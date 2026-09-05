@@ -657,8 +657,13 @@ exports.verifyPurchase = onCall(async (request) => {
       }
     }
 
-    const pricePaid = courseData.price || 0;
-    const teacherShare = pricePaid * commissionRate;
+    const basePrice = Number(courseData.price || 0);
+    const actualPrice = basePrice / 2; // 50% discount/cut
+    const processingFee = actualPrice * 0.08; // 8% fee
+    const totalPaid = actualPrice + processingFee;
+    
+    const teacherShare = actualPrice * commissionRate;
+    const academyShare = actualPrice - teacherShare;
 
     // 6. Atomic Update: Create Order + Transaction + Enroll Student
     const batch = admin.firestore().batch();
@@ -675,8 +680,12 @@ exports.verifyPurchase = onCall(async (request) => {
       teacherName: courseData.teacherName || "Unknown Teacher",
       productId: purchasedProductId,
       transactionId,
-      price: pricePaid,
+      price: totalPaid,
+      basePrice: basePrice,
+      actualPrice: actualPrice,
+      fee: processingFee,
       teacherShare: teacherShare,
+      academyShare: academyShare,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       environment: result.environment || "sandbox",
     });
@@ -684,8 +693,12 @@ exports.verifyPurchase = onCall(async (request) => {
     // Create Immutable Transaction Record for Finance Dashboards
     const newTxRef = admin.firestore().collection("transactions").doc();
     batch.set(newTxRef, {
-      amount: pricePaid,
+      amount: totalPaid,
+      basePrice: basePrice,
+      actualPrice: actualPrice,
+      fee: processingFee,
       teacherShare: teacherShare,
+      academyShare: academyShare,
       teacherId: courseData.teacherId || "",
       teacherName: courseData.teacherName || "Unknown Teacher",
       courseId: courseId,
@@ -789,9 +802,14 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
         }
       }
 
-      // Lemon Squeezy total is in cents (e.g. 5000 for $50.00). Convert to dollars.
-      const pricePaid = (event.data.attributes.total || 0) / 100;
-      const teacherShare = pricePaid * commissionRate;
+      // Retrieve pricing based on strict accounting rules
+      const totalPaidByStudent = (event.data.attributes.total || 0) / 100;
+      const basePrice = Number(courseData.price || 0);
+      const actualPrice = basePrice / 2; // 50% discount/cut
+      const processingFee = totalPaidByStudent - actualPrice; // Usually 8% fee
+      
+      const teacherShare = actualPrice * commissionRate;
+      const academyShare = actualPrice - teacherShare;
       
       const batch = admin.firestore().batch();
 
@@ -813,8 +831,12 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
         teacherName: courseData.teacherName || "Unknown Teacher",
         productId: String(event.data.attributes.first_order_item?.product_id || courseId),
         transactionId: String(event.data.id),
-        price: pricePaid,
+        price: totalPaidByStudent,
+        basePrice: basePrice,
+        actualPrice: actualPrice,
+        fee: processingFee,
         teacherShare: teacherShare,
+        academyShare: academyShare,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         environment: "production",
       });
@@ -822,8 +844,12 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
       // 3. Create Immutable Transaction Record for Finance Dashboards
       const newTxRef = admin.firestore().collection("transactions").doc();
       batch.set(newTxRef, {
-        amount: pricePaid,
+        amount: totalPaidByStudent,
+        basePrice: basePrice,
+        actualPrice: actualPrice,
+        fee: processingFee,
         teacherShare: teacherShare,
+        academyShare: academyShare,
         teacherId: courseData.teacherId || "",
         teacherName: courseData.teacherName || "Unknown Teacher",
         courseId: String(courseId),

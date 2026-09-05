@@ -1486,6 +1486,7 @@
   "endMeetingForEveryone": "End Meeting for Everyone",
   "endMeetingConfirmation": "Are you sure you want to end the meeting for everyone?",
   "endForAll": "End for All",
+  "teacherEndedMeeting": "The teacher has ended the meeting.",
   "connectingToClassroom": "Connecting to Classroom...",
   "connectingDisclaimer": "Please wait while we establish a secure connection.",
   "readyToJoin": "Ready to join?",
@@ -1504,5 +1505,31 @@
   "exactNameOnBankAccountHint": "Exact name on bank account",
   "swiftCodeHint": "8 or 11 character code",
   "ibanHint": "Starts with country code, no spaces",
-  "recordingExpirationNote": "Note: Each recording will be available for two weeks from its published date."
+  "recordingExpirationNote": "Note: Each recording will be available for two weeks from its published date.",
+  "teacherRecordingNote": "For the class to be recorded, please make sure to enable both your microphone and camera before joining.",
+  "participants": "Participants",
+  "noOtherParticipants": "No other participants in the room yet.",
+  "adminLabel": "Admin",
+  "confirmMuteTitle": "Are you sure?",
+  "confirmMuteMic": "This will mute the student's microphone.",
+  "confirmMuteCamera": "This will disable the student's camera.",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "practiceSheetTemplateOptional": "Practice Sheet Template (Optional)",
+  "practiceSheet": "Practice Sheet",
+  "noneOption": "None",
+  "downloadPrintPracticeSheet": "Download / Print Practice Sheet",
+  "assignmentLabel": "Assignment",
+  "teacherLabel": "Teacher",
+  "studentLabel": "Student",
+  "printAction": "Print",
+  "raiseHand": "Raise Hand",
+  "studentRaisedHand": "{name} raised their hand! ✋",
+  "@studentRaisedHand": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

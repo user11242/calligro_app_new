@@ -3667,6 +3667,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get endForAll => 'End for All';
 
   @override
+  String get teacherEndedMeeting => 'The teacher has ended the meeting.';
+
+  @override
   String get connectingToClassroom => 'Connecting to Classroom...';
 
   @override
@@ -3726,5 +3729,60 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get recordingExpirationNote =>
-      'Note: Each recording will be available for two weeks from its published date.';
+      'Not: Her kayıt, yayınlandığı tarihten itibaren iki hafta süreyle erişilebilir olacaktır.';
+
+  @override
+  String get teacherRecordingNote =>
+      'Dersin kaydedilebilmesi için lütfen derse katılmadan önce mikrofon ve kameranızı açık olduğundan emin olun.';
+
+  @override
+  String get participants => 'Katılımcılar';
+
+  @override
+  String get noOtherParticipants => 'Henüz odada başka katılımcı yok.';
+
+  @override
+  String get adminLabel => 'Yönetici';
+
+  @override
+  String get confirmMuteTitle => 'Emin misiniz?';
+
+  @override
+  String get confirmMuteMic => 'Öğrencinin mikrofonu sessize alınacak.';
+
+  @override
+  String get confirmMuteCamera => 'Öğrencinin kamerası devre dışı bırakılacak.';
+
+  @override
+  String get practiceSheetTemplateOptional =>
+      'Çalışma Kağıdı Şablonu (İsteğe Bağlı)';
+
+  @override
+  String get practiceSheet => 'Çalışma Kağıdı';
+
+  @override
+  String get noneOption => 'Hiçbiri';
+
+  @override
+  String get downloadPrintPracticeSheet => 'Çalışma Kağıdını İndir / Yazdır';
+
+  @override
+  String get assignmentLabel => 'Ödev';
+
+  @override
+  String get teacherLabel => 'Öğretmen';
+
+  @override
+  String get studentLabel => 'Öğrenci';
+
+  @override
+  String get printAction => 'Yazdır';
+
+  @override
+  String get raiseHand => 'El Kaldır';
+
+  @override
+  String studentRaisedHand(String name) {
+    return '$name el kaldırdı! ✋';
+  }
 }
