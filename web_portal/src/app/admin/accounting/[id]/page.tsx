@@ -75,7 +75,7 @@ export default function TeacherLedgerPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="text-4xl font-black uppercase tracking-tight">{ledger.name}'s Ledger</h1>
+            <h1 className="text-4xl font-black uppercase tracking-tight">{ledger.name}&apos;s Ledger</h1>
             <p className="text-sm text-gray-500 uppercase tracking-widest mt-1">{ledger.email}</p>
           </div>
         </div>
