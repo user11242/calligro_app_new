@@ -39,7 +39,7 @@ export async function createCheckoutSession(
 
     // Select the variant ID based on the mode
     // DEV OVERRIDE: Forcing test mode for production test
-    const mode = 'test';
+    const mode: string = 'test';
     const masterVariantId = mode === 'live' 
       ? process.env.LEMONSQUEEZY_LIVE_VARIANT_ID?.trim() 
       : process.env.LEMONSQUEEZY_TEST_VARIANT_ID?.trim();
