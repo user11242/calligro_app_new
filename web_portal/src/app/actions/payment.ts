@@ -75,7 +75,7 @@ export async function createCheckoutSession(
         media: true,
         logo: true,
         desc: true,
-        discount: false,
+        discount: true,
       },
       productOptions: {
         name: courseName,
