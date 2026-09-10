@@ -128,12 +128,15 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       final QuerySnapshot txQuery = results[2] as QuerySnapshot;
       final QuerySnapshot wQuery = results[3] as QuerySnapshot;
 
-      // Calculate exact available balance
+      // Calculate exact available balance and total earnings
       double availableBalance = 0.0;
+      double totalEarnings = 0.0;
       for (var doc in txQuery.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final double share = (data['teacherShare'] ?? 0.0).toDouble();
         final String courseId = data['courseId'] ?? '';
+        
+        totalEarnings += share;
         
         DateTime? payoutDate = coursePayoutDates[courseId];
         if (payoutDate != null && !now.isBefore(payoutDate)) {
@@ -157,7 +160,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         _userEmail = fetchedEmail;
         _courseCount = fetchedCourseCount;
         _studentCount = totalStudents.toString();
-        _earnings = "\$${availableBalance.toStringAsFixed(0)}";
+        _earnings = "\$${totalEarnings.toStringAsFixed(0)}";
 
         if (fetchedPhotoUrl.isNotEmpty) {
           _userProfileImage = fetchedPhotoUrl;
