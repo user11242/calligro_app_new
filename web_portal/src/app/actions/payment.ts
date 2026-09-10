@@ -38,8 +38,7 @@ export async function createCheckoutSession(
     }
 
     // Select the variant ID based on the mode
-    // DEV OVERRIDE: Forcing test mode for production test
-    const mode: string = 'test';
+    const mode = process.env.NEXT_PUBLIC_PAYMENT_MODE || 'test';
     const masterVariantId = mode === 'live' 
       ? process.env.LEMONSQUEEZY_LIVE_VARIANT_ID?.trim() 
       : process.env.LEMONSQUEEZY_TEST_VARIANT_ID?.trim();
@@ -90,16 +89,16 @@ export async function createCheckoutSession(
       testMode: mode === 'test', 
     });
 
-    if (data) {
-      console.log(`Lemon Squeezy: [DEBUG] Generated URL: ${data.data.attributes.url}`);
-    }
-
     if (error) {
       console.error("Lemon Squeezy API Error:", JSON.stringify(error, null, 2));
       return { checkoutUrl: null, error: `Lemon Squeezy: ${error.message || `API Error ${statusCode}`}` };
     }
 
-    const checkoutUrl = data?.data.attributes.url;
+    if (data && data.data && data.data.attributes) {
+      console.log(`Lemon Squeezy: [DEBUG] Generated URL: ${data.data.attributes.url}`);
+    }
+
+    const checkoutUrl = data?.data?.attributes?.url;
     if (!checkoutUrl) {
       return { checkoutUrl: null, error: "No URL returned from Lemon Squeezy product creation." };
     }
