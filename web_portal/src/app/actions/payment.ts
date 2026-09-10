@@ -15,6 +15,8 @@ import { initLemonSqueezy } from "@/lib/lemonsqueezy";
  * @param description Optional course description for the checkout page.
  * @param imageUrl Optional course banner image for the checkout page.
  */
+import { headers } from "next/headers";
+
 export async function createCheckoutSession(
   variantId: string | null | undefined,
   userId: string,
@@ -26,6 +28,9 @@ export async function createCheckoutSession(
   mediaUrls: string[] = []
 ) {
   try {
+    const headersList = headers();
+    const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_APP_URL || "https://calligroacademy.com";
+    
     const validMedia = mediaUrls.filter(url => url && url.startsWith('http'));
     console.log(`Lemon Squeezy: Media URLs for checkout:`, validMedia);
 
@@ -81,9 +86,9 @@ export async function createCheckoutSession(
         name: courseName,
         description: description || "Calligro Digital Masterclass",
         ...(validMedia.length > 0 ? { media: validMedia } : {}),
-        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://calligroacademy.com"}/courses/${courseId}/success`,
+        redirectUrl: `${origin}/courses/${courseId}/success`,
         receiptButtonText: "Enter Classroom",
-        receiptLinkUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://calligroacademy.com"}/courses/${courseId}/classroom`,
+        receiptLinkUrl: `${origin}/courses/${courseId}/classroom`,
       },
       customPrice: amountCents,
       testMode: mode === 'test', 
