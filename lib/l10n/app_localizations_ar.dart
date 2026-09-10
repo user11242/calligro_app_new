@@ -1131,6 +1131,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get youLabel => '(أنت)';
 
   @override
+  String get removeParticipantTitle => 'إزالة المشارك';
+
+  @override
+  String get removeParticipantConfirm =>
+      'هل أنت متأكد أنك تريد إزالة هذا المشارك من الاجتماع؟';
+
+  @override
+  String get kickedFromMeeting => 'تمت إزالتك من الاجتماع بواسطة المعلم.';
+
+  @override
+  String get teacherMutedMic => 'قام المعلم بكتم الميكروفون الخاص بك.';
+
+  @override
+  String get teacherDisabledCamera => 'قام المعلم بإيقاف الكاميرا الخاصة بك.';
+
+  @override
   String get authorLabel => '(الناشر)';
 
   @override
@@ -3656,7 +3672,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get endForAll => 'إنهاء للجميع';
 
   @override
-  String get teacherEndedMeeting => 'The teacher has ended the meeting.';
+  String get teacherEndedMeeting => 'لقد قام المعلم بإنهاء الاجتماع.';
 
   @override
   String get connectingToClassroom => 'جاري الاتصال بالفصل...';

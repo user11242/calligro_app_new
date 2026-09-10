@@ -113,8 +113,8 @@ class _GalleryPageState extends State<GalleryPage> {
           ),
 
           // 4. Artist List
-          StreamBuilder<List<GalleryArtist>>(
-            stream: _galleryService.getArtistsStream(),
+          FutureBuilder<List<GalleryArtist>>(
+            future: _galleryService.getArtistsList(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return SliverFillRemaining(

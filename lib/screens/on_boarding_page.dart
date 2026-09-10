@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
+import 'package:calligro_app/core/utils/video_asset_helper.dart';
 import '../features/student/student_dashboard.dart';
 import '../core/localization/locale_provider.dart';
 import '../core/theme/colors.dart';
@@ -13,8 +15,9 @@ class OnboardingPage extends StatefulWidget {
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> with WidgetsBindingObserver {
-  late VideoPlayerController _controller;
+class _OnboardingPageState extends State<OnboardingPage> {
+  Player? _player;
+  VideoController? _controller;
 
   void _showLanguageBottomSheet() {
     final provider = Provider.of<LocaleProvider>(context, listen: false);
@@ -152,31 +155,25 @@ class _OnboardingPageState extends State<OnboardingPage> with WidgetsBindingObse
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _controller = VideoPlayerController.asset(
-      'assets/videos/new_onboarding.mp4',
-    )..initialize().then((_) {
-        _controller.setLooping(true);
-        _controller.setVolume(0);
-        _controller.play();
-        setState(() {});
-      });
+    _initVideo();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_controller.value.isInitialized) return;
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      _controller.pause();
-    } else if (state == AppLifecycleState.resumed) {
-      _controller.play();
-    }
+  Future<void> _initVideo() async {
+    final player = Player();
+    _player = player;
+    _controller = VideoController(player);
+
+    await player.open(Media('asset://assets/videos/new_onboarding.mp4'));
+    await player.setPlaylistMode(PlaylistMode.loop);
+    await player.setVolume(0);
+    // play is not needed as open plays by default unless play: false is passed
+
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _controller.dispose();
+    _player?.dispose();
     super.dispose();
   }
 
@@ -191,14 +188,11 @@ class _OnboardingPageState extends State<OnboardingPage> with WidgetsBindingObse
           children: [
             // ---------------------- Background Video ----------------------
             Positioned.fill(
-              child: _controller.value.isInitialized
-                  ? FittedBox(
+              child: _controller != null
+                  ? Video(
+                      controller: _controller!,
                       fit: BoxFit.cover,
-                      child: SizedBox(
-                        width: _controller.value.size.width,
-                        height: _controller.value.size.height,
-                        child: VideoPlayer(_controller),
-                      ),
+                      controls: NoVideoControls,
                     )
                   : Container(color: Colors.black),
             ),

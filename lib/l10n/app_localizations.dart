@@ -2188,6 +2188,36 @@ abstract class AppLocalizations {
   /// **'(You)'**
   String get youLabel;
 
+  /// No description provided for @removeParticipantTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Participant'**
+  String get removeParticipantTitle;
+
+  /// No description provided for @removeParticipantConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove this participant from the meeting?'**
+  String get removeParticipantConfirm;
+
+  /// No description provided for @kickedFromMeeting.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been removed from the meeting by the instructor.'**
+  String get kickedFromMeeting;
+
+  /// No description provided for @teacherMutedMic.
+  ///
+  /// In en, this message translates to:
+  /// **'The teacher has muted your microphone.'**
+  String get teacherMutedMic;
+
+  /// No description provided for @teacherDisabledCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'The teacher has disabled your camera.'**
+  String get teacherDisabledCamera;
+
   /// No description provided for @authorLabel.
   ///
   /// In en, this message translates to:

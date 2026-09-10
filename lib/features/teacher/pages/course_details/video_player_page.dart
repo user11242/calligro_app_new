@@ -1,11 +1,13 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:calligro_app/core/services/security_service.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
+import 'package:calligro_app/core/utils/video_asset_helper.dart';
 
 class VideoPlayerPage extends StatefulWidget {
   final String videoUrl;
@@ -18,14 +20,20 @@ class VideoPlayerPage extends StatefulWidget {
 }
 
 class _VideoPlayerPageState extends State<VideoPlayerPage> {
-  late VideoPlayerController _videoPlayerController;
-  ChewieController? _chewieController;
+  Player? _introPlayer;
+  VideoController? _introController;
+  
+  Player? _mainPlayer;
+  VideoController? _mainController;
+  
+  StreamSubscription? _introCompleteSubscription;
+  
+  bool _isPlayingIntro = true;
 
   @override
   void initState() {
     super.initState();
     SecurityService().enableScreenshotProtection();
-    // Allow device rotation while watching the video
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
@@ -35,63 +43,62 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   }
 
   Future<void> initializePlayer() async {
-    // Add https:// if it is missing
+    // 1. Initialize Intro Video
+    _introPlayer = Player();
+    _introController = VideoController(_introPlayer!);
+    await _introPlayer!.open(Media('asset://assets/videos/recordings_intro.mov'), play: false);
+
+    // 2. Initialize Main Video
     String finalUrl = widget.videoUrl;
     if (!finalUrl.startsWith('http')) {
       finalUrl = 'https://$finalUrl';
     }
+    _mainPlayer = Player();
+    _mainController = VideoController(_mainPlayer!);
+    await _mainPlayer!.open(Media(finalUrl), play: false);
 
-    _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(finalUrl));
-
-    await _videoPlayerController.initialize();
-
-    _chewieController = ChewieController(
-      videoPlayerController: _videoPlayerController,
-      autoPlay: true,
-      looping: false,
-      aspectRatio: _videoPlayerController.value.aspectRatio,
-      allowFullScreen: true,
-      allowMuting: true,
-      materialProgressColors: ChewieProgressColors(
-        playedColor: AppColors.accentGold,
-        handleColor: Colors.white,
-        backgroundColor: Colors.white.withValues(alpha: 0.2),
-        bufferedColor: Colors.white.withValues(alpha: 0.5),
-      ),
-      cupertinoProgressColors: ChewieProgressColors(
-        playedColor: AppColors.accentGold,
-        handleColor: Colors.white,
-        backgroundColor: Colors.white.withValues(alpha: 0.2),
-        bufferedColor: Colors.white.withValues(alpha: 0.5),
-      ),
-      errorBuilder: (context, errorMessage) {
-        return Center(
-          child: Text(
-            errorMessage,
-            style: const TextStyle(color: Colors.white),
-          ),
-        );
-      },
-    );
     setState(() {});
+
+    // 3. Listen for intro completion
+    _introCompleteSubscription = _introPlayer!.stream.completed.listen((completed) {
+      if (completed) {
+        _switchToMainVideo();
+      }
+    });
+    
+    // Play intro
+    await _introPlayer!.play();
+  }
+
+  void _switchToMainVideo() {
+    if (!mounted) return;
+    
+    _introCompleteSubscription?.cancel();
+    
+    setState(() {
+      _isPlayingIntro = false;
+    });
+    
+    _mainPlayer?.play();
   }
 
   @override
   void dispose() {
     SecurityService().disableScreenshotProtection();
-    // Restore orientation lock to portrait when leaving the player
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
-    _videoPlayerController.dispose();
-    _chewieController?.dispose();
+    _introCompleteSubscription?.cancel();
+    _introPlayer?.dispose();
+    _mainPlayer?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final currentController = _isPlayingIntro ? _introController : _mainController;
     
     return Scaffold(
       backgroundColor: Colors.black,
@@ -119,18 +126,21 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         fit: StackFit.expand,
         children: [
           // ── Blurred Video Background ──
-          if (_videoPlayerController.value.isInitialized)
+          if (currentController != null)
             FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: _videoPlayerController.value.size.width,
-                height: _videoPlayerController.value.size.height,
-                child: VideoPlayer(_videoPlayerController),
+                width: 1920,
+                height: 1080,
+                child: Video(
+                  controller: currentController,
+                  controls: NoVideoControls,
+                ),
               ),
             ),
             
           // ── Heavy Blur Filter Overlay ──
-          if (_videoPlayerController.value.isInitialized)
+          if (currentController != null)
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 60.0, sigmaY: 60.0),
               child: Container(
@@ -140,12 +150,14 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
           // ── Main Video Player ──
           Center(
-            child: _chewieController != null &&
-                    _chewieController!.videoPlayerController.value.isInitialized
+            child: currentController != null
                 ? InteractiveViewer(
                     minScale: 1.0,
                     maxScale: 4.0,
-                    child: Chewie(controller: _chewieController!),
+                    child: Video(
+                      controller: currentController,
+                      controls: _isPlayingIntro ? NoVideoControls : AdaptiveVideoControls,
+                    ),
                   )
                 : const CircularProgressIndicator(color: AppColors.accentGold),
           ),

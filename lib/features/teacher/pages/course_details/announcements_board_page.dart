@@ -1,6 +1,7 @@
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
@@ -40,7 +41,7 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
           .add({
             'message': message,
             'timestamp': FieldValue.serverTimestamp(),
-            'senderName': 'Instructor',
+            'senderName': FirebaseAuth.instance.currentUser?.displayName ?? 'Instructor',
             'type': 'teacher_post',
           });
 

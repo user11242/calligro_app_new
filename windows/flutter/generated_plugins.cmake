@@ -17,6 +17,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_webrtc
   geolocator_windows
   livekit_client
+  media_kit_libs_windows_video
+  media_kit_video
   permission_handler_windows
   printing
   share_plus
@@ -25,6 +27,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   flutter_local_notifications_windows
+  jni
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

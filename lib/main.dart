@@ -1,6 +1,7 @@
   // lib/main.dart
 
   import 'package:flutter/material.dart';
+  import 'package:flutter/foundation.dart';
   import 'dart:developer' as developer;
   import 'package:firebase_core/firebase_core.dart';
   import 'package:firebase_messaging/firebase_messaging.dart';
@@ -11,6 +12,7 @@
   import 'dart:ui'; // Import for PlatformDispatcher
   import 'package:calligro_app/screens/splash_screen.dart'; // Import SplashScreen
   import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+  import 'package:media_kit/media_kit.dart';
   // --- YOUR FILES ---
   import 'package:calligro_app/firebase_options.dart';
   import 'package:calligro_app/features/auth/data/services/google_auth_service.dart';
@@ -124,6 +126,7 @@
 
   Future<void> main() async {
     WidgetsFlutterBinding.ensureInitialized();
+    MediaKit.ensureInitialized();
 
     // 0. Lock Orientation
     await SystemChrome.setPreferredOrientations([
@@ -146,7 +149,8 @@
 
     // ✅ Initialize App Check (Debug Mode for local testing)
     await FirebaseAppCheck.instance.activate(
-      appleProvider: AppleProvider.debug,
+      androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+      appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
     );
 
     // 3. Initialize Google Auth Service
@@ -293,6 +297,10 @@ class CalligroApp extends StatelessWidget {
       selector: (_, provider) => provider.locale,
       builder: (context, locale, child) {
         return MaterialApp(
+          theme: ThemeData(
+            scaffoldBackgroundColor: Colors.black,
+            canvasColor: Colors.black,
+          ),
           navigatorKey: DeepLinkService().navigatorKey,
           debugShowCheckedModeBanner: false,
           locale: locale,

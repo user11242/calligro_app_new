@@ -226,11 +226,12 @@ export default function CourseDetailsPage() {
     try {
       const user = auth.currentUser;
       if (!user) {
-        router.push(`/login?redirect=/courses/${id}`);
+        router.push("/login");
         return;
       }
       setJoining(true);
-
+      setError(null);
+      
       await runTransaction(db, async (transaction) => {
         const courseRef = doc(db, "courses", id as string);
         const transactionRef = doc(collection(db, "transactions"));
@@ -258,10 +259,10 @@ export default function CourseDetailsPage() {
         }
       });
       setIsEnrolled(true);
+      setJoining(false);
     } catch (err: any) {
       console.error(err);
       setError(`Bypass failed: ${err.message}`);
-    } finally {
       setJoining(false);
     }
   };

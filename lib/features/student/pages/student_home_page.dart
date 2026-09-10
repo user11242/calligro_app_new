@@ -8,11 +8,13 @@ import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/features/student/data/services/student_service.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:calligro_app/core/utils/guest_guard.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:calligro_app/core/utils/video_asset_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // ✅ IMPORTS
@@ -58,7 +60,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
   late Stream<StudentUserModel> _studentStream;
   late Stream<List<Map<String, dynamic>>> _enrolledCoursesStream;
-  late Stream<List<GalleryArtist>> _galleryStream;
+  late Future<List<GalleryArtist>> _galleryFuture;
   late Stream<List<Map<String, dynamic>>> _teachersStream;
   late Stream<List<Map<String, dynamic>>> _featuredCoursesStream;
 
@@ -67,7 +69,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
     super.initState();
     _studentStream = _service.getStudentStream();
     _enrolledCoursesStream = _service.getEnrolledCourses();
-    _galleryStream = GalleryService().getArtistsStream();
+    _galleryFuture = GalleryService().getArtistsList();
     _teachersStream = _service.getTeachersStream();
     _featuredCoursesStream = _service.getFeaturedCourses();
     _precacheGalleryImages();
@@ -768,13 +770,11 @@ class _StudentHomePageState extends State<StudentHomePage> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(30),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                           decoration: BoxDecoration(
                             color: AppColors.accentGold.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(30),
@@ -825,7 +825,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -1259,20 +1258,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
                   borderRadius: const BorderRadius.vertical(
                     bottom: Radius.circular(32),
                   ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child:
-                        Container(
+                  child: Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white.withOpacity(0.2),
-                                Colors.white.withOpacity(0.05),
-                              ],
-                            ),
+                            color: AppColors.primary.withOpacity(0.9),
                             border: Border(
                               top: BorderSide(
                                 color: Colors.white.withOpacity(0.15),
@@ -1379,7 +1368,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
                           duration: 1500.ms,
                           color: Colors.white.withOpacity(0.1),
                         ),
-                  ),
                 ),
               ),
             ],
@@ -1448,12 +1436,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
+      child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
+            color: AppColors.primary.withOpacity(0.85),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.white.withOpacity(0.1)),
           ),
@@ -1477,7 +1463,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -1518,15 +1503,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: isGlass ? 8 : 0,
-          sigmaY: isGlass ? 8 : 0,
-        ),
-        child: Container(
+      child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: color,
+            color: isGlass ? AppColors.primary.withOpacity(0.85) : color,
             borderRadius: BorderRadius.circular(10),
             border: isGlass
                 ? Border.all(color: Colors.white.withOpacity(0.15))
@@ -1542,7 +1522,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -1558,8 +1537,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
   Widget _buildGallerySection() {
     return SizedBox(
       height: 220,
-      child: StreamBuilder<List<GalleryArtist>>(
-        stream: _galleryStream,
+      child: FutureBuilder<List<GalleryArtist>>(
+        future: _galleryFuture,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -1681,14 +1660,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
                                   errorWidget: (context, url, error) =>
                                       const Icon(Icons.error),
                                 ),
-                                BackdropFilter(
-                                  filter: ImageFilter.blur(
-                                    sigmaX: 12,
-                                    sigmaY: 12,
-                                  ),
-                                  child: Container(
-                                    color: Colors.black.withOpacity(0.3),
-                                  ),
+                                Container(
+                                  color: Colors.black.withOpacity(0.6),
                                 ),
                                 // Focused full-face image
                                 CachedNetworkImage(
@@ -2183,8 +2156,8 @@ class _CountdownTimerState extends State<_CountdownTimer> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withOpacity(0.15),
-                Colors.white.withOpacity(0.05),
+                AppColors.primary.withOpacity(0.8),
+                AppColors.primary.withOpacity(0.9),
               ],
             ),
             border: Border.all(color: Colors.white.withOpacity(0.1)),
@@ -2198,9 +2171,7 @@ class _CountdownTimerState extends State<_CountdownTimer> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Center(
+            child: Center(
                 child: Text(
                   value,
                   style: const TextStyle(
@@ -2213,7 +2184,6 @@ class _CountdownTimerState extends State<_CountdownTimer> {
               ),
             ),
           ),
-        ),
         const SizedBox(height: 10),
         Text(
           label,
@@ -2252,70 +2222,49 @@ class AmbientVideoPlayer extends StatefulWidget {
   State<AmbientVideoPlayer> createState() => _AmbientVideoPlayerState();
 }
 
-class _AmbientVideoPlayerState extends State<AmbientVideoPlayer>
-    with WidgetsBindingObserver {
-  VideoPlayerController? _controller;
-  bool _initialized = false;
+class _AmbientVideoPlayerState extends State<AmbientVideoPlayer> {
+  Player? _player;
+  VideoController? _controller;
   bool _hasError = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _initializePlayer();
   }
-
-  int _retryCount = 0;
 
   Future<void> _initializePlayer() async {
     if (!mounted) return;
 
-    // Dispose previous controller if any
-    if (_controller != null) {
-      await _controller!.dispose();
+    if (_player != null) {
+      await _player!.dispose();
+      _player = null;
       _controller = null;
     }
 
     if (mounted) {
       setState(() {
-        _initialized = false;
         _hasError = false;
       });
     }
 
-    final controller = VideoPlayerController.asset(
-      widget.videoPath,
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
-    _controller = controller;
-
     try {
-      await controller.initialize();
-      if (!mounted) return;
+      final player = Player();
+      _player = player;
+      _controller = VideoController(player);
 
-      await controller.setLooping(true);
-      await controller.setVolume(0);
-      await controller.play();
+      await player.open(Media('asset://${widget.videoPath}'));
+      await player.setPlaylistMode(PlaylistMode.loop);
+      await player.setVolume(0);
 
       if (mounted) {
-        setState(() {
-          _initialized = true;
-          _hasError = false;
-          _retryCount = 0; // Reset count on success
-        });
+        setState(() {});
       }
     } catch (error) {
-      debugPrint('❌ VIDEO PLAYER ERROR (Attempt ${_retryCount + 1}): $error');
-
-      if (_retryCount < 3 && mounted) {
-        _retryCount++;
-        // exponential backoff
-        await Future.delayed(Duration(seconds: _retryCount * 2));
-        _initializePlayer();
-      } else if (mounted) {
+      debugPrint('❌ VIDEO PLAYER ERROR: $error');
+      if (mounted) {
         setState(() {
           _hasError = true;
-          _initialized = false;
         });
       }
     }
@@ -2330,22 +2279,8 @@ class _AmbientVideoPlayerState extends State<AmbientVideoPlayer>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _controller;
-    if (controller == null || !_initialized) return;
-
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      controller.pause();
-    } else if (state == AppLifecycleState.resumed) {
-      controller.play();
-    }
-  }
-
-  @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
+    _player?.dispose();
     super.dispose();
   }
 
@@ -2364,8 +2299,7 @@ class _AmbientVideoPlayerState extends State<AmbientVideoPlayer>
       );
     }
 
-    final controller = _controller;
-    if (controller == null || !_initialized) {
+    if (_controller == null) {
       return Container(
         color: Colors.black,
         child: const Center(
@@ -2374,13 +2308,10 @@ class _AmbientVideoPlayerState extends State<AmbientVideoPlayer>
       );
     }
 
-    return FittedBox(
+    return Video(
+      controller: _controller!,
       fit: BoxFit.cover,
-      child: SizedBox(
-        width: controller.value.size.width,
-        height: controller.value.size.height,
-        child: VideoPlayer(controller),
-      ),
+      controls: NoVideoControls,
     );
   }
 }

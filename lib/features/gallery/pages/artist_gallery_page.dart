@@ -74,8 +74,8 @@ class _ArtistGalleryPageState extends State<ArtistGalleryPage> {
           ),
 
           // 3. Grid of Artworks
-          StreamBuilder<List<GalleryArtwork>>(
-            stream: _galleryService.getArtworksStream(widget.artist.id),
+          FutureBuilder<List<GalleryArtwork>>(
+            future: _galleryService.getArtworksList(widget.artist.id),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return SliverFillRemaining(

@@ -71,3 +71,10 @@
 -dontwarn okio.**
 -keep class okhttp3.** { *; }
 -keep class okio.** { *; }
+
+# --- ExoPlayer / Media3 (used by video_player plugin) ---
+# Prevents R8 from stripping video decoder classes in Release mode
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+-keep class com.google.android.exoplayer2.** { *; }
+-dontwarn com.google.android.exoplayer2.**

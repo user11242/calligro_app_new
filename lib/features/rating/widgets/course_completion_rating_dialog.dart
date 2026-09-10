@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/colors.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/message/app_messenger.dart';
+import '../../../core/services/translation_service.dart';
 import '../services/rating_service.dart';
 
 class CourseCompletionRatingDialog extends StatefulWidget {
@@ -31,6 +32,29 @@ class _CourseCompletionRatingDialogState
 
   int? _selectedRating;
   bool _isSubmitting = false;
+  
+  String? _translatedCourseName;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_translatedCourseName == null) {
+      _translateCourseName();
+    }
+  }
+
+  Future<void> _translateCourseName() async {
+    final lang = Localizations.localeOf(context).languageCode;
+    final translated = await TranslationService().translate(
+      text: widget.courseName,
+      target: lang,
+    );
+    if (mounted) {
+      setState(() {
+        _translatedCourseName = translated;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -132,7 +156,7 @@ class _CourseCompletionRatingDialogState
             // Congratulations Message
             Text(
               AppLocalizations.of(context)!
-                  .congratsCourseComplete(widget.courseName),
+                  .congratsCourseComplete(_translatedCourseName ?? widget.courseName),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: AppColors.textPrimary,

@@ -88,7 +88,7 @@ exports.generateLiveKitToken = onCall({
 
     const isModerator = isTeacher || isAdmin;
     
-    at.addGrant({
+    let grant = {
       roomJoin: true,
       room: secureRoomName,
       canPublish: true,
@@ -96,7 +96,14 @@ exports.generateLiveKitToken = onCall({
       canPublishData: true,
       roomAdmin: isModerator,
       canUpdateOwnMetadata: true,
-    });
+    };
+
+    // If it's a student joining from the website, explicitly block screen sharing
+    if (!isModerator && source === 'web') {
+      grant.canPublishSources = ['camera', 'microphone'];
+    }
+
+    at.addGrant(grant);
 
     const metadata = JSON.stringify({
       role: isModerator ? "moderator" : "participant",
@@ -138,7 +145,7 @@ exports.generateLiveKitToken = onCall({
 // Server-Side Moderation (Teacher Only)
 // --------------------
 exports.moderateParticipant = onCall({ 
-  secrets: [livekitApiKey, livekitApiSecret],
+  secrets: [livekitApiKey, livekitApiSecret, r2PublicUrl],
   cpu: 0.333,
   memory: "256MiB",
   maxInstances: 1,
@@ -193,7 +200,59 @@ exports.moderateParticipant = onCall({
       // and finalize the MP4 file after stopEgress is called.
       // If the client disconnects immediately, the tracks unpublish and cause a "pipeline frozen" error.
       await new Promise(resolve => setTimeout(resolve, 5000));
-      
+
+      // ── DIRECT SAVE: Don't rely on the webhook ──────────────────────
+      // The webhook (egress_ended) was the sole mechanism for saving
+      // recordings to Firestore, but it never fires reliably.
+      // Instead, we save the recording document right here.
+      try {
+        const sessionDoc = await admin.firestore()
+          .collection("courses").doc(courseId)
+          .collection("activeSessions").doc(today)
+          .get();
+
+        if (sessionDoc.exists) {
+          const sessionData = sessionDoc.data();
+          const r2FilePath = sessionData.r2FilePath;
+          const egressId = sessionData.egressId;
+          const startedAt = sessionData.startedAt;
+
+          if (r2FilePath && egressId) {
+            // Calculate duration from startedAt to now, minus ~13s overhead
+            let durationSeconds = 0;
+            if (startedAt) {
+              const startMs = startedAt.toMillis ? startedAt.toMillis() : startedAt;
+              durationSeconds = Math.max(1, Math.round((Date.now() - startMs) / 1000) - 13);
+            }
+
+            const publicDomain = r2PublicUrl.value().replace(/\/$/, "");
+            const fullUrl = `${publicDomain}/${r2FilePath}`;
+
+            // Save recording using egressId as doc ID (idempotent — safe if webhook also fires later)
+            await admin.firestore()
+              .collection("courses").doc(courseId)
+              .collection("recordings").doc(egressId)
+              .set({
+                egressId: egressId,
+                roomName: sessionData.roomName || secureRoomName,
+                videoUrl: fullUrl,
+                r2FilePath: r2FilePath,
+                recordedAt: startedAt || admin.firestore.FieldValue.serverTimestamp(),
+                duration: durationSeconds,
+              }, { merge: true });
+
+            console.log(`✅ Recording saved directly: ${fullUrl} (duration: ${durationSeconds}s)`);
+          } else {
+            console.warn("⚠️ ActiveSession missing r2FilePath or egressId — cannot save recording.");
+          }
+        } else {
+          console.warn("⚠️ No activeSession document found for today — cannot save recording.");
+        }
+      } catch (saveErr) {
+        // Non-fatal: log but don't throw — the egress was still stopped successfully
+        console.error("⚠️ Failed to save recording directly (non-fatal):", saveErr);
+      }
+
       return { status: "stopped", count: toStop.length };
     } catch (error) {
       console.error("Stop egress error:", error);

@@ -1139,6 +1139,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get youLabel => '(You)';
 
   @override
+  String get removeParticipantTitle => 'Remove Participant';
+
+  @override
+  String get removeParticipantConfirm =>
+      'Are you sure you want to remove this participant from the meeting?';
+
+  @override
+  String get kickedFromMeeting =>
+      'You have been removed from the meeting by the instructor.';
+
+  @override
+  String get teacherMutedMic => 'The teacher has muted your microphone.';
+
+  @override
+  String get teacherDisabledCamera => 'The teacher has disabled your camera.';
+
+  @override
   String get authorLabel => '(Author)';
 
   @override

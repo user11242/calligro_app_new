@@ -114,9 +114,10 @@ class RecordingsPage extends StatelessWidget {
               ),
             );
           }
+          final allDocs = snapshot.data?.docs ?? [];
           // Filter out recordings older than 14 days to match Cloudflare R2 retention
           final fourteenDaysAgo = DateTime.now().subtract(const Duration(days: 14));
-          final docs = (snapshot.data?.docs ?? []).where((doc) {
+          final docs = allDocs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final recordedAt = data['recordedAt'] as Timestamp?;
             if (recordedAt == null) return true; // Keep if no date (fallback)
@@ -185,7 +186,8 @@ class RecordingsPage extends StatelessWidget {
                   ? DateFormat.yMMMd(l10n.localeName).format(recordedAt.toDate())
                   : 'Unknown Date';
 
-              final lessonNumber = docs.length - index;
+              final originalIndex = allDocs.indexOf(doc);
+              final lessonNumber = allDocs.length - originalIndex;
               final customTitle = data['title'] as String?;
               final displayTitle = customTitle ?? '${l10n.lesson} $lessonNumber';
 

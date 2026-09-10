@@ -25,6 +25,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Prevent AAPT from compressing video assets so ExoPlayer can read them
+    // directly from the APK on all Android devices (including Huawei/EMUI).
+    aaptOptions {
+        noCompress("mp4", "mov")
+    }
+
     // Simplified target selection to avoid strict toolchain errors
     kotlin {
         compilerOptions {

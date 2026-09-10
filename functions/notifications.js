@@ -37,6 +37,8 @@ function getLocalizedText(lang, key, params = {}) {
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "Session Rescheduled ⏰",
             session_rescheduled_body: "The session for '{courseName}' has been moved.",
+            new_assignment_title: "New Assignment 📝",
+            new_assignment_body: "A new assignment '{assignmentTitle}' has been added to '{courseName}' by {teacherName}.",
         },
         ar: {
             new_enrollment_title: "طالب جديد مسجل! 🎓",
@@ -65,6 +67,8 @@ function getLocalizedText(lang, key, params = {}) {
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "إعادة جدولة الجلسة ⏰",
             session_rescheduled_body: "تم تغيير موعد جلسة '{courseName}'.",
+            new_assignment_title: "واجب جديد 📝",
+            new_assignment_body: "تمت إضافة واجب جديد '{assignmentTitle}' إلى '{courseName}' بواسطة {teacherName}.",
         },
         tr: {
             new_enrollment_title: "Yeni Öğrenci Kaydoldu! 🎓",
@@ -93,6 +97,8 @@ function getLocalizedText(lang, key, params = {}) {
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "Oturum Yeniden Planlandı ⏰",
             session_rescheduled_body: "'{courseName}' kursunun oturum saati değiştirildi.",
+            new_assignment_title: "Yeni Ödev 📝",
+            new_assignment_body: "{teacherName} tarafından '{courseName}' kursuna yeni bir ödev '{assignmentTitle}' eklendi.",
         },
     };
 
@@ -332,6 +338,51 @@ exports.notifyStudentsOnAnnouncement = onDocumentCreated("courses/{courseId}/ann
             titleKey: "new_announcement_title",
             bodyKey: "new_announcement_body",
             params: { teacherName, courseName, message: announcementData.message || "" },
+            payload: {
+                route: '/courseDetails',
+                courseId: event.params.courseId
+            }
+        })
+    );
+
+    await Promise.all(promises);
+    return null;
+});
+
+// ------------------------------------------------------------------------
+// Trigger 1.5.1: New Assignment (Notifies Enrolled Students)
+// ------------------------------------------------------------------------
+exports.notifyStudentsOnAssignment = onDocumentCreated("courses/{courseId}/assignments/{assignmentId}", async (event) => {
+    const assignmentData = event.data.data();
+    if (!assignmentData) return null;
+
+    // Get course to find enrolled students and teacher
+    const courseDoc = await admin.firestore().collection("courses").doc(event.params.courseId).get();
+    if (!courseDoc.exists) return null;
+    
+    const courseData = courseDoc.data();
+    const enrolledStudents = courseData.enrolledStudents || [];
+    if (enrolledStudents.length === 0) return null;
+
+    const courseName = courseData.courseName || courseData.courseTitle || "Course";
+    const assignmentTitle = assignmentData.title || "Assignment";
+
+    let teacherName = "Instructor";
+    if (courseData.teacherId) {
+        const teacherDoc = await admin.firestore().collection("users").doc(courseData.teacherId).get();
+        if (teacherDoc.exists) {
+            teacherName = teacherDoc.data().name || "Instructor";
+        }
+    }
+
+    // Send push to all enrolled students
+    const promises = enrolledStudents.map(studentId => 
+        sendNotification({
+            receiverId: studentId,
+            type: "assignment",
+            titleKey: "new_assignment_title",
+            bodyKey: "new_assignment_body",
+            params: { courseName, assignmentTitle, teacherName },
             payload: {
                 route: '/courseDetails',
                 courseId: event.params.courseId

@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
+import 'package:calligro_app/core/services/security_service.dart';
 
 // Top-level callback for foreground service (required by package but we just need the service alive)
 @pragma('vm:entry-point')
@@ -121,6 +122,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     _resilienceController = ConnectionResilienceController();
     _cameraPosition = widget.startCameraPosition;
     _log('initState — starting connection flow');
+    SecurityService().enableScreenshotProtection();
     _connect();
   }
 
@@ -372,11 +374,27 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
             _log('🛑 Teacher ended the meeting for everyone');
             _isEndingMeeting = true;
             if (mounted) {
-              AppMessenger.showSnackBar(
-                context,
-                title: AppLocalizations.of(context)!.classEnded,
-                message: AppLocalizations.of(context)!.teacherEndedMeeting,
-                type: MessengerType.info,
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const _WavingIcon(icon: Icons.waving_hand, color: Colors.black, size: 18),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          AppLocalizations.of(context)!.teacherEndedMeeting,
+                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                  width: 340, // compact pill
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  backgroundColor: const Color(0xFFEBB937), // Yellow color requested by user
+                ),
               );
               Future.delayed(const Duration(seconds: 2), () {
                 if (mounted) {
@@ -401,17 +419,90 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
               return;
             }
 
-            if (msg['type'] == 'force_mute_mic') {
+            if (msg['type'] == 'kick_participant') {
+              _log('🛑 Kicked by instructor');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.person_remove, color: Colors.white, size: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.of(context)!.kickedFromMeeting,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                    width: 340, // compact pill
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+                Future.delayed(const Duration(seconds: 2), () {
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
+                });
+              }
+            } else if (msg['type'] == 'force_mute_mic') {
               _log('🤫 Teacher muted your mic');
               _room?.localParticipant?.setMicrophoneEnabled(false);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('The teacher has muted your microphone.'), backgroundColor: Colors.orange));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.mic_off, color: Colors.black, size: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.of(context)!.teacherMutedMic,
+                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 3),
+                    behavior: SnackBarBehavior.floating,
+                    width: 340, // compact pill
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    backgroundColor: const Color(0xFFEBB937),
+                  ),
+                );
               }
             } else if (msg['type'] == 'force_mute_camera') {
               _log('🙈 Teacher disabled your camera');
               _room?.localParticipant?.setCameraEnabled(false);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('The teacher has disabled your camera.'), backgroundColor: Colors.orange));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.videocam_off, color: Colors.black, size: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.of(context)!.teacherDisabledCamera,
+                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 3),
+                    behavior: SnackBarBehavior.floating,
+                    width: 340, // compact pill
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    backgroundColor: const Color(0xFFEBB937),
+                  ),
+                );
               }
             }
           }
@@ -728,6 +819,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
 
   @override
   void dispose() {
+    SecurityService().disableScreenshotProtection();
     _audioPlayer.dispose();
     _durationTimer?.cancel();
     WakelockPlus.disable();
@@ -1332,6 +1424,49 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
               }
             }
 
+            Future<void> confirmAndKick(Participant p) async {
+              final l10n = AppLocalizations.of(context)!;
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: const Color(0xFF1E2028),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: Text(
+                    l10n.removeParticipantTitle,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  content: Text(
+                    l10n.removeParticipantConfirm,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text(l10n.cancel, style: const TextStyle(color: Colors.white54)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text(l10n.confirm),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                await _room?.localParticipant?.publishData(
+                  utf8.encode(jsonEncode({
+                    'type': 'kick_participant',
+                    'targetId': p.identity,
+                  })),
+                  reliable: true,
+                );
+              }
+            }
+
             return Container(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -1418,7 +1553,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                                     children: [
                                       Flexible(
                                         child: Text(
-                                          isLocalUser ? '$name (You)' : name,
+                                          isLocalUser ? '$name ${AppLocalizations.of(context)!.youLabel}' : name,
                                           style: const TextStyle(color: Colors.white),
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -1504,6 +1639,24 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                                       ),
                                     ),
                                   ),
+                                  if (widget.isTeacher) ...[
+                                    const SizedBox(width: 4),
+                                    Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(20),
+                                        onTap: () => confirmAndKick(p),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(8),
+                                          child: Icon(
+                                            Icons.person_remove,
+                                            color: Colors.redAccent,
+                                            size: 22,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ]
                                 ],
                               ],
                             ),
@@ -2079,6 +2232,49 @@ class _ControlButton extends StatelessWidget {
         ),
         child: Icon(icon, color: iconColor, size: 28),
       ),
+    );
+  }
+}
+
+class _WavingIcon extends StatefulWidget {
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  const _WavingIcon({required this.icon, required this.color, required this.size});
+
+  @override
+  State<_WavingIcon> createState() => _WavingIconState();
+}
+
+class _WavingIconState extends State<_WavingIcon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _animation = Tween<double>(begin: -0.1, end: 0.2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RotationTransition(
+      turns: _animation,
+      child: Icon(widget.icon, color: widget.color, size: widget.size),
     );
   }
 }
