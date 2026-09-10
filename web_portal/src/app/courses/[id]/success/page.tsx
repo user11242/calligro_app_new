@@ -54,7 +54,7 @@ export default function SuccessPage() {
       const docRef = doc(db, "courses", id as string);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        const courseData = { id: docSnap.id, ...docSnap.data() };
+        const courseData: any = { id: docSnap.id, ...docSnap.data() };
         setCourse(courseData);
 
         if (courseData.teacherId) {
