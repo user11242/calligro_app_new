@@ -657,13 +657,21 @@ exports.verifyPurchase = onCall(async (request) => {
       }
     }
 
-    const basePrice = Number(courseData.price || 0);
-    const actualPrice = basePrice / 2; // 50% discount/cut
-    const processingFee = actualPrice * 0.08; // 8% fee
-    const totalPaid = actualPrice + processingFee;
+    const basePrice = Number(courseData.price || 0); // e.g. 100
+    const websitePrice = basePrice / 2; // e.g. 50
     
-    const teacherShare = actualPrice * commissionRate;
-    const academyShare = actualPrice - teacherShare;
+    // In-App Purchases (Apple/Google) have a massive 30% platform fee.
+    // The student pays the FULL basePrice (e.g. 100).
+    const totalPaid = basePrice; // Fallback assuming they paid full DB price on the app
+    const processingFee = totalPaid * 0.30; // 30% Apple/Google App Store Fee
+    const netRevenue = totalPaid - processingFee;
+    
+    // The Guaranteed Teacher Payout (Subsidized Model)
+    // Teacher gets their cut based on the $50 website price, even though the app charged $100.
+    const teacherShare = websitePrice * commissionRate;
+    
+    // Academy keeps the massive profit from the app purchase!
+    const academyShare = netRevenue - teacherShare;
 
     // 6. Atomic Update: Create Order + Transaction + Enroll Student
     const batch = admin.firestore().batch();
@@ -682,7 +690,7 @@ exports.verifyPurchase = onCall(async (request) => {
       transactionId,
       price: totalPaid,
       basePrice: basePrice,
-      actualPrice: actualPrice,
+      actualPrice: websitePrice,
       fee: processingFee,
       teacherShare: teacherShare,
       academyShare: academyShare,
@@ -695,7 +703,7 @@ exports.verifyPurchase = onCall(async (request) => {
     batch.set(newTxRef, {
       amount: totalPaid,
       basePrice: basePrice,
-      actualPrice: actualPrice,
+      actualPrice: websitePrice, // Saving the $50 logic for dashboard consistency
       fee: processingFee,
       teacherShare: teacherShare,
       academyShare: academyShare,
@@ -803,13 +811,22 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
       }
 
       // Retrieve pricing based on strict accounting rules
-      const totalPaidByStudent = (event.data.attributes.total || 0) / 100;
-      const basePrice = Number(courseData.price || 0);
-      const actualPrice = basePrice / 2; // 50% discount/cut
-      const processingFee = totalPaidByStudent - actualPrice; // Usually 8% fee
+      const totalPaidByStudent = (event.data.attributes.total || 0) / 100; // What the student actually paid
+      const basePrice = Number(courseData.price || 0); // e.g. 100
+      const websitePrice = basePrice / 2; // e.g. 50
       
-      const teacherShare = actualPrice * commissionRate;
-      const academyShare = actualPrice - teacherShare;
+      // 1. Reverse-Calculate the Fee
+      // The frontend adds 8% (1.08) to the websitePrice. We reverse it to extract the pure fee.
+      const netRevenue = totalPaidByStudent / 1.08; 
+      const processingFee = totalPaidByStudent - netRevenue;
+      
+      // 2. The Guaranteed Teacher Payout (Subsidized Model)
+      // Teacher always gets their cut based on the $50 website price, regardless of coupons.
+      const teacherShare = websitePrice * commissionRate;
+      
+      // 3. The Academy's Profit
+      // Academy absorbs coupon losses, but also keeps the difference if no coupon was used.
+      const academyShare = netRevenue - teacherShare;
       
       const batch = admin.firestore().batch();
 
@@ -833,7 +850,7 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
         transactionId: String(event.data.id),
         price: totalPaidByStudent,
         basePrice: basePrice,
-        actualPrice: actualPrice,
+        actualPrice: websitePrice,
         fee: processingFee,
         teacherShare: teacherShare,
         academyShare: academyShare,
@@ -846,7 +863,7 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
       batch.set(newTxRef, {
         amount: totalPaidByStudent,
         basePrice: basePrice,
-        actualPrice: actualPrice,
+        actualPrice: websitePrice,
         fee: processingFee,
         teacherShare: teacherShare,
         academyShare: academyShare,
@@ -855,10 +872,10 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
         courseId: String(courseId),
         courseName: courseData.courseName || "Unknown Course",
         studentId: userId,
-        studentName: event.data.attributes.user_name || "Academy Student",
+        studentName: event.data.attributes.user_name || "Unknown Student",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         status: "completed",
-        source: "web"
+        source: "website"
       });
 
       // 4. Update User Profile
