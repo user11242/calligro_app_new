@@ -224,7 +224,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "-\$${requestedAmount.toStringAsFixed(0)}",
+                    "-\$${requestedAmount.toStringAsFixed(2)}",
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -272,7 +272,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                   ),
                 ),
                 Text(
-                  "-\$${fee.toStringAsFixed(0)}",
+                  "-\$${fee.toStringAsFixed(2)}",
                   style: const TextStyle(
                     color: Colors.redAccent,
                     fontSize: 13,
@@ -293,7 +293,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                   ),
                 ),
                 Text(
-                  "\$${netAmount.toStringAsFixed(0)}",
+                  "\$${netAmount.toStringAsFixed(2)}",
                   style: const TextStyle(
                     color: AppColors.accentGold,
                     fontSize: 15,

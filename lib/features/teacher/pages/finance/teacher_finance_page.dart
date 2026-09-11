@@ -255,7 +255,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
           ),
           const SizedBox(height: 12),
           Text(
-            "\$${_totalEarnings.toStringAsFixed(0)}",
+            "\$${_totalEarnings.toStringAsFixed(2)}",
             style: const TextStyle(
               color: Colors.white,
               fontSize: 56,
@@ -333,7 +333,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
         Expanded(
           child: _buildGlassStatCard(
             l10n.pendingBalance,
-            "\$${_pendingBalance.toStringAsFixed(0)}",
+            "\$${_pendingBalance.toStringAsFixed(2)}",
             Colors.orangeAccent,
             Icons.timer_outlined,
           ),
@@ -342,7 +342,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
         Expanded(
           child: _buildGlassStatCard(
             l10n.availableToWithdraw,
-            "\$${_availableBalance.toStringAsFixed(0)}",
+            "\$${_availableBalance.toStringAsFixed(2)}",
             AppColors.accentGold,
             Icons.check_circle_outline,
           ),
@@ -524,7 +524,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
                     ),
                   ),
                   Text(
-                    l10n.feeLabel(fee.toStringAsFixed(0)),
+                    l10n.feeLabel(fee.toStringAsFixed(2)),
                     style: const TextStyle(
                       color: AppColors.accentGold,
                       fontWeight: FontWeight.w900,
@@ -740,7 +740,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildDialogRow(
-                l10n.amountLabel(_availableBalance.toStringAsFixed(0)),
+                l10n.amountLabel(_availableBalance.toStringAsFixed(2)),
                 Colors.white70,
               ),
               const SizedBox(height: 8),
@@ -765,7 +765,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
                     style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                   Text(
-                    "\$${netAmount.toStringAsFixed(0)}",
+                    "\$${netAmount.toStringAsFixed(2)}",
                     style: const TextStyle(
                       color: AppColors.accentGold,
                       fontWeight: FontWeight.w900,

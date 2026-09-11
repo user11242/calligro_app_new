@@ -160,7 +160,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         _userEmail = fetchedEmail;
         _courseCount = fetchedCourseCount;
         _studentCount = totalStudents.toString();
-        _earnings = "\$${totalEarnings.toStringAsFixed(0)}";
+        _earnings = "\$${totalEarnings.toStringAsFixed(2)}";
 
         if (fetchedPhotoUrl.isNotEmpty) {
           _userProfileImage = fetchedPhotoUrl;
