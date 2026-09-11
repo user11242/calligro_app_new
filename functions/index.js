@@ -817,6 +817,7 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
       
       // 1. Reverse-Calculate the Fee
       // The frontend adds 8% (1.08) to the websitePrice. We reverse it to extract the pure fee.
+      // (This comment forces Firebase to detect a file change!)
       const netRevenue = totalPaidByStudent / 1.08; 
       const processingFee = totalPaidByStudent - netRevenue;
       
