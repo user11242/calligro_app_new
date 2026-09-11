@@ -666,9 +666,9 @@ exports.verifyPurchase = onCall(async (request) => {
     const processingFee = totalPaid * 0.30; // 30% Apple/Google App Store Fee
     const netRevenue = totalPaid - processingFee;
     
-    // The Guaranteed Teacher Payout (Subsidized Model)
-    // Teacher gets their cut based on the $50 website price, even though the app charged $100.
-    const teacherShare = websitePrice * commissionRate;
+    // The Pure Revenue Share Model
+    // Teacher gets their cut based strictly on the Net Revenue, after all platform fees are deducted.
+    const teacherShare = netRevenue * commissionRate;
     
     // Academy keeps the massive profit from the app purchase!
     const academyShare = netRevenue - teacherShare;
@@ -820,9 +820,9 @@ exports.lemonsqueezyWebhook = https.onRequest({ secrets: [lemonsqueezyWebhookSec
       const netRevenue = totalPaidByStudent / 1.08; 
       const processingFee = totalPaidByStudent - netRevenue;
       
-      // 2. The Guaranteed Teacher Payout (Subsidized Model)
-      // Teacher always gets their cut based on the $50 website price, regardless of coupons.
-      const teacherShare = websitePrice * commissionRate;
+      // 2. The Pure Revenue Share Model
+      // Teacher gets their cut based strictly on the Net Revenue, after all platform fees are deducted.
+      const teacherShare = netRevenue * commissionRate;
       
       // 3. The Academy's Profit
       // Academy absorbs coupon losses, but also keeps the difference if no coupon was used.
