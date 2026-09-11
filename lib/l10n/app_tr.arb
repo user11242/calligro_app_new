@@ -123,12 +123,12 @@
   "welcome": "Hoş geldiniz",
   "registrationSuccessful": "Kayıt başarılı. Yolculuğun tadını çıkarın!",
   "applicationReceived": "Başvuru Alındı",
-  "teacherPendingPageNote": "Bu işlem genellikle 1-3 iş günü sürer. Beklerken uygulamayı güvenle kapatabilirsiniz.\nOnaylandığında size haber vereceğiz.",
+  "teacherPendingPageNote": "Beklerken uygulamayı güvenle kapatabilirsiniz.\nOnaylandığında size haber vereceğiz.",
   "logoutConfirmationTitle": "Çıkış Onayı",
   "logoutConfirmationMessage": "Çıkış yapmak istediğinizden emin misiniz? Eğer çıkış yaparsanız, hesabınız onaylandığında bildirim alamazsınız.",
   "stayLoggedIn": "Oturumu Açık Tut",
   "logoutAnyway": "Yine de Çıkış Yap",
-  "gotIt": "Tamam",
+  "gotIt": "Anladım",
   "coursePreviewNote": "Kursunuz öğrencilere bu şekilde görünecek. Tüm detaylar ayarlandı ve yayınlanmaya hazır!",
   "iAccept": "Şunları kabul ediyorum: ",
   "and": " ve ",
@@ -390,8 +390,8 @@
   "enrollForFree": "Ücretsiz Kayıt Ol",
   "payNow": "Şimdi Öde",
   "myCourses": "Kurslarım",
-  "allCourses": "Tüm Kurslar",
-  "upcomingCourses": "Gelecek Kurslar",
+  "allCourses": "Tümü",
+  "upcomingCourses": "Yakında",
   "endedCourses": "Biten Kurslar",
   "addNewCourse": "Yeni Kurs Ekle",
   "teacherIdNotFound": "Eğitmen kimliği bulunamadı. Lütfen giriş yapın.",
@@ -760,8 +760,12 @@
   "tryAnotherAccount": "Farklı Hesap Dene",
   "@emailMismatchNote": {
     "placeholders": {
-      "googleEmail": { "type": "String" },
-      "appEmail": { "type": "String" }
+      "googleEmail": {
+        "type": "String"
+      },
+      "appEmail": {
+        "type": "String"
+      }
     }
   },
   "continueToDashboard": "Panele Devam Et",
@@ -800,7 +804,6 @@
   "courseNameTemplate": "{subject} {level} Seviyesi Kursu",
   "exploreCourses": "Kursları Keşfet",
   "myLearning": "Derslerim",
-
   "goodMorning": "Günaydın",
   "goodAfternoon": "Tünaydın",
   "goodEvening": "İyi Akşamlar",
@@ -1021,16 +1024,13 @@
   "activeTeachers": "Aktif Öğretmenler",
   "approvedTeachers": "Onaylı Öğretmenler",
   "teacherAccountPendingApproval": "Öğretmen hesabı onay bekliyor",
-  "teacherPendingPageNote": "Beklerken uygulamayı güvenle kapatabilirsiniz.\nOnaylandığında size haber vereceğiz.",
   "teacherApplicationRejectedTitle": "Başvuru Kabul Edilmedi",
   "teacherApplicationRejectedMessage": "Calligro'ya katılmaya gösterdiğiniz ilgi için teşekkür ederiz. Profiliniz ve portfolyonuz incelendikten sonra, şu aşamada eğitmen hesabınızla devam etmeme kararı aldık.",
-  "contactSupport": "Destekle İletişime Geç",
   "deleteMyAccount": "Hesabımı Sil",
   "deleteAccountConfirmTitle": "Hesabı Sil?",
   "deleteAccountConfirmMessage": "Bu işlem hesabınızı ve ilgili tüm verileri kalıcı olarak silecektir. Ardından yeni bir profil ile tekrar başvurmayı deneyebilirsiniz.",
   "accountRejectedPushTitle": "Başvuru Güncellemesi",
   "accountRejectedPushBody": "Eğitmen başvurunuzu inceledik. Detayları görmek için dokunun.",
-  "gotIt": "Anladım",
   "teacherApproval": "Öğretmen Onayı",
   "viewProfile": "Profili Görüntüle",
   "changeRole": "Rolü Değiştir",
@@ -1062,8 +1062,6 @@
   "teachersCommissions": "Öğretmen Komisyonları",
   "logout": "Çıkış Yap",
   "completedCaps": "TAMAMLANDI",
-  "allCourses": "Tümü",
-  "upcomingCourses": "Yakında",
   "completedCourses": "Tamamlandı",
   "endedCaps": "BİTTİ",
   "payoutSettingsDesc": "Ödeme ve banka bilgilerinizi yönetin",
@@ -1160,8 +1158,6 @@
   "confirmMuteTitle": "Emin misiniz?",
   "confirmMuteMic": "Öğrencinin mikrofonu sessize alınacak.",
   "confirmMuteCamera": "Öğrencinin kamerası devre dışı bırakılacak.",
-  "confirm": "Onayla",
-  "cancel": "İptal",
   "recordingExpirationNote": "Not: Her kayıt, yayınlandığı tarihten itibaren iki hafta süreyle erişilebilir olacaktır.",
   "practiceSheetTemplateOptional": "Çalışma Kağıdı Şablonu (İsteğe Bağlı)",
   "practiceSheet": "Çalışma Kağıdı",
@@ -1179,5 +1175,15 @@
         "type": "String"
       }
     }
-  }
+  },
+  "salesHistory": "Satış Geçmişi",
+  "viewSalesHistory": "Satış Geçmişini Görüntüle",
+  "noSalesYet": "Henüz satış yok.",
+  "saleBreakdown": "Satış Detayı",
+  "studentPaid": "Öğrenci Ödedi",
+  "processingFee": "İşlem Ücreti",
+  "netRevenue": "Net Gelir",
+  "yourCommission": "Komisyonunuz",
+  "sourceWebsite": "Web Sitesi",
+  "sourceApp": "Mobil Uygulama"
 }

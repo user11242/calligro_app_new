@@ -3796,4 +3796,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String studentRaisedHand(String name) {
     return '$name raised their hand! ✋';
   }
+
+  @override
+  String get salesHistory => 'Sales History';
+
+  @override
+  String get viewSalesHistory => 'View Sales History';
+
+  @override
+  String get noSalesYet => 'No sales yet.';
+
+  @override
+  String get saleBreakdown => 'Sale Breakdown';
+
+  @override
+  String get studentPaid => 'Student Paid';
+
+  @override
+  String get processingFee => 'Processing Fee';
+
+  @override
+  String get netRevenue => 'Net Revenue';
+
+  @override
+  String get yourCommission => 'Your Commission';
+
+  @override
+  String get sourceWebsite => 'Website';
+
+  @override
+  String get sourceApp => 'Mobile App';
 }

@@ -7101,6 +7101,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{name} raised their hand! ✋'**
   String studentRaisedHand(String name);
+
+  /// No description provided for @salesHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales History'**
+  String get salesHistory;
+
+  /// No description provided for @viewSalesHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'View Sales History'**
+  String get viewSalesHistory;
+
+  /// No description provided for @noSalesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No sales yet.'**
+  String get noSalesYet;
+
+  /// No description provided for @saleBreakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Sale Breakdown'**
+  String get saleBreakdown;
+
+  /// No description provided for @studentPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Student Paid'**
+  String get studentPaid;
+
+  /// No description provided for @processingFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing Fee'**
+  String get processingFee;
+
+  /// No description provided for @netRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Revenue'**
+  String get netRevenue;
+
+  /// No description provided for @yourCommission.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Commission'**
+  String get yourCommission;
+
+  /// No description provided for @sourceWebsite.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get sourceWebsite;
+
+  /// No description provided for @sourceApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile App'**
+  String get sourceApp;
 }
 
 class _AppLocalizationsDelegate

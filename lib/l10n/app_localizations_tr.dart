@@ -3802,4 +3802,34 @@ class AppLocalizationsTr extends AppLocalizations {
   String studentRaisedHand(String name) {
     return '$name el kaldırdı! ✋';
   }
+
+  @override
+  String get salesHistory => 'Satış Geçmişi';
+
+  @override
+  String get viewSalesHistory => 'Satış Geçmişini Görüntüle';
+
+  @override
+  String get noSalesYet => 'Henüz satış yok.';
+
+  @override
+  String get saleBreakdown => 'Satış Detayı';
+
+  @override
+  String get studentPaid => 'Öğrenci Ödedi';
+
+  @override
+  String get processingFee => 'İşlem Ücreti';
+
+  @override
+  String get netRevenue => 'Net Gelir';
+
+  @override
+  String get yourCommission => 'Komisyonunuz';
+
+  @override
+  String get sourceWebsite => 'Web Sitesi';
+
+  @override
+  String get sourceApp => 'Mobil Uygulama';
 }

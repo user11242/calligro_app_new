@@ -7,6 +7,7 @@ import '../../../../core/message/app_messenger.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
 import 'transaction_history_page.dart';
+import 'teacher_sales_history_page.dart';
 
 class TeacherFinancePage extends StatefulWidget {
   const TeacherFinancePage({super.key});
@@ -178,7 +179,20 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.sell_outlined, color: Colors.greenAccent),
+            tooltip: 'Sales History',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TeacherSalesHistoryPage(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.history, color: AppColors.accentGold),
+            tooltip: 'Withdrawal History',
             onPressed: () {
               Navigator.push(
                 context,

@@ -563,8 +563,8 @@
   "enrollForFree": "Enroll for Free",
   "payNow": "Pay Now",
   "myCourses": "My Courses",
-  "allCourses": "All Courses",
-  "upcomingCourses": "Upcoming Courses",
+  "allCourses": "All",
+  "upcomingCourses": "Upcoming",
   "endedCourses": "Ended Courses",
   "addNewCourse": "Add New Course",
   "teacherIdNotFound": "Teacher ID not found. Please log in.",
@@ -758,7 +758,7 @@
   "meetingLinkAttached": "Classroom Ready",
   "failedToGenerateLink": "Failed to Setup Classroom.",
   "tooEarly": "Too Early",
-  "classEnded": "Class Ended",
+  "classEnded": "Session Ended",
   "retry": "Retry",
   "courseInformation": "Course Information",
   "courseName": "Course Name",
@@ -774,7 +774,6 @@
   "confirmAndPost": "Confirm & Post",
   "classroomReady": "Classroom Ready",
   "learningOutcomes": "Learning Outcomes",
-  "paypal": "PayPal",
   "paypalEmail": "PayPal Email",
   "coursePreviewNote": "This is how your course will look to students. All details are set and ready for publication!",
   "saveAndReturnToCourse": "Save & Return to Course",
@@ -939,8 +938,8 @@
   "optional": "Optional",
   "bank": "Bank",
   "validationRequired": "{field} is required",
-  "setupTitle": "Teacher Profile Setup",
-  "setupSubtitle": "Welcome! We need just a few more steps to fully set up your teaching profile.",
+  "setupTitle": "Let's put a picture for your profile",
+  "setupSubtitle": "As a teacher, your profile photo is your brand. Please upload a clear, professional photo to continue.",
   "step1UploadPhoto": "Step 1: Upload Profile Photo",
   "step2TeachingCalendar": "Step 2: Teaching Calendar",
   "connectCalendarRequired": "Connect Calendar (Required)",
@@ -954,8 +953,12 @@
   "tryAnotherAccount": "Try Different Account",
   "@emailMismatchNote": {
     "placeholders": {
-      "googleEmail": { "type": "String" },
-      "appEmail": { "type": "String" }
+      "googleEmail": {
+        "type": "String"
+      },
+      "appEmail": {
+        "type": "String"
+      }
     }
   },
   "connectGoogleNow": "Connect Google Calendar Now",
@@ -965,7 +968,6 @@
   "faqHeaderCaps": "FREQUENTLY ASKED QUESTIONS",
   "stillNeedHelp": "Still need help?",
   "supportAvailable247": "Our support team is available 24/7 to assist you with any issues.",
-  "contactSupport": "Contact Support",
   "faqEarningsQ": "How do I withdraw my earnings?",
   "faqEarningsA": "You can withdraw your earnings via Bank Transfer or PayPal. Go to Settings > Payout Settings to add your details. Payouts are processed every Monday.",
   "faqAvailabilityQ": "How do I change my availability?",
@@ -1026,12 +1028,8 @@
   "noPostsYet": "No posts yet",
   "selectLanguage": "Select Language",
   "continueRegistrationWithGoogle": "Continue registration with Google",
-  "tooEarly": "Too Early",
-  "classEnded": "Session Ended",
   "continueWithGoogle": "Continue with Google",
   "maybeLater": "Maybe later",
-  "setupTitle": "Let's put a picture for your profile",
-  "setupSubtitle": "As a teacher, your profile photo is your brand. Please upload a clear, professional photo to continue.",
   "continueToDashboard": "Continue to Dashboard",
   "viewAnnouncements": "View announcements",
   "myAssignments": "My Assignments",
@@ -1365,8 +1363,6 @@
   "teachersCommissions": "Teachers' Commissions",
   "logout": "Logout",
   "completedCaps": "COMPLETED",
-  "allCourses": "All",
-  "upcomingCourses": "Upcoming",
   "completedCourses": "Completed",
   "endedCaps": "ENDED",
   "payoutSettingsDesc": "Manage your payment and bank information",
@@ -1474,13 +1470,10 @@
   "lesson": "Lesson",
   "editTitle": "Edit Title",
   "recordingTitle": "Recording Title",
-  "bankTransfer": "Bank Transfer",
   "bankDetailsCaps": "BANK ACCOUNT DETAILS",
   "billingAddressCaps": "BILLING ADDRESS",
-  "bankName": "Bank Name",
   "accountHolderFullName": "Account Holder Full Name",
   "swiftBicCode": "SWIFT / BIC Code",
-  "iban": "IBAN",
   "country": "Country",
   "city": "City",
   "streetAddress": "Street Address",
@@ -1518,8 +1511,6 @@
   "confirmMuteTitle": "Are you sure?",
   "confirmMuteMic": "This will mute the student's microphone.",
   "confirmMuteCamera": "This will disable the student's camera.",
-  "confirm": "Confirm",
-  "cancel": "Cancel",
   "practiceSheetTemplateOptional": "Practice Sheet Template (Optional)",
   "practiceSheet": "Practice Sheet",
   "noneOption": "None",
@@ -1536,5 +1527,15 @@
         "type": "String"
       }
     }
-  }
+  },
+  "salesHistory": "Sales History",
+  "viewSalesHistory": "View Sales History",
+  "noSalesYet": "No sales yet.",
+  "saleBreakdown": "Sale Breakdown",
+  "studentPaid": "Student Paid",
+  "processingFee": "Processing Fee",
+  "netRevenue": "Net Revenue",
+  "yourCommission": "Your Commission",
+  "sourceWebsite": "Website",
+  "sourceApp": "Mobile App"
 }

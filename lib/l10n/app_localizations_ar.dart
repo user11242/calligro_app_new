@@ -3789,4 +3789,34 @@ class AppLocalizationsAr extends AppLocalizations {
   String studentRaisedHand(String name) {
     return 'رفع $name يده! ✋';
   }
+
+  @override
+  String get salesHistory => 'سجل المبيعات';
+
+  @override
+  String get viewSalesHistory => 'عرض سجل المبيعات';
+
+  @override
+  String get noSalesYet => 'لا توجد مبيعات حتى الآن.';
+
+  @override
+  String get saleBreakdown => 'تفاصيل البيع';
+
+  @override
+  String get studentPaid => 'دفع الطالب';
+
+  @override
+  String get processingFee => 'رسوم المعالجة';
+
+  @override
+  String get netRevenue => 'صافي الإيرادات';
+
+  @override
+  String get yourCommission => 'عمولتك';
+
+  @override
+  String get sourceWebsite => 'الموقع الإلكتروني';
+
+  @override
+  String get sourceApp => 'التطبيق';
 }
