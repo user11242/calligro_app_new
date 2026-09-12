@@ -138,6 +138,28 @@ class FinanceService {
     );
   }
 
+  // --- INBOUND SETTLEMENTS (LS → Your Bank) ---
+  getSettlements(callback: (settlements: any[]) => void) {
+    const q = query(collection(db, "admin_settlements"), orderBy("date", "desc"));
+    return onSnapshot(q, (snapshot) => {
+      const settlements = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      callback(settlements);
+    }, () => callback([]));
+  }
+
+  async addSettlement(date: string, grossWired: number, bankFee: number, netCash: number) {
+    return await addDoc(collection(db, "admin_settlements"), {
+      date,
+      grossWired,
+      bankFee,
+      netCash,
+      createdAt: serverTimestamp()
+    });
+  }
+
   // --- TEACHER TIERS ---
   getTeachers(callback: (teachers: Teacher[]) => void) {
     const q = query(collection(db, "users"), where("role", "==", "teacher"));
