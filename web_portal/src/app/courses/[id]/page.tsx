@@ -303,6 +303,9 @@ export default function CourseDetailsPage() {
     }
   }
 
+  const enrolledCount = course.enrolledStudents?.length || 0;
+  const isFull = course.maxStudents > 0 && enrolledCount >= course.maxStudents;
+
   return (
     <main className="min-h-screen academy-bg pb-40">
       <Navbar />
@@ -714,20 +717,32 @@ export default function CourseDetailsPage() {
                     )}
                   </>
                 ) : (
-                  <button
-                    onClick={handleBuyNow}
-                    disabled={joining}
-                    className="btn-gold w-full text-lg py-4 rounded-[1.5rem] shadow-[0_20px_50px_-10px_rgba(238,229,147,0.4)] disabled:opacity-50 group/buy flex items-center justify-center"
-                  >
-                    {joining ? (
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                  <>
+                    {isFull ? (
+                      <button
+                        disabled
+                        className="w-full text-lg py-4 rounded-[1.5rem] bg-white/5 border border-white/10 text-white/40 cursor-not-allowed font-black uppercase tracking-widest flex items-center justify-center gap-3"
+                      >
+                        <Lock className="w-5 h-5" />
+                        {t("course.sold_out")}
+                      </button>
                     ) : (
-                      <div className="flex items-center gap-3 group-hover/buy:scale-105 transition-transform">
-                        <span className="font-black uppercase tracking-widest">{t("course.buy_now")}</span>
-                        <Sparkles className="w-5 h-5 animate-pulse" />
-                      </div>
+                      <button
+                        onClick={handleBuyNow}
+                        disabled={joining}
+                        className="btn-gold w-full text-lg py-4 rounded-[1.5rem] shadow-[0_20px_50px_-10px_rgba(238,229,147,0.4)] disabled:opacity-50 group/buy flex items-center justify-center"
+                      >
+                        {joining ? (
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                        ) : (
+                          <div className="flex items-center gap-3 group-hover/buy:scale-105 transition-transform">
+                            <span className="font-black uppercase tracking-widest">{t("course.buy_now")}</span>
+                            <Sparkles className="w-5 h-5 animate-pulse" />
+                          </div>
+                        )}
+                      </button>
                     )}
-                  </button>
+                  </>
                 )}
 
               </div>
