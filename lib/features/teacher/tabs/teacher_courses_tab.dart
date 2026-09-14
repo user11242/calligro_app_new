@@ -26,6 +26,7 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
   bool _isTeacherIdLoading = true;
   CourseFilter _selectedFilter = CourseFilter.all;
   Stream<QuerySnapshot>? _coursesStream;
+  bool _isLiveTab = true;
 
   @override
   void initState() {
@@ -126,7 +127,8 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
-          PopupMenuButton<CourseFilter>(
+          if (_isLiveTab)
+            PopupMenuButton<CourseFilter>(
             color: AppColors.primary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -179,7 +181,20 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
               color: AppColors.textColor,
             ),
             onPressed: () {
-              Navigator.pushNamed(context, '/addCourse');
+              if (_isLiveTab) {
+                Navigator.pushNamed(context, '/addCourse');
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text(
+                      'للحفاظ على جودة الفيديو، يرجى استخدام الموقع الإلكتروني (الكمبيوتر) لرفع الدورات المسجلة.',
+                      style: TextStyle(fontFamily: 'Cairo'),
+                    ),
+                    backgroundColor: AppColors.primary,
+                    duration: const Duration(seconds: 4),
+                  ),
+                );
+              }
             },
             tooltip: AppLocalizations.of(context)!.addNewCourse,
           ),
@@ -215,6 +230,60 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
   }
 
   Widget _buildBodyContent() {
+    return Column(
+      children: [
+        _buildToggleSwitch(),
+        Expanded(child: _buildCourseList()),
+      ],
+    );
+  }
+
+  Widget _buildToggleSwitch() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.white.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _buildToggleOption('مباشر', true)),
+          Expanded(child: _buildToggleOption('مسجل', false)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleOption(String text, bool isLive) {
+    final bool isSelected = _isLiveTab == isLive;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isLiveTab = isLive;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accentGold.withOpacity(0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected ? Border.all(color: AppColors.accentGold.withOpacity(0.5)) : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isSelected ? AppColors.accentGold : AppColors.textColor.withOpacity(0.5),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCourseList() {
     if (_isTeacherIdLoading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.textColor),
@@ -266,6 +335,11 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
         }).toList();
         final List<Map<String, dynamic>> filteredCourses = allCoursesWithIds
             .where((course) {
+              final isCourseRecorded = course['data']['type'] == 'recorded';
+              
+              if (_isLiveTab && isCourseRecorded) return false;
+              if (!_isLiveTab && !isCourseRecorded) return false;
+
               if (_selectedFilter == CourseFilter.all) {
                 return true;
               }
