@@ -478,6 +478,32 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
             ),
           ),
         ),
+        if (_selectedMethod != 'cliq')
+          Container(
+            margin: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orangeAccent.withAlpha(20),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orangeAccent.withAlpha(50)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    l10n.bankTransferFeeNote,
+                    style: const TextStyle(
+                      color: Colors.orangeAccent,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(24),
@@ -537,14 +563,15 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
                       ],
                     ),
                   ),
-                  Text(
-                    l10n.feeLabel(fee.toStringAsFixed(2)),
-                    style: const TextStyle(
-                      color: AppColors.accentGold,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
+                  if (_selectedMethod == 'cliq' || fee > 0)
+                    Text(
+                      l10n.feeLabel(fee.toStringAsFixed(2)),
+                      style: const TextStyle(
+                        color: AppColors.accentGold,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
                 ],
               ),
               const Padding(

@@ -2056,7 +2056,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get classroom => 'الفصل الدراسي';
 
   @override
-  String get weeklySession => 'مواعيد الجلسات الاسبوعية';
+  String get weeklySession => 'الجلسات الأسبوعية';
+
+  @override
+  String get soldOut => 'مكتملة العدد';
 
   @override
   String get sessionBreakdown => 'تفاصيل الجلسات';
@@ -3819,4 +3822,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get sourceApp => 'التطبيق';
+
+  @override
+  String get dateLabel => 'التاريخ';
+
+  @override
+  String get bankTransferFeeNote =>
+      'ملاحظة: قد تكون هناك عمولات على التحويل البنكي يتم خصمها من قبل البنوك نفسها، وليس من كاليجرو.';
 }

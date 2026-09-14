@@ -834,15 +834,51 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                 builder: (context, snapshot) {
                   final currentUser = FirebaseAuth.instance.currentUser;
                   bool isEnrolled = false;
+                  bool isFull = false;
 
                   if (snapshot.hasData && snapshot.data!.exists) {
                     final data = snapshot.data!.data() as Map<String, dynamic>;
                     final List<dynamic> enrolledStudents =
                         data['enrolledStudents'] ?? [];
+                    final int maxStudents = data['maxStudents'] ?? 0;
+                        
                     if (currentUser != null &&
                         enrolledStudents.contains(currentUser.uid)) {
                       isEnrolled = true;
                     }
+                    if (maxStudents > 0 && enrolledStudents.length >= maxStudents) {
+                      isFull = true;
+                    }
+                  }
+
+                  if (isFull && !isEnrolled) {
+                    return ElevatedButton(
+                      onPressed: null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                        disabledBackgroundColor: Colors.white.withValues(alpha: 0.05),
+                        padding: const EdgeInsets.symmetric(vertical: 22),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.lock_rounded, size: 20, color: Colors.white38),
+                          const SizedBox(width: 12),
+                          Text(
+                            l10n.soldOut.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white38,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   }
 
                   return ElevatedButton(

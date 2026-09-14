@@ -820,6 +820,7 @@
   "overview": "Overview",
   "classroom": "Classroom",
   "weeklySession": "Weekly Session",
+  "soldOut": "Sold Out",
   "sessionBreakdown": "Session Breakdown",
   "totalClasses": "{count} Total",
   "noMeetingLinkSet": "No meeting link set for this course",
@@ -1537,5 +1538,7 @@
   "netRevenue": "Net Revenue",
   "yourCommission": "Your Commission",
   "sourceWebsite": "Website",
-  "sourceApp": "Mobile App"
+  "sourceApp": "Mobile App",
+  "dateLabel": "Date",
+  "bankTransferFeeNote": "Note: There may be transfer commissions applied by the banks themselves, not by Calligro."
 }

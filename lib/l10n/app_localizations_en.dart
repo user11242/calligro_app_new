@@ -2064,6 +2064,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get weeklySession => 'Weekly Session';
 
   @override
+  String get soldOut => 'Sold Out';
+
+  @override
   String get sessionBreakdown => 'Session Breakdown';
 
   @override
@@ -3826,4 +3829,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sourceApp => 'Mobile App';
+
+  @override
+  String get dateLabel => 'Date';
+
+  @override
+  String get bankTransferFeeNote =>
+      'Note: There may be transfer commissions applied by the banks themselves, not by Calligro.';
 }

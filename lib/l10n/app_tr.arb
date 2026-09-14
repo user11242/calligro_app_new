@@ -581,6 +581,7 @@
   "overview": "Genel Bakış",
   "classroom": "Sınıf",
   "weeklySession": "Haftalık Oturum",
+  "soldOut": "Tükendi",
   "sessionBreakdown": "Ders Detayları",
   "totalClasses": "Toplam {count}",
   "noMeetingLinkSet": "Bu kurs için toplantı bağlantısı ayarlanmadı",
@@ -1185,5 +1186,7 @@
   "netRevenue": "Net Gelir",
   "yourCommission": "Komisyonunuz",
   "sourceWebsite": "Web Sitesi",
-  "sourceApp": "Mobil Uygulama"
+  "sourceApp": "Mobil Uygulama",
+  "dateLabel": "Tarih",
+  "bankTransferFeeNote": "Not: Banka transferlerinde bankaların kendileri tarafından uygulanan, Calligro'dan bağımsız komisyonlar olabilir."
 }

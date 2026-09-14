@@ -5,42 +5,15 @@ const arFile = 'lib/l10n/app_ar.arb';
 const trFile = 'lib/l10n/app_tr.arb';
 
 const keysEn = {
-  "salesHistory": "Sales History",
-  "viewSalesHistory": "View Sales History",
-  "noSalesYet": "No sales yet.",
-  "saleBreakdown": "Sale Breakdown",
-  "studentPaid": "Student Paid",
-  "processingFee": "Processing Fee",
-  "netRevenue": "Net Revenue",
-  "yourCommission": "Your Commission",
-  "sourceWebsite": "Website",
-  "sourceApp": "Mobile App"
+  "dateLabel": "Date"
 };
 
 const keysAr = {
-  "salesHistory": "سجل المبيعات",
-  "viewSalesHistory": "عرض سجل المبيعات",
-  "noSalesYet": "لا توجد مبيعات حتى الآن.",
-  "saleBreakdown": "تفاصيل البيع",
-  "studentPaid": "دفع الطالب",
-  "processingFee": "رسوم المعالجة",
-  "netRevenue": "صافي الإيرادات",
-  "yourCommission": "عمولتك",
-  "sourceWebsite": "الموقع الإلكتروني",
-  "sourceApp": "التطبيق"
+  "dateLabel": "التاريخ"
 };
 
 const keysTr = {
-  "salesHistory": "Satış Geçmişi",
-  "viewSalesHistory": "Satış Geçmişini Görüntüle",
-  "noSalesYet": "Henüz satış yok.",
-  "saleBreakdown": "Satış Detayı",
-  "studentPaid": "Öğrenci Ödedi",
-  "processingFee": "İşlem Ücreti",
-  "netRevenue": "Net Gelir",
-  "yourCommission": "Komisyonunuz",
-  "sourceWebsite": "Web Sitesi",
-  "sourceApp": "Mobil Uygulama"
+  "dateLabel": "Tarih"
 };
 
 function addKeys(file, keys) {

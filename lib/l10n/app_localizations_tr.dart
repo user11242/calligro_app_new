@@ -2065,6 +2065,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get weeklySession => 'Haftalık Oturum';
 
   @override
+  String get soldOut => 'Tükendi';
+
+  @override
   String get sessionBreakdown => 'Ders Detayları';
 
   @override
@@ -3832,4 +3835,11 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get sourceApp => 'Mobil Uygulama';
+
+  @override
+  String get dateLabel => 'Tarih';
+
+  @override
+  String get bankTransferFeeNote =>
+      'Not: Banka transferlerinde bankaların kendileri tarafından uygulanan, Calligro\'dan bağımsız komisyonlar olabilir.';
 }

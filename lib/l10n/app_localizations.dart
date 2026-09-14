@@ -3892,6 +3892,12 @@ abstract class AppLocalizations {
   /// **'Weekly Session'**
   String get weeklySession;
 
+  /// No description provided for @soldOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sold Out'**
+  String get soldOut;
+
   /// No description provided for @sessionBreakdown.
   ///
   /// In en, this message translates to:
@@ -7161,6 +7167,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mobile App'**
   String get sourceApp;
+
+  /// No description provided for @dateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get dateLabel;
+
+  /// No description provided for @bankTransferFeeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note: There may be transfer commissions applied by the banks themselves, not by Calligro.'**
+  String get bankTransferFeeNote;
 }
 
 class _AppLocalizationsDelegate

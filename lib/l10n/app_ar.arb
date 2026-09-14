@@ -639,7 +639,8 @@
   "goToCourse": "اذهب إلى الدورة",
   "overview": "نظرة عامة",
   "classroom": "الفصل الدراسي",
-  "weeklySession": "مواعيد الجلسات الاسبوعية",
+  "weeklySession": "الجلسات الأسبوعية",
+  "soldOut": "مكتملة العدد",
   "sessionBreakdown": "تفاصيل الجلسات",
   "totalClasses": "{count} إجمالي",
   "noMeetingLinkSet": "لم يتم تعيين رابط اجتماع لهذا الكورس",
@@ -1286,5 +1287,7 @@
   "netRevenue": "صافي الإيرادات",
   "yourCommission": "عمولتك",
   "sourceWebsite": "الموقع الإلكتروني",
-  "sourceApp": "التطبيق"
+  "sourceApp": "التطبيق",
+  "dateLabel": "التاريخ",
+  "bankTransferFeeNote": "ملاحظة: قد تكون هناك عمولات على التحويل البنكي يتم خصمها من قبل البنوك نفسها، وليس من كاليجرو."
 }
