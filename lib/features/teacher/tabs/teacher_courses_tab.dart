@@ -15,7 +15,14 @@ import '../pages/course_details/course_details_page.dart';
 enum CourseFilter { all, active, upcoming, ended }
 
 class TeacherCoursesTab extends StatefulWidget {
-  const TeacherCoursesTab({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+
+  const TeacherCoursesTab({
+    super.key,
+    this.auth,
+    this.firestore,
+  });
 
   @override
   State<TeacherCoursesTab> createState() => _TeacherCoursesTabState();
@@ -34,7 +41,7 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
   }
 
   void _initTeacherData() {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = (widget.auth ?? FirebaseAuth.instance).currentUser;
     if (user != null) {
       _teacherId = user.uid;
       _isTeacherIdLoading = false;
@@ -46,7 +53,7 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
 
   void _initCoursesStream() {
     if (_teacherId != null) {
-      _coursesStream = FirebaseFirestore.instance
+      _coursesStream = (widget.firestore ?? FirebaseFirestore.instance)
           .collection('courses')
           .where('teacherId', isEqualTo: _teacherId!)
           .limit(50)

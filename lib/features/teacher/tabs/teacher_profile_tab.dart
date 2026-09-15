@@ -27,6 +27,8 @@ class TeacherProfileTab extends StatefulWidget {
   final String courseCount;
   final String studentCount;
   final String earnings;
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
 
   const TeacherProfileTab({
     super.key,
@@ -36,6 +38,8 @@ class TeacherProfileTab extends StatefulWidget {
     required this.courseCount,
     required this.studentCount,
     required this.earnings,
+    this.auth,
+    this.firestore,
   });
 
   @override
@@ -55,7 +59,7 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabSelection);
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = (widget.auth ?? FirebaseAuth.instance).currentUser;
     if (user != null) {
       currentUserId = user.uid;
       _initStreams();
@@ -65,23 +69,23 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
   void _initStreams() {
     if (currentUserId == null) return;
 
-    final userDocStream = FirebaseFirestore.instance
+    final userDocStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('users')
         .doc(currentUserId)
         .snapshots();
 
-    final myPostsStream = FirebaseFirestore.instance
+    final myPostsStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('community_posts')
         .where('userId', isEqualTo: currentUserId)
         .snapshots();
 
-    final savedPostsStream = FirebaseFirestore.instance
+    final savedPostsStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('users')
         .doc(currentUserId)
         .collection('saved_posts')
         .snapshots();
 
-    final likedPostsStream = FirebaseFirestore.instance
+    final likedPostsStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('community_posts')
         .where('likes.$currentUserId', isEqualTo: true)
         .snapshots();
@@ -322,7 +326,7 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                     child: ProfilePostsSection(
                       title: AppLocalizations.of(context)!.saved,
                       currentUserId: currentUserId ?? '',
-                      postsStream: FirebaseFirestore.instance
+                      postsStream: (widget.firestore ?? FirebaseFirestore.instance)
                           .collection('community_posts')
                           .where(
                             FieldPath.documentId,
@@ -343,7 +347,7 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                               for (int i = 0; i < idsToCheck.length; i++) {
                                 final String id = idsToCheck[i];
                                 if (!validIds.contains(id)) {
-                                  FirebaseFirestore.instance
+                                  (widget.firestore ?? FirebaseFirestore.instance)
                                       .collection('users')
                                       .doc(currentUserId)
                                       .collection('saved_posts')
@@ -362,7 +366,7 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                     child: ProfilePostsSection(
                       title: AppLocalizations.of(context)!.liked,
                       currentUserId: currentUserId ?? '',
-                      postsStream: FirebaseFirestore.instance
+                      postsStream: (widget.firestore ?? FirebaseFirestore.instance)
                           .collection('community_posts')
                           .where('likes.$currentUserId', isEqualTo: true)
                           .snapshots(),
@@ -981,7 +985,7 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
       itemBuilder: (context, index) {
         final postId = postIds[index];
         return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
+          future: (widget.firestore ?? FirebaseFirestore.instance)
               .collection('community_posts')
               .doc(postId)
               .get(),

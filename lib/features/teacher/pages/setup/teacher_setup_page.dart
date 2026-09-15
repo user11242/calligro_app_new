@@ -13,16 +13,25 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:calligro_app/features/auth/data/services/google_auth_service.dart';
 
 class TeacherSetupPage extends StatefulWidget {
-  const TeacherSetupPage({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+  final FirebaseStorage? storage;
+
+  const TeacherSetupPage({
+    super.key,
+    this.auth,
+    this.firestore,
+    this.storage,
+  });
 
   @override
   State<TeacherSetupPage> createState() => _TeacherSetupPageState();
 }
 
 class _TeacherSetupPageState extends State<TeacherSetupPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  late final FirebaseAuth _auth;
+  late final FirebaseFirestore _firestore;
+  late final FirebaseStorage _storage;
   
   File? _selectedImage;
   bool _isLoading = false;
@@ -35,6 +44,9 @@ class _TeacherSetupPageState extends State<TeacherSetupPage> {
   @override
   void initState() {
     super.initState();
+    _auth = widget.auth ?? FirebaseAuth.instance;
+    _firestore = widget.firestore ?? FirebaseFirestore.instance;
+    _storage = widget.storage ?? FirebaseStorage.instance;
     _checkGoogleConnection();
   }
 

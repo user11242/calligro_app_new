@@ -13,7 +13,11 @@ import 'package:calligro_app/screens/auth_wrapper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+  final bool disableNavigation;
+
+  const SplashScreen({super.key, this.auth, this.firestore, this.disableNavigation = false});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -63,9 +67,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
     try {
       // 1. Warm up Auth & Firestore
-      final User? user = FirebaseAuth.instance.currentUser;
+      final _auth = widget.auth ?? FirebaseAuth.instance;
+      final _firestore = widget.firestore ?? FirebaseFirestore.instance;
+      final User? user = _auth.currentUser;
       if (user != null) {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final doc = await _firestore.collection('users').doc(user.uid).get();
         if (doc.exists) {
           final data = doc.data() as Map<String, dynamic>;
           final String role = data['role'] ?? 'student';
@@ -98,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen> {
       await Future.delayed(remaining);
     }
     
-    if (mounted) {
+    if (mounted && !widget.disableNavigation) {
       // Navigate with a custom cross-fade or slide for "Creative" feel
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(

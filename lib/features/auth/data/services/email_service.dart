@@ -3,9 +3,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 
 class EmailService {
   final String _brevoUrl = "https://api.brevo.com/v3/smtp/email";
+  
+  final http.Client? _clientMock;
+
+  @visibleForTesting
+  EmailService.forTest({http.Client? client}) : _clientMock = client;
+
+  EmailService() : _clientMock = null;
+
+  http.Client get _client => _clientMock ?? http.Client();
 
   Future<bool> sendOtp(String email, String otp) async {
     try {
@@ -72,7 +82,7 @@ class EmailService {
         "htmlContent": htmlTemplate, // ✅ Use the new template
       });
 
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse(_brevoUrl),
         headers: headers,
         body: body,

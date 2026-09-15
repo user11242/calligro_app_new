@@ -6,7 +6,21 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:calligro_app/core/utils/date_utils.dart';
 
 class AdminService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore? _firestoreMock;
+  final FirebaseAuth? _authMock;
+  final FirebaseFunctions? _functionsMock;
+
+  AdminService({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+    FirebaseFunctions? functions,
+  })  : _firestoreMock = firestore,
+        _authMock = auth,
+        _functionsMock = functions;
+
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
+  FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
+  FirebaseFunctions get _functions => _functionsMock ?? FirebaseFunctions.instance;
 
   // --- STATS ---
 
@@ -103,7 +117,7 @@ class AdminService {
       'message': message,
       'targetAudience': audience,
       'createdAt': FieldValue.serverTimestamp(),
-      'sentBy': FirebaseAuth.instance.currentUser?.uid,
+      'sentBy': _auth.currentUser?.uid,
     });
   }
 
@@ -173,7 +187,7 @@ class AdminService {
   /// Revokes admin status from a user
   Future<void> revokeAdminStatus(String uid) async {
     // Safety check: Don't allow revoking self (optional, usually handled in UI)
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = _auth.currentUser;
     if (currentUser?.uid == uid) {
       throw Exception("You cannot revoke your own admin status");
     }
@@ -202,7 +216,7 @@ class AdminService {
       // 2. Call Cloud Function to delete Auth Account
       try {
         debugPrint("DEBUG: Calling cloud function deleteUserAccount...");
-        final functions = FirebaseFunctions.instance;
+        final functions = _functions;
         final result = await functions.httpsCallable('deleteUserAccount').call(
           {'uid': uid},
         );
@@ -321,7 +335,7 @@ class AdminService {
 
   /// Sends a targeted notification to a specific user (push + in-app inbox)
   Future<void> sendUserNotification(String uid, String title, String message) async {
-    final callable = FirebaseFunctions.instance.httpsCallable('sendAdminDirectMessage');
+    final callable = _functions.httpsCallable('sendAdminDirectMessage');
     await callable.call({
       'targetUserId': uid,
       'title': title,

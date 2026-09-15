@@ -14,6 +14,7 @@ class FollowListBottomSheet extends StatefulWidget {
   final String title;
   final Function(String userId, String userRole) onProfileTap;
   final bool showSearch;
+  final FirebaseFirestore? firestore;
 
   const FollowListBottomSheet({
     super.key,
@@ -25,6 +26,7 @@ class FollowListBottomSheet extends StatefulWidget {
     required this.title,
     required this.onProfileTap,
     this.showSearch = true,
+    this.firestore,
   });
 
   @override
@@ -94,7 +96,8 @@ class _FollowListBottomSheetState extends State<FollowListBottomSheet> {
 
   Future<void> _fetchUserIdsAndData() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final fs = widget.firestore ?? FirebaseFirestore.instance;
+      final snapshot = await fs
           .collection('users')
           .doc(widget.targetUserId)
           .collection(widget.listType)
@@ -109,12 +112,12 @@ class _FollowListBottomSheetState extends State<FollowListBottomSheet> {
 
       List<Future<DocumentSnapshot>> futures = userIds
           .map(
-            (id) => FirebaseFirestore.instance.collection('users').doc(id).get(),
+            (id) => fs.collection('users').doc(id).get(),
           )
           .toList();
 
       final List<DocumentSnapshot> docs = await Future.wait(futures);
-      final WriteBatch cleanupBatch = FirebaseFirestore.instance.batch();
+      final WriteBatch cleanupBatch = fs.batch();
       bool needsCleanup = false;
 
       List<Map<String, dynamic>> users = [];

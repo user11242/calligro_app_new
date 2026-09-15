@@ -8,6 +8,15 @@ class LiveKitMeetService {
   factory LiveKitMeetService() => _instance;
   LiveKitMeetService._internal();
 
+  FirebaseFunctions? _functionsMock;
+
+  @visibleForTesting
+  LiveKitMeetService.forTest({
+    FirebaseFunctions? functions,
+  }) : _functionsMock = functions;
+
+  FirebaseFunctions get _functions => _functionsMock ?? FirebaseFunctions.instance;
+
   bool _isJoining = false;
 
   Future<void> joinMeeting({
@@ -32,7 +41,7 @@ class LiveKitMeetService {
       );
 
       MeetDebugService().log("⏳ Requesting LiveKit token...");
-      final result = await FirebaseFunctions.instance
+      final result = await _functions
           .httpsCallable('livekit-generateLiveKitToken')
           .call({
             'courseId': courseId,

@@ -7,18 +7,20 @@ import 'google_register_wizard.dart';
 import '../../../features/auth/data/services/auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  final AuthService? authService;
+  const RegisterPage({super.key, this.authService});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final AuthService _authService = AuthService();
+  late final AuthService _authService;
 
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? AuthService();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
         context: context,
@@ -207,7 +209,10 @@ class _RegisterPageState extends State<RegisterPage> {
                         20.0,
                         formBottomContentPadding + bottomPadding,
                       ),
-                      child: RegisterForm(initialLanguage: ModalRoute.of(context)?.settings.arguments as String?),
+                      child: RegisterForm(
+                        initialLanguage: ModalRoute.of(context)?.settings.arguments as String?,
+                        authService: widget.authService,
+                      ),
                     ),
                   ),
                 ),

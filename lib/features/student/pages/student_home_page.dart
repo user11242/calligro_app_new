@@ -39,12 +39,18 @@ import '../../rating/widgets/course_completion_rating_dialog.dart';
 
 class StudentHomePage extends StatefulWidget {
   final bool isGuestMode;
+  final StudentService? studentService;
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
   final Function(String?)? onGoToCourses;
   final VoidCallback? onProfileTap;
 
   const StudentHomePage({
     super.key,
     this.isGuestMode = false,
+    this.studentService,
+    this.auth,
+    this.firestore,
     this.onGoToCourses,
     this.onProfileTap,
   });
@@ -54,7 +60,7 @@ class StudentHomePage extends StatefulWidget {
 }
 
 class _StudentHomePageState extends State<StudentHomePage> {
-  final StudentService _service = StudentService();
+  late final StudentService _service;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final PageController _heroPageController = PageController();
 
@@ -67,9 +73,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
   @override
   void initState() {
     super.initState();
+    _service = widget.studentService ?? StudentService(auth: widget.auth, firestore: widget.firestore);
     _studentStream = _service.getStudentStream();
     _enrolledCoursesStream = _service.getEnrolledCourses();
-    _galleryFuture = GalleryService().getArtistsList();
+    _galleryFuture = GalleryService(firestore: widget.firestore).getArtistsList();
     _teachersStream = _service.getTeachersStream();
     _featuredCoursesStream = _service.getFeaturedCourses();
     _precacheGalleryImages();
@@ -77,11 +84,11 @@ class _StudentHomePageState extends State<StudentHomePage> {
   }
 
   Future<void> _checkForUnratedCompletedCourses() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = (widget.auth ?? FirebaseAuth.instance).currentUser;
     if (user == null || widget.isGuestMode) return;
 
     try {
-      final coursesSnapshot = await FirebaseFirestore.instance
+      final coursesSnapshot = await (widget.firestore ?? FirebaseFirestore.instance)
           .collection('courses')
           .where('enrolledStudents', arrayContains: user.uid)
           .get();
@@ -103,7 +110,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
         }
 
         if (now.isAfter(endDate)) {
-          final reviewQuery = await FirebaseFirestore.instance
+          final reviewQuery = await (widget.firestore ?? FirebaseFirestore.instance)
               .collection('reviews')
               .where('courseId', isEqualTo: doc.id)
               .where('studentId', isEqualTo: user.uid)
@@ -1119,7 +1126,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
     required String heroPrefix,
   }) {
     final String heroTag = '${heroPrefix}_h_${course['id']}';
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = (widget.auth ?? FirebaseAuth.instance).currentUser;
     final dynamic studentsRaw = course['enrolledStudents'];
     final List<dynamic> enrolledStudents = (studentsRaw is List)
         ? studentsRaw
@@ -1877,7 +1884,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
             );
           }
 
-          final currentUser = FirebaseAuth.instance.currentUser;
+          final currentUser = (widget.auth ?? FirebaseAuth.instance).currentUser;
           final courses = snapshot.data!.where((course) {
             final dynamic studentsRaw = course['enrolledStudents'];
             final List<dynamic> enrolledStudents = (studentsRaw is List)

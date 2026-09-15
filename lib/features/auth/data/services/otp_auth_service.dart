@@ -3,7 +3,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 class OtpAuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth? _authMock;
+
+  OtpAuthService({FirebaseAuth? auth}) : _authMock = auth;
+
+  FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
 
   /// 🔹 Start Phone Verification
   /// This sends the SMS code to the user.

@@ -17,12 +17,16 @@ class AdminProfileTab extends StatefulWidget {
   final String userName;
   final String userEmail;
   final String userProfileImage;
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
 
   const AdminProfileTab({
     super.key,
     required this.userName,
     required this.userEmail,
     required this.userProfileImage,
+    this.auth,
+    this.firestore,
   });
 
   @override
@@ -42,7 +46,7 @@ class _AdminProfileTabState extends State<AdminProfileTab>
     // 3 Tabs for Admin: My Posts, Saved, Liked
     _tabController = TabController(length: 3, vsync: this);
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = (widget.auth ?? FirebaseAuth.instance).currentUser;
     if (user != null) {
       currentUserId = user.uid;
       _initStreams();
@@ -52,23 +56,23 @@ class _AdminProfileTabState extends State<AdminProfileTab>
   void _initStreams() {
     if (currentUserId == null) return;
 
-    final userDocStream = FirebaseFirestore.instance
+    final userDocStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('users')
         .doc(currentUserId)
         .snapshots();
 
-    final myPostsStream = FirebaseFirestore.instance
+    final myPostsStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('community_posts')
         .where('userId', isEqualTo: currentUserId)
         .snapshots();
 
-    final savedPostsStream = FirebaseFirestore.instance
+    final savedPostsStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('users')
         .doc(currentUserId)
         .collection('saved_posts')
         .snapshots();
 
-    final likedPostsStream = FirebaseFirestore.instance
+    final likedPostsStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('community_posts')
         .where('likes.$currentUserId', isEqualTo: true)
         .snapshots();
@@ -184,7 +188,7 @@ class _AdminProfileTabState extends State<AdminProfileTab>
                   ProfilePostsSection(
                     title: AppLocalizations.of(context)!.myPosts,
                     currentUserId: currentUserId ?? '',
-                    postsStream: FirebaseFirestore.instance
+                    postsStream: (widget.firestore ?? FirebaseFirestore.instance)
                         .collection('community_posts')
                         .where('userId', isEqualTo: currentUserId)
                         .snapshots(),
@@ -196,7 +200,7 @@ class _AdminProfileTabState extends State<AdminProfileTab>
                   ProfilePostsSection(
                     title: AppLocalizations.of(context)!.saved,
                     currentUserId: currentUserId ?? '',
-                    postsStream: FirebaseFirestore.instance
+                    postsStream: (widget.firestore ?? FirebaseFirestore.instance)
                         .collection('community_posts')
                         .where(
                           FieldPath.documentId,
@@ -216,7 +220,7 @@ class _AdminProfileTabState extends State<AdminProfileTab>
                               final String id = idsToCheck[i];
                               if (!validIds.contains(id)) {
                                 if (currentUserId != null) {
-                                  FirebaseFirestore.instance
+                                  (widget.firestore ?? FirebaseFirestore.instance)
                                       .collection('users')
                                       .doc(currentUserId!)
                                       .collection('saved_posts')
@@ -236,7 +240,7 @@ class _AdminProfileTabState extends State<AdminProfileTab>
                   ProfilePostsSection(
                     title: AppLocalizations.of(context)!.liked,
                     currentUserId: currentUserId ?? '',
-                    postsStream: FirebaseFirestore.instance
+                    postsStream: (widget.firestore ?? FirebaseFirestore.instance)
                         .collection('community_posts')
                         .where('likes.$currentUserId', isEqualTo: true)
                         .snapshots(),

@@ -3,8 +3,13 @@ import 'package:calligro_app/features/auth/widgets/login_form.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/colors.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../features/auth/data/services/auth_service.dart';
+
 class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+  final AuthService? authService;
+  final FirebaseAuth? auth;
+  const LoginPage({super.key, this.authService, this.auth});
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +130,8 @@ class LoginPage extends StatelessWidget {
                   child: LoginForm(
                     initialLanguage: language,
                     returnTo: returnTo,
+                    authService: authService,
+                    auth: auth,
                   ),
                 ),
               ),

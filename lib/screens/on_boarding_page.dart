@@ -9,7 +9,8 @@ import '../core/localization/locale_provider.dart';
 import '../core/theme/colors.dart';
 
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({super.key});
+  final bool mockVideo;
+  const OnboardingPage({super.key, this.mockVideo = false});
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -159,16 +160,21 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Future<void> _initVideo() async {
-    final player = Player();
-    _player = player;
-    _controller = VideoController(player);
+    if (widget.mockVideo) return;
+    try {
+      final player = Player();
+      _player = player;
+      _controller = VideoController(player);
 
-    await player.open(Media('asset://assets/videos/new_onboarding.mp4'));
-    await player.setPlaylistMode(PlaylistMode.loop);
-    await player.setVolume(0);
-    // play is not needed as open plays by default unless play: false is passed
+      await player.open(Media('asset://assets/videos/new_onboarding.mp4'));
+      await player.setPlaylistMode(PlaylistMode.loop);
+      await player.setVolume(0);
+      // play is not needed as open plays by default unless play: false is passed
 
-    if (mounted) setState(() {});
+      if (mounted) setState(() {});
+    } catch (e) {
+      // Handle missing native libraries in test environments
+    }
   }
 
   @override

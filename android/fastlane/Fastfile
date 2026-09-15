@@ -1,0 +1,18 @@
+default_platform(:android)
+
+platform :android do
+  desc "Push a new beta build to Google Play Console"
+  lane :beta do
+    # 1. Build the Flutter App (AAB format)
+    gradle(
+      task: "bundle",
+      build_type: "Release"
+    )
+    
+    # 2. Upload to Google Play Beta Track
+    upload_to_play_store(
+      track: "beta",
+      aab: "../build/app/outputs/bundle/release/app-release.aab"
+    )
+  end
+end

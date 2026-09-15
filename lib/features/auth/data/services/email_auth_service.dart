@@ -3,10 +3,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../../../../core/utils/numeric_utils.dart';
-
 class EmailAuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth? _authMock;
+  final FirebaseFirestore? _firestoreMock;
+
+  EmailAuthService({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+  })  : _authMock = auth,
+        _firestoreMock = firestore;
+
+  FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
 
   // ============ 📧 REGISTER ============
   Future<String?> register({

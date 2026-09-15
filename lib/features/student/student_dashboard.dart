@@ -5,11 +5,24 @@ import 'package:calligro_app/features/community/pages/community_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/features/student/tabs/student_courses_tab.dart';
 import 'package:calligro_app/features/student/tabs/student_profile_tab.dart';
+import 'package:calligro_app/features/student/data/services/student_service.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   final bool isGuestMode;
+  final StudentService? studentService;
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
 
-  const StudentDashboardPage({super.key, this.isGuestMode = false});
+  const StudentDashboardPage({
+    super.key, 
+    this.isGuestMode = false,
+    this.studentService,
+    this.auth,
+    this.firestore,
+  });
 
   @override
   State<StudentDashboardPage> createState() => _StudentDashboardPageState();
@@ -32,6 +45,9 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       // 1. Home Tab (Safe ✅)
       StudentHomePage(
         isGuestMode: widget.isGuestMode,
+        studentService: widget.studentService,
+        auth: widget.auth,
+        firestore: widget.firestore,
         onGoToCourses: (String? filter) {
           setState(() {
             _initialCourseFilter = filter;
@@ -49,13 +65,22 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       StudentCoursesTab(
         initialFilter: _initialCourseFilter,
         navigationTrigger: _navigationTrigger,
+        auth: widget.auth,
+        firestore: widget.firestore,
       ),
 
       // 3. Community Tab
-      CommunityPage(onProfileTap: _handleCommunityProfileTap),
+      CommunityPage(
+        onProfileTap: _handleCommunityProfileTap,
+        auth: widget.auth,
+        firestore: widget.firestore,
+      ),
 
       // 4. Profile Tab
-      const StudentProfileTab(),
+      StudentProfileTab(
+        auth: widget.auth,
+        firestore: widget.firestore,
+      ),
     ];
 
     return Scaffold(

@@ -4,8 +4,15 @@ import 'package:flutter/foundation.dart';
 import '../model/student_user_model.dart';
 
 class StudentService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth? _authMock;
+  final FirebaseFirestore? _firestoreMock;
+
+  StudentService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+      : _authMock = auth,
+        _firestoreMock = firestore;
+
+  FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
 
   Future<StudentUserModel> getCurrentStudent() async {
     final user = _auth.currentUser;

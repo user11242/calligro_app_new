@@ -18,14 +18,13 @@ import 'package:calligro_app/l10n/app_localizations.dart';
 import '../services/follow_service.dart'; // Import FollowService
 import '../../../core/message/app_messenger.dart'; 
 
-final CommunityService _communityService = CommunityService();
-final UserService _userService = UserService();
-final FollowService _followService = FollowService(); // Initialize FollowService
 
 class CommunityPage extends StatefulWidget {
   final Function(String userId, String userRole)? onProfileTap;
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
 
-  const CommunityPage({super.key, this.onProfileTap});
+  const CommunityPage({super.key, this.onProfileTap, this.auth, this.firestore});
 
   @override
   State<CommunityPage> createState() => _CommunityPageState();
@@ -33,7 +32,12 @@ class CommunityPage extends StatefulWidget {
 
 class _CommunityPageState extends State<CommunityPage>
     with WidgetsBindingObserver {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  late final FirebaseAuth _auth;
+  late final FirebaseFirestore _firestore;
+  late final CommunityService _communityService;
+  late final UserService _userService;
+  late final FollowService _followService;
+  
   User? _currentUser;
   String? _currentUserRole;
   final ScrollController _scrollController = ScrollController();
@@ -76,6 +80,12 @@ class _CommunityPageState extends State<CommunityPage>
   @override
   void initState() {
     super.initState();
+    _auth = widget.auth ?? FirebaseAuth.instance;
+    _firestore = widget.firestore ?? FirebaseFirestore.instance;
+    _communityService = CommunityService(auth: widget.auth, firestore: widget.firestore);
+    _userService = UserService(firestore: widget.firestore);
+    _followService = FollowService(firestore: widget.firestore);
+
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_scrollListener);
 
@@ -150,7 +160,7 @@ class _CommunityPageState extends State<CommunityPage>
     if (_currentUser == null) return;
     
     _savedPostsSubscription?.cancel();
-    _savedPostsSubscription = FirebaseFirestore.instance
+    _savedPostsSubscription = _firestore
         .collection('users')
         .doc(_currentUser!.uid)
         .collection('saved_posts') // Ensure this matches your DB structure. If it's a field array, adjust accordingly.
@@ -181,7 +191,7 @@ class _CommunityPageState extends State<CommunityPage>
   void _subscribeToBlockedUsers() {
     if (_currentUser == null) return;
     _blockedUsersSubscription?.cancel();
-    _blockedUsersSubscription = FirebaseFirestore.instance
+    _blockedUsersSubscription = _firestore
         .collection('users')
         .doc(_currentUser!.uid)
         .snapshots()
@@ -549,7 +559,10 @@ class _CommunityPageState extends State<CommunityPage>
               ],
             ),
             SliverToBoxAdapter(
-              child: CreatePostBar(currentUserId: _currentUser?.uid ?? ''),
+              child: CreatePostBar(
+                currentUserId: _currentUser?.uid ?? '',
+                firestore: widget.firestore,
+              ),
             ),
             SliverToBoxAdapter(
               child: SizedBox(
@@ -593,7 +606,7 @@ class _CommunityPageState extends State<CommunityPage>
                     final postUserId = postData['userId'] ?? '';
 
                     return StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance
+                      stream: _firestore
                           .collection('users')
                           .doc(postUserId)
                           .snapshots()
@@ -735,7 +748,7 @@ class _CommunityPageState extends State<CommunityPage>
                     final postUserId = postData['userId'] ?? '';
 
                     return StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance
+                      stream: _firestore
                           .collection('users')
                           .doc(postUserId)
                           .snapshots()

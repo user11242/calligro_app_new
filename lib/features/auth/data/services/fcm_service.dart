@@ -6,7 +6,20 @@ import 'package:flutter/foundation.dart'; // For debugPrint
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FcmService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore? _firestoreMock;
+  final FirebaseMessaging? _messagingMock;
+
+  @visibleForTesting
+  FcmService.forTest({
+    FirebaseFirestore? firestore,
+    FirebaseMessaging? messaging,
+  })  : _firestoreMock = firestore,
+        _messagingMock = messaging;
+
+  FcmService() : _firestoreMock = null, _messagingMock = null;
+
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
+  FirebaseMessaging get _messaging => _messagingMock ?? FirebaseMessaging.instance;
 
   // ✅ Renamed to 'saveUserFcmToken' because it works for EVERYONE (Student/Teacher/Admin)
   Future<void> saveUserFcmToken(String uid) async {
@@ -14,7 +27,7 @@ class FcmService {
 
     try {
       // 1. Request permissions (Crucial for iOS)
-      NotificationSettings settings = await FirebaseMessaging.instance
+      NotificationSettings settings = await _messaging
           .requestPermission(alert: true, badge: true, sound: true);
 
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
@@ -23,7 +36,7 @@ class FcmService {
       }
 
       // 2. Attempt to get the token
-      token = await FirebaseMessaging.instance.getToken();
+      token = await _messaging.getToken();
 
       debugPrint("✅ FCM Token retrieved: $token");
     } catch (e) {

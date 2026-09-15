@@ -1,0 +1,82 @@
+name: Calligro Master Test Suite
+
+on:
+  push:
+    branches: [ "main", "updated-main" ]
+  pull_request:
+    branches: [ "main", "updated-main" ]
+
+jobs:
+  flutter_tests:
+    name: Flutter Mobile Tests (Domains 2 & 3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Install Flutter Dependencies
+        run: flutter pub get
+        
+      - name: Run Flutter Math & Logic Tests
+        run: flutter test test/utils/
+        
+      - name: Run Flutter UI Widget Tests
+        run: flutter test test/ui/
+
+  web_portal_tests:
+    name: Web Portal Lemon Squeezy Tests (Domain 1)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web_portal
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          
+      - name: Install Node Dependencies
+        run: npm install --legacy-peer-deps
+        
+      - name: Run Finance Webhook Tests
+        run: npx vitest run tests/finance.test.ts
+
+  deploy_ios:
+    name: Deploy to Apple TestFlight (CD)
+    needs: [flutter_tests, web_portal_tests] # Only deploy if all tests pass
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: ./ios
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+          bundler-cache: true
+      - name: Deploy Beta to TestFlight
+        run: fastlane beta
+
+  deploy_android:
+    name: Deploy to Google Play Beta (CD)
+    needs: [flutter_tests, web_portal_tests] # Only deploy if all tests pass
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./android
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+          bundler-cache: true
+      - name: Deploy Beta to Google Play
+        run: fastlane beta

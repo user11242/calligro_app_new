@@ -168,6 +168,8 @@ class TeacherHomeTab extends StatefulWidget {
   final bool hasPayoutInfo;
   final String earnings;
   final VoidCallback onRefresh;
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
 
   const TeacherHomeTab({
     super.key,
@@ -178,6 +180,8 @@ class TeacherHomeTab extends StatefulWidget {
     required this.earnings,
     required this.hasPayoutInfo,
     required this.onRefresh,
+    this.auth,
+    this.firestore,
   });
 
   @override
@@ -185,7 +189,7 @@ class TeacherHomeTab extends StatefulWidget {
 }
 
 class _TeacherHomeTabState extends State<TeacherHomeTab> {
-  final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  late final String currentUserId;
   String? _localProfileImage;
   Stream<DocumentSnapshot>? _userStream;
   Stream<QuerySnapshot>? _coursesStream;
@@ -196,6 +200,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
   @override
   void initState() {
     super.initState();
+    currentUserId = (widget.auth ?? FirebaseAuth.instance).currentUser?.uid ?? '';
     _heroPageController = PageController();
     _initStreams();
   }
@@ -208,11 +213,11 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
 
   void _initStreams() {
     if (currentUserId.isNotEmpty) {
-      _userStream = FirebaseFirestore.instance
+      _userStream = (widget.firestore ?? FirebaseFirestore.instance)
           .collection('users')
           .doc(currentUserId)
           .snapshots();
-      _coursesStream = FirebaseFirestore.instance
+      _coursesStream = (widget.firestore ?? FirebaseFirestore.instance)
           .collection('courses')
           .where('teacherId', isEqualTo: currentUserId)
           .snapshots();

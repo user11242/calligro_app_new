@@ -13,7 +13,9 @@ import '../../../core/message/app_messenger.dart';
 class LoginForm extends StatefulWidget {
   final String? initialLanguage;
   final String? returnTo;
-  const LoginForm({super.key, this.initialLanguage, this.returnTo});
+  final AuthService? authService;
+  final FirebaseAuth? auth;
+  const LoginForm({super.key, this.initialLanguage, this.returnTo, this.authService, this.auth});
 
   @override
   State<LoginForm> createState() => _LoginFormState();
@@ -22,7 +24,15 @@ class LoginForm extends StatefulWidget {
 class _LoginFormState extends State<LoginForm> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final _authService = AuthService();
+  late final AuthService _authService;
+  late final FirebaseAuth _auth;
+
+  @override
+  void initState() {
+    super.initState();
+    _authService = widget.authService ?? AuthService();
+    _auth = widget.auth ?? FirebaseAuth.instance;
+  }
 
   bool isLoading = false;
   bool isObscured = true;
@@ -63,7 +73,10 @@ class _LoginFormState extends State<LoginForm> {
       if (!mounted) return;
       setState(() => isLoading = false);
 
-      await _authService.saveUserFcmToken(FirebaseAuth.instance.currentUser!.uid);
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        await _authService.saveUserFcmToken(currentUser.uid);
+      }
 
       if (widget.returnTo != null && widget.returnTo != "/") {
         if (mounted) navigator.pushNamedAndRemoveUntil(widget.returnTo!, (route) => false);

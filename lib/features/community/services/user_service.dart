@@ -1,7 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore? _firestoreMock;
+
+  UserService({FirebaseFirestore? firestore}) : _firestoreMock = firestore;
+
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
 
   /// Gets the role of a user (teacher/student). Defaults to 'student'.
   Future<String> getUserRole(String userId) async {

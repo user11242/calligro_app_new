@@ -10,9 +10,18 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 class CommunityService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseAuth? _authMock;
+  final FirebaseFirestore? _firestoreMock;
+  final FirebaseStorage? _storageMock;
+
+  CommunityService({FirebaseAuth? auth, FirebaseFirestore? firestore, FirebaseStorage? storage})
+      : _authMock = auth,
+        _firestoreMock = firestore,
+        _storageMock = storage;
+
+  FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
+  FirebaseStorage get _storage => _storageMock ?? FirebaseStorage.instance;
 
   // ------------------------------------------------------------------------
   // 1. User Data Helper

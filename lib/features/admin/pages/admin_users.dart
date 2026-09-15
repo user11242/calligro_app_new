@@ -413,16 +413,25 @@ class UserTile extends StatelessWidget {
 }
 
 class AdminUsersPage extends StatefulWidget {
-  const AdminUsersPage({super.key});
+  final FirebaseFirestore? firestore;
+
+  const AdminUsersPage({super.key, this.firestore});
 
   @override
   State<AdminUsersPage> createState() => _AdminUsersPageState();
 }
 
 class _AdminUsersPageState extends State<AdminUsersPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final AdminService _adminService = AdminService();
+  late final FirebaseFirestore _firestore;
+  late final AdminService _adminService;
   String _searchQuery = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _firestore = widget.firestore ?? FirebaseFirestore.instance;
+    _adminService = AdminService(firestore: widget.firestore);
+  }
 
   @override
   Widget build(BuildContext context) {

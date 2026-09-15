@@ -16,12 +16,26 @@ class GoogleAuthService {
   static final GoogleAuthService instance =
       GoogleAuthService._privateConstructor();
 
-  // --- 2. Class Variables ---
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // --- Test Injection ---
+  FirebaseAuth? _authMock;
+  FirebaseFirestore? _firestoreMock;
+  GoogleSignIn? _googleSignInMock;
 
-  // ✅ CORRECT SETUP for google_sign_in ^7.0.0
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  @visibleForTesting
+  GoogleAuthService.forTest({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+    GoogleSignIn? googleSignIn,
+  }) {
+    _authMock = auth;
+    _firestoreMock = firestore;
+    _googleSignInMock = googleSignIn;
+  }
+
+  // --- 2. Class Variables ---
+  FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
+  GoogleSignIn get _googleSignIn => _googleSignInMock ?? GoogleSignIn.instance;
 
   bool _isInitialized = false;
   AuthCredential? _pendingGoogleCredential;

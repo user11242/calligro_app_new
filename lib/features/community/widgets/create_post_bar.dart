@@ -11,13 +11,15 @@ import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/widgets/profile_avatar.dart';
 import 'package:calligro_app/core/utils/guest_guard.dart';
 
-// Instantiate the UserService once
-final UserService _userService = UserService();
-
 class CreatePostBar extends StatelessWidget {
   final String currentUserId;
+  final FirebaseFirestore? firestore;
 
-  const CreatePostBar({super.key, required this.currentUserId});
+  const CreatePostBar({
+    super.key,
+    required this.currentUserId,
+    this.firestore,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +29,7 @@ class CreatePostBar extends StatelessWidget {
 
     return StreamBuilder<DocumentSnapshot>(
       // MODIFIED: Now using the UserService to get the stream
-      stream: _userService.getUserStream(currentUserId),
+      stream: UserService(firestore: firestore).getUserStream(currentUserId),
       builder: (context, snapshot) {
         String profileImageUrl = '';
         if (snapshot.hasData && snapshot.data!.data() != null) {

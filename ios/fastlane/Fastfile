@@ -1,0 +1,24 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    # 1. Update certificates and provisioning profiles via Match
+    match(type: "appstore")
+    
+    # 2. Build the Flutter App via Gym
+    gym(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "./build/ios",
+      output_name: "Calligro.ipa"
+    )
+    
+    # 3. Upload to TestFlight
+    pilot(
+      ipa: "./build/ios/Calligro.ipa",
+      skip_waiting_for_build_processing: true
+    )
+  end
+end

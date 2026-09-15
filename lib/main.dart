@@ -7,6 +7,7 @@
   import 'package:firebase_messaging/firebase_messaging.dart';
   import 'package:flutter/services.dart'; // Import for SystemChrome
   import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:cloud_firestore/cloud_firestore.dart';
   import 'package:firebase_app_check/firebase_app_check.dart';
   import 'package:flutter_dotenv/flutter_dotenv.dart';
   import 'dart:ui'; // Import for PlatformDispatcher
@@ -139,6 +140,20 @@
 
     // 2. Initialize Firebase
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+    // 🧪 TESTING MODE: Set to true ONLY when you want to use the local sandbox
+    // NEVER push this as 'true' to the App Store!
+    bool useFirebaseEmulator = kDebugMode ? true : false; 
+    
+    if (useFirebaseEmulator) {
+      try {
+        FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+        await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+        developer.log("🔥 Connected to Firebase Emulators Sandbox!");
+      } catch (e) {
+        developer.log("🔥 Error connecting to emulators: $e");
+      }
+    }
 
     // ✅ Setup Crashlytics
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;

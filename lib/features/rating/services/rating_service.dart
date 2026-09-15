@@ -3,7 +3,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RatingService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore? _firestoreMock;
+
+  RatingService({FirebaseFirestore? firestore}) : _firestoreMock = firestore;
+
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
 
   /// Submit a rating for a teacher after course completion
   /// Updates teacher's totalStars and reviewCount atomically

@@ -18,7 +18,9 @@ import 'package:calligro_app/features/student/pages/public_profile/public_studen
 import 'package:calligro_app/features/teacher/pages/public_profile/public_teacher_profile_page.dart';
 
 class StudentProfileTab extends StatefulWidget {
-  const StudentProfileTab({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+  const StudentProfileTab({super.key, this.auth, this.firestore});
 
   @override
   State<StudentProfileTab> createState() => _StudentProfileTabState();
@@ -29,18 +31,19 @@ class _StudentProfileTabState extends State<StudentProfileTab>
   late TabController _tabController;
   String? currentUserId;
   bool isGuest = true;
-  final CommunityService _communityService = CommunityService();
+  late final CommunityService _communityService;
   Stream<Map<String, dynamic>>? _combinedProfileStream;
 
   @override
   void initState() {
     super.initState();
+    _communityService = CommunityService(auth: widget.auth, firestore: widget.firestore);
     _tabController = TabController(length: 2, vsync: this);
     _checkAuthStatus();
   }
 
   void _checkAuthStatus() {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = (widget.auth ?? FirebaseAuth.instance).currentUser;
     if (user != null) {
       setState(() {
         currentUserId = user.uid;
@@ -57,7 +60,7 @@ class _StudentProfileTabState extends State<StudentProfileTab>
   void _initStreams() {
     if (currentUserId == null) return;
 
-    final userDocStream = FirebaseFirestore.instance
+    final userDocStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('users')
         .doc(currentUserId)
         .snapshots();

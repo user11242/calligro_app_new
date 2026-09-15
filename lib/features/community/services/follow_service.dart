@@ -4,7 +4,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FollowService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore? _firestoreMock;
+
+  FollowService({FirebaseFirestore? firestore}) : _firestoreMock = firestore;
+
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
 
   // This is the 4-step batch write function
   Future<void> toggleFollow({

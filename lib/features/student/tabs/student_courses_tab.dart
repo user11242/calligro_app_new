@@ -16,10 +16,14 @@ import 'package:calligro_app/core/utils/course_utils.dart';
 class StudentCoursesTab extends StatefulWidget {
   final String? initialFilter;
   final int navigationTrigger;
+  final FirebaseFirestore? firestore;
+  final FirebaseAuth? auth;
   const StudentCoursesTab({
     super.key,
     this.initialFilter,
     this.navigationTrigger = 0,
+    this.firestore,
+    this.auth,
   });
 
   @override
@@ -41,7 +45,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
   @override
   void initState() {
     super.initState();
-    _coursesStream = FirebaseFirestore.instance
+    _coursesStream = (widget.firestore ?? FirebaseFirestore.instance)
         .collection('courses')
         .snapshots()
         .handleError((e) {
@@ -115,7 +119,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                   }
 
                   // --- FILTRATION LOGIC ---
-                  final currentUser = FirebaseAuth.instance.currentUser;
+                  final currentUser = (widget.auth ?? FirebaseAuth.instance).currentUser;
                   final String normalizedQuery = CourseUtils.prepareForSearch(_searchText);
 
                   final courses = snapshot.data!.docs.where((doc) {
@@ -398,7 +402,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                   onTap: () {
                     final l10n = AppLocalizations.of(context)!;
                     if (filter == l10n.myCourses) {
-                      if (!GuestGuard.check(context, isGuest: FirebaseAuth.instance.currentUser == null)) {
+                      if (!GuestGuard.check(context, isGuest: (widget.auth ?? FirebaseAuth.instance).currentUser == null)) {
                         return;
                       }
                     }
@@ -468,7 +472,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
     final int currentEnrollment = enrolledStudents.length;
     final int maxStudents = (data['maxStudents'] ?? 0);
 
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUser = (widget.auth ?? FirebaseAuth.instance).currentUser;
     final bool isEnrolled = currentUser != null && enrolledStudents.contains(currentUser.uid);
 
     // --- COUNTDOWN LOGIC ---

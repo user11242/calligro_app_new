@@ -18,14 +18,15 @@ import '../pages/terms_and_conditions_page.dart';
 
 class RegisterForm extends StatefulWidget {
   final String? initialLanguage;
-  const RegisterForm({super.key, this.initialLanguage});
+  final AuthService? authService;
+  const RegisterForm({super.key, this.initialLanguage, this.authService});
 
   @override
   State<RegisterForm> createState() => _RegisterFormState();
 }
 
 class _RegisterFormState extends State<RegisterForm> {
-  final _authService = AuthService();
+  late final AuthService _authService;
   final _phoneUtil = lib_phone.PhoneNumberUtil();
   final TextEditingController nameController = TextEditingController();
   final emailController = TextEditingController();
@@ -164,6 +165,7 @@ class _RegisterFormState extends State<RegisterForm> {
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? AuthService();
     _getInitialCountryCode();
     _preFetchFcmToken();
   }

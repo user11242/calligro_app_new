@@ -12,7 +12,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
 
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+
+  const AdminDashboardPage({
+    super.key,
+    this.auth,
+    this.firestore,
+  });
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
@@ -20,7 +27,7 @@ class AdminDashboardPage extends StatefulWidget {
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
   int _selectedIndex = 0;
-  final AdminService _adminService = AdminService();
+  late final AdminService _adminService;
 
   String _userName = "Admin";
   String _userEmail = "admin@calligroacademy.com";
@@ -32,13 +39,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   @override
   void initState() {
     super.initState();
+    _adminService = AdminService(firestore: widget.firestore);
     _fetchUserData();
   }
 
   Future<void> _fetchUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = (widget.auth ?? FirebaseAuth.instance).currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final doc = await (widget.firestore ?? FirebaseFirestore.instance).collection('users').doc(user.uid).get();
       if (doc.exists && mounted) {
         final data = doc.data() as Map<String, dynamic>;
         setState(() {
@@ -62,15 +70,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   void _initializePages() {
     _pages.clear();
     _pages.addAll([
-      const AdminHomeTab(),
-      const AdminUsersPage(),
-      CommunityPage(onProfileTap: (uid, role) {
-        // Handle profile tap if needed
-      }),
+      AdminHomeTab(firestore: widget.firestore),
+      AdminUsersPage(firestore: widget.firestore),
+      CommunityPage(
+        onProfileTap: (uid, role) {},
+        auth: widget.auth,
+        firestore: widget.firestore,
+      ),
       AdminProfileTab(
         userName: _userName,
         userEmail: _userEmail,
         userProfileImage: _userProfileImage,
+        auth: widget.auth,
+        firestore: widget.firestore,
       ),
     ]);
   }

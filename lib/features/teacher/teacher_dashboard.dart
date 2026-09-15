@@ -17,7 +17,14 @@ import '../../core/message/app_messenger.dart';
 // --- MAIN TEACHER DASHBOARD PAGE ---
 
 class TeacherDashboardPage extends StatefulWidget {
-  const TeacherDashboardPage({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+
+  const TeacherDashboardPage({
+    super.key,
+    this.auth,
+    this.firestore,
+  });
 
   @override
   State<TeacherDashboardPage> createState() => _TeacherDashboardPageState();
@@ -46,30 +53,31 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   }
 
   Future<void> _fetchUserData() async {
-    User? user = FirebaseAuth.instance.currentUser;
+    User? user = (widget.auth ?? FirebaseAuth.instance).currentUser;
     if (user == null) {
       debugPrint("No user logged in, cannot fetch data.");
       return;
     }
 
     try {
-      Future<DocumentSnapshot> userDocFuture = FirebaseFirestore.instance
+      final db = widget.firestore ?? FirebaseFirestore.instance;
+      Future<DocumentSnapshot> userDocFuture = db
           .collection('users')
           .doc(user.uid)
           .get();
 
-      Future<QuerySnapshot> coursesQueryFuture = FirebaseFirestore.instance
+      Future<QuerySnapshot> coursesQueryFuture = db
           .collection('courses')
           .where('teacherId', isEqualTo: user.uid)
           .get();
 
-      Future<QuerySnapshot> txQueryFuture = FirebaseFirestore.instance
+      Future<QuerySnapshot> txQueryFuture = db
           .collection('transactions')
           .where('teacherId', isEqualTo: user.uid)
           .where('status', isEqualTo: 'completed')
           .get();
 
-      Future<QuerySnapshot> withdrawalsQueryFuture = FirebaseFirestore.instance
+      Future<QuerySnapshot> withdrawalsQueryFuture = db
           .collection('withdrawal_requests')
           .where('teacherId', isEqualTo: user.uid)
           .get();
@@ -221,9 +229,15 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         earnings: _earnings,
         hasPayoutInfo: _hasPayoutInfo,
         onRefresh: _fetchUserData,
+        auth: widget.auth,
+        firestore: widget.firestore,
       ),
-      const TeacherCoursesTab(),
-      CommunityPage(onProfileTap: _handleCommunityProfileTap),
+      TeacherCoursesTab(auth: widget.auth, firestore: widget.firestore),
+      CommunityPage(
+        onProfileTap: _handleCommunityProfileTap,
+        auth: widget.auth,
+        firestore: widget.firestore,
+      ),
       TeacherProfileTab(
         userName: _userName,
         userEmail: _userEmail,
@@ -231,6 +245,8 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         courseCount: _courseCount.toString(),
         studentCount: _studentCount,
         earnings: _earnings,
+        auth: widget.auth,
+        firestore: widget.firestore,
       ),
     ];
   }
@@ -246,7 +262,10 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
     // 🔒 Block Access if no profile picture
     if (_needsProfileSetup) {
-      return const TeacherSetupPage();
+      return TeacherSetupPage(
+        auth: widget.auth,
+        firestore: widget.firestore,
+      );
     }
 
     return Scaffold(

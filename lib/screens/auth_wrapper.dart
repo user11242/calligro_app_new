@@ -13,14 +13,18 @@ import 'package:calligro_app/features/teacher/teacher_dashboard.dart';
 import 'package:calligro_app/features/admin/admin_dashboard.dart';
 
 class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+  final AuthService? authService;
+  
+  const AuthWrapper({super.key, this.auth, this.firestore, this.authService});
 
   @override
   State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  final AuthService _authService = AuthService();
+  late final AuthService _authService;
   String? _lastUid;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -39,6 +43,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? AuthService();
     // 👻 CLEANUP GHOST ACCOUNTS ON APP START
     // If the app was closed during registration, a "ghost" account might remain.
     // This will check if the user exists in Firebase Auth but NOT in Firestore,
@@ -81,10 +86,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final _auth = widget.auth ?? FirebaseAuth.instance;
+    final _firestore = widget.firestore ?? FirebaseFirestore.instance;
+    
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: _auth.authStateChanges(),
       // ✅ FIX: Provide initial data to prevent "waiting" flicker
-      initialData: FirebaseAuth.instance.currentUser,
+      initialData: _auth.currentUser,
       builder: (context, snapshot) {
         // 1. User Logged In -> Fetch Role
         if (snapshot.hasData && snapshot.data != null) {
@@ -94,7 +102,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           _refreshFCM(user.uid);
 
           return StreamBuilder<DocumentSnapshot?>(
-            stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots().handleError((e) {
+            stream: _firestore.collection('users').doc(user.uid).snapshots().handleError((e) {
               debugPrint("AuthWrapper Stream Error: $e");
               return null; // This will trigger the hasError or empty check below
             }),

@@ -11,7 +11,11 @@ import '../data/services/auth_service.dart';
 import '../widgets/verification/universal_otp_step.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+  final AuthService? authService;
+  
+  const ForgotPasswordPage({super.key, this.auth, this.firestore, this.authService});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -21,9 +25,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final emailController = TextEditingController();
   final newPasswordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final AuthService _authService = AuthService();
+  late final FirebaseAuth _auth;
+  late final FirebaseFirestore _firestore;
+  late final AuthService _authService;
+
+  @override
+  void initState() {
+    super.initState();
+    _auth = widget.auth ?? FirebaseAuth.instance;
+    _firestore = widget.firestore ?? FirebaseFirestore.instance;
+    _authService = widget.authService ?? AuthService();
+  }
 
   bool isLoading = false;
   int _currentStep = 0; // 0: Email, 1: OTP, 2: New Password

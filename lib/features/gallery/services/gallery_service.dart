@@ -3,7 +3,11 @@ import '../models/gallery_artist.dart';
 import '../models/gallery_artwork.dart';
 
 class GalleryService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore? _firestoreMock;
+
+  GalleryService({FirebaseFirestore? firestore}) : _firestoreMock = firestore;
+
+  FirebaseFirestore get _db => _firestoreMock ?? FirebaseFirestore.instance;
 
   // Future of all gallery artists (cached)
   Future<List<GalleryArtist>> getArtistsList() async {

@@ -15,9 +15,22 @@ class AppleAuthService {
   AppleAuthService._privateConstructor();
   static final AppleAuthService instance = AppleAuthService._privateConstructor();
 
+  // --- Test Injection ---
+  FirebaseAuth? _authMock;
+  FirebaseFirestore? _firestoreMock;
+
+  @visibleForTesting
+  AppleAuthService.forTest({
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+  }) {
+    _authMock = auth;
+    _firestoreMock = firestore;
+  }
+
   // --- 2. Class Variables ---
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
 
   AuthCredential? _pendingAppleCredential;
   String? _pendingEmail;

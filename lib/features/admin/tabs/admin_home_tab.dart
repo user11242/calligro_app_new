@@ -8,15 +8,25 @@ import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AdminHomeTab extends StatefulWidget {
-  const AdminHomeTab({super.key});
+  final FirebaseFirestore? firestore;
+
+  const AdminHomeTab({super.key, this.firestore});
 
   @override
   State<AdminHomeTab> createState() => _AdminHomeTabState();
 }
 
 class _AdminHomeTabState extends State<AdminHomeTab> {
-  final AdminService _adminService = AdminService();
+  late final AdminService _adminService;
+
+  @override
+  void initState() {
+    super.initState();
+    _adminService = AdminService(firestore: widget.firestore);
+  }
 
   @override
   Widget build(BuildContext context) {
