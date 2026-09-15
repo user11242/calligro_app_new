@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
 import '../pages/course_details/course_details_page.dart';
+import '../pages/add_recorded_course/add_recorded_course_dashboard.dart';
 
 // Enum to define course filter options
 enum CourseFilter { all, active, upcoming, ended }
@@ -184,14 +185,10 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
               if (_isLiveTab) {
                 Navigator.pushNamed(context, '/addCourse');
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text(
-                      'للحفاظ على جودة الفيديو، يرجى استخدام الموقع الإلكتروني (الكمبيوتر) لرفع الدورات المسجلة.',
-                      style: TextStyle(fontFamily: 'Cairo'),
-                    ),
-                    backgroundColor: AppColors.primary,
-                    duration: const Duration(seconds: 4),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddRecordedCourseDashboardPage(),
                   ),
                 );
               }
@@ -409,15 +406,27 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
                 startDate: course['startDate'],
                 endDate: course['endDate'],
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CourseDetailsPage(
-                        courseId: course['id'],
-                        courseData: course['data'],
+                  if (course['data']['status'] == 'draft') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddRecordedCourseDashboardPage(
+                          draftCourseId: course['id'],
+                          initialData: course['data'],
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CourseDetailsPage(
+                          courseId: course['id'],
+                          courseData: course['data'],
+                        ),
+                      ),
+                    );
+                  }
                 },
               ).animate()
                .fadeIn(duration: 500.ms, delay: (index * 100).ms)
@@ -446,7 +455,22 @@ class _StyledCourseCard extends StatelessWidget {
   });
 
   Map<String, dynamic> _getCourseDisplayStatus(BuildContext context) {
+    if (courseData['status'] == 'draft') {
+      return {
+        'text': 'DRAFT',
+        'color': Colors.orangeAccent,
+        'icon': Icons.edit_document
+      };
+    }
+
     if (startDate == null || endDate == null) {
+      if (courseData['type'] == 'recorded') {
+        return {
+          'text': AppLocalizations.of(context)!.active,
+          'color': Colors.greenAccent,
+          'icon': Icons.bolt_rounded
+        };
+      }
       return {'text': 'Status Unknown', 'color': Colors.grey};
     }
     final now = DateTime.now();

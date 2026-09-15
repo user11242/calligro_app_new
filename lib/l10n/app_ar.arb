@@ -1289,5 +1289,42 @@
   "sourceWebsite": "الموقع الإلكتروني",
   "sourceApp": "التطبيق",
   "dateLabel": "التاريخ",
-  "bankTransferFeeNote": "ملاحظة: قد تكون هناك عمولات على التحويل البنكي يتم خصمها من قبل البنوك نفسها، وليس من كاليجرو."
+  "bankTransferFeeNote": "ملاحظة: قد تكون هناك عمولات على التحويل البنكي يتم خصمها من قبل البنوك نفسها، وليس من كاليجرو.",
+  "howItWorks": "كيف تعمل",
+  "skip": "تخطي",
+  "yourCourseStructure": "هيكل الدورة الخاص بك",
+  "uploadIntroVideo": "① ارفع فيديو المقدمة",
+  "uploadExplainerVideo": "② ارفع فيديو توضيحي قصير",
+  "addCurriculumParts": "③ أضف أجزاء المنهج",
+  "courseIsComplete": "✓ دورتك جاهزة!",
+  "thisWillRepeat": "سيتكرر هذا...",
+  "courseBuilder": "منشئ الدورة",
+  "introductionVideo": "فيديو المقدمة",
+  "tapToUpload": "انقر للرفع",
+  "explainerVideo": "فيديو توضيحي",
+  "curriculum": "المنهج",
+  "part1Basics": "الجزء الأول: الأساسيات",
+  "part2Techniques": "الجزء الثاني: التقنيات",
+  "part3Practice": "الجزء الثالث: التدريب",
+  "courseReady": "الدورة جاهزة! 🎉",
+  "gotItLetsStart": "فهمت، لنبدأ!",
+  "uploadCurriculumTitle": "رفع المنهج",
+  "uploadCurriculumSubtitle": "أضف المقدمة والفيديو التوضيحي وأجزاء الدورة هنا.",
+  "introVideoSubtitle": "فيديو قصير لتقديم نفسك والدورة.",
+  "explainerVideoSubtitle": "تفصيل دقيق لما سيتعلمه الطلاب.",
+  "curriculumPartsTitle": "أجزاء المنهج",
+  "curriculumPartsSubtitle": "نظّم دورتك في أقسام منطقية.",
+  "partNumber": "الجزء {number}",
+  "@partNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "partTitleHint": "مثال: أساسيات خط الثلث",
+  "selectVideo": "اختر فيديو",
+  "addVideoToPart": "أضف فيديو للجزء",
+  "addNewPart": "أضف جزء جديد",
+  "publishCourse": "نشر الدورة"
 }

@@ -2608,7 +2608,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noDescriptionProvided => 'Açıklama sağlanmadı';
 
   @override
-  String get curriculum => 'Müfredat';
+  String get curriculum => 'Curriculum';
 
   @override
   String get announcements => 'Duyurular';
@@ -3182,7 +3182,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get trustedWorldwide => 'Dünya Çapında Güvenilir';
 
   @override
-  String get howItWorks => 'Nasıl çalışır?';
+  String get howItWorks => 'How It Works';
 
   @override
   String get helpPending =>
@@ -3842,4 +3842,94 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get bankTransferFeeNote =>
       'Not: Banka transferlerinde bankaların kendileri tarafından uygulanan, Calligro\'dan bağımsız komisyonlar olabilir.';
+
+  @override
+  String get skip => 'Skip';
+
+  @override
+  String get yourCourseStructure => 'Your course structure';
+
+  @override
+  String get uploadIntroVideo => '① Upload your Introduction Video';
+
+  @override
+  String get uploadExplainerVideo => '② Upload a Short Explainer Video';
+
+  @override
+  String get addCurriculumParts => '③ Add Curriculum Parts';
+
+  @override
+  String get courseIsComplete => '✓ Your course is complete!';
+
+  @override
+  String get thisWillRepeat => 'This will repeat...';
+
+  @override
+  String get courseBuilder => 'Course Builder';
+
+  @override
+  String get introductionVideo => 'Introduction Video';
+
+  @override
+  String get tapToUpload => 'Tap to upload';
+
+  @override
+  String get explainerVideo => 'Explainer Video';
+
+  @override
+  String get part1Basics => 'Part 1: Basics';
+
+  @override
+  String get part2Techniques => 'Part 2: Techniques';
+
+  @override
+  String get part3Practice => 'Part 3: Practice';
+
+  @override
+  String get courseReady => 'Course Ready! 🎉';
+
+  @override
+  String get gotItLetsStart => 'Got it, Let\'s Start!';
+
+  @override
+  String get uploadCurriculumTitle => 'Upload Curriculum';
+
+  @override
+  String get uploadCurriculumSubtitle =>
+      'Add your introduction, explainer, and course parts here.';
+
+  @override
+  String get introVideoSubtitle =>
+      'A short video introducing yourself and the course.';
+
+  @override
+  String get explainerVideoSubtitle =>
+      'A detailed breakdown of what students will learn.';
+
+  @override
+  String get curriculumPartsTitle => 'Curriculum Parts';
+
+  @override
+  String get curriculumPartsSubtitle =>
+      'Organize your course into logical sections.';
+
+  @override
+  String partNumber(int number) {
+    return 'Part $number';
+  }
+
+  @override
+  String get partTitleHint => 'e.g. Basics of Thuluth';
+
+  @override
+  String get selectVideo => 'Select Video';
+
+  @override
+  String get addVideoToPart => 'Add Video to Part';
+
+  @override
+  String get addNewPart => 'Add New Part';
+
+  @override
+  String get publishCourse => 'Publish Course';
 }

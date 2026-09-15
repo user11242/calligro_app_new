@@ -13,6 +13,7 @@
   import 'package:calligro_app/screens/splash_screen.dart'; // Import SplashScreen
   import 'package:firebase_crashlytics/firebase_crashlytics.dart';
   import 'package:media_kit/media_kit.dart';
+  import 'package:cloud_firestore/cloud_firestore.dart'; // Added for emulator
   // --- YOUR FILES ---
   import 'package:calligro_app/firebase_options.dart';
   import 'package:calligro_app/features/auth/data/services/google_auth_service.dart';
@@ -139,6 +140,17 @@
 
     // 2. Initialize Firebase
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+    // 🚀 Connect to Local Firebase Emulator in Debug Mode
+    if (kDebugMode) {
+      try {
+        FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
+        FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
+        developer.log("🔥 Connected to Local Firebase Emulator (127.0.0.1)", name: "FIREBASE");
+      } catch (e) {
+        developer.log("⚠️ Failed to connect to emulator: $e", name: "FIREBASE");
+      }
+    }
 
     // ✅ Setup Crashlytics
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;

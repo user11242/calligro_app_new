@@ -1188,5 +1188,42 @@
   "sourceWebsite": "Web Sitesi",
   "sourceApp": "Mobil Uygulama",
   "dateLabel": "Tarih",
-  "bankTransferFeeNote": "Not: Banka transferlerinde bankaların kendileri tarafından uygulanan, Calligro'dan bağımsız komisyonlar olabilir."
+  "bankTransferFeeNote": "Not: Banka transferlerinde bankaların kendileri tarafından uygulanan, Calligro'dan bağımsız komisyonlar olabilir.",
+  "howItWorks": "How It Works",
+  "skip": "Skip",
+  "yourCourseStructure": "Your course structure",
+  "uploadIntroVideo": "① Upload your Introduction Video",
+  "uploadExplainerVideo": "② Upload a Short Explainer Video",
+  "addCurriculumParts": "③ Add Curriculum Parts",
+  "courseIsComplete": "✓ Your course is complete!",
+  "thisWillRepeat": "This will repeat...",
+  "courseBuilder": "Course Builder",
+  "introductionVideo": "Introduction Video",
+  "tapToUpload": "Tap to upload",
+  "explainerVideo": "Explainer Video",
+  "curriculum": "Curriculum",
+  "part1Basics": "Part 1: Basics",
+  "part2Techniques": "Part 2: Techniques",
+  "part3Practice": "Part 3: Practice",
+  "courseReady": "Course Ready! 🎉",
+  "gotItLetsStart": "Got it, Let's Start!",
+  "uploadCurriculumTitle": "Upload Curriculum",
+  "uploadCurriculumSubtitle": "Add your introduction, explainer, and course parts here.",
+  "introVideoSubtitle": "A short video introducing yourself and the course.",
+  "explainerVideoSubtitle": "A detailed breakdown of what students will learn.",
+  "curriculumPartsTitle": "Curriculum Parts",
+  "curriculumPartsSubtitle": "Organize your course into logical sections.",
+  "partNumber": "Part {number}",
+  "@partNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "partTitleHint": "e.g. Basics of Thuluth",
+  "selectVideo": "Select Video",
+  "addVideoToPart": "Add Video to Part",
+  "addNewPart": "Add New Part",
+  "publishCourse": "Publish Course"
 }

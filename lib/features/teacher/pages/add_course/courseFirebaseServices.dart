@@ -45,4 +45,22 @@ class CourseFirebaseService {
       throw Exception('Error saving course: $e');
     }
   }
+
+  // Save or update a draft course
+  Future<String> saveDraftCourse(String? courseId, Map<String, dynamic> courseData) async {
+    try {
+      if (courseId != null && courseId.isNotEmpty) {
+        // Update existing draft
+        await _firestore.collection('courses').doc(courseId).update(courseData);
+        return courseId;
+      } else {
+        // Create new draft
+        courseData['createdAt'] = FieldValue.serverTimestamp();
+        final docRef = await _firestore.collection('courses').add(courseData);
+        return docRef.id;
+      }
+    } catch (e) {
+      throw Exception('Error saving draft course: $e');
+    }
+  }
 }

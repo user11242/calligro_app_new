@@ -3172,7 +3172,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get trustedWorldwide => 'موثوق به عالمياً';
 
   @override
-  String get howItWorks => 'كيف يعمل؟';
+  String get howItWorks => 'كيف تعمل';
 
   @override
   String get helpPending => 'تبقى الأموال \'معلقة\' أثناء تدريس الدورة.';
@@ -3829,4 +3829,91 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get bankTransferFeeNote =>
       'ملاحظة: قد تكون هناك عمولات على التحويل البنكي يتم خصمها من قبل البنوك نفسها، وليس من كاليجرو.';
+
+  @override
+  String get skip => 'تخطي';
+
+  @override
+  String get yourCourseStructure => 'هيكل الدورة الخاص بك';
+
+  @override
+  String get uploadIntroVideo => '① ارفع فيديو المقدمة';
+
+  @override
+  String get uploadExplainerVideo => '② ارفع فيديو توضيحي قصير';
+
+  @override
+  String get addCurriculumParts => '③ أضف أجزاء المنهج';
+
+  @override
+  String get courseIsComplete => '✓ دورتك جاهزة!';
+
+  @override
+  String get thisWillRepeat => 'سيتكرر هذا...';
+
+  @override
+  String get courseBuilder => 'منشئ الدورة';
+
+  @override
+  String get introductionVideo => 'فيديو المقدمة';
+
+  @override
+  String get tapToUpload => 'انقر للرفع';
+
+  @override
+  String get explainerVideo => 'فيديو توضيحي';
+
+  @override
+  String get part1Basics => 'الجزء الأول: الأساسيات';
+
+  @override
+  String get part2Techniques => 'الجزء الثاني: التقنيات';
+
+  @override
+  String get part3Practice => 'الجزء الثالث: التدريب';
+
+  @override
+  String get courseReady => 'الدورة جاهزة! 🎉';
+
+  @override
+  String get gotItLetsStart => 'فهمت، لنبدأ!';
+
+  @override
+  String get uploadCurriculumTitle => 'رفع المنهج';
+
+  @override
+  String get uploadCurriculumSubtitle =>
+      'أضف المقدمة والفيديو التوضيحي وأجزاء الدورة هنا.';
+
+  @override
+  String get introVideoSubtitle => 'فيديو قصير لتقديم نفسك والدورة.';
+
+  @override
+  String get explainerVideoSubtitle => 'تفصيل دقيق لما سيتعلمه الطلاب.';
+
+  @override
+  String get curriculumPartsTitle => 'أجزاء المنهج';
+
+  @override
+  String get curriculumPartsSubtitle => 'نظّم دورتك في أقسام منطقية.';
+
+  @override
+  String partNumber(int number) {
+    return 'الجزء $number';
+  }
+
+  @override
+  String get partTitleHint => 'مثال: أساسيات خط الثلث';
+
+  @override
+  String get selectVideo => 'اختر فيديو';
+
+  @override
+  String get addVideoToPart => 'أضف فيديو للجزء';
+
+  @override
+  String get addNewPart => 'أضف جزء جديد';
+
+  @override
+  String get publishCourse => 'نشر الدورة';
 }

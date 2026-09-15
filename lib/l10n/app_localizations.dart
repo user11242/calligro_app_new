@@ -5953,7 +5953,7 @@ abstract class AppLocalizations {
   /// No description provided for @howItWorks.
   ///
   /// In en, this message translates to:
-  /// **'How it works?'**
+  /// **'How It Works'**
   String get howItWorks;
 
   /// No description provided for @helpPending.
@@ -7179,6 +7179,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Note: There may be transfer commissions applied by the banks themselves, not by Calligro.'**
   String get bankTransferFeeNote;
+
+  /// No description provided for @skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get skip;
+
+  /// No description provided for @yourCourseStructure.
+  ///
+  /// In en, this message translates to:
+  /// **'Your course structure'**
+  String get yourCourseStructure;
+
+  /// No description provided for @uploadIntroVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'① Upload your Introduction Video'**
+  String get uploadIntroVideo;
+
+  /// No description provided for @uploadExplainerVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'② Upload a Short Explainer Video'**
+  String get uploadExplainerVideo;
+
+  /// No description provided for @addCurriculumParts.
+  ///
+  /// In en, this message translates to:
+  /// **'③ Add Curriculum Parts'**
+  String get addCurriculumParts;
+
+  /// No description provided for @courseIsComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'✓ Your course is complete!'**
+  String get courseIsComplete;
+
+  /// No description provided for @thisWillRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'This will repeat...'**
+  String get thisWillRepeat;
+
+  /// No description provided for @courseBuilder.
+  ///
+  /// In en, this message translates to:
+  /// **'Course Builder'**
+  String get courseBuilder;
+
+  /// No description provided for @introductionVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Introduction Video'**
+  String get introductionVideo;
+
+  /// No description provided for @tapToUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to upload'**
+  String get tapToUpload;
+
+  /// No description provided for @explainerVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Explainer Video'**
+  String get explainerVideo;
+
+  /// No description provided for @part1Basics.
+  ///
+  /// In en, this message translates to:
+  /// **'Part 1: Basics'**
+  String get part1Basics;
+
+  /// No description provided for @part2Techniques.
+  ///
+  /// In en, this message translates to:
+  /// **'Part 2: Techniques'**
+  String get part2Techniques;
+
+  /// No description provided for @part3Practice.
+  ///
+  /// In en, this message translates to:
+  /// **'Part 3: Practice'**
+  String get part3Practice;
+
+  /// No description provided for @courseReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Course Ready! 🎉'**
+  String get courseReady;
+
+  /// No description provided for @gotItLetsStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it, Let\'s Start!'**
+  String get gotItLetsStart;
+
+  /// No description provided for @uploadCurriculumTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Curriculum'**
+  String get uploadCurriculumTitle;
+
+  /// No description provided for @uploadCurriculumSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your introduction, explainer, and course parts here.'**
+  String get uploadCurriculumSubtitle;
+
+  /// No description provided for @introVideoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A short video introducing yourself and the course.'**
+  String get introVideoSubtitle;
+
+  /// No description provided for @explainerVideoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A detailed breakdown of what students will learn.'**
+  String get explainerVideoSubtitle;
+
+  /// No description provided for @curriculumPartsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Curriculum Parts'**
+  String get curriculumPartsTitle;
+
+  /// No description provided for @curriculumPartsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize your course into logical sections.'**
+  String get curriculumPartsSubtitle;
+
+  /// No description provided for @partNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Part {number}'**
+  String partNumber(int number);
+
+  /// No description provided for @partTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Basics of Thuluth'**
+  String get partTitleHint;
+
+  /// No description provided for @selectVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Video'**
+  String get selectVideo;
+
+  /// No description provided for @addVideoToPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Video to Part'**
+  String get addVideoToPart;
+
+  /// No description provided for @addNewPart.
+  ///
+  /// In en, this message translates to:
+  /// **'Add New Part'**
+  String get addNewPart;
+
+  /// No description provided for @publishCourse.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish Course'**
+  String get publishCourse;
 }
 
 class _AppLocalizationsDelegate
