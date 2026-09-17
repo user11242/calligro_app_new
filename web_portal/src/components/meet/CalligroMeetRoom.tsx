@@ -12,6 +12,9 @@ import ResilienceManager from "./ResilienceManager";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useLocalParticipant } from "@livekit/components-react";
+
+
 
 interface CalligroMeetRoomProps {
   token: string;
@@ -297,8 +300,6 @@ export default function CalligroMeetRoom({
               options={roomOptions}
               onDisconnected={(reason) => {
                 console.warn("[Resilience] Disconnected from room. Reason:", reason);
-                // 1 corresponds to "unknown" or network failure typically.
-                // Or if it's the first connection failure, we swap to relay to bypass UDP blocks.
                 if (iceTransportPolicy === "all") {
                   console.warn("[Resilience] Attempting ICE Relay Fallback over TCP/TLS port 443...");
                   setIceTransportPolicy("relay");
@@ -307,7 +308,12 @@ export default function CalligroMeetRoom({
               className="flex-1 flex flex-col overflow-hidden relative"
             >
               <ResilienceManager />
-              <CalligroMeetLayout courseId={courseId} isTeacher={isTeacher} userAvatar={userAvatar} onLeave={onLeave} />
+              <CalligroMeetLayout 
+                courseId={courseId} 
+                isTeacher={isTeacher} 
+                userAvatar={userAvatar} 
+                onLeave={onLeave} 
+              />
               <RoomAudioRenderer />
             </LiveKitRoom>
           </motion.div>

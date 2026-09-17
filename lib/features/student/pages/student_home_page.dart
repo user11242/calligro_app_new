@@ -813,7 +813,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              AutoTranslatedText(
+                              Text(
                                 course['teacherName'] ?? 'Unknown',
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -1318,7 +1318,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
-                                    child: AutoTranslatedText(
+                                    child: Text(
                                       teacherName,
                                       style: TextStyle(
                                         color: Colors.white.withOpacity(0.8),

@@ -4,10 +4,7 @@ import React, { useState } from "react";
 import { useParticipants, useDataChannel } from "@livekit/components-react";
 import { Users, Mic, MicOff, Video, VideoOff, UserCheck, UserMinus, Loader2, Hand } from "lucide-react";
 import { motion } from "framer-motion";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { app } from "@/lib/firebase";
 import { RaisedHandsContext } from "./CalligroMeetLayout";
-
 interface ParticipantsPanelProps {
   isTeacher: boolean;
   courseId: string;
@@ -21,17 +18,24 @@ export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsP
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const moderateParticipant = async (action: "mute_mic" | "mute_camera" | "kick", identity: string) => {
-    const key = `${action}_${identity}`;
-    if (pendingAction === key) return;
-    setPendingAction(key);
     try {
-      const functions = getFunctions(app);
-      const moderate = httpsCallable(functions, "livekit-moderateParticipant");
-      await moderate({ courseId, targetIdentity: identity, action });
+      const encoder = new TextEncoder();
+      let payload: any = { targetId: identity };
+
+      if (action === "mute_mic") {
+        payload.type = "force_mute_mic";
+        payload.cmd = "mute_student"; // For web compat
+      } else if (action === "mute_camera") {
+        payload.type = "force_mute_camera";
+        payload.cmd = "disable_camera"; // For web compat
+      } else if (action === "kick") {
+        payload.type = "kick_participant";
+        payload.cmd = "kick_student"; // For web compat
+      }
+
+      send(encoder.encode(JSON.stringify(payload)), { reliable: true });
     } catch (err) {
       console.error("Moderation error:", err);
-    } finally {
-      setPendingAction(null);
     }
   };
 
@@ -159,36 +163,24 @@ export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsP
                     )}
                     <button
                       onClick={() => moderateParticipant("mute_mic", p.identity)}
-                      disabled={pendingAction === `mute_mic_${p.identity}`}
-                      className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-40"
-                      title="Mute Mic (Server)"
+                      className="p-1 hover:bg-white/10 rounded transition-colors"
+                      title="Mute Mic"
                     >
-                      {pendingAction === `mute_mic_${p.identity}`
-                        ? <Loader2 className="w-3.5 h-3.5 text-white/70 animate-spin" />
-                        : <MicOff className="w-3.5 h-3.5 text-white/70 hover:text-white" />
-                      }
+                      <MicOff className="w-3.5 h-3.5 text-white/70 hover:text-white" />
                     </button>
                     <button
                       onClick={() => moderateParticipant("mute_camera", p.identity)}
-                      disabled={pendingAction === `mute_camera_${p.identity}`}
-                      className="p-1 hover:bg-white/10 rounded transition-colors disabled:opacity-40"
-                      title="Turn Off Camera (Server)"
+                      className="p-1 hover:bg-white/10 rounded transition-colors"
+                      title="Turn Off Camera"
                     >
-                      {pendingAction === `mute_camera_${p.identity}`
-                        ? <Loader2 className="w-3.5 h-3.5 text-white/70 animate-spin" />
-                        : <VideoOff className="w-3.5 h-3.5 text-white/70 hover:text-white" />
-                      }
+                      <VideoOff className="w-3.5 h-3.5 text-white/70 hover:text-white" />
                     </button>
                     <button
                       onClick={() => moderateParticipant("kick", p.identity)}
-                      disabled={pendingAction === `kick_${p.identity}`}
-                      className="p-1 hover:bg-red-500/20 rounded transition-colors disabled:opacity-40"
-                      title="Remove from Class (Server)"
+                      className="p-1 hover:bg-red-500/20 rounded transition-colors"
+                      title="Remove from Class"
                     >
-                      {pendingAction === `kick_${p.identity}`
-                        ? <Loader2 className="w-3.5 h-3.5 text-red-400 animate-spin" />
-                        : <UserMinus className="w-3.5 h-3.5 text-red-400 hover:text-red-500" />
-                      }
+                      <UserMinus className="w-3.5 h-3.5 text-red-400 hover:text-red-500" />
                     </button>
                   </div>
                 )}

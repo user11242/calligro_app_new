@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { TrackToggle, useDataChannel, useLocalParticipant } from "@livekit/components-react";
+import { useDataChannel, useLocalParticipant } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { MicOff, Monitor, MonitorOff } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Monitor, MonitorOff } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function TeacherControls() {
   const { send } = useDataChannel("classroom-events");
-  const { localParticipant } = useLocalParticipant();
+  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   const handleMuteAll = async () => {
@@ -39,8 +39,27 @@ export default function TeacherControls() {
   return (
     <div className="flex items-center gap-1.5 lk-custom-toggles">
       
-      <TrackToggle source={Track.Source.Microphone} className="lk-toggle-btn" />
-      <TrackToggle source={Track.Source.Camera} className="lk-toggle-btn" />
+      {/* Custom Mic Toggle */}
+      <button
+        onClick={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)}
+        className={`lk-toggle-btn ${
+          isMicrophoneEnabled ? '' : 'lk-toggle-btn-muted'
+        }`}
+        title={isMicrophoneEnabled ? 'Mute Microphone' : 'Unmute Microphone'}
+      >
+        {isMicrophoneEnabled ? <Mic style={{ width: '1.25rem', height: '1.25rem' }} /> : <MicOff style={{ width: '1.25rem', height: '1.25rem' }} />}
+      </button>
+
+      {/* Custom Camera Toggle */}
+      <button
+        onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
+        className={`lk-toggle-btn ${
+          isCameraEnabled ? '' : 'lk-toggle-btn-muted'
+        }`}
+        title={isCameraEnabled ? 'Turn Off Camera' : 'Turn On Camera'}
+      >
+        {isCameraEnabled ? <Video style={{ width: '1.25rem', height: '1.25rem' }} /> : <VideoOff style={{ width: '1.25rem', height: '1.25rem' }} />}
+      </button>
       {/* Custom screen share button that requests audio too */}
       <button
         onClick={toggleScreenShare}
@@ -54,8 +73,8 @@ export default function TeacherControls() {
         .lk-custom-toggles .lk-toggle-btn { 
           background-color: rgba(255, 255, 255, 0.05); 
           color: white; 
-          border-radius: 9999px; /* Fully rounded pill */
-          padding: 0.875rem; /* Larger hit area */
+          border-radius: 9999px;
+          padding: 0.875rem;
           transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
           border: none;
           display: flex;
@@ -72,21 +91,16 @@ export default function TeacherControls() {
         .lk-custom-toggles .lk-toggle-btn:active {
           transform: scale(0.95);
         }
-        .lk-custom-toggles .lk-toggle-btn[data-state="true"] {
-          background-color: rgba(235, 185, 55, 0.15); /* Primary tint */
-          color: #EBB937;
-          box-shadow: 0 0 15px rgba(235, 185, 55, 0.2);
-        }
         .lk-custom-toggles .lk-toggle-btn-active {
           background-color: rgba(235, 185, 55, 0.15);
           color: #EBB937;
           box-shadow: 0 0 15px rgba(235, 185, 55, 0.2);
         }
-        .lk-custom-toggles .lk-toggle-btn[data-state="false"] { 
+        .lk-custom-toggles .lk-toggle-btn-muted { 
           background-color: rgba(239, 68, 68, 0.1); 
           color: rgb(239, 68, 68); 
         }
-        .lk-custom-toggles .lk-toggle-btn[data-state="false"]:hover { 
+        .lk-custom-toggles .lk-toggle-btn-muted:hover { 
           background-color: rgb(239, 68, 68); 
           color: white; 
           box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);

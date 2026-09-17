@@ -398,9 +398,46 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
               );
               Future.delayed(const Duration(seconds: 2), () {
                 if (mounted) {
-                  Navigator.pop(context);
                 }
               });
+            }
+          } else if (msg['cmd'] == 'mute_all') {
+            final senderMetadata = e.participant?.metadata ?? '';
+            bool isFromModerator = false;
+            try {
+              if (senderMetadata.isNotEmpty) {
+                final metaJson = jsonDecode(senderMetadata);
+                isFromModerator = metaJson['role'] == 'moderator';
+              }
+            } catch (_) {}
+
+            if (isFromModerator && !widget.isTeacher) {
+              _log('🤫 Teacher muted all students');
+              _room?.localParticipant?.setMicrophoneEnabled(false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.mic_off, color: Colors.black, size: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.of(context)!.teacherMutedMic,
+                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    duration: const Duration(seconds: 3),
+                    behavior: SnackBarBehavior.floating,
+                    width: 340, // compact pill
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    backgroundColor: const Color(0xFFEBB937),
+                  ),
+                );
+              }
             }
           } else if (msg['targetId'] == _room?.localParticipant?.identity) {
             // 🔐 SECURITY: Only obey mute commands from verified moderators (teacher).

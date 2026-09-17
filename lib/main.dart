@@ -143,7 +143,7 @@
 
     // 🧪 TESTING MODE: Set to true ONLY when you want to use the local sandbox
     // NEVER push this as 'true' to the App Store!
-    bool useFirebaseEmulator = kDebugMode ? true : false; 
+    bool useFirebaseEmulator = false; 
     
     if (useFirebaseEmulator) {
       try {

@@ -57,9 +57,13 @@ const CustomParticipantTile = React.forwardRef<HTMLDivElement, any>((props, ref)
   const isHandRaised = participant ? raisedHands.has(participant.identity) : false;
   
   let avatarUrl = null;
+  let isStudent = true;
   if (participant?.metadata) {
     try {
       const meta = JSON.parse(participant.metadata);
+      if (meta.role === "moderator") {
+        isStudent = false;
+      }
       // Ensure it's not the string "null" or empty
       if (meta.avatar && meta.avatar !== "null" && meta.avatar !== "") {
         avatarUrl = meta.avatar;
@@ -121,6 +125,16 @@ const CustomParticipantTile = React.forwardRef<HTMLDivElement, any>((props, ref)
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Participant Name Badge (Always visible, sits on top of everything) */}
+      {isStudent && (
+        <div className="absolute bottom-2 left-2 z-30 pointer-events-none bg-black/60 backdrop-blur-md rounded-full px-2.5 py-1 flex items-center border border-white/10 shadow-lg max-w-[calc(100%-16px)]">
+          <span className="text-white text-[11px] font-bold truncate">
+            {participant?.name || participant?.identity || "Participant"}
+            {participant?.isLocal ? <span className="text-white/60 ml-1">(You)</span> : ""}
+          </span>
+        </div>
+      )}
     </div>
   );
 });
@@ -584,6 +598,16 @@ export default function CalligroMeetLayout({
                           state: newState,
                           mode: whiteboardMode
                         })), { reliable: true });
+
+                        // Automatically sync screen share state so mobile apps (Flutter) can see the whiteboard!
+                        if (newState && !localParticipant.isScreenShareEnabled) {
+                          localParticipant.setScreenShareEnabled(true, {
+                            audio: false,
+                            contentHint: "detail"
+                          }).catch((e) => console.log("Screen share cancelled", e));
+                        } else if (!newState && localParticipant.isScreenShareEnabled) {
+                          localParticipant.setScreenShareEnabled(false).catch(() => {});
+                        }
                       }
                     }}
                     className={`p-3.5 rounded-full transition-all duration-300 flex items-center justify-center relative group ${
