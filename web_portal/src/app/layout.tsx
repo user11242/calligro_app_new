@@ -58,6 +58,7 @@ export const metadata: Metadata = {
 };
 
 import { LocaleProvider } from "@/context/LocaleContext";
+import { Toaster } from "react-hot-toast";
 
 export default function RootLayout({
   children,
@@ -69,6 +70,17 @@ export default function RootLayout({
       <body className={`${inter.variable} ${outfit.variable} ${playfair.variable} ${arefRuqaa.variable} ${amiri.variable} ${marhey.variable} font-sans antialiased`}>
         <LocaleProvider>
           {children}
+          <Toaster 
+            position="top-center"
+            toastOptions={{
+              style: {
+                background: '#13151A',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '16px',
+              }
+            }} 
+          />
         </LocaleProvider>
       </body>
     </html>

@@ -93,6 +93,7 @@ class StudentService {
     try {
       return _firestore
           .collection('courses')
+          .where('isPublished', isEqualTo: true)
           .orderBy('createdAt', descending: true)
           .limit(10)
           .snapshots()

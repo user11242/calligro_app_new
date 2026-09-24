@@ -4,6 +4,8 @@ const admin = require("firebase-admin");
 const { AccessToken, EgressClient, RoomServiceClient, EncodingOptionsPreset } = require("livekit-server-sdk");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { Upload } = require("@aws-sdk/lib-storage");
+const axios = require("axios");
 const crypto = require("crypto");
 
 // --------------------
@@ -536,7 +538,110 @@ exports.livekitWebhook = onRequest({
     res.status(200).send("ok");
   } catch (error) {
     console.error("Error processing LiveKit webhook:", error);
-    res.status(400).send("Webhook error");
+    res.status(200).send("Webhook received");
+  }
+});
+
+exports.generateCourseUploadUrl = onCall({
+  secrets: [r2AccessKey, r2SecretKey, r2Endpoint],
+  cpu: 0.166,
+  memory: "256MiB",
+  maxInstances: 2,
+  region: "us-east1",
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+
+  const { courseId, lessonId, fileName, contentType } = request.data;
+  if (!courseId) throw new HttpsError("invalid-argument", "courseId is required.");
+
+  const uid = request.auth.uid;
+  
+  const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
+  if (!courseSnap.exists || courseSnap.data().teacherId !== uid) {
+    throw new HttpsError("permission-denied", "Unauthorized.");
+  }
+
+  const s3Client = new S3Client({
+    region: "auto",
+    endpoint: r2Endpoint.value(),
+    credentials: {
+      accessKeyId: r2AccessKey.value(),
+      secretAccessKey: r2SecretKey.value(),
+    },
+  });
+
+  const timestamp = new Date().getTime();
+  const safeName = (fileName || "file").replace(/[^a-zA-Z0-9.-]/g, "_");
+  const r2FilePath = `recorded_courses/${courseId}/lessons/${lessonId}_${timestamp}_${safeName}`;
+
+  const command = new PutObjectCommand({
+    Bucket: "calligro-recordings",
+    Key: r2FilePath,
+    ContentType: contentType || "application/octet-stream",
+  });
+
+  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 * 3 });
+
+  return { uploadUrl, r2FilePath };
+});
+
+exports.importDriveFileToR2 = onCall({
+  secrets: [r2AccessKey, r2SecretKey, r2Endpoint, r2PublicUrl],
+  cpu: 0.5,
+  memory: "512MiB",
+  maxInstances: 2,
+  timeoutSeconds: 540,
+  region: "us-east1",
+}, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+
+  const { courseId, lessonId, fileId, accessToken, mimeType = "video/mp4", fileName = "video.mp4" } = request.data;
+  if (!courseId || !fileId || !accessToken) throw new HttpsError("invalid-argument", "Missing arguments.");
+
+  const uid = request.auth.uid;
+  const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
+  if (!courseSnap.exists || courseSnap.data().teacherId !== uid) {
+    throw new HttpsError("permission-denied", "Unauthorized.");
+  }
+
+  const s3Client = new S3Client({
+    region: "auto",
+    endpoint: r2Endpoint.value(),
+    credentials: {
+      accessKeyId: r2AccessKey.value(),
+      secretAccessKey: r2SecretKey.value(),
+    },
+  });
+
+  const timestamp = new Date().getTime();
+  const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+  const r2FilePath = `recorded_courses/${courseId}/lessons/${lessonId}_${timestamp}_${safeName}`;
+
+  try {
+    const response = await axios({
+      method: "get",
+      url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      headers: { Authorization: `Bearer ${accessToken}` },
+      responseType: "stream",
+    });
+
+    const upload = new Upload({
+      client: s3Client,
+      params: {
+        Bucket: "calligro-recordings",
+        Key: r2FilePath,
+        Body: response.data,
+        ContentType: mimeType,
+      },
+    });
+
+    await upload.done();
+
+    const publicDomain = r2PublicUrl.value().replace(/\/$/, "");
+    return { url: `${publicDomain}/${r2FilePath}` };
+  } catch (error) {
+    console.error("Drive import error:", error);
+    throw new HttpsError("internal", "Failed to import file from Google Drive.");
   }
 });
 

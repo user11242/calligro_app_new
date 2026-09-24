@@ -467,5 +467,22 @@
   "profile.certificates.official_ijazah": "Resmi İcazet",
   "profile.certificates.issue_date": "Veriliş Tarihi",
   "profile.certificates.certificate_id": "Sertifika Kimliği",
-  "meet.teacher_ended": "Öğretmen dersi bitirdi."
+  "meet.teacher_ended": "Öğretmen dersi bitirdi.",
+  "teacher.courses.edit.quiz.builder_title": "Sınav Oluşturucu",
+  "teacher.courses.edit.quiz.builder_subtitle": "Öğrencileriniz için çoktan seçmeli sorular oluşturun",
+  "teacher.courses.edit.quiz.questions": "Sorular",
+  "teacher.courses.edit.quiz.empty_question": "Boş Soru",
+  "teacher.courses.edit.quiz.add_question": "Soru Ekle",
+  "teacher.courses.edit.quiz.question_text_label": "Soru Metni",
+  "teacher.courses.edit.quiz.question_text_placeholder": "Sorunuzu buraya yazın...",
+  "teacher.courses.edit.quiz.options_label": "Cevap Seçenekleri",
+  "teacher.courses.edit.quiz.options_desc": "Doğru cevabın yanındaki radyo düğmesini seçin.",
+  "teacher.courses.edit.quiz.option_placeholder": "Seçenek",
+  "teacher.courses.edit.quiz.add_option": "Seçenek Ekle",
+  "teacher.courses.edit.quiz.cancel": "İptal",
+  "teacher.courses.edit.quiz.save": "Sınavı Kaydet",
+  "teacher.courses.edit.quiz.error.missing_text": "Soru {q} metin eksik.",
+  "teacher.courses.edit.quiz.error.missing_text": "Soru {q} metin eksik.",
+  "teacher.courses.edit.quiz.error.missing_option": "Soru {q}, Seçenek {o} boş.",
+  "teacher.courses.edit.add_from_drive": "Drive'dan Ekle"
 }

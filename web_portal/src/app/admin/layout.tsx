@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Wallet, UserCheck, FileText, BarChart3, LogOut, Loader2, Menu, X, Lock, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Wallet, UserCheck, FileText, BarChart3, LogOut, Loader2, Menu, X, Lock, ShieldCheck, ClipboardList } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -99,58 +99,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // Vault Lock Screen (Keep clean)
-  if (isAdmin && !isUnlocked) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex flex-col items-center justify-center p-6">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-white rounded-[40px] p-12 shadow-2xl shadow-black/5 border border-gray-100 text-center"
-        >
-          <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-black/20">
-            <Lock className="w-10 h-10 text-white" />
-          </div>
-          <h2 className="text-3xl font-black tracking-tight text-gray-900 font-outfit uppercase">Admin Vault</h2>
-          <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[4px] mt-2 mb-10">Secondary Authentication Required</p>
-          
-          <form onSubmit={handlePinSubmit} className="space-y-6">
-            <div className="relative group">
-              <input
-                type="password"
-                maxLength={6}
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="ENTER 6-DIGIT PIN"
-                className={`w-full text-center py-4 bg-gray-50 border-2 rounded-2xl outline-none transition-all text-xl font-black tracking-[1em] placeholder:tracking-normal placeholder:text-gray-300 placeholder:text-xs ${pinError ? "border-red-500 bg-red-50" : "border-gray-100 focus:border-black focus:bg-white"}`}
-                autoFocus
-                required
-              />
-              {pinError && (
-                <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-3">Invalid Secure Key. Try again.</p>
-              )}
-            </div>
-            
-            <button
-              type="submit"
-              className="w-full py-4 bg-black text-white rounded-2xl font-black uppercase tracking-[3px] text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-black/20"
-            >
-              Unlock Dashboard
-            </button>
-          </form>
+  const isFinanceRoute = pathname !== "/admin/courses";
+  const showVault = isAdmin && !isUnlocked && isFinanceRoute;
 
-          <button 
-            onClick={() => auth.signOut()}
-            className="mt-8 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors"
-          >
-            Switch Account
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
+  const publicMenuItems = [
+    { icon: ClipboardList, label: "Course Review", href: "/admin/courses" },
+  ];
 
-  const menuItems = [
+  const secureMenuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
     { icon: ShieldCheck, label: "Order Audit", href: "/admin/orders" },
     { icon: Wallet, label: "Finance & Oversight", href: "/admin/finance" },
@@ -171,7 +127,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <nav className="space-y-1">
-            {menuItems.map((item) => (
+            {publicMenuItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -181,6 +137,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <span className="font-bold text-sm">{item.label}</span>
               </Link>
             ))}
+
+            <div className="pt-6 pb-2 mt-2 border-t border-gray-100">
+              <p className="px-4 text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Finance Vault</p>
+              {!isUnlocked ? (
+                <Link
+                  href="/admin/dashboard"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isFinanceRoute ? "bg-red-50 text-red-600 border border-red-100" : "text-gray-500 hover:bg-gray-50"}`}
+                >
+                  <Lock className="w-5 h-5" />
+                  <span className="font-bold text-sm">Unlock Finance</span>
+                </Link>
+              ) : (
+                secureMenuItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${pathname === item.href ? "bg-black text-white shadow-lg shadow-black/10" : "text-gray-500 hover:bg-gray-50"}`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-bold text-sm">{item.label}</span>
+                  </Link>
+                ))
+              )}
+            </div>
           </nav>
         </div>
 
@@ -219,7 +199,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         <div className="p-8">
-          {children}
+          {showVault ? (
+            <div className="flex flex-col items-center justify-center pt-20">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full max-w-md bg-white rounded-[40px] p-12 shadow-2xl shadow-black/5 border border-gray-100 text-center"
+              >
+                <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-black/20">
+                  <Lock className="w-10 h-10 text-white" />
+                </div>
+                <h2 className="text-3xl font-black tracking-tight text-gray-900 font-outfit uppercase">Admin Vault</h2>
+                <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[4px] mt-2 mb-10">Secondary Authentication Required</p>
+                
+                <form onSubmit={handlePinSubmit} className="space-y-6">
+                  <div className="relative group">
+                    <input
+                      type="password"
+                      maxLength={6}
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value)}
+                      placeholder="ENTER 6-DIGIT PIN"
+                      className={`w-full text-center py-4 bg-gray-50 border-2 rounded-2xl outline-none transition-all text-xl font-black tracking-[1em] placeholder:tracking-normal placeholder:text-gray-300 placeholder:text-xs ${pinError ? "border-red-500 bg-red-50" : "border-gray-100 focus:border-black focus:bg-white"}`}
+                      autoFocus
+                      required
+                    />
+                    {pinError && (
+                      <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-3">Invalid Secure Key. Try again.</p>
+                    )}
+                  </div>
+                  
+                  <button
+                    type="submit"
+                    className="w-full py-4 bg-black text-white rounded-2xl font-black uppercase tracking-[3px] text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-black/20"
+                  >
+                    Unlock Dashboard
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          ) : (
+            children
+          )}
         </div>
       </main>
     </div>
