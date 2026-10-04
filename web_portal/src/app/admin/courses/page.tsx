@@ -59,6 +59,10 @@ export default function CourseReviewPage() {
   const [draftNotes, setDraftNotes] = useState<ReviewNote[]>([]);
   const [activeNoteTarget, setActiveNoteTarget] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
+
+  useEffect(() => {
+    setNoteText("");
+  }, [activeNoteTarget]);
   
   // Action State
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -455,11 +459,16 @@ export default function CourseReviewPage() {
                 </div>
               ))}
               
-              {/* Existing Unresolved Notes Display for General */}
-              {selectedCourse.reviewNotes?.filter(n => n.targetId === "general" && !n.resolved).map(note => (
-                <div key={note.id} className="ml-4 mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-xl">
-                  <span className="inline-block px-1.5 py-0.5 bg-red-200 text-red-800 text-[8px] font-black uppercase tracking-widest rounded-md mb-1">Unresolved from Teacher</span>
-                  <p className="text-xs font-bold text-red-900 leading-snug">{note.message}</p>
+              {/* Existing Notes Display for General */}
+              {selectedCourse.reviewNotes?.filter(n => n.targetId === "general").map(note => (
+                <div key={note.id} className={`ml-4 mt-2 p-3 border-l-4 rounded-r-xl ${note.resolved ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}>
+                  <div className="flex justify-between items-start">
+                    <span className={`inline-block px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-md mb-1 ${note.resolved ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                      {note.resolved ? 'Fixed by Teacher' : 'Unresolved from Teacher'}
+                    </span>
+                    {note.resolved && <CheckCircle2 className="w-3 h-3 text-green-600" />}
+                  </div>
+                  <p className={`text-xs font-bold leading-snug ${note.resolved ? 'text-green-900 line-through opacity-70' : 'text-red-900'}`}>{note.message}</p>
                 </div>
               ))}
             </div>
@@ -511,6 +520,19 @@ export default function CourseReviewPage() {
                   </div>
                 ))}
                 
+                {/* Existing Notes Display for Title */}
+                {selectedCourse.reviewNotes?.filter(n => n.targetId === "courseName").map(note => (
+                  <div key={note.id} className={`ml-4 p-3 border-l-4 rounded-r-xl ${note.resolved ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'}`}>
+                    <div className="flex justify-between items-start">
+                      <span className={`inline-block px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-md mb-1 ${note.resolved ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                        {note.resolved ? 'Fixed by Teacher' : 'Unresolved from Teacher'}
+                      </span>
+                      {note.resolved && <CheckCircle2 className="w-3 h-3 text-green-600" />}
+                    </div>
+                    <p className={`text-xs font-bold leading-snug ${note.resolved ? 'text-green-900 line-through opacity-70' : 'text-red-900'}`}>{note.message}</p>
+                  </div>
+                ))}
+                
               </div>
             </div>
             
@@ -527,7 +549,7 @@ export default function CourseReviewPage() {
                     {section.lessons?.map((lesson, lIdx) => {
                       const noteTarget = `lesson_${lesson.id}`;
                       const lessonDraftNotes = draftNotes.filter(n => n.targetId === noteTarget);
-                      const lessonExistingNotes = selectedCourse.reviewNotes?.filter(n => n.targetId === noteTarget && !n.resolved) || [];
+                      const lessonExistingNotes = selectedCourse.reviewNotes?.filter(n => n.targetId === noteTarget) || [];
                       
                       return (
                         <div key={lesson.id || lIdx} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -594,9 +616,14 @@ export default function CourseReviewPage() {
                           ))}
                           
                           {lessonExistingNotes.map(note => (
-                            <div key={note.id} className="p-3 bg-red-50 border-t border-red-100">
-                              <span className="inline-block px-1.5 py-0.5 bg-red-200 text-red-800 text-[8px] font-black uppercase tracking-widest rounded-md mb-1">Unresolved from Teacher</span>
-                              <p className="text-xs font-bold text-red-900 leading-snug">{note.message}</p>
+                            <div key={note.id} className={`p-3 border-t flex items-start justify-between gap-4 ${note.resolved ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                              <div>
+                                <span className={`inline-block px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-md mb-1 ${note.resolved ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                                  {note.resolved ? 'Fixed by Teacher' : 'Unresolved from Teacher'}
+                                </span>
+                                <p className={`text-xs font-bold leading-snug ${note.resolved ? 'text-green-900 line-through opacity-70' : 'text-red-900'}`}>{note.message}</p>
+                              </div>
+                              {note.resolved && <CheckCircle2 className="w-4 h-4 text-green-600 mt-1 shrink-0" />}
                             </div>
                           ))}
                           

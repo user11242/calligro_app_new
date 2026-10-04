@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { app, auth, db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useRouter, useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -326,17 +326,37 @@ export default function CurriculumBuilderPage() {
           // Success! Use the actual Cloudflare R2 Public Dev URL
           const publicUrl = `https://pub-a368b6d04cda405ba215751acbbd17e4.r2.dev/${r2FilePath}`;
           
-          setSections(sections.map(sec => {
-            if (sec.id === sectionId) {
-              return {
-                ...sec,
-                lessons: sec.lessons.map(l => 
-                  l.id === lessonId ? { ...l, contentUrl: publicUrl } : l
-                )
-              };
-            }
-            return sec;
-          }));
+          // Extract real video duration from the uploaded file
+          const extractAndSetDuration = (durationSeconds?: number) => {
+            const durationStr = durationSeconds ? String(Math.round(durationSeconds)) : undefined;
+            setSections(prev => prev.map(sec => {
+              if (sec.id === sectionId) {
+                return {
+                  ...sec,
+                  lessons: sec.lessons.map(l => 
+                    l.id === lessonId ? { ...l, contentUrl: publicUrl, ...(durationStr ? { duration: durationStr } : {}) } : l
+                  )
+                };
+              }
+              return sec;
+            }));
+          };
+
+          if (file.type.startsWith('video/')) {
+            const tempVideo = document.createElement('video');
+            tempVideo.preload = 'metadata';
+            tempVideo.onloadedmetadata = () => {
+              extractAndSetDuration(tempVideo.duration);
+              URL.revokeObjectURL(tempVideo.src);
+            };
+            tempVideo.onerror = () => {
+              extractAndSetDuration(undefined);
+              URL.revokeObjectURL(tempVideo.src);
+            };
+            tempVideo.src = URL.createObjectURL(file);
+          } else {
+            extractAndSetDuration(undefined);
+          }
           
           setUploadingLesson(null);
           setUploadProgress(prev => {
@@ -405,17 +425,33 @@ export default function CurriculumBuilderPage() {
                 fileName
               });
 
-              setSections(prevSections => prevSections.map(sec => {
-                if (sec.id === sectionId) {
-                  return {
-                    ...sec,
-                    lessons: sec.lessons.map(l => 
-                      l.id === lessonId ? { ...l, contentUrl: res.data.url } : l
-                    )
-                  };
-                }
-                return sec;
-              }));
+              // Extract video duration from the imported URL
+              const importedUrl = res.data.url;
+              const updateWithDuration = (durationSeconds?: number) => {
+                const durationStr = durationSeconds ? String(Math.round(durationSeconds)) : undefined;
+                setSections(prevSections => prevSections.map(sec => {
+                  if (sec.id === sectionId) {
+                    return {
+                      ...sec,
+                      lessons: sec.lessons.map(l => 
+                        l.id === lessonId ? { ...l, contentUrl: importedUrl, ...(durationStr ? { duration: durationStr } : {}) } : l
+                      )
+                    };
+                  }
+                  return sec;
+                }));
+              };
+
+              if (mimeType.startsWith('video/')) {
+                const tempVideo = document.createElement('video');
+                tempVideo.preload = 'metadata';
+                tempVideo.crossOrigin = 'anonymous';
+                tempVideo.onloadedmetadata = () => { updateWithDuration(tempVideo.duration); };
+                tempVideo.onerror = () => { updateWithDuration(undefined); };
+                tempVideo.src = importedUrl;
+              } else {
+                updateWithDuration(undefined);
+              }
               
               toast.success("File imported from Google Drive to Cloudflare successfully!", { id: `drive-${lessonId}` });
             } catch (error) {
@@ -589,7 +625,7 @@ export default function CurriculumBuilderPage() {
       toast.success("Course successfully re-submitted for review! 🎉");
       router.push(`/teacher/courses`);
     } catch (err) {
-      toast.error("Failed to resubmit course.");
+      toast.error(`Failed to resubmit course: ${(err as Error).message}`);
     } finally {
       setIsPublishing(false);
     }
@@ -644,10 +680,10 @@ export default function CurriculumBuilderPage() {
 
       {/* Header */}
       <div className="sticky top-0 z-10 bg-transparent border-b border-white/5">
-        <div className="max-w-4xl mx-auto px-6 py-4 grid grid-cols-3 items-center">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           
           {/* Left (RTL: Right): Back Button */}
-          <div className="flex justify-start">
+          <div className="flex-shrink-0">
             <button 
               onClick={handleBack}
               className="flex items-center gap-2 text-white/50 hover:text-white transition-colors group"
@@ -658,7 +694,7 @@ export default function CurriculumBuilderPage() {
           </div>
           
           {/* Center: Title */}
-          <div className="text-center flex flex-col items-center">
+          <div className="flex-1 text-center flex flex-col items-center">
             <h1 className="text-xl font-bold font-playfair text-[#D4AF37]">
               {t('teacher.courses.edit.title')}
             </h1>
@@ -694,7 +730,15 @@ export default function CurriculumBuilderPage() {
           </div>
           
           {/* Right (RTL: Left): Next Button */}
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3 flex-shrink-0">
+            <button
+              onClick={() => window.open(`/courses/${courseId}/learn`, '_blank')}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:bg-white/5 text-white/80 transition-colors text-sm font-semibold whitespace-nowrap"
+            >
+              <Eye className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">معاينة كطالب</span>
+              <span className="sm:hidden">معاينة</span>
+            </button>
             {courseStatus === "needs_revision" && allResolved && (
               <button
                 onClick={handleResubmitReview}
@@ -727,13 +771,13 @@ export default function CurriculumBuilderPage() {
         <div className="space-y-6">
 
           {/* General Feedback Banners */}
-          {reviewNotes.filter(n => n.targetId === "general" && !n.resolved).map(note => (
+          {reviewNotes.filter(n => !n.targetId.startsWith("lesson_") && !n.resolved).map(note => (
             <div key={note.id} className="w-full mb-2 p-5 bg-red-500/10 border border-red-500/30 rounded-2xl relative overflow-hidden group/note shadow-lg">
               <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500" />
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-black uppercase tracking-widest text-red-400 flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4" /> General Admin Feedback
+                    <AlertCircle className="w-4 h-4" /> Admin Feedback ({note.targetId === "general" ? "General" : "Metadata/Title"})
                   </span>
                 </div>
                 <p className="text-base font-bold text-white/90 leading-relaxed">{note.message}</p>
@@ -801,12 +845,13 @@ export default function CurriculumBuilderPage() {
                         animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
                         exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
                         transition={{ duration: 0.2 }}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 shadow-sm transition-all duration-300 group relative overflow-hidden"
+                        className="flex flex-col p-0 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 shadow-sm transition-all duration-300 group relative overflow-hidden"
                       >
                         {/* Hover accent line */}
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#D4AF37] opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-50 group-hover:scale-y-100" />
                         
-                        <GripVertical className="w-5 h-5 text-white/20 cursor-grab hover:text-white/60 transition-colors ml-2" />
+                        <div className="flex items-center gap-4 p-4 w-full">
+                          <GripVertical className="w-5 h-5 text-white/20 cursor-grab hover:text-white/60 transition-colors ml-2 shrink-0" />
                         
                         <div className="flex-1 flex flex-col gap-1">
                           <input
@@ -922,6 +967,7 @@ export default function CurriculumBuilderPage() {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
+                        </div>
                         
                         {/* Display Unresolved Feedback Notes */}
                         {reviewNotes.filter(n => n.targetId === `lesson_${lesson.id}` && !n.resolved).map(note => (
