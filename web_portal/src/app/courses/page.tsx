@@ -94,7 +94,7 @@ function CoursesPageContent() {
     <main className="min-h-screen bg-transparent selection:bg-[#E8C468]/30 relative text-[#FDFBF7]">
       
       {/* ── AMBIENT BACKGROUND ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-[url('/images/noise.png')] opacity-[0.03]" />
+      <div className="fixed inset-0 z-0 pointer-events-none bg-radial-gradient opacity-[0.03]" />
       
       <div className="relative z-50">
         <Navbar />
