@@ -6,12 +6,119 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "@/components/Navbar";
 import { Loader2, ShieldCheck, ArrowLeft, CreditCard, CheckCircle2, Zap, Layout, LogIn, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useTranslation } from "@/hooks/useTranslation";
 import { db as libDb, auth as libAuth } from "@/lib/firebase";
 
 const PAYPAL_CLIENT_ID =
-  process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
+  process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ||
+  "BAAOp-NbjzhFx9sgtfJ0rAwMpWUVC_O7Wfqr9trbYDAByogKNqri6HvV2zbKT1-7Wi7HOAMDhusI5MZvjI";
+
+function PayPalButtonsContainer({
+  courseId,
+  userId,
+  joining,
+  setJoining,
+  setError,
+  onSuccess,
+}: {
+  courseId: string;
+  userId: string;
+  joining: boolean;
+  setJoining: (val: boolean) => void;
+  setError: (err: string | null) => void;
+  onSuccess: () => void;
+}) {
+  const [{ isPending, isRejected }] = usePayPalScriptReducer();
+
+  if (isPending) {
+    return (
+      <div className="w-full py-8 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <p className="text-white/40 text-xs font-bold tracking-widest uppercase">
+          Initializing secure payment...
+        </p>
+      </div>
+    );
+  }
+
+  if (isRejected) {
+    return (
+      <div className="w-full p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-center text-red-400 text-xs font-bold">
+        Failed to load payment options. Please check your connection and refresh the page.
+      </div>
+    );
+  }
+
+  return (
+    <PayPalButtons
+      style={{
+        layout: "vertical",
+        color: "gold",
+        shape: "rect",
+        label: "pay",
+        height: 48,
+      }}
+      disabled={joining}
+      createOrder={async () => {
+        try {
+          setError(null);
+          const res = await fetch("/api/paypal/create-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              courseId,
+              userId,
+            }),
+          });
+          const orderData = await res.json();
+          if (!res.ok || !orderData.id) {
+            throw new Error(orderData.error || "Failed to initialize PayPal order");
+          }
+          return orderData.id;
+        } catch (err: any) {
+          console.error("Create Order Error:", err);
+          setError(err.message || "Failed to initialize payment.");
+          throw err;
+        }
+      }}
+      onApprove={async (data) => {
+        try {
+          setJoining(true);
+          setError(null);
+          const res = await fetch("/api/paypal/capture-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId: data.orderID,
+              courseId,
+              userId,
+            }),
+          });
+          const captureData = await res.json();
+          if (!res.ok || !captureData.success) {
+            throw new Error(captureData.error || "Failed to finalize payment capture");
+          }
+          onSuccess();
+        } catch (err: any) {
+          console.error("Capture Error:", err);
+          setError(
+            err.message || "Payment capture failed. Please check your connection or contact support."
+          );
+          setJoining(false);
+        }
+      }}
+      onError={(err) => {
+        console.error("PayPal Error:", err);
+        setError("An error occurred during payment processing. Please try again or use another card.");
+        setJoining(false);
+      }}
+      onCancel={() => {
+        setJoining(false);
+      }}
+    />
+  );
+}
 
 export default function CheckoutPage() {
   const { id } = useParams();
@@ -359,7 +466,7 @@ export default function CheckoutPage() {
                     {t("checkout.secure_desc")}
                   </p>
 
-                  <div className="w-full relative">
+                  <div className="w-full relative min-h-[120px] flex flex-col items-center justify-center">
                     {joining && (
                       <div className="absolute inset-0 bg-[#0a0a0a]/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-4 rounded-2xl">
                         <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -378,72 +485,16 @@ export default function CheckoutPage() {
                         {t("checkout.login_error")}
                       </Link>
                     ) : (
-                      <PayPalButtons
-                        style={{
-                          layout: "vertical",
-                          color: "gold",
-                          shape: "rect",
-                          label: "pay",
-                          height: 48,
-                        }}
-                        disabled={joining}
-                        createOrder={async () => {
-                          try {
-                            setError(null);
-                            const res = await fetch("/api/paypal/create-order", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                courseId: id,
-                                userId: currentUser.uid,
-                              }),
-                            });
-                            const orderData = await res.json();
-                            if (!res.ok || !orderData.id) {
-                              throw new Error(orderData.error || "Failed to initialize PayPal order");
-                            }
-                            return orderData.id;
-                          } catch (err: any) {
-                            console.error("Create Order Error:", err);
-                            setError(err.message || "Failed to initialize payment.");
-                            throw err;
-                          }
-                        }}
-                        onApprove={async (data) => {
-                          try {
-                            setJoining(true);
-                            setError(null);
-                            const res = await fetch("/api/paypal/capture-order", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                orderId: data.orderID,
-                                courseId: id,
-                                userId: currentUser.uid,
-                              }),
-                            });
-                            const captureData = await res.json();
-                            if (!res.ok || !captureData.success) {
-                              throw new Error(captureData.error || "Failed to finalize payment capture");
-                            }
-                            router.push(`/courses/${id}/success`);
-                          } catch (err: any) {
-                            console.error("Capture Error:", err);
-                            setError(
-                              err.message || "Payment capture failed. Please check your connection or contact support."
-                            );
-                            setJoining(false);
-                          }
-                        }}
-                        onError={(err) => {
-                          console.error("PayPal Error:", err);
-                          setError("An error occurred during payment processing. Please try again or use another card.");
-                          setJoining(false);
-                        }}
-                        onCancel={() => {
-                          setJoining(false);
-                        }}
-                      />
+                      <div className="w-full">
+                        <PayPalButtonsContainer
+                          courseId={id as string}
+                          userId={currentUser.uid}
+                          joining={joining}
+                          setJoining={setJoining}
+                          setError={setError}
+                          onSuccess={() => router.push(`/courses/${id}/success`)}
+                        />
+                      </div>
                     )}
                   </div>
 
