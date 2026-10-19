@@ -131,6 +131,7 @@ export default function CheckoutPage() {
   const [authChecking, setAuthChecking] = useState(true);
   const router = useRouter();
   const { t } = useTranslation();
+  const [clientId, setClientId] = useState<string>(PAYPAL_CLIENT_ID);
 
   // Listen to auth state
   useEffect(() => {
@@ -139,6 +140,16 @@ export default function CheckoutPage() {
       setAuthChecking(false);
     });
     return () => unsub();
+  }, []);
+
+  // Fetch runtime PayPal client ID if configured via server-side PAYPAL_CLIENT_ID
+  useEffect(() => {
+    fetch("/api/paypal/config")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.clientId) setClientId(data.clientId);
+      })
+      .catch((err) => console.warn("Using default PayPal client ID", err));
   }, []);
 
   // Fetch course details
@@ -321,8 +332,9 @@ export default function CheckoutPage() {
 
   return (
     <PayPalScriptProvider
+      key={clientId}
       options={{
-        clientId: PAYPAL_CLIENT_ID,
+        clientId: clientId,
         currency: "USD",
         intent: "capture",
         components: "buttons",

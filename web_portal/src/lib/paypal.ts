@@ -3,11 +3,14 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
 const PAYPAL_API = process.env.PAYPAL_API_URL || "https://api-m.paypal.com";
 
 export async function getPayPalAccessToken(): Promise<string> {
-  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID?.trim();
+  const clientId =
+    process.env.PAYPAL_CLIENT_ID?.trim() ||
+    process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID?.trim() ||
+    "BAAOp-NbjzhFx9sgtfJ0rAwMpWUVC_O7Wfqr9trbYDAByogKNqri6HvV2zbKT1-7Wi7HOAMDhusI5MZvjI";
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET?.trim();
 
   if (!clientId || !clientSecret) {
-    throw new Error("Missing PayPal credentials. Please configure NEXT_PUBLIC_PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in environment variables.");
+    throw new Error("Missing PayPal credentials. Please configure PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in environment variables.");
   }
 
   const now = Date.now();
