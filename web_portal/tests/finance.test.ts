@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
-// Simulating the Lemon Squeezy webhook calculations
+// Simulating the payment gateway webhook calculations
 
-function processLemonSqueezyWebhook(payloadAmount: number, isRecorded: boolean = false) {
+function processWebhook(payloadAmount: number, isRecorded: boolean = false) {
   // 1. Calculate Calligro Buffer (8%)
   const calligroBuffer = payloadAmount * 0.08;
   const remainder = payloadAmount - calligroBuffer;
@@ -23,9 +23,9 @@ function processLemonSqueezyWebhook(payloadAmount: number, isRecorded: boolean =
 }
 
 describe('Domain 1: Finance & Payments (Web Portal)', () => {
-  it('Test Case 1 & 2: Lemon Squeezy Payload processing and 8% Buffer', () => {
+  it('Test Case 1 & 2: Gateway Payload processing and 8% Buffer', () => {
     // Student pays exactly $54.00
-    const result = processLemonSqueezyWebhook(54.0);
+    const result = processWebhook(54.0);
     
     // 8% of 54 is 4.32
     expect(result.calligroBuffer).toBe(4.32);
@@ -34,7 +34,7 @@ describe('Domain 1: Finance & Payments (Web Portal)', () => {
   });
 
   it('Test Case 3: Live Course Commission (60%)', () => {
-    const result = processLemonSqueezyWebhook(54.0, false);
+    const result = processWebhook(54.0, false);
     
     // Remainder is 49.68. 60% of 49.68 is 29.81
     expect(result.teacherPayout).toBe(29.81);
@@ -42,7 +42,7 @@ describe('Domain 1: Finance & Payments (Web Portal)', () => {
   });
 
   it('Test Case 4: Recorded Course Commission (30%)', () => {
-    const result = processLemonSqueezyWebhook(54.0, true);
+    const result = processWebhook(54.0, true);
     
     // Remainder is 49.68. 30% of 49.68 is 14.90
     expect(result.teacherPayout).toBe(14.90);
@@ -51,7 +51,7 @@ describe('Domain 1: Finance & Payments (Web Portal)', () => {
 
   it('Test Case 7: Security - Rejects malicious payload formats (NaN)', () => {
     // If webhook sends malformed data
-    const result = processLemonSqueezyWebhook(NaN);
+    const result = processWebhook(NaN);
     expect(Number.isNaN(result.calligroBuffer)).toBe(true);
   });
 });

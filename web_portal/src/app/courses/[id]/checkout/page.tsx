@@ -5,7 +5,7 @@ import { doc, getDoc, runTransaction, collection, serverTimestamp } from "fireba
 import Navbar from "@/components/Navbar";
 import { Loader2, ShieldCheck, ArrowLeft, CreditCard, CheckCircle2, Zap, Layout } from "lucide-react";
 import Link from "next/link";
-import { createCheckoutSession } from "@/app/actions/payment";
+import { initializePaddle, type Paddle } from "@paddle/paddle-js";
 import { useTranslation } from "@/hooks/useTranslation";
 
 // Override firebase import to use local initialized app
@@ -18,8 +18,23 @@ export default function CheckoutPage() {
   const [joining, setJoining] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paddle, setPaddle] = useState<Paddle | null>(null);
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+
+  useEffect(() => {
+    const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "live_d1fe1b663e7ce5c712fbce37e8e";
+    const environment = (process.env.NEXT_PUBLIC_PADDLE_ENV as "production" | "sandbox") || "production";
+
+    initializePaddle({
+      token: clientToken,
+      environment,
+    }).then((instance) => {
+      if (instance) setPaddle(instance);
+    }).catch((err) => {
+      console.error("Paddle init error:", err);
+    });
+  }, []);
 
   const handlePayment = async () => {
     try {
@@ -32,37 +47,41 @@ export default function CheckoutPage() {
       setJoining(true);
       setError(null);
 
-      const studentPriceCents = Math.round((Number(course.price || 0) * 100) / 2);
       const courseName = course.courseName || course.courseTitle || "Untitled Course";
-      const bannerUrl = course.courseBanner || course.thumbnailUrl;
+      const priceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID || "pri_01m5a68t54g95m45w1rbq0eawb";
 
-      const structuredDescription = t("course.payment_desc");
+      const paddleInstance = paddle || await initializePaddle({
+        token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "live_d1fe1b663e7ce5c712fbce37e8e",
+        environment: (process.env.NEXT_PUBLIC_PADDLE_ENV as "production" | "sandbox") || "production",
+      });
 
-      const { checkoutUrl } = await createCheckoutSession(
-        course.lemonSqueezyVariantId,
-        user.uid,
-        id as string,
-        user.email || "",
-        courseName,
-        studentPriceCents,
-        structuredDescription,
-        bannerUrl
-      );
-
-
-      if (!checkoutUrl) {
-        throw new Error("Failed to generate checkout URL");
+      if (!paddleInstance) {
+        throw new Error("Failed to initialize secure checkout. Please refresh the page.");
       }
 
-      window.location.href = checkoutUrl;
+      paddleInstance.Checkout.open({
+        items: [{ priceId, quantity: 1 }],
+        customer: {
+          email: user.email || "",
+        },
+        customData: {
+          userId: user.uid,
+          courseId: id as string,
+          teacherId: course.teacherId || "",
+          courseName,
+        },
+        settings: {
+          displayMode: "overlay",
+          theme: "dark",
+          locale: locale === "ar" ? "ar" : locale === "tr" ? "tr" : "en",
+          successUrl: `${window.location.origin}/courses/${id}/success`,
+        },
+      });
+
+      setJoining(false);
     } catch (err: any) {
       console.error("Payment Error:", err);
-      const msg = err.message || "";
-      if (msg.includes("Missing Store Configuration") || msg.includes("environment variable")) {
-        setError(t("checkout.config_error"));
-      } else {
-        setError(err.message || "Failed to initiate payment. Please try again.");
-      }
+      setError(err.message || "Failed to initiate payment. Please try again.");
       setJoining(false);
     }
   };

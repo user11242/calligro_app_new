@@ -12,7 +12,6 @@ import {
   Apple, Play, Video, ChevronDown
 } from "lucide-react";
 import Link from "next/link";
-import { createCheckoutSession } from "@/app/actions/payment";
 import { formatImageUrl } from "@/lib/utils";
 import { getFlagFromPhoneNumber } from "@/lib/countryUtils";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -176,49 +175,13 @@ export default function CourseDetailsPage() {
     return date.toLocaleTimeString(targetLocale, { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  const handleBuyNow = async () => {
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        router.push(`/login?redirect=/courses/${id}`);
-        return;
-      }
-
-      setJoining(true);
-      setError(null);
-
-      const studentPriceCents = Math.round(((Number(course.price || 0) * 100) / 2) * 1.08);
-      const courseName = course.courseName || course.courseTitle || "Untitled Course";
-      const bannerUrl = formatImageUrl(course.courseBanner || course.thumbnailUrl);
-      const teacherUrl = formatImageUrl(teacher?.photoUrl || course.teacherProfilePic);
-
-      // Use the clean, simplified description to allow dashboard media to show
-      const cleanDescription = t("course.payment_desc");
-      
-      const result = await createCheckoutSession(
-        course.lemonSqueezyVariantId,
-        user.uid,
-        id as string,
-        user.email || "",
-        courseName,
-        studentPriceCents,
-        cleanDescription,
-        [] // Pass empty array to favor Dashboard images
-      );
-
-      if (result.error) {
-        setError(result.error);
-        setJoining(false);
-        return;
-      }
-
-      if (!result.checkoutUrl) throw new Error("Failed to generate checkout URL");
-      window.location.href = result.checkoutUrl;
-    } catch (err: any) {
-      console.error("Payment Error:", err);
-      setError(err.message || "Failed to initiate payment. Please try again.");
-      setJoining(false);
+  const handleBuyNow = () => {
+    const user = auth.currentUser;
+    if (!user) {
+      router.push(`/login?redirect=/courses/${id}`);
+      return;
     }
+    router.push(`/courses/${id}/checkout`);
   };
 
   const handleAdminBypass = async () => {

@@ -9,9 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
     "@livekit/components-react": "^2.9.23",
     "@livekit/components-styles": "^1.2.0",
+    "@paddle/paddle-js": "^1.6.5",
+    "@paddle/paddle-node-sdk": "^3.10.0",
     "@tldraw/tldraw": "^5.2.5",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
