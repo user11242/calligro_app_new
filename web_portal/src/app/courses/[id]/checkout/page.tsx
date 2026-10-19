@@ -29,6 +29,14 @@ export default function CheckoutPage() {
     initializePaddle({
       token: clientToken,
       environment,
+      eventCallback: (event: any) => {
+        console.log("[Paddle Event]", event);
+        if (event.name === "checkout.error" || event.name === "checkout.payment.error") {
+          console.error("[Paddle Error]", event.code, event.detail);
+        } else if (event.type === "checkout.warning") {
+          console.warn("[Paddle Warning]", event.detail);
+        }
+      },
     }).then((instance) => {
       if (instance) setPaddle(instance);
     }).catch((err) => {
@@ -279,16 +287,28 @@ export default function CheckoutPage() {
               </h1>
               <p className="text-white/50 text-base md:text-lg font-medium">{t("checkout.instructor")} {course.teacherName}</p>
 
-              <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between md:items-end gap-4">
-                <div className="flex flex-col">
-                  <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
-                    {t("checkout.total")}
-                  </span>
-                  <span className="text-white/20 text-sm font-bold line-through px-1">${Number(course.price).toFixed(0)}</span>
+              <div className="mt-8 pt-6 border-t border-white/10 space-y-4">
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="text-white/60">{t("course.tuition_fee") || "Tuition"}</span>
+                  <span className="text-white/90 font-outfit rtl:font-sans">${(Number(course.price) / 2).toFixed(2)}</span>
                 </div>
-                <div className="flex flex-col items-end">
-                  <span className="bg-primary/20 text-primary px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border border-primary/20">{t("checkout.grant")}</span>
-                  <span className="text-5xl md:text-6xl font-black font-outfit gold-text leading-none">${(Number(course.price) / 2).toFixed(0)}</span>
+
+                <div className="flex justify-between items-center text-sm font-medium pb-4 border-b border-white/10">
+                  <span className="text-white/60">{t("course.platform_fee") || "Service Fee (8%)"}</span>
+                  <span className="text-white/90 font-outfit rtl:font-sans">${((Number(course.price) / 2) * 0.08).toFixed(2)}</span>
+                </div>
+
+                <div className="flex flex-col md:flex-row justify-between md:items-end gap-4 pt-2">
+                  <div className="flex flex-col">
+                    <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
+                      {t("checkout.total")}
+                    </span>
+                    <span className="text-white/20 text-sm font-bold line-through px-1">${(Number(course.price) * 1.08).toFixed(0)}</span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="bg-primary/20 text-primary px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border border-primary/20">{t("checkout.grant")}</span>
+                    <span className="text-5xl md:text-6xl font-black font-outfit gold-text leading-none">${((Number(course.price) / 2) * 1.08).toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
