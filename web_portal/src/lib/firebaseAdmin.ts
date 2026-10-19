@@ -2,6 +2,8 @@ import * as admin from "firebase-admin";
 
 if (!admin.apps.length) {
   let privateKey = process.env.FIREBASE_PRIVATE_KEY || "";
+  privateKey = privateKey.trim();
+
   // Strip outer quotes if any, and handle escaped newlines
   if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
     try {
@@ -10,13 +12,22 @@ if (!admin.apps.length) {
       privateKey = privateKey.slice(1, -1);
     }
   }
-  privateKey = privateKey.replace(/\\n/g, "\n");
+  privateKey = privateKey.replace(/\\n/g, "\n").trim();
 
-  const clientEmail =
+  const clientEmail = (
     process.env.FIREBASE_CLIENT_EMAIL ||
-    "firebase-adminsdk-fbsvc@calligro-bcfb2.iam.gserviceaccount.com";
-  const projectId =
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "calligro-bcfb2";
+    "firebase-adminsdk-fbsvc@calligro-bcfb2.iam.gserviceaccount.com"
+  )
+    .trim()
+    .replace(/[\r\n\t\s]/g, "");
+
+  const projectId = (
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    "calligro-bcfb2"
+  )
+    .trim()
+    .replace(/[\r\n\t\s]/g, "");
 
   if (privateKey && clientEmail) {
     try {
