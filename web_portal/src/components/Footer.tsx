@@ -41,6 +41,7 @@ export default function Footer() {
               <ul className="space-y-1.5 flex flex-col">
                 <Link href="/terms" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.terms")}</Link>
                 <Link href="/privacy" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.privacy")}</Link>
+                <Link href="/refund" className="text-xs font-bold text-white hover:text-white/70 transition-colors uppercase tracking-widest">{t("footer.refund")}</Link>
               </ul>
             </div>
           </div>
