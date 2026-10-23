@@ -1,10 +1,24 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc, runTransaction, collection, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "@/components/Navbar";
-import { Loader2, ShieldCheck, ArrowLeft, CreditCard, CheckCircle2, Zap, Layout, LogIn, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  ShieldCheck,
+  ArrowLeft,
+  CreditCard,
+  CheckCircle2,
+  Zap,
+  Layout,
+  LogIn,
+  AlertCircle,
+  Tag,
+  Sparkles,
+  X,
+  Check,
+} from "lucide-react";
 import Link from "next/link";
 import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -120,8 +134,9 @@ function PayPalButtonsContainer({
   );
 }
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const { id } = useParams();
+  const searchParams = useSearchParams();
   const [course, setCourse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -130,8 +145,15 @@ export default function CheckoutPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [clientId, setClientId] = useState<string>(PAYPAL_CLIENT_ID);
+
+  // Coupon state
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
 
   // Listen to auth state
   useEffect(() => {
@@ -142,7 +164,7 @@ export default function CheckoutPage() {
     return () => unsub();
   }, []);
 
-  // Fetch runtime PayPal client ID if configured via server-side PAYPAL_CLIENT_ID
+  // Fetch runtime PayPal client ID
   useEffect(() => {
     fetch("/api/paypal/config")
       .then((res) => res.json())
@@ -181,6 +203,124 @@ export default function CheckoutPage() {
     initCheckout();
   }, [id, currentUser]);
 
+  // Apply Coupon Logic
+  const handleApplyCoupon = async (codeToApply?: string) => {
+    const code = (codeToApply || couponInput).trim().toUpperCase();
+    if (!code) return;
+
+    setCouponLoading(true);
+    setCouponError(null);
+    setCouponSuccess(null);
+
+    try {
+      let idToken = null;
+      const user = currentUser || libAuth.currentUser;
+      if (user) {
+        idToken = await user.getIdToken();
+      }
+
+      const res = await fetch("/api/coupon/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          couponCode: code,
+          courseId: id,
+          idToken,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        setAppliedCoupon(null);
+        const errMsg =
+          locale === "ar"
+            ? data.error_ar || data.error || "كود الكوبون غير صحيح"
+            : data.error || "Invalid coupon code";
+        setCouponError(errMsg);
+        return;
+      }
+
+      setAppliedCoupon(code);
+      setCouponInput(code);
+      const succMsg =
+        locale === "ar"
+          ? data.description_ar || "تم تطبيق خصم 100% بنجاح"
+          : data.description || "100% OFF Free Grant Applied!";
+      setCouponSuccess(succMsg);
+    } catch (err: any) {
+      setCouponError(
+        locale === "ar"
+          ? "فشل التحقق من الكوبون. يرجى المحاولة مرة أخرى."
+          : "Failed to validate coupon. Please try again."
+      );
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+    setCouponSuccess(null);
+  };
+
+  // Auto-apply from URL query ?coupon=CALLIGRO100 or ?code=CALLIGRO100
+  useEffect(() => {
+    const queryCode = searchParams?.get("coupon") || searchParams?.get("code");
+    if (queryCode && queryCode.trim().toUpperCase() === "CALLIGRO100" && !appliedCoupon) {
+      setCouponInput("CALLIGRO100");
+      handleApplyCoupon("CALLIGRO100");
+    }
+  }, [searchParams, currentUser]);
+
+  // Redeem Free Enrollment with Coupon CALLIGRO100
+  const handleRedeemFreeCoupon = async () => {
+    const user = currentUser || libAuth.currentUser;
+    if (!user) {
+      router.push(`/login?redirect=/courses/${id}/checkout?coupon=${appliedCoupon || "CALLIGRO100"}`);
+      return;
+    }
+
+    setJoining(true);
+    setError(null);
+    setCouponError(null);
+
+    try {
+      const idToken = await user.getIdToken(true);
+      const res = await fetch("/api/coupon/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: id,
+          couponCode: appliedCoupon || "CALLIGRO100",
+          idToken,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        if (data.requiresAuth) {
+          router.push(`/login?redirect=/courses/${id}/checkout?coupon=${appliedCoupon || "CALLIGRO100"}`);
+          return;
+        }
+        const errMsg =
+          locale === "ar"
+            ? data.error_ar || data.error || "فشل تفعيل الكوبون."
+            : data.error || "Failed to redeem free enrollment.";
+        throw new Error(errMsg);
+      }
+
+      router.push(data.redirectUrl || `/courses/${id}/success`);
+    } catch (err: any) {
+      console.error("Redeem Coupon Error:", err);
+      setError(err.message || "Failed to complete free enrollment.");
+      setJoining(false);
+    }
+  };
+
   const handleAdminBypass = async () => {
     if (process.env.NODE_ENV !== "development") return;
 
@@ -201,7 +341,9 @@ export default function CheckoutPage() {
         if (!courseSnap.exists()) throw new Error("Course not found");
 
         const courseData = courseSnap.data()!;
-        const enrolledStudents = Array.isArray(courseData.enrolledStudents) ? [...courseData.enrolledStudents] : [];
+        const enrolledStudents = Array.isArray(courseData.enrolledStudents)
+          ? [...courseData.enrolledStudents]
+          : [];
 
         if (!enrolledStudents.includes(user.uid)) {
           enrolledStudents.push(user.uid);
@@ -213,11 +355,16 @@ export default function CheckoutPage() {
 
           transaction.set(transactionRef, {
             studentId: user.uid,
-            studentName: user.displayName || user.email?.split("@")[0] || t("nav.student_login").split(" ")[0],
+            studentName:
+              user.displayName || user.email?.split("@")[0] || t("nav.student_login").split(" ")[0],
             teacherId: courseData.teacherId || "",
             teacherName: courseData.teacherName || "Unknown Teacher",
             courseId: id as string,
-            courseName: courseData.courseName || courseData.courseTitle || courseData.title || "Untitled Course",
+            courseName:
+              courseData.courseName ||
+              courseData.courseTitle ||
+              courseData.title ||
+              "Untitled Course",
             amount: 0,
             currency: "USD",
             source: "admin_bypass",
@@ -259,7 +406,9 @@ export default function CheckoutPage() {
         if (!courseSnap.exists()) throw new Error("Course not found");
 
         const courseData = courseSnap.data()!;
-        const enrolledStudents = Array.isArray(courseData.enrolledStudents) ? [...courseData.enrolledStudents] : [];
+        const enrolledStudents = Array.isArray(courseData.enrolledStudents)
+          ? [...courseData.enrolledStudents]
+          : [];
 
         if (!enrolledStudents.includes(user.uid)) {
           enrolledStudents.push(user.uid);
@@ -272,11 +421,16 @@ export default function CheckoutPage() {
           const grossAmount = Number(courseData.price) / 2 || 0;
           transaction.set(transactionRef, {
             studentId: user.uid,
-            studentName: user.displayName || user.email?.split("@")[0] || t("nav.student_login").split(" ")[0],
+            studentName:
+              user.displayName || user.email?.split("@")[0] || t("nav.student_login").split(" ")[0],
             teacherId: courseData.teacherId || "",
             teacherName: courseData.teacherName || "Unknown Teacher",
             courseId: id as string,
-            courseName: courseData.courseName || courseData.courseTitle || courseData.title || "Untitled Course",
+            courseName:
+              courseData.courseName ||
+              courseData.courseTitle ||
+              courseData.title ||
+              "Untitled Course",
             amount: grossAmount,
             currency: "USD",
             source: "web_portal_quick",
@@ -328,7 +482,9 @@ export default function CheckoutPage() {
 
   const baseTuition = Number(course?.price || 0) / 2;
   const serviceFee = baseTuition * 0.08;
-  const finalPrice = baseTuition * 1.08;
+  const regularPrice = baseTuition * 1.08;
+  const isFreeWithCoupon = appliedCoupon === "CALLIGRO100";
+  const finalPrice = isFreeWithCoupon ? 0 : regularPrice;
 
   return (
     <PayPalScriptProvider
@@ -363,7 +519,8 @@ export default function CheckoutPage() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24 relative z-10 w-full items-start">
-            <div className="space-y-10">
+            <div className="space-y-8">
+              {/* Summary Card */}
               <div className="glass-premium p-10 md:p-12 rounded-[48px] border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] backdrop-blur-3xl bg-[#0a0a0a]">
                 <div className="flex items-center gap-4 mb-8">
                   <Layout className="w-5 h-5 text-primary" />
@@ -394,6 +551,19 @@ export default function CheckoutPage() {
                     </span>
                   </div>
 
+                  {/* 100% Promo Coupon Line if applied */}
+                  {isFreeWithCoupon && (
+                    <div className="flex justify-between items-center text-xs md:text-sm font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>{t("checkout.coupon_applied") || "Coupon Applied (CALLIGRO100)"}</span>
+                      </div>
+                      <span className="font-outfit rtl:font-sans font-black">
+                        -${regularPrice.toFixed(2)} (100%)
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex flex-col md:flex-row justify-between md:items-end gap-4 pt-2">
                     <div className="flex flex-col">
                       <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
@@ -404,10 +574,22 @@ export default function CheckoutPage() {
                       </span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="bg-primary/20 text-primary px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border border-primary/20">
-                        {t("checkout.grant")}
+                      <span
+                        className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border ${
+                          isFreeWithCoupon
+                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            : "bg-primary/20 text-primary border-primary/20"
+                        }`}
+                      >
+                        {isFreeWithCoupon
+                          ? "100% OFF PROMO"
+                          : t("checkout.grant") || "50% ACADEMY GRANT"}
                       </span>
-                      <span className="text-5xl md:text-6xl font-black font-outfit gold-text leading-none">
+                      <span
+                        className={`text-5xl md:text-6xl font-black font-outfit leading-none ${
+                          isFreeWithCoupon ? "text-emerald-400" : "gold-text"
+                        }`}
+                      >
                         ${finalPrice.toFixed(2)}
                       </span>
                     </div>
@@ -429,6 +611,93 @@ export default function CheckoutPage() {
                   </button>
                 )}
               </div>
+
+              {/* Coupon / Voucher Redemption Card */}
+              {!isEnrolled && (
+                <div className="glass-premium p-8 rounded-[36px] border-white/10 bg-[#0a0a0a]/90 backdrop-blur-2xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Tag className="w-4 h-4 text-primary" />
+                    <h3 className="text-xs font-black uppercase tracking-[0.25em] text-white/90">
+                      {t("checkout.coupon_label") || "Promotional Coupon / Voucher"}
+                    </h3>
+                  </div>
+
+                  {!appliedCoupon ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            value={couponInput}
+                            onChange={(e) => {
+                              setCouponInput(e.target.value.toUpperCase());
+                              if (couponError) setCouponError(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleApplyCoupon();
+                              }
+                            }}
+                            placeholder={
+                              t("checkout.coupon_placeholder") || "Enter promo code (e.g. CALLIGRO100)"
+                            }
+                            className="w-full bg-white/[0.04] border border-white/10 rounded-2xl px-4 py-3.5 text-xs md:text-sm text-white uppercase placeholder:normal-case placeholder:text-white/20 focus:outline-none focus:border-primary/50 transition-colors font-mono tracking-wider"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyCoupon()}
+                          disabled={couponLoading || !couponInput.trim()}
+                          className="px-6 py-3.5 bg-primary/20 hover:bg-primary text-primary hover:text-black font-black uppercase text-xs tracking-wider rounded-2xl border border-primary/30 transition-all disabled:opacity-40 disabled:hover:bg-primary/20 disabled:hover:text-primary flex items-center gap-2"
+                        >
+                          {couponLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            t("checkout.coupon_apply") || "Apply"
+                          )}
+                        </button>
+                      </div>
+
+                      {couponError && (
+                        <p className="text-red-400 text-xs font-bold flex items-center gap-2 pt-1">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{couponError}</span>
+                        </p>
+                      )}
+
+                      <p className="text-[11px] text-white/35 font-medium leading-relaxed pt-1">
+                        {t("checkout.coupon_single_use_notice") ||
+                          "Special Launch Grant: 100% OFF (Max 1 course per student account)."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                          <Check className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-white uppercase font-mono tracking-wider">
+                            {appliedCoupon}
+                          </p>
+                          <p className="text-[11px] text-emerald-400 font-bold">
+                            {couponSuccess || "100% OFF Grant Active"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="text-white/40 hover:text-white p-2 transition-colors rounded-xl hover:bg-white/5"
+                        title={t("checkout.coupon_remove") || "Remove"}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {isEnrolled && (
                 <div className="bg-primary/5 border border-primary/20 p-12 rounded-[48px] flex flex-col items-center gap-6 text-center backdrop-blur-md">
@@ -468,14 +737,33 @@ export default function CheckoutPage() {
             <div className="relative">
               {!isEnrolled && course.price > 0 && (
                 <div className="glass-premium p-10 md:p-14 rounded-[48px] border-t border-white/10 border-x border-white/5 bg-[#0a0a0a] flex flex-col items-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
-                  <div className="w-24 h-24 bg-primary/10 rounded-[32px] flex items-center justify-center mb-8 border border-primary/20 shadow-[0_0_40px_rgba(238,229,147,0.15)]">
-                    <CreditCard className="w-10 h-10 text-primary" />
+                  <div
+                    className={`w-24 h-24 rounded-[32px] flex items-center justify-center mb-8 border shadow-[0_0_40px_rgba(238,229,147,0.15)] ${
+                      isFreeWithCoupon
+                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        : "bg-primary/10 border-primary/20"
+                    }`}
+                  >
+                    {isFreeWithCoupon ? (
+                      <Sparkles className="w-10 h-10 text-emerald-400" />
+                    ) : (
+                      <CreditCard className="w-10 h-10 text-primary" />
+                    )}
                   </div>
+
                   <h2 className="text-center text-sm font-black uppercase tracking-[0.3em] mb-4 text-white/90">
-                    {t("checkout.secure_payment")}
+                    {isFreeWithCoupon
+                      ? locale === "ar"
+                        ? "التسجيل المجاني بالمنحة الكاملة"
+                        : "100% Promotional Grant"
+                      : t("checkout.secure_payment")}
                   </h2>
                   <p className="text-white/40 text-center text-sm md:text-base mb-10 leading-relaxed max-w-xs">
-                    {t("checkout.secure_desc")}
+                    {isFreeWithCoupon
+                      ? locale === "ar"
+                        ? "استخدمت كوبون CALLIGRO100 للحصول على الدورة مجاناً وبشكل دائم."
+                        : "You applied coupon CALLIGRO100 for 100% free lifetime access."
+                      : t("checkout.secure_desc")}
                   </p>
 
                   <div className="w-full relative min-h-[120px] flex flex-col items-center justify-center">
@@ -488,25 +776,68 @@ export default function CheckoutPage() {
                       </div>
                     )}
 
-                    {!currentUser ? (
-                      <Link
-                        href={`/login?redirect=/courses/${id}/checkout`}
-                        className="btn-gold w-full py-5 text-sm flex items-center justify-center gap-3 font-black uppercase tracking-wider"
-                      >
-                        <LogIn className="w-5 h-5" />
-                        {t("checkout.login_error")}
-                      </Link>
+                    {/* FREE ENROLLMENT WITH COUPON FLOW */}
+                    {isFreeWithCoupon ? (
+                      !currentUser ? (
+                        <div className="w-full space-y-4 text-center">
+                          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold leading-relaxed">
+                            {t("checkout.coupon_login_required") ||
+                              "Please log in with your account to claim your free course with coupon CALLIGRO100."}
+                          </div>
+                          <Link
+                            href={`/login?redirect=/courses/${id}/checkout?coupon=CALLIGRO100`}
+                            className="btn-gold w-full py-5 text-sm flex items-center justify-center gap-3 font-black uppercase tracking-wider shadow-lg"
+                          >
+                            <LogIn className="w-5 h-5" />
+                            {t("checkout.login_error")}
+                          </Link>
+                        </div>
+                      ) : (
+                        <div className="w-full space-y-4">
+                          <button
+                            onClick={handleRedeemFreeCoupon}
+                            disabled={joining}
+                            className="w-full py-5 rounded-[24px] bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black uppercase tracking-wider text-sm transition-all duration-300 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.5)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50"
+                          >
+                            {joining ? (
+                              <Loader2 className="w-5 h-5 animate-spin text-black" />
+                            ) : (
+                              <>
+                                <Sparkles className="w-5 h-5 text-black" />
+                                <span>
+                                  {t("checkout.coupon_claim_free") || "Enroll Now for Free (100% OFF)"}
+                                </span>
+                              </>
+                            )}
+                          </button>
+                          <p className="text-center text-[11px] text-white/40 font-medium">
+                            {t("checkout.coupon_single_use_notice") ||
+                              "Limited to 1 course per registered student account."}
+                          </p>
+                        </div>
+                      )
                     ) : (
-                      <div className="w-full">
-                        <PayPalButtonsContainer
-                          courseId={id as string}
-                          userId={currentUser.uid}
-                          joining={joining}
-                          setJoining={setJoining}
-                          setError={setError}
-                          onSuccess={() => router.push(`/courses/${id}/success`)}
-                        />
-                      </div>
+                      /* STANDARD PAYPAL FLOW */
+                      !currentUser ? (
+                        <Link
+                          href={`/login?redirect=/courses/${id}/checkout`}
+                          className="btn-gold w-full py-5 text-sm flex items-center justify-center gap-3 font-black uppercase tracking-wider"
+                        >
+                          <LogIn className="w-5 h-5" />
+                          {t("checkout.login_error")}
+                        </Link>
+                      ) : (
+                        <div className="w-full">
+                          <PayPalButtonsContainer
+                            courseId={id as string}
+                            userId={currentUser.uid}
+                            joining={joining}
+                            setJoining={setJoining}
+                            setError={setError}
+                            onSuccess={() => router.push(`/courses/${id}/success`)}
+                          />
+                        </div>
+                      )
                     )}
                   </div>
 
@@ -549,5 +880,19 @@ export default function CheckoutPage() {
         </div>
       </main>
     </PayPalScriptProvider>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-6">
+          <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
   );
 }

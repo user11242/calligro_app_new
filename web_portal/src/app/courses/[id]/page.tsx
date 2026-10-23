@@ -605,6 +605,29 @@ export default function CourseDetailsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Promo Coupon CALLIGRO100 Quick Link */}
+                  <Link
+                    href={`/courses/${id}/checkout?coupon=CALLIGRO100`}
+                    className="w-full -mt-2 mb-6 p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-between transition-all group/coupon text-start"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 group-hover/coupon:scale-110 transition-transform" />
+                      <div>
+                        <p className="text-[11px] font-bold text-emerald-300 leading-tight">
+                          {locale === "ar"
+                            ? "عرض الإطلاق: احصل على الدورة مجاناً (100% خصم)"
+                            : "Launch Grant: Get this course 100% free"}
+                        </p>
+                        <p className="text-[9px] text-emerald-400/60 font-medium">
+                          {locale === "ar" ? "بحد أقصى دورة واحدة لكل طالب" : "Max 1 course per student"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-mono text-[10px] font-black bg-emerald-400/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30 shrink-0">
+                      CALLIGRO100
+                    </span>
+                  </Link>
                   
                   {/* Capacity Progress Bar */}
                   {(course.maxStudents > 0) && (
