@@ -579,53 +579,56 @@ export default function CourseDetailsPage() {
                   </div>
 
                   <div className="w-full text-start bg-white/[0.02] rounded-2xl p-6 border border-white/10 shadow-inner mb-6">
-                    <div className="flex justify-between items-center text-sm font-medium mb-4">
+                    <div className="flex justify-between items-center text-sm font-medium mb-3">
                       <span className="text-white/60">{t("course.tuition_fee") || "Tuition"}</span>
-                      <span className="text-white/90 font-outfit rtl:font-sans">${(Number(course.price) / 2).toFixed(2)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center text-sm font-medium pb-5 border-b border-white/10 mb-5 relative group/tooltip">
-                      <div className="flex items-center gap-2 cursor-help">
-                        <span className="text-white/60">{t("course.platform_fee") || "Service Fee (8%)"}</span>
-                        <Info className="w-4 h-4 text-white/30 group-hover/tooltip:text-primary transition-colors" />
-                        <div className="absolute top-8 start-0 w-48 bg-[#111] border border-white/10 rounded-xl p-3 text-[10px] leading-relaxed text-white/70 shadow-2xl opacity-0 group-hover/tooltip:opacity-100 pointer-events-none transition-opacity z-50">
-                          {t("course.fee_tooltip") || "Helps cover secure payment processing, global taxes, and platform maintenance."}
-                        </div>
-                      </div>
-                      <span className="text-white/90 font-outfit rtl:font-sans">${((Number(course.price) / 2) * 0.08).toFixed(2)}</span>
+                      <span className="text-white/40 line-through font-outfit rtl:font-sans">
+                        ${(Number(course.price || 0) * 1.08).toFixed(0)}
+                      </span>
                     </div>
 
-                    <div className="flex flex-col items-center gap-2 pt-2">
-                      <span className="text-[11px] font-black text-primary uppercase tracking-[0.3em]">{t("course.total_due") || "Total Due"}</span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-white/30 text-lg font-bold line-through tracking-tighter">${(Number(course.price) * 1.08).toFixed(0)}</span>
-                        <h2 className="text-5xl md:text-6xl font-black font-outfit rtl:font-sans text-white tracking-tighter drop-shadow-[0_10px_30_rgba(255,255,255,0.2)]">
-                          ${((Number(course.price) / 2) * 1.08).toFixed(2)}
+                    <div className="flex justify-between items-center text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl mb-4">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{locale === "ar" ? "منحة الإطلاق المجانية" : "Launch Grant"}</span>
+                      </div>
+                      <span>-100%</span>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-1 pt-2 border-t border-white/10">
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.25em]">
+                        {locale === "ar" ? "المبلغ المطلوب" : "Total Due"}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-5xl md:text-6xl font-black font-outfit rtl:font-sans text-emerald-400 tracking-tighter drop-shadow-[0_0_30px_rgba(16,185,129,0.35)]">
+                          $0.00
                         </h2>
                       </div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-white/50 mt-1">
+                        {locale === "ar" ? "دورتك الأولى مجاناً 100%" : "1st Course 100% Free"}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Promo Coupon CALLIGRO100 Quick Link */}
+                  {/* 1 Free Course Launch Offer Banner */}
                   <Link
-                    href={`/courses/${id}/checkout?coupon=CALLIGRO100`}
-                    className="w-full -mt-2 mb-6 p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-between transition-all group/coupon text-start"
+                    href={`/courses/${id}/checkout`}
+                    className="w-full -mt-2 mb-6 p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-between transition-all group/grant text-start"
                   >
                     <div className="flex items-center gap-2.5">
-                      <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 group-hover/coupon:scale-110 transition-transform" />
+                      <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 group-hover/grant:scale-110 transition-transform" />
                       <div>
                         <p className="text-[11px] font-bold text-emerald-300 leading-tight">
                           {locale === "ar"
-                            ? "عرض الإطلاق: احصل على الدورة مجاناً (100% خصم)"
-                            : "Launch Grant: Get this course 100% free"}
+                            ? "منحة الإطلاق: سجّل في دورتك الأولى مجاناً 100%"
+                            : "Launch Grant: Get your 1st course 100% free"}
                         </p>
                         <p className="text-[9px] text-emerald-400/60 font-medium">
-                          {locale === "ar" ? "بحد أقصى دورة واحدة لكل طالب" : "Max 1 course per student"}
+                          {locale === "ar" ? "متاحة لدورة واحدة لكل طالب مسجل" : "Limited to 1 course per registered student"}
                         </p>
                       </div>
                     </div>
-                    <span className="font-mono text-[10px] font-black bg-emerald-400/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30 shrink-0">
-                      CALLIGRO100
+                    <span className="text-[10px] font-black bg-emerald-400/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30 shrink-0">
+                      {locale === "ar" ? "مجاناً 100%" : "100% FREE"}
                     </span>
                   </Link>
                   
@@ -716,14 +719,20 @@ export default function CourseDetailsPage() {
                       <button
                         onClick={handleBuyNow}
                         disabled={joining}
-                        className="btn-gold w-full text-lg py-4 rounded-[1.5rem] shadow-[0_20px_50px_-10px_rgba(238,229,147,0.4)] disabled:opacity-50 group/buy flex items-center justify-center"
+                        className="w-full text-base md:text-lg py-4 rounded-[1.5rem] bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black uppercase tracking-wider shadow-[0_20px_50px_-10px_rgba(16,185,129,0.5)] disabled:opacity-50 group/buy flex items-center justify-center transition-all duration-300 hover:scale-[1.02]"
                       >
                         {joining ? (
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-black" />
                         ) : (
                           <div className="flex items-center gap-3 group-hover/buy:scale-105 transition-transform">
-                            <span className="font-black uppercase tracking-widest">{t("course.buy_now")}</span>
-                            <Sparkles className="w-5 h-5 animate-pulse" />
+                            <span className="font-black uppercase tracking-widest text-black">
+                              {locale === "ar"
+                                ? "التسجيل في الدورة مجاناً"
+                                : locale === "tr"
+                                ? "Ücretsiz Kaydol"
+                                : "Enroll for Free"}
+                            </span>
+                            <Sparkles className="w-5 h-5 animate-pulse text-black" />
                           </div>
                         )}
                       </button>
