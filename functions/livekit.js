@@ -132,7 +132,7 @@ exports.generateLiveKitToken = onCall({
     return {
       token,
       roomName: secureRoomName,
-      serverUrl: "wss://96.30.198.187.nip.io",
+      serverUrl: "wss://194.163.184.20.nip.io",
     };
   } catch (error) {
     console.error("LiveKit Token Generation Error:", error);
@@ -175,12 +175,12 @@ exports.moderateParticipant = onCall({
   // ---------- STOP RECORDING ----------
   if (action === "stop_recording") {
     const egressClient = new EgressClient(
-      "https://96.30.198.187.nip.io",
+      "https://194.163.184.20.nip.io",
       livekitApiKey.value(),
       livekitApiSecret.value()
     );
     const roomService = new RoomServiceClient(
-      "https://96.30.198.187.nip.io",
+      "https://194.163.184.20.nip.io",
       livekitApiKey.value(),
       livekitApiSecret.value()
     );
@@ -267,7 +267,7 @@ exports.moderateParticipant = onCall({
   }
 
   const roomService = new RoomServiceClient(
-    "https://96.30.198.187.nip.io",
+    "https://194.163.184.20.nip.io",
     livekitApiKey.value(),
     livekitApiSecret.value()
   );
@@ -348,7 +348,7 @@ exports.startAutomatedRecording = onCall({
     const secureRoomName = `CG_${hashRoomName(rawSeed).substring(0, 40)}`;
 
     const egressClient = new EgressClient(
-      "https://96.30.198.187.nip.io",
+      "https://194.163.184.20.nip.io",
       livekitApiKey.value(),
       livekitApiSecret.value()
     );
