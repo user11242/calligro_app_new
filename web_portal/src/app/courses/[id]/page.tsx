@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, Clock, Award, ShieldCheck, CheckCircle2,
-  ArrowLeft, Loader2, Users, Star, BookOpen,
+  ArrowLeft, ArrowRight, Loader2, Users, Star, BookOpen,
   Info, Lock, Layout, Pencil, PenTool, Type, Droplets, Ruler, Book, Laptop, Sparkles,
   Apple, Play, Video, ChevronDown
 } from "lucide-react";
@@ -586,51 +586,28 @@ export default function CourseDetailsPage() {
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl mb-4">
+                    <div className="flex justify-between items-center text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-3 py-2 rounded-xl mb-4">
                       <div className="flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>{locale === "ar" ? "منحة الإطلاق المجانية" : "Launch Grant"}</span>
+                        <Sparkles className="w-3.5 h-3.5 text-primary" />
+                        <span>{t("checkout.grant") || (locale === "ar" ? "منحة أكاديمية بنسبة 50%" : "50% Academy Grant")}</span>
                       </div>
-                      <span>-100%</span>
+                      <span className="font-outfit font-black">-50%</span>
                     </div>
 
                     <div className="flex flex-col items-center gap-1 pt-2 border-t border-white/10">
-                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.25em]">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.25em]">
                         {locale === "ar" ? "المبلغ المطلوب" : "Total Due"}
                       </span>
                       <div className="flex items-center gap-3">
-                        <h2 className="text-5xl md:text-6xl font-black font-outfit rtl:font-sans text-emerald-400 tracking-tighter drop-shadow-[0_0_30px_rgba(16,185,129,0.35)]">
-                          $0.00
+                        <h2 className="text-5xl md:text-6xl font-black font-outfit rtl:font-sans gold-text tracking-tighter drop-shadow-[0_0_30px_rgba(238,229,147,0.25)]">
+                          ${((Number(course.price || 0) / 2) * 1.08).toFixed(2)}
                         </h2>
                       </div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-white/50 mt-1">
-                        {locale === "ar" ? "دورتك الأولى مجاناً 100%" : "1st Course 100% Free"}
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-primary mt-1">
+                        {t("checkout.grant") || "50% Academy Grant Applied"}
                       </span>
                     </div>
                   </div>
-
-                  {/* 1 Free Course Launch Offer Banner */}
-                  <Link
-                    href={`/courses/${id}/checkout`}
-                    className="w-full -mt-2 mb-6 p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-between transition-all group/grant text-start"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Sparkles className="w-4 h-4 text-emerald-400 shrink-0 group-hover/grant:scale-110 transition-transform" />
-                      <div>
-                        <p className="text-[11px] font-bold text-emerald-300 leading-tight">
-                          {locale === "ar"
-                            ? "منحة الإطلاق: سجّل في دورتك الأولى مجاناً 100%"
-                            : "Launch Grant: Get your 1st course 100% free"}
-                        </p>
-                        <p className="text-[9px] text-emerald-400/60 font-medium">
-                          {locale === "ar" ? "متاحة لدورة واحدة لكل طالب مسجل" : "Limited to 1 course per registered student"}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-black bg-emerald-400/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30 shrink-0">
-                      {locale === "ar" ? "مجاناً 100%" : "100% FREE"}
-                    </span>
-                  </Link>
                   
                   {/* Capacity Progress Bar */}
                   {(course.maxStudents > 0) && (
@@ -719,7 +696,7 @@ export default function CourseDetailsPage() {
                       <button
                         onClick={handleBuyNow}
                         disabled={joining}
-                        className="w-full text-base md:text-lg py-4 rounded-[1.5rem] bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black uppercase tracking-wider shadow-[0_20px_50px_-10px_rgba(16,185,129,0.5)] disabled:opacity-50 group/buy flex items-center justify-center transition-all duration-300 hover:scale-[1.02]"
+                        className="w-full text-base md:text-lg py-4 rounded-[1.5rem] bg-gradient-to-r from-primary via-[#F3E5AB] to-primary hover:from-[#F3E5AB] hover:to-primary text-black font-black uppercase tracking-wider shadow-[0_20px_50px_-10px_rgba(238,229,147,0.3)] disabled:opacity-50 group/buy flex items-center justify-center transition-all duration-300 hover:scale-[1.02]"
                       >
                         {joining ? (
                           <Loader2 className="w-6 h-6 animate-spin mx-auto text-black" />
@@ -727,12 +704,12 @@ export default function CourseDetailsPage() {
                           <div className="flex items-center gap-3 group-hover/buy:scale-105 transition-transform">
                             <span className="font-black uppercase tracking-widest text-black">
                               {locale === "ar"
-                                ? "التسجيل في الدورة مجاناً"
+                                ? "سجل الآن في الدورة"
                                 : locale === "tr"
-                                ? "Ücretsiz Kaydol"
-                                : "Enroll for Free"}
+                                ? "Şimdi Kaydol"
+                                : "Enroll in Course"}
                             </span>
-                            <Sparkles className="w-5 h-5 animate-pulse text-black" />
+                            <ArrowRight className="w-5 h-5 text-black rtl:rotate-180" />
                           </div>
                         )}
                       </button>

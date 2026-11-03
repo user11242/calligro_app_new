@@ -772,12 +772,15 @@ export default function Home() {
                         )}
                         {course.price != null && course.price > 0 && (
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-[#E8C468]">${course.price}</span>
-                          </div>
-                        )}
-                        {course.price === 0 && (
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-[#E8C468]">{t("course.free") || "Free"}</span>
+                            <span className="font-bold text-[#E8C468]">
+                              ${((Number(course.price) / 2) * 1.08).toFixed(0)}
+                            </span>
+                            <span className="text-xs text-white/40 line-through">
+                              ${course.price}
+                            </span>
+                            <span className="text-[10px] font-black uppercase text-[#E8C468]/80 bg-[#E8C468]/10 px-1.5 py-0.5 rounded">
+                              -50%
+                            </span>
                           </div>
                         )}
                       </div>

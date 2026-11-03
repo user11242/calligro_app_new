@@ -141,38 +141,15 @@ function CheckoutContent() {
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
-  const [hasClaimedFreeCourse, setHasClaimedFreeCourse] = useState<boolean>(false);
-  const [userLoading, setUserLoading] = useState(false);
   const router = useRouter();
   const { t, locale } = useTranslation();
   const [clientId, setClientId] = useState<string>(PAYPAL_CLIENT_ID);
 
   // Listen to auth state
   useEffect(() => {
-    const unsub = onAuthStateChanged(libAuth, async (user) => {
+    const unsub = onAuthStateChanged(libAuth, (user) => {
       setCurrentUser(user);
       setAuthChecking(false);
-
-      if (user) {
-        setUserLoading(true);
-        try {
-          const userDoc = await getDoc(doc(libDb, "users", user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const alreadyClaimed =
-              data?.hasClaimedFreeCourse === true ||
-              data?.usedFreeCoupon === true ||
-              Boolean(data?.freeCourseId);
-            setHasClaimedFreeCourse(alreadyClaimed);
-          }
-        } catch (err) {
-          console.warn("Could not check user free course status:", err);
-        } finally {
-          setUserLoading(false);
-        }
-      } else {
-        setHasClaimedFreeCourse(false);
-      }
     });
     return () => unsub();
   }, []);
@@ -216,8 +193,8 @@ function CheckoutContent() {
     initCheckout();
   }, [id, currentUser]);
 
-  // Claim 1 Free Course
-  const handleClaimFreeCourse = async () => {
+  // Whop Dynamic Checkout (Apple Pay, Google Pay, Credit/Debit Cards)
+  const handleWhopCheckout = async () => {
     const user = currentUser || libAuth.currentUser;
     if (!user) {
       router.push(`/login?redirect=/courses/${id}/checkout`);
@@ -228,34 +205,24 @@ function CheckoutContent() {
     setError(null);
 
     try {
-      const idToken = await user.getIdToken(true);
-      const res = await fetch("/api/courses/free-enroll", {
+      const res = await fetch("/api/whop/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: id,
-          idToken,
+          userId: user.uid,
         }),
       });
 
       const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        if (data.requiresAuth) {
-          router.push(`/login?redirect=/courses/${id}/checkout`);
-          return;
-        }
-        const errMsg =
-          locale === "ar"
-            ? data.error_ar || data.error || "فشل الحصول على الدورة المجانية."
-            : data.error || "Failed to claim free course.";
-        throw new Error(errMsg);
+      if (!res.ok || !data.purchaseUrl) {
+        throw new Error(data.error || "Failed to initialize Whop checkout");
       }
 
-      router.push(data.redirectUrl || `/courses/${id}/success`);
+      window.location.href = data.purchaseUrl;
     } catch (err: any) {
-      console.error("Free Course Claim Error:", err);
-      setError(err.message || "Failed to complete free enrollment.");
+      console.error("Whop Checkout Error:", err);
+      setError(err.message || "Failed to open secure checkout");
       setJoining(false);
     }
   };
@@ -322,7 +289,7 @@ function CheckoutContent() {
     }
   };
 
-  if (loading || authChecking || userLoading) {
+  if (loading || authChecking) {
     return (
       <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-6">
         <Loader2 className="w-12 h-12 text-primary animate-spin" />
@@ -354,10 +321,7 @@ function CheckoutContent() {
   const serviceFee = baseTuition * 0.08;
   const regularPrice = baseTuition * 1.08;
 
-  // Is this user eligible for their 1 free course?
-  // If guest, or logged in and hasn't claimed yet: yes!
-  const isEligibleForFreeCourse = !currentUser || !hasClaimedFreeCourse;
-  const finalPrice = isEligibleForFreeCourse ? 0 : regularPrice;
+  const finalPrice = regularPrice;
 
   return (
     <PayPalScriptProvider
@@ -424,19 +388,6 @@ function CheckoutContent() {
                     </span>
                   </div>
 
-                  {/* 100% Free First Course Line Item */}
-                  {isEligibleForFreeCourse && (
-                    <div className="flex justify-between items-center text-xs md:text-sm font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span>{t("checkout.free_course_title") || "First Course Free Grant"}</span>
-                      </div>
-                      <span className="font-outfit rtl:font-sans font-black">
-                        -${regularPrice.toFixed(2)} (-100%)
-                      </span>
-                    </div>
-                  )}
-
                   <div className="flex flex-col md:flex-row justify-between md:items-end gap-4 pt-2">
                     <div className="flex flex-col">
                       <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
@@ -447,22 +398,10 @@ function CheckoutContent() {
                       </span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span
-                        className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border ${
-                          isEligibleForFreeCourse
-                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                            : "bg-primary/20 text-primary border-primary/20"
-                        }`}
-                      >
-                        {isEligibleForFreeCourse
-                          ? "100% FREE GRANT"
-                          : t("checkout.grant") || "50% ACADEMY GRANT"}
+                      <span className="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest mb-2 border bg-primary/20 text-primary border-primary/20">
+                        {t("checkout.grant") || "50% ACADEMY GRANT"}
                       </span>
-                      <span
-                        className={`text-5xl md:text-6xl font-black font-outfit leading-none ${
-                          isEligibleForFreeCourse ? "text-emerald-400" : "gold-text"
-                        }`}
-                      >
+                      <span className="text-5xl md:text-6xl font-black font-outfit leading-none gold-text">
                         ${finalPrice.toFixed(2)}
                       </span>
                     </div>
@@ -473,27 +412,17 @@ function CheckoutContent() {
               {/* Informative Notice Card */}
               {!isEnrolled && (
                 <div className="glass-premium p-6 rounded-[32px] border-white/10 bg-[#0a0a0a]/90 backdrop-blur-2xl flex items-start gap-3.5">
-                  <div
-                    className={`p-2.5 rounded-xl border shrink-0 ${
-                      isEligibleForFreeCourse
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                        : "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                    }`}
-                  >
+                  <div className="p-2.5 rounded-xl border shrink-0 bg-primary/10 border-primary/20 text-primary">
                     <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
                     <h4 className="text-xs font-black uppercase tracking-wider text-white mb-1">
-                      {isEligibleForFreeCourse
-                        ? t("checkout.free_course_title") || "First Course 100% Free Grant"
-                        : t("checkout.grant") || "50% Academy Discount"}
+                      {t("checkout.grant") || "50% Academy Grant"}
                     </h4>
                     <p className="text-[11px] text-white/50 leading-relaxed font-medium">
-                      {isEligibleForFreeCourse
-                        ? t("checkout.free_single_use_notice") ||
-                          "Launch Offer: 100% Free (Limited to 1 course per registered student)."
-                        : t("checkout.free_limit_reached") ||
-                          "You have already claimed your 1 free course grant on another course. This course is available with the standard 50% discount."}
+                      {locale === "ar"
+                        ? "تم تطبيق خصم الأكاديمية بنسبة 50% على جميع الدورات لتسهيل التعلم لجميع الطلاب."
+                        : "A 50% academy grant has been applied to all tuition fees to support our students worldwide."}
                     </p>
                   </div>
                 </div>
@@ -537,33 +466,15 @@ function CheckoutContent() {
             <div className="relative">
               {!isEnrolled && (
                 <div className="glass-premium p-10 md:p-14 rounded-[48px] border-t border-white/10 border-x border-white/5 bg-[#0a0a0a] flex flex-col items-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
-                  <div
-                    className={`w-24 h-24 rounded-[32px] flex items-center justify-center mb-8 border shadow-[0_0_40px_rgba(238,229,147,0.15)] ${
-                      isEligibleForFreeCourse
-                        ? "bg-emerald-500/10 border-emerald-500/30"
-                        : "bg-primary/10 border-primary/20"
-                    }`}
-                  >
-                    {isEligibleForFreeCourse ? (
-                      <Sparkles className="w-10 h-10 text-emerald-400" />
-                    ) : (
-                      <CreditCard className="w-10 h-10 text-primary" />
-                    )}
+                  <div className="w-24 h-24 rounded-[32px] flex items-center justify-center mb-8 border border-primary/20 bg-primary/10 shadow-[0_0_40px_rgba(238,229,147,0.15)]">
+                    <CreditCard className="w-10 h-10 text-primary" />
                   </div>
 
                   <h2 className="text-center text-sm font-black uppercase tracking-[0.3em] mb-4 text-white/90">
-                    {isEligibleForFreeCourse
-                      ? locale === "ar"
-                        ? "التسجيل المجاني بالمنحة الكاملة"
-                        : "100% Free Course Enrollment"
-                      : t("checkout.secure_payment")}
+                    {t("checkout.secure_payment")}
                   </h2>
                   <p className="text-white/40 text-center text-sm md:text-base mb-10 leading-relaxed max-w-xs">
-                    {isEligibleForFreeCourse
-                      ? locale === "ar"
-                        ? "احصل على دورتك الأولى مجاناً بالكامل ومدى الحياة على الموقع والتطبيق معاً."
-                        : "Claim your first course completely free with lifetime access on both web and app."
-                      : t("checkout.secure_desc")}
+                    {t("checkout.secure_desc")}
                   </p>
 
                   <div className="w-full relative min-h-[120px] flex flex-col items-center justify-center">
@@ -576,69 +487,44 @@ function CheckoutContent() {
                       </div>
                     )}
 
-                    {/* FREE COURSE FLOW (First Course per User) */}
-                    {isEligibleForFreeCourse ? (
-                      !currentUser ? (
-                        <div className="w-full space-y-4 text-center">
-                          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold leading-relaxed">
-                            {t("checkout.free_login_required") ||
-                              "Please log in or create an account to claim your 1 free course."}
-                          </div>
-                          <Link
-                            href={`/login?redirect=/courses/${id}/checkout`}
-                            className="btn-gold w-full py-5 text-sm flex items-center justify-center gap-3 font-black uppercase tracking-wider shadow-lg"
-                          >
-                            <LogIn className="w-5 h-5" />
-                            {t("checkout.login_error")}
-                          </Link>
-                        </div>
-                      ) : (
-                        <div className="w-full space-y-4">
-                          <button
-                            onClick={handleClaimFreeCourse}
-                            disabled={joining}
-                            className="w-full py-5 rounded-[24px] bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 text-black font-black uppercase tracking-wider text-sm transition-all duration-300 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.5)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50"
-                          >
-                            {joining ? (
-                              <Loader2 className="w-5 h-5 animate-spin text-black" />
-                            ) : (
-                              <>
-                                <Sparkles className="w-5 h-5 text-black" />
-                                <span>
-                                  {t("checkout.free_claim_button") ||
-                                    "Claim Your 1 Free Course (100% OFF)"}
-                                </span>
-                              </>
-                            )}
-                          </button>
-                          <p className="text-center text-[11px] text-white/40 font-medium">
-                            {t("checkout.free_single_use_notice") ||
-                              "Launch Offer: 100% Free (Limited to 1 course per registered student)."}
-                          </p>
-                        </div>
-                      )
+                    {!currentUser ? (
+                      <Link
+                        href={`/login?redirect=/courses/${id}/checkout`}
+                        className="btn-gold w-full py-5 text-sm flex items-center justify-center gap-3 font-black uppercase tracking-wider"
+                      >
+                        <LogIn className="w-5 h-5" />
+                        {t("checkout.login_error")}
+                      </Link>
                     ) : (
-                      /* SECOND+ COURSE FLOW: Standard 50% discount with PayPal */
-                      !currentUser ? (
-                        <Link
-                          href={`/login?redirect=/courses/${id}/checkout`}
-                          className="btn-gold w-full py-5 text-sm flex items-center justify-center gap-3 font-black uppercase tracking-wider"
+                      <div className="w-full space-y-4">
+                        {/* Primary: Whop Checkout (Apple Pay, Google Pay & Cards) */}
+                        <button
+                          onClick={handleWhopCheckout}
+                          disabled={joining}
+                          className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-[#AA7C11] text-black font-black text-sm uppercase tracking-wider shadow-[0_10px_30px_rgba(212,175,55,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                         >
-                          <LogIn className="w-5 h-5" />
-                          {t("checkout.login_error")}
-                        </Link>
-                      ) : (
-                        <div className="w-full">
-                          <PayPalButtonsContainer
-                            courseId={id as string}
-                            userId={currentUser.uid}
-                            joining={joining}
-                            setJoining={setJoining}
-                            setError={setError}
-                            onSuccess={() => router.push(`/courses/${id}/success`)}
-                          />
+                          <CreditCard className="w-5 h-5 text-black shrink-0" />
+                          <span>{t("checkout.pay_whop") || "Pay with Apple Pay, Google Pay & Cards"}</span>
+                        </button>
+
+                        <div className="flex items-center gap-3 w-full my-3">
+                          <div className="h-[1px] bg-white/10 flex-1" />
+                          <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">
+                            {t("checkout.or_paypal") || "Or pay with PayPal"}
+                          </span>
+                          <div className="h-[1px] bg-white/10 flex-1" />
                         </div>
-                      )
+
+                        {/* Secondary: PayPal Checkout */}
+                        <PayPalButtonsContainer
+                          courseId={id as string}
+                          userId={currentUser.uid}
+                          joining={joining}
+                          setJoining={setJoining}
+                          setError={setError}
+                          onSuccess={() => router.push(`/courses/${id}/success`)}
+                        />
+                      </div>
                     )}
                   </div>
 

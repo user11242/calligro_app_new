@@ -133,15 +133,15 @@ export default function CourseCard({ course }: CourseCardProps) {
               )}
             </div>
 
-            {/* 3D Physical Ribbon 100% Free Grant */}
+            {/* 3D Physical Ribbon 50% Academy Grant */}
             {!isEnrolled && !isEnded && (
               <div className="absolute -top-1 -right-1 z-30 transform group-hover:rotate-6 transition-transform duration-700 origin-top-right drop-shadow-2xl">
-                <div className="relative bg-gradient-to-br from-emerald-400 via-teal-400 to-emerald-600 text-black pt-8 pb-6 px-4 rounded-b-md shadow-[0_10px_25px_rgba(16,185,129,0.4)]">
-                  <div className="absolute top-0 right-full w-2 h-full bg-emerald-800 -z-10 skew-y-[45deg] origin-top-right transform -translate-y-2 opacity-50" />
-                  <div className="absolute top-0 left-0 w-full h-2 bg-emerald-300 -z-10 -skew-x-[45deg] origin-bottom-left transform -translate-x-2 opacity-50" />
+                <div className="relative bg-gradient-to-br from-[#E8C468] via-[#F3E5AB] to-[#B38728] text-black pt-8 pb-6 px-4 rounded-b-md shadow-[0_10px_25px_rgba(232,196,104,0.3)]">
+                  <div className="absolute top-0 right-full w-2 h-full bg-[#8A6318] -z-10 skew-y-[45deg] origin-top-right transform -translate-y-2 opacity-50" />
+                  <div className="absolute top-0 left-0 w-full h-2 bg-[#F3E5AB] -z-10 -skew-x-[45deg] origin-bottom-left transform -translate-x-2 opacity-50" />
                   
                   <span className="[writing-mode:vertical-lr] rotate-180 font-black text-sm tracking-widest uppercase flex items-center gap-1 font-outfit">
-                    {locale === "ar" ? "مجاناً" : locale === "tr" ? "ÜCRETSİZ" : "FREE"}
+                    -50%
                   </span>
                   
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-4 h-[1px] bg-black/20 border-b border-white/20" />
@@ -270,12 +270,12 @@ export default function CourseCard({ course }: CourseCardProps) {
                 </span>
               ) : (
                 <>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">
-                    {locale === "ar" ? "منحة الإطلاق" : "LAUNCH GRANT"}
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#E8C468] mb-1">
+                    {locale === "ar" ? "منحة 50%" : "50% GRANT"}
                   </span>
                   <div className="flex items-baseline gap-2.5">
-                    <span className="text-2xl md:text-3xl font-black font-outfit uppercase tracking-tight text-emerald-400 drop-shadow-[0_0_20px_rgba(16,185,129,0.35)]">
-                      {locale === "ar" ? "مجاناً 100%" : locale === "tr" ? "ÜCRETSİZ" : "100% FREE"}
+                    <span className="text-2xl md:text-3xl font-black font-outfit uppercase tracking-tight text-white group-hover:text-[#E8C468] transition-colors">
+                      ${((price / 2) * 1.08).toFixed(0)}
                     </span>
                     {price > 0 && (
                       <span className="text-[10px] md:text-xs font-bold text-white/30 line-through decoration-white/20">
