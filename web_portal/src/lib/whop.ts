@@ -23,16 +23,23 @@ export async function createWhopCheckout(params: CreateCheckoutParams) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://calligroacademy.com";
   const redirectUrl = params.redirectUrl || `${appUrl}/courses/${params.courseId}/success`;
 
+  // Whop plan variant title has a hard 30-character limit
+  const sanitizedTitle = (params.courseName || "Calligro Course")
+    .trim()
+    .slice(0, 28)
+    .trim();
+
   const payload = {
     company_id: companyId,
     variant: {
-      title: params.courseName,
+      title: sanitizedTitle,
       billing_type: "one_time",
       initial_price: Number(params.amount.toFixed(2)),
       currency: "usd",
     },
     metadata: {
       courseId: params.courseId,
+      courseName: params.courseName,
       userId: params.userId,
       teacherId: params.teacherId || "",
     },
