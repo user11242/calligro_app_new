@@ -11,9 +11,13 @@ export async function POST(req: NextRequest) {
     // Handle payment.succeeded event
     if (eventType === "payment.succeeded") {
       const payment = payload.data || {};
-      const metadata = payment.metadata || {};
-      const courseId = metadata.courseId;
-      const userId = metadata.userId;
+      const metadata =
+        payment.metadata ||
+        payment.checkout_configuration?.metadata ||
+        payload.data?.metadata ||
+        {};
+      const courseId = metadata.courseId || metadata.course_id;
+      const userId = metadata.userId || metadata.user_id;
 
       if (!courseId || !userId) {
         console.warn("Whop Webhook: Missing courseId or userId in metadata", metadata);

@@ -175,13 +175,37 @@ export default function CourseDetailsPage() {
     return date.toLocaleTimeString(targetLocale, { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     const user = auth.currentUser;
     if (!user) {
       router.push(`/login?redirect=/courses/${id}`);
       return;
     }
-    router.push(`/courses/${id}/checkout`);
+
+    setJoining(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/whop/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: id,
+          userId: user.uid,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.purchaseUrl) {
+        throw new Error(data.error || "Failed to initialize checkout");
+      }
+
+      window.location.href = data.purchaseUrl;
+    } catch (err: any) {
+      console.error("Whop Checkout Error:", err);
+      setError(err.message || "Failed to open secure checkout");
+      setJoining(false);
+    }
   };
 
   const handleAdminBypass = async () => {
