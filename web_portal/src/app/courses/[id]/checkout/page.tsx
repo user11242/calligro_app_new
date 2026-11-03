@@ -91,7 +91,11 @@ function CheckoutContent() {
 
       const data = await res.json();
       if (!res.ok || !data.purchaseUrl) {
-        throw new Error(data.error || "Failed to initialize Whop checkout");
+        const errorMsg =
+          typeof data.error === "object"
+            ? (data.error.message || JSON.stringify(data.error))
+            : (data.error || "Failed to initialize Whop checkout");
+        throw new Error(errorMsg);
       }
 
       window.location.href = data.purchaseUrl;

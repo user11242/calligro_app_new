@@ -8,8 +8,13 @@ export interface CreateCheckoutParams {
 }
 
 export async function createWhopCheckout(params: CreateCheckoutParams) {
-  const apiKey = process.env.WHOP_API_KEY;
-  const companyId = process.env.WHOP_COMPANY_ID || "biz_TtxhlwxC6B0RBZ";
+  const rawApiKey =
+    process.env.WHOP_API_KEY ||
+    "apik_Ta7ofXZxGNm21_C7847943_C_e8fb6aaf66eef06e22a9af3f54513954dd8425ab230ed3a62dd106f87b577b";
+  const apiKey = rawApiKey.replace(/['"]/g, "").trim();
+
+  const rawCompanyId = process.env.WHOP_COMPANY_ID || "biz_TtxhlwxC6B0RBZ";
+  const companyId = rawCompanyId.replace(/['"]/g, "").trim();
 
   if (!apiKey) {
     throw new Error("WHOP_API_KEY is not configured in environment variables");
@@ -48,7 +53,12 @@ export async function createWhopCheckout(params: CreateCheckoutParams) {
 
   if (!response.ok || !data.purchase_url) {
     console.error("Whop API Error:", data);
-    throw new Error(data.message || data.error || "Failed to create Whop checkout configuration");
+    const errorMessage =
+      data.error?.message ||
+      data.message ||
+      (typeof data.error === "string" ? data.error : JSON.stringify(data.error || data)) ||
+      "Failed to create Whop checkout configuration";
+    throw new Error(errorMessage);
   }
 
   return {

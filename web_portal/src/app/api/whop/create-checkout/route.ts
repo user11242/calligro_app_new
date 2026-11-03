@@ -49,8 +49,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("Whop Create Checkout API Error:", error);
+    const msg =
+      error?.message ||
+      (typeof error === "string" ? error : JSON.stringify(error)) ||
+      "Failed to initialize Whop checkout";
     return NextResponse.json(
-      { error: error.message || "Failed to initialize Whop checkout" },
+      { error: msg },
       { status: 500 }
     );
   }
