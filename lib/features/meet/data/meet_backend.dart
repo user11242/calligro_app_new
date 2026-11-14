@@ -1,6 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
-import 'meet_policies.dart';
+import '../domain/meet_policies.dart';
 
 /// Calls a Cloud Function by name and returns its `data`.
 typedef MeetCallable = Future<Object?> Function(String functionName, Map<String, dynamic> data);

@@ -1,32 +1,39 @@
-import 'package:calligro_app/features/meet/logic/meet_policies.dart';
+import 'package:calligro_app/features/meet/domain/meet_policies.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:livekit_client/livekit_client.dart' show DisconnectReason;
+import 'package:calligro_app/features/meet/domain/meet_room.dart';
 
 /// Tests the REAL decision rules used by calligro_meet_page.dart.
 void main() {
   // ═══════════════════════════════════════════════════════════════════════
   group('DisconnectPolicy', () {
     test('while we are ending/leaving on purpose, every disconnect is ignored', () {
-      for (final reason in [...DisconnectReason.values, null]) {
+      for (final reason in MeetDisconnectReason.values) {
         expect(DisconnectPolicy.decide(reason, isEndingMeeting: true), DisconnectDecision.ignore,
             reason: '$reason');
       }
     });
 
     test('room deleted on the server → the teacher ended the class → leave', () {
-      expect(DisconnectPolicy.decide(DisconnectReason.roomDeleted, isEndingMeeting: false),
+      expect(DisconnectPolicy.decide(MeetDisconnectReason.roomDeleted, isEndingMeeting: false),
           DisconnectDecision.leaveMeetingEnded);
     });
 
     test('removed by the server → kicked → leave without offering Rejoin', () {
-      expect(DisconnectPolicy.decide(DisconnectReason.participantRemoved, isEndingMeeting: false),
+      expect(DisconnectPolicy.decide(MeetDisconnectReason.participantRemoved, isEndingMeeting: false),
           DisconnectDecision.leaveKicked);
     });
 
-    test('every other reason (network, server restart, unknown, null) → Rejoin overlay', () {
-      final others = DisconnectReason.values
-          .where((r) => r != DisconnectReason.roomDeleted && r != DisconnectReason.participantRemoved);
-      for (final reason in [...others, null]) {
+    test('our own disconnect (leaving, rejoin cleanup) never shows the "connection lost" overlay', () {
+      expect(DisconnectPolicy.decide(MeetDisconnectReason.clientInitiated, isEndingMeeting: false),
+          DisconnectDecision.ignore);
+    });
+
+    test('every other reason (network, server restart, unknown) → Rejoin overlay', () {
+      final others = MeetDisconnectReason.values.where((r) =>
+          r != MeetDisconnectReason.roomDeleted &&
+          r != MeetDisconnectReason.participantRemoved &&
+          r != MeetDisconnectReason.clientInitiated);
+      for (final reason in others) {
         expect(DisconnectPolicy.decide(reason, isEndingMeeting: false), DisconnectDecision.showReconnectOverlay,
             reason: '$reason');
       }

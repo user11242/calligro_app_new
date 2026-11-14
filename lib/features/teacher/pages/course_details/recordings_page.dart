@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'video_player_page.dart';
-import 'package:calligro_app/features/meet/logic/meet_backend.dart';
+import 'package:calligro_app/features/meet/data/meet_backend.dart';
 
 class RecordingsPage extends StatefulWidget {
   final String courseId;

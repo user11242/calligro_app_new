@@ -1,39 +1,17 @@
 import 'dart:async';
-import 'package:livekit_client/livekit_client.dart';
 
-class ConnectionResilienceController {
-  // Configurable thresholds for testing
+import '../domain/meet_room.dart';
+
+/// Offers audio-only mode when OUR connection stays poor for a while
+/// (hysteresis: a short dip doesn't trigger it; one prompt per cooldown).
+class ConnectionQualityMonitor {
   final int poorQualityTriggerSeconds;
   final int promptCooldownSeconds;
 
-  ConnectionResilienceController({
+  ConnectionQualityMonitor({
     this.poorQualityTriggerSeconds = 10,
     this.promptCooldownSeconds = 60,
   });
-
-  // ── Error Classification ──────────────────────────────────────────────────
-
-  /// Determines if a connection failure warrants a retry using ICE relay.
-  /// True if it's a network/timeout issue. False if it's an auth/config issue.
-  bool shouldRetryWithRelay(Object error) {
-    if (error is ConnectException) {
-      if (error.reason == ConnectionErrorReason.NotAllowed) {
-        return false; // Bad token or permissions
-      }
-      return true; // Likely a timeout or internal server error
-    }
-
-    if (error is TimeoutException || error is NegotiationError) {
-      return true; // Pure network timeout or ICE failure
-    }
-
-    if (error is LiveKitE2EEException) {
-      return false; // Key issue, relay won't help
-    }
-
-    // Default to true for unknown errors (could be a generic socket exception)
-    return true; 
-  }
 
   // ── Audio-Only Hysteresis State Machine ───────────────────────────────────
 
@@ -44,10 +22,10 @@ class ConnectionResilienceController {
   /// Call this whenever a ParticipantConnectionQualityUpdatedEvent fires.
   /// [onTriggerPrompt] is a callback that displays the dialog to the user.
   void handleConnectionQualityUpdate(
-    ConnectionQuality quality,
+    MeetConnectionQuality quality,
     void Function() onTriggerPrompt,
   ) {
-    if (quality == ConnectionQuality.poor) {
+    if (quality == MeetConnectionQuality.poor) {
       // Start or continue the timer
       if (_poorQualityTimer == null || !_poorQualityTimer!.isActive) {
         _poorQualityTimer = Timer(

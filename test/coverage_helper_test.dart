@@ -60,9 +60,9 @@ import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_
 import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_teacher_finish.dart';
 import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_student_finish.dart';
 import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_teacher_portfolio.dart';
-import 'package:calligro_app/features/meet/controllers/connection_resilience_controller.dart';
-import 'package:calligro_app/features/meet/pages/calligro_pre_join_page.dart';
-import 'package:calligro_app/features/meet/pages/calligro_meet_page.dart';
+import 'package:calligro_app/features/meet/application/connection_quality_monitor.dart';
+import 'package:calligro_app/features/meet/presentation/pages/calligro_pre_join_page.dart';
+import 'package:calligro_app/features/meet/presentation/pages/calligro_meet_page.dart';
 import 'package:calligro_app/features/gallery/models/gallery_artist.dart';
 import 'package:calligro_app/features/gallery/models/gallery_artwork.dart';
 import 'package:calligro_app/features/gallery/pages/artist_gallery_page.dart';

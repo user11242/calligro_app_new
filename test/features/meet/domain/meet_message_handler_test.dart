@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:calligro_app/features/meet/logic/meet_message_handler.dart';
-import 'package:calligro_app/features/meet/logic/meet_protocol.dart';
+import 'package:calligro_app/features/meet/domain/meet_message_handler.dart';
+import 'package:calligro_app/features/meet/domain/meet_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Tests the REAL decision logic behind every incoming data message in

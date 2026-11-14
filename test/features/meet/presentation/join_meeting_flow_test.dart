@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:calligro_app/features/meet/logic/meet_backend.dart';
+import 'package:calligro_app/features/meet/data/meet_backend.dart';
 import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

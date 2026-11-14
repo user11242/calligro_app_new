@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:calligro_app/features/meet/logic/meet_backend.dart';
-import 'package:calligro_app/features/meet/pages/calligro_pre_join_page.dart';
+import 'package:calligro_app/features/meet/data/meet_backend.dart';
+import 'package:calligro_app/features/meet/presentation/pages/calligro_pre_join_page.dart';
 import 'package:calligro_app/core/services/meet_debug_service.dart';
 
 /// Builds the screen shown after a token is received (overridable in tests,

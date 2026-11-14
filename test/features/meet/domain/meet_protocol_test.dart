@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:calligro_app/features/meet/logic/meet_protocol.dart';
+import 'package:calligro_app/features/meet/domain/meet_protocol.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Tests the REAL protocol code used by calligro_meet_page.dart.

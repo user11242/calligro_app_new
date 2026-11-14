@@ -1,53 +1,15 @@
+import 'package:calligro_app/features/meet/application/connection_quality_monitor.dart';
+import 'package:calligro_app/features/meet/domain/meet_room.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:livekit_client/livekit_client.dart';
-import 'package:calligro_app/features/meet/controllers/connection_resilience_controller.dart';
 
 void main() {
-  group('ConnectionResilienceController Error Classification', () {
-    late ConnectionResilienceController controller;
-
-    setUp(() {
-      controller = ConnectionResilienceController();
-    });
-
-    test('should retry on ConnectException with InternalError', () {
-      final error = ConnectException('err', reason: ConnectionErrorReason.InternalError);
-      expect(controller.shouldRetryWithRelay(error), isTrue);
-    });
-
-    test('should retry on ConnectException with Timeout', () {
-      final error = ConnectException('err', reason: ConnectionErrorReason.Timeout);
-      expect(controller.shouldRetryWithRelay(error), isTrue);
-    });
-
-    test('should NOT retry on ConnectException with NotAllowed', () {
-      final error = ConnectException('err', reason: ConnectionErrorReason.NotAllowed);
-      expect(controller.shouldRetryWithRelay(error), isFalse);
-    });
-
-    test('should retry on pure TimeoutException', () {
-      final error = TimeoutException('err');
-      expect(controller.shouldRetryWithRelay(error), isTrue);
-    });
-
-    test('should retry on NegotiationError', () {
-      final error = NegotiationError('err');
-      expect(controller.shouldRetryWithRelay(error), isTrue);
-    });
-
-    test('should NOT retry on LiveKitE2EEException', () {
-      final error = LiveKitE2EEException('err');
-      expect(controller.shouldRetryWithRelay(error), isFalse);
-    });
-  });
-
-  group('ConnectionResilienceController Hysteresis State Machine', () {
-    late ConnectionResilienceController controller;
+  group('ConnectionQualityMonitor (audio-only prompt)', () {
+    late ConnectionQualityMonitor controller;
     bool promptTriggered = false;
 
     setUp(() {
       // Use very small thresholds for testing
-      controller = ConnectionResilienceController(
+      controller = ConnectionQualityMonitor(
         poorQualityTriggerSeconds: 1,
         promptCooldownSeconds: 2,
       );
@@ -60,7 +22,7 @@ void main() {
 
     test('should trigger prompt after poor quality duration', () async {
       controller.handleConnectionQualityUpdate(
-        ConnectionQuality.poor,
+        MeetConnectionQuality.poor,
         () => promptTriggered = true,
       );
 
@@ -74,14 +36,14 @@ void main() {
 
     test('should NOT trigger prompt if quality recovers before timer', () async {
       controller.handleConnectionQualityUpdate(
-        ConnectionQuality.poor,
+        MeetConnectionQuality.poor,
         () => promptTriggered = true,
       );
 
       // Recover after 500ms
       await Future.delayed(const Duration(milliseconds: 500));
       controller.handleConnectionQualityUpdate(
-        ConnectionQuality.good,
+        MeetConnectionQuality.good,
         () => promptTriggered = true,
       );
 
@@ -93,7 +55,7 @@ void main() {
     test('should respect cooldown before prompting again', () async {
       // 1. Initial trigger
       controller.handleConnectionQualityUpdate(
-        ConnectionQuality.poor,
+        MeetConnectionQuality.poor,
         () => promptTriggered = true,
       );
       await Future.delayed(const Duration(milliseconds: 1100));
@@ -105,7 +67,7 @@ void main() {
 
       // 2. Immediate re-trigger should fail due to cooldown (2s)
       controller.handleConnectionQualityUpdate(
-        ConnectionQuality.poor,
+        MeetConnectionQuality.poor,
         () => promptTriggered = true,
       );
       await Future.delayed(const Duration(milliseconds: 1100));
@@ -116,7 +78,7 @@ void main() {
       
       // 4. Trigger should now succeed
       controller.handleConnectionQualityUpdate(
-        ConnectionQuality.poor,
+        MeetConnectionQuality.poor,
         () => promptTriggered = true,
       );
       await Future.delayed(const Duration(milliseconds: 1100));

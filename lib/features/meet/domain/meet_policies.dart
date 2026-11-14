@@ -1,4 +1,4 @@
-import 'package:livekit_client/livekit_client.dart' show DisconnectReason;
+import 'meet_room.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small, pure decision rules used by the Calligro Meet page.
@@ -24,10 +24,11 @@ enum DisconnectDecision {
 class DisconnectPolicy {
   DisconnectPolicy._();
 
-  static DisconnectDecision decide(DisconnectReason? reason, {required bool isEndingMeeting}) {
-    if (isEndingMeeting) return DisconnectDecision.ignore;
-    if (reason == DisconnectReason.roomDeleted) return DisconnectDecision.leaveMeetingEnded;
-    if (reason == DisconnectReason.participantRemoved) return DisconnectDecision.leaveKicked;
+  static DisconnectDecision decide(MeetDisconnectReason reason, {required bool isEndingMeeting}) {
+    // Leaving on purpose, or our own disconnect (leave / rejoin cleanup): nothing to show.
+    if (isEndingMeeting || reason == MeetDisconnectReason.clientInitiated) return DisconnectDecision.ignore;
+    if (reason == MeetDisconnectReason.roomDeleted) return DisconnectDecision.leaveMeetingEnded;
+    if (reason == MeetDisconnectReason.participantRemoved) return DisconnectDecision.leaveKicked;
     return DisconnectDecision.showReconnectOverlay;
   }
 }
