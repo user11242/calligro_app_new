@@ -113,6 +113,10 @@ class _ProfilePostsPageState extends State<ProfilePostsPage> {
                     commentsCount: postData['commentsCount'] ?? 0,
                     isSaved: widget.savedPostIds.contains(postId),
                     isEdited: postData['isEdited'] ?? false,
+                    isPinned: postData['isPinned'] ?? false,
+                    isHidden: postData['isHidden'] ?? false,
+                    linkUrl: postData['linkUrl'] as String?,
+                    linkTitle: postData['linkTitle'] as String?,
                     onToggleSave: () => widget.onToggleSave(postId, widget.savedPostIds.contains(postId)),
                   );
                 },

@@ -26,6 +26,10 @@ import 'package:calligro_app/core/services/meet_debug_service.dart';
 import 'package:calligro_app/features/teacher/pages/course_details/recordings_page.dart';
 
 import 'package:calligro_app/features/teacher/pages/course_details/video_player_page.dart';
+import 'package:calligro_app/features/admin/data/services/admin_service.dart';
+import 'package:calligro_app/features/teacher/pages/course_details/course_materials_page.dart';
+import 'package:calligro_app/features/course_chat/pages/course_chat_page.dart';
+import 'package:calligro_app/features/course_chat/widgets/course_details_floating_bar.dart';
 
 class CourseDetailsPage extends StatefulWidget {
   final String courseId;
@@ -50,6 +54,18 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   // State Variables
   bool isLoading = true;
   String userRole = 'student'; // Default to student
+  String? courseTeacherId;
+
+  bool get isTeacher {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null &&
+        ((courseTeacherId != null && courseTeacherId == uid) ||
+         (widget.courseData['teacherId'] != null && widget.courseData['teacherId'] == uid))) {
+      return true;
+    }
+    return userRole == 'teacher';
+  }
+
   String courseName = '';
   String? courseBanner;
   String courseDescription = '';
@@ -145,6 +161,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   void _loadInitialData() {
     if (mounted) {
       setState(() {
+        courseTeacherId = widget.courseData['teacherId'];
         courseName = _getLocalizedCourseName(context, widget.courseData);
         courseBanner = widget.courseData['courseBanner'];
         calligroMeetLink =
@@ -189,6 +206,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         final data = doc.data() as Map<String, dynamic>;
 
         setState(() {
+          courseTeacherId = data['teacherId'] ?? courseTeacherId;
           courseName = _getLocalizedCourseName(context, data);
           courseBanner = data['courseBanner'] ?? courseBanner;
           courseDescription =
@@ -276,25 +294,26 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
 
   Future<void> _launchClassroom() async {
     final l10n = AppLocalizations.of(context)!;
-    if (calligroMeetLink != null && calligroMeetLink!.isNotEmpty) {
-      debugPrint("DEBUG: Classroom logic triggered. Link: $calligroMeetLink");
-      final isTeacher = userRole == 'teacher';
 
-      // 🚨 LEGACY DETECTOR: Check if this is an old Google Meet link
-      if (calligroMeetLink!.contains("meet.google.com") ||
-          calligroMeetLink!.contains("http")) {
-        if (mounted) {
-          AppMessenger.showSnackBar(
-            context,
-            title: isTeacher ? "Legacy Link Detected" : "Classroom Unavailable",
-            message: isTeacher
-                ? "This course is using an old Google Meet link. Please create a new course or regenerate the link to use 'Calligro Classroom'."
-                : "The teacher hasn't upgraded this classroom yet. Please contact them.",
-            type: MessengerType.info,
-          );
-        }
-        return;
+    // 🚨 LEGACY DETECTOR: Check if this is an old external Google Meet link
+    if (calligroMeetLink != null &&
+        (calligroMeetLink!.contains("meet.google.com") ||
+            (calligroMeetLink!.contains("http") && !calligroMeetLink!.contains("calligro")))) {
+      if (mounted) {
+        AppMessenger.showSnackBar(
+          context,
+          title: isTeacher ? "Legacy Link Detected" : "Classroom Unavailable",
+          message: isTeacher
+              ? "This course is using an old Google Meet link. Please edit the course or regenerate the link to use 'Calligro Classroom'."
+              : "The teacher hasn't upgraded this classroom yet. Please contact them.",
+          type: MessengerType.info,
+        );
       }
+      return;
+    }
+
+    try {
+      debugPrint("DEBUG: Classroom logic triggered for course: ${widget.courseId}");
 
       /* 🚫 SMART GATING DISABLED AT USER REQUEST (For testing and ad-hoc sessions)
       if (!isTeacher) {
@@ -420,45 +439,51 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       }
 
       try {
-        // 🛡️ SECURITY FIX: Check for duplicate session using heartbeat
-        final presenceSnap = await FirebaseFirestore.instance
-            .collection('courses')
-            .doc(widget.courseId)
-            .collection('meetingPresence')
-            .doc(user?.uid)
-            .get();
+        // 🛡️ SECURITY FIX: Check for duplicate session using heartbeat (students only)
+        if (!isTeacher) {
+          try {
+            final presenceSnap = await FirebaseFirestore.instance
+                .collection('courses')
+                .doc(widget.courseId)
+                .collection('meetingPresence')
+                .doc(user?.uid)
+                .get()
+                .timeout(const Duration(seconds: 4));
 
-        if (!isTeacher && presenceSnap.exists) {
-          final data = presenceSnap.data();
-          if (data != null && data.containsKey('lastHeartbeat')) {
-            final lastBeat = (data['lastHeartbeat'] as Timestamp?)?.toDate();
-            if (lastBeat != null &&
-                DateTime.now().difference(lastBeat).inSeconds < 35) {
-              if (mounted) {
-                AppMessenger.showSnackBar(
-                  context,
-                  title: "Session Active",
-                  message:
-                      "Your account is already active in this meeting from another device. Please wait 30 seconds if you just disconnected.",
-                  type: MessengerType.error,
-                );
+            if (presenceSnap.exists) {
+              final data = presenceSnap.data();
+              if (data != null && data.containsKey('lastHeartbeat')) {
+                final lastBeat = (data['lastHeartbeat'] as Timestamp?)?.toDate();
+                if (lastBeat != null &&
+                    DateTime.now().difference(lastBeat).inSeconds < 35) {
+                  if (mounted) {
+                    AppMessenger.showSnackBar(
+                      context,
+                      title: "Session Active",
+                      message:
+                          "Your account is already active in this meeting from another device. Please wait 30 seconds if you just disconnected.",
+                      type: MessengerType.error,
+                    );
+                  }
+                  return; // Block entry
+                }
               }
-              return; // Block entry
             }
+          } catch (presenceErr) {
+            debugPrint("Presence check skipped due to network/timeout: $presenceErr");
           }
         }
 
-        // Adding a timeout because Jitsi can sometimes hang on simulators
         await LiveKitMeetService().joinMeeting(
           context: context,
           courseId: widget.courseId,
           isTeacher: isTeacher,
         )
             .timeout(
-              const Duration(seconds: 10),
+              const Duration(seconds: 30),
               onTimeout: () {
                 throw Exception(
-                  "The meeting service timed out. This often happens on simulators without camera support.",
+                  "Connecting to the classroom timed out. Please check your internet connection.",
                 );
               },
             );
@@ -472,17 +497,13 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
           );
         }
       }
-    } else {
+    } catch (outerErr) {
       if (mounted) {
         AppMessenger.showSnackBar(
           context,
-          title: userRole == 'teacher'
-              ? "Classroom Not Set"
-              : AppLocalizations.of(context)!.noMeetingLink,
-          message: userRole == 'teacher'
-              ? "Please go to Course Summary to generate your classroom link first."
-              : AppLocalizations.of(context)!.noMeetingLinkSet,
-          type: MessengerType.info,
+          title: "Launch Error",
+          message: "Could not launch classroom: $outerErr",
+          type: MessengerType.error,
         );
       }
     }
@@ -508,66 +529,10 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     return Scaffold(
       backgroundColor: AppColors.primary,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: _launchClassroom,
-            style: ElevatedButton.styleFrom(
-              padding: EdgeInsets.zero,
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-            ).copyWith(elevation: WidgetStateProperty.all(0)),
-            child: Ink(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.greenAccent, Colors.green.shade700],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.green.withOpacity(0.4),
-                    blurRadius: 15,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Container(
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.video_camera_front,
-                      size: 24,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      userRole == 'teacher'
-                          ? AppLocalizations.of(context)!.startLiveSession
-                          : AppLocalizations.of(context)!.joinLiveSession,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        fontFamily: 'Urbanist',
-                        letterSpacing: 1.2,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+      floatingActionButton: CourseDetailsFloatingBar(
+        isTeacher: isTeacher,
+        onLiveSessionPressed: _launchClassroom,
+        onChatPressed: _openCourseChat,
       ),
       body: NestedScrollView(
         physics: const BouncingScrollPhysics(),
@@ -594,7 +559,23 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                 onPressed: () => Navigator.pop(context),
               ),
               actions: [
-
+                if (userRole == 'admin')
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Colors.black45,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.campaign_rounded,
+                        size: 18,
+                        color: Colors.amber,
+                      ),
+                    ),
+                    tooltip: 'Send Course Notification',
+                    onPressed: _showAdminNotificationDialog,
+                  ),
                 IconButton(
                   icon: Container(
                     padding: const EdgeInsets.all(8),
@@ -1655,8 +1636,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   }
 
   Widget _buildClassroomTab() {
-    final bool isTeacher = userRole == 'teacher';
-
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
@@ -1731,6 +1710,20 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
               ],
             ],
           ),
+          if (userRole == 'admin') ...[
+            const SizedBox(height: 16),
+            _buildActionCard(
+              title: Localizations.localeOf(context).languageCode == 'ar'
+                  ? 'إرسال إشعار للدورة'
+                  : 'Send Course Notification',
+              subtitle: Localizations.localeOf(context).languageCode == 'ar'
+                  ? 'إرسال تنبيه فوري لجميع الطلاب والمعلم'
+                  : 'Send instant notification to all students and the teacher',
+              icon: Icons.campaign_rounded,
+              color: Colors.amber,
+              onTap: _showAdminNotificationDialog,
+            ),
+          ],
           if (isTeacher) ...[
             const SizedBox(height: 16),
             Row(
@@ -1753,7 +1746,31 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                   ),
                 ),
                 const SizedBox(width: 16),
-                const Spacer(),
+                Expanded(
+                  child: _buildActionCard(
+                    title: Localizations.localeOf(context).languageCode == 'ar'
+                        ? 'ملحقات ومراجع'
+                        : 'Course Materials',
+                    subtitle: Localizations.localeOf(context).languageCode == 'ar'
+                        ? 'ملفات PDF وصور'
+                        : 'PDFs & Templates',
+                    icon: Icons.auto_stories_rounded,
+                    color: Colors.tealAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CourseMaterialsPage(
+                            courseId: widget.courseId,
+                            courseName: courseName,
+                            isTeacher: isTeacher,
+                            isAdmin: userRole == 'admin',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 40),
@@ -1767,8 +1784,58 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
             ),
             const SizedBox(height: 20),
             _buildEnrolledStudentsList(),
+          ] else ...[
+            const SizedBox(height: 16),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    title: Localizations.localeOf(context).languageCode == 'ar'
+                        ? 'ملحقات ومراجع'
+                        : 'Course Materials',
+                    subtitle: Localizations.localeOf(context).languageCode == 'ar'
+                        ? 'ملفات PDF وصور'
+                        : 'PDFs & Templates',
+                    icon: Icons.auto_stories_rounded,
+                    color: Colors.tealAccent,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CourseMaterialsPage(
+                            courseId: widget.courseId,
+                            courseName: courseName,
+                            isTeacher: isTeacher,
+                            isAdmin: userRole == 'admin',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Spacer(),
+              ],
+            ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _openCourseChat() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CourseChatPage(
+          courseId: widget.courseId,
+          courseName: courseName,
+          courseTeacherId:
+              courseTeacherId ?? widget.courseData['teacherId']?.toString(),
+          isTeacher: isTeacher,
+          isAdmin: userRole == 'admin',
+        ),
       ),
     );
   }
@@ -1826,7 +1893,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   }
 
   Widget _buildDynamicSchedulingCard() {
-    final bool isTeacher = userRole == 'teacher';
     final hasReschedule = _rescheduledData != null;
     final bool isSessionToday = _isSessionToday();
 
@@ -2631,6 +2697,293 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   void _showMessage(String title, String msg, MessengerType type) {
     if (!mounted) return;
     AppMessenger.showSnackBar(context, title: title, message: msg, type: type);
+  }
+
+  final AdminService _adminService = AdminService();
+
+  void _showAdminNotificationDialog() async {
+    // Fetch latest course document to get accurate enrolledStudents and teacherId
+    DocumentSnapshot<Map<String, dynamic>>? courseDoc;
+    try {
+      courseDoc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
+    } catch (_) {}
+
+    final data = courseDoc?.data() ?? widget.courseData;
+    final String cName = data['courseName'] ?? data['courseTitle'] ?? courseName;
+    final String tName = data['teacherName'] ?? widget.courseData['teacherName'] ?? 'Instructor';
+    final String tId = data['teacherId'] ?? widget.courseData['teacherId'] ?? '';
+    final dynamic studentsRaw = data['enrolledStudents'];
+    final List<String> studentIds = (studentsRaw is List)
+        ? studentsRaw.map((e) => e.toString()).toList()
+        : <String>[];
+    final int enrolledCount = studentIds.length;
+    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
+
+    if (!mounted) return;
+
+    final TextEditingController msgController = TextEditingController();
+    bool isSending = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.campaign_rounded, color: Colors.amber, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          isArabic ? "إرسال إشعار للدورة" : "Send Course Notification",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Course Info Card
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          cName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outline_rounded, color: Colors.white70, size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              isArabic ? "المعلم: $tName" : "Teacher: $tName",
+                              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.cyan.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isArabic ? "$enrolledCount طالب + المعلم" : "$enrolledCount students + teacher",
+                                style: const TextStyle(
+                                  color: Colors.cyanAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Live Preview Box
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.preview_rounded, size: 14, color: Colors.amber),
+                            const SizedBox(width: 6),
+                            Text(
+                              isArabic ? "شكل الإشعار كما سيصل للهواتف:" : "Notification Preview:",
+                              style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "📢 إشعار إداري: $cName",
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          msgController.text.trim().isEmpty
+                              ? (isArabic
+                                  ? "بخصوص دورتكم مع أ. $tName: [نص رسالتك هنا...]"
+                                  : "Regarding your course with $tName: [Your message here...]")
+                              : (isArabic
+                                  ? "بخصوص دورتكم مع أ. $tName: ${msgController.text.trim()}"
+                                  : "Regarding your course with $tName: ${msgController.text.trim()}"),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 11,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Message Input Field
+                  Text(
+                    isArabic ? "نص الرسالة:" : "Message Body:",
+                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: msgController,
+                    maxLines: 4,
+                    minLines: 3,
+                    onChanged: (_) => setDialogState(() {}),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: isArabic
+                          ? "مثال: نود تذكيركم بمراجعة قسم الواجبات قبل بداية الحصة القادمة..."
+                          : "Type your message here...",
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 12),
+                      filled: true,
+                      fillColor: Colors.black.withOpacity(0.3),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.amber, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isSending ? null : () => Navigator.pop(dialogCtx),
+                        child: Text(
+                          isArabic ? "إلغاء" : "Cancel",
+                          style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: isSending || msgController.text.trim().isEmpty
+                            ? null
+                            : () async {
+                                final text = msgController.text.trim();
+                                if (text.isEmpty) return;
+
+                                setDialogState(() => isSending = true);
+
+                                try {
+                                  final count = await _adminService.sendCourseNotification(
+                                    courseId: widget.courseId,
+                                    courseName: cName,
+                                    teacherName: tName,
+                                    teacherId: tId,
+                                    studentIds: studentIds,
+                                    message: text,
+                                  );
+
+                                  if (mounted) {
+                                    Navigator.pop(dialogCtx);
+                                    _showMessage(
+                                      isArabic ? "تم الإرسال" : "Sent",
+                                      isArabic
+                                          ? "تم إرسال الإشعار بنجاح إلى $count مستلم (الطلاب والمعلم)"
+                                          : "Notification sent successfully to $count recipients",
+                                      MessengerType.success,
+                                    );
+                                  }
+                                } catch (e) {
+                                  setDialogState(() => isSending = false);
+                                  if (mounted) {
+                                    _showMessage(
+                                      isArabic ? "خطأ" : "Error",
+                                      "$e",
+                                      MessengerType.error,
+                                    );
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          disabledBackgroundColor: Colors.amber.withOpacity(0.3),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: isSending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.send_rounded, size: 16, color: Colors.black),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isArabic ? "إرسال الإشعار" : "Send Notification",
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 

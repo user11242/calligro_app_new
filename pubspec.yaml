@@ -2,7 +2,7 @@ name: calligro_app
 description: "A new Flutter project."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.21+102
+version: 1.0.24+107
 
 environment:
   sdk: ">=3.9.2 <4.0.0"  # Supports Dart 2.12 and higher (null safety)
@@ -38,6 +38,7 @@ dependencies:
   in_app_purchase: ^3.3.0  # ✅ REQUIRED for App Store/Play Store digital goods
   livekit_client: 2.10.0
   crypto: ^3.0.3
+  collection: ^1.18.0
   
   # OTHER PACKAGES
   phone_number: ^2.0.1
@@ -85,6 +86,7 @@ dependencies:
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
+  package_info_plus: ^9.0.1
   
 dev_dependencies:
   flutter_test:

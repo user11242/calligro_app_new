@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/colors.dart';
 import '../services/community_service.dart';
 import 'likers_bottom_sheet.dart';
@@ -36,6 +37,9 @@ class PostCard extends StatefulWidget {
   final bool isGuest; // New flag
   final bool isEdited; // New field
   final bool isPinned; // New field for admin pinning
+  final bool isHidden; // New field for admin hiding/unhiding
+  final String? linkUrl; // Optional external link URL
+  final String? linkTitle; // Optional display title for link
   final VoidCallback onToggleSave; // New callback
 
   const PostCard({
@@ -57,6 +61,9 @@ class PostCard extends StatefulWidget {
     required this.isGuest,
     required this.isEdited,
     this.isPinned = false,
+    this.isHidden = false,
+    this.linkUrl,
+    this.linkTitle,
     required this.onToggleSave,
   });
 
@@ -413,6 +420,32 @@ class _PostCardState extends State<PostCard>
     }
   }
 
+  Future<void> _toggleHide() async {
+    try {
+      await _communityService.toggleHidePost(
+        postId: widget.postId,
+        isHidden: !widget.isHidden,
+      );
+      if (mounted) {
+        AppMessenger.showSnackBar(
+          context,
+          title: AppLocalizations.of(context)!.success,
+          message: widget.isHidden ? "Post is now visible." : "Post hidden from community feed.",
+          type: MessengerType.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppMessenger.showSnackBar(
+          context,
+          title: AppLocalizations.of(context)!.error,
+          message: "Failed to update post visibility: ${e.toString()}",
+          type: MessengerType.error,
+        );
+      }
+    }
+  }
+
   Widget _buildReactionStack() {
     return SizedBox(
       width: 50,
@@ -516,6 +549,101 @@ class _PostCardState extends State<PostCard>
     }
   }
 
+  Widget _buildLinkCard(String url, String? title) {
+    Uri? uri;
+    try {
+      final parsed = Uri.parse(url);
+      if (!parsed.hasScheme) {
+        uri = Uri.parse('https://$url');
+      } else {
+        uri = parsed;
+      }
+    } catch (_) {
+      uri = null;
+    }
+
+    final String domain = uri?.host.isNotEmpty == true ? uri!.host : url;
+    final String displayTitle = (title != null && title.trim().isNotEmpty)
+        ? title.trim()
+        : domain;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          if (uri == null) return;
+          try {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } catch (e) {
+            debugPrint("Could not launch $url: $e");
+          }
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.4),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppColors.accentGold.withOpacity(0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.link,
+                  color: AppColors.accentGold,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      domain,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textLight.withOpacity(0.6),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.open_in_new,
+                color: AppColors.accentGold,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     String timeAgo = widget.timestamp != null
@@ -541,6 +669,41 @@ class _PostCardState extends State<PostCard>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top pinned banner if pinned
+            if (widget.isPinned)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold.withOpacity(0.12),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: AppColors.accentGold.withOpacity(0.25),
+                      width: 1,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.push_pin,
+                      size: 13,
+                      color: AppColors.accentGold,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "PINNED POST",
+                      style: TextStyle(
+                        color: AppColors.accentGold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
@@ -655,6 +818,8 @@ class _PostCardState extends State<PostCard>
                           _editPost();
                         } else if (v == 'pin') {
                           _togglePin();
+                        } else if (v == 'hide') {
+                          _toggleHide();
                         } else if (v == 'report') {
                           if (!GuestGuard.check(context, isGuest: widget.isGuest)) return;
                           await _communityService.reportPost(
@@ -701,7 +866,7 @@ class _PostCardState extends State<PostCard>
                         }
                       },
                       itemBuilder: (ctx) => [
-                        if (_currentUserRole == 'admin')
+                        if (_currentUserRole == 'admin') ...[
                           PopupMenuItem(
                             value: 'pin',
                             child: Row(
@@ -721,6 +886,26 @@ class _PostCardState extends State<PostCard>
                               ],
                             ),
                           ),
+                          PopupMenuItem(
+                            value: 'hide',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  widget.isHidden ? Icons.visibility : Icons.visibility_off,
+                                  color: widget.isHidden ? Colors.greenAccent : Colors.orangeAccent,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  widget.isHidden ? "Unhide Post" : "Hide Post",
+                                  style: TextStyle(
+                                    color: widget.isHidden ? Colors.greenAccent : Colors.orangeAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         if (isPostAuthor)
                           PopupMenuItem(
                             value: 'edit',
@@ -867,6 +1052,13 @@ class _PostCardState extends State<PostCard>
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: PostImageCarousel(imageUrls: widget.imageUrls),
+              ),
+
+            // Link attachment (if present)
+            if (widget.linkUrl != null && widget.linkUrl!.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: _buildLinkCard(widget.linkUrl!.trim(), widget.linkTitle),
               ),
 
             const Divider(height: 1, color: Colors.white10),

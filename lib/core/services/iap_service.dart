@@ -49,6 +49,10 @@ class IAPService {
   }
 
   static const List<String> _defaultProductIds = [
+    'com.yazan.calligro.tier_60',
+    'com.yazan.calligro.tier_70',
+    'com.yazan.calligro.tier_80',
+    'com.yazan.calligro.tier_90',
     'com.yazan.calligro.tier_100',
     'com.yazan.calligro.tier_110',
     'com.yazan.calligro.tier_120',

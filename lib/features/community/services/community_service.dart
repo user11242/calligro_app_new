@@ -121,8 +121,12 @@ class CommunityService {
     required String caption,
     required List<File> images,
     required Map<String, dynamic> userData,
+    String? linkUrl,
+    String? linkTitle,
+    bool isPinned = false,
+    bool isHidden = false,
   }) async {
-    if (caption.isEmpty && images.isEmpty) {
+    if (caption.isEmpty && images.isEmpty && (linkUrl == null || linkUrl.trim().isEmpty)) {
       throw Exception("You cannot create an empty post.");
     }
 
@@ -151,8 +155,9 @@ class CommunityService {
         final userRef = _firestore.collection('users').doc(uid);
         final userDoc = await transaction.get(userRef);
 
-        transaction.set(postRef, {
-          // CORRECTED: 'userId' matches your database screenshot (image_547f9d.png)
+        final bool isAdmin = userData['role'] == 'admin';
+
+        final Map<String, dynamic> postDataMap = {
           'userId': uid,
           'userName': userData['name'],
           'userImageUrl': userData['photoUrl'],
@@ -163,14 +168,32 @@ class CommunityService {
           'likesCount': 0,
           'commentsCount': 0,
           'likes': {},
-        });
+        };
+
+        // Only admins can attach external links, pin posts, or set hidden status
+        if (isAdmin && linkUrl != null && linkUrl.trim().isNotEmpty) {
+          postDataMap['linkUrl'] = linkUrl.trim();
+          if (linkTitle != null && linkTitle.trim().isNotEmpty) {
+            postDataMap['linkTitle'] = linkTitle.trim();
+          }
+        }
+        if (isAdmin && isPinned) {
+          postDataMap['isPinned'] = true;
+        }
+        if (isAdmin && isHidden) {
+          postDataMap['isHidden'] = true;
+        }
+
+        transaction.set(postRef, postDataMap);
 
         // Increment user's post count
         if (userDoc.exists) {
           transaction.update(userRef, {'postCount': FieldValue.increment(1)});
           final role = userDoc.data()?['role'] as String? ?? 'student';
-          final roleRef = _firestore.collection(role == 'teacher' ? 'teachers' : 'students').doc(uid);
-          transaction.update(roleRef, {'postCount': FieldValue.increment(1)});
+          if (role == 'teacher' || role == 'student') {
+            final roleRef = _firestore.collection(role == 'teacher' ? 'teachers' : 'students').doc(uid);
+            transaction.update(roleRef, {'postCount': FieldValue.increment(1)});
+          }
         }
       });
     } catch (e) {
@@ -545,6 +568,22 @@ class CommunityService {
 
     await postRef.update({
       'isPinned': isPinned,
+    });
+  }
+
+  // ------------------------------------------------------------------------
+  // 8c. Hide / Show Post (Admin Only)
+  // ------------------------------------------------------------------------
+  Future<void> toggleHidePost({
+    required String postId,
+    required bool isHidden,
+  }) async {
+    final DocumentReference postRef = _firestore
+        .collection('community_posts')
+        .doc(postId);
+
+    await postRef.update({
+      'isHidden': isHidden,
     });
   }
 

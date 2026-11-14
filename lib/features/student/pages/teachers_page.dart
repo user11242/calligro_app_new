@@ -4,6 +4,7 @@ import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/features/student/data/services/student_service.dart';
 import 'package:calligro_app/core/widgets/profile_avatar.dart';
 import 'package:calligro_app/core/widgets/rating_display.dart';
+import 'package:calligro_app/core/utils/rating_utils.dart';
 import 'package:calligro_app/features/teacher/pages/public_profile/public_teacher_profile_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
@@ -261,7 +262,10 @@ class _TeachersPageState extends State<TeachersPage> {
                 ),
                 const SizedBox(height: 6),
                 RatingDisplay(
-                  averageRating: (teacher['totalStars'] ?? 0).toDouble(),
+                  averageRating: RatingUtils.calculateAverageRating(
+                    teacher['totalStars'] ?? 0,
+                    teacher['reviewCount'] ?? 0,
+                  ),
                   reviewCount: teacher['reviewCount'] ?? 0,
                   isCompact: true,
                   starSize: 12,

@@ -7179,6 +7179,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Note: There may be transfer commissions applied by the banks themselves, not by Calligro.'**
   String get bankTransferFeeNote;
+
+  /// No description provided for @courseGroupChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Course Chat'**
+  String get courseGroupChat;
+
+  /// No description provided for @chatWithClassSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Talk with teacher & students'**
+  String get chatWithClassSubtitle;
+
+  /// No description provided for @typeMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message...'**
+  String get typeMessageHint;
+
+  /// No description provided for @noMessagesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet'**
+  String get noMessagesYet;
+
+  /// No description provided for @startCourseConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the conversation with your class!'**
+  String get startCourseConversation;
+
+  /// No description provided for @teacherBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Teacher'**
+  String get teacherBadge;
+
+  /// No description provided for @adminBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get adminBadge;
+
+  /// No description provided for @copyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copyMessage;
+
+  /// No description provided for @messageCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Message copied'**
+  String get messageCopied;
+
+  /// No description provided for @deleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Message'**
+  String get deleteMessage;
+
+  /// No description provided for @deleteMessageConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this message?'**
+  String get deleteMessageConfirm;
+
+  /// No description provided for @reportMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Message'**
+  String get reportMessage;
+
+  /// No description provided for @messageReportedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Thank you. This message has been reported for review.'**
+  String get messageReportedSuccess;
+
+  /// No description provided for @sendMessageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send message'**
+  String get sendMessageFailed;
+
+  /// No description provided for @errorLoadingChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load chat messages.'**
+  String get errorLoadingChat;
+
+  /// No description provided for @meetWeakConnectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak connection'**
+  String get meetWeakConnectionTitle;
+
+  /// No description provided for @meetWeakConnectionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your internet connection looks weak. Switch to audio-only mode to save data and keep the audio clear?'**
+  String get meetWeakConnectionBody;
+
+  /// No description provided for @meetEnableAudioOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to audio only'**
+  String get meetEnableAudioOnly;
+
+  /// No description provided for @meetAudioOnlyOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio-only mode is on'**
+  String get meetAudioOnlyOn;
+
+  /// No description provided for @meetAudioOnlyOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Video is back on'**
+  String get meetAudioOnlyOff;
+
+  /// No description provided for @meetTeacherLeaveOrEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Do you want to leave the class for now, or end it for all students?'**
+  String get meetTeacherLeaveOrEnd;
+
+  /// No description provided for @meetLeaveOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave only'**
+  String get meetLeaveOnly;
+
+  /// No description provided for @meetSpeakerView.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker view'**
+  String get meetSpeakerView;
+
+  /// No description provided for @meetGridView.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid view'**
+  String get meetGridView;
 }
 
 class _AppLocalizationsDelegate

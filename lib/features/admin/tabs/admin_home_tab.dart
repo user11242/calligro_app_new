@@ -4,6 +4,8 @@ import 'package:calligro_app/features/admin/pages/admin_pending_teachers.dart';
 import 'package:calligro_app/features/admin/pages/admin_activity_page.dart';
 import 'package:calligro_app/features/admin/pages/admin_payouts_page.dart';
 import 'package:calligro_app/features/admin/data/services/admin_service.dart';
+import 'package:calligro_app/features/admin/pages/admin_version_control_page.dart';
+import 'package:calligro_app/features/admin/pages/admin_pricing_tiers_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -21,31 +23,51 @@ class AdminHomeTab extends StatefulWidget {
 
 class _AdminHomeTabState extends State<AdminHomeTab> {
   late final AdminService _adminService;
+  late Future<Map<String, dynamic>> _statsFuture;
 
   @override
   void initState() {
     super.initState();
     _adminService = AdminService(firestore: widget.firestore);
+    _statsFuture = _adminService.getGlobalStats();
+  }
+
+  Future<void> _handleRefresh() async {
+    setState(() {
+      _statsFuture = _adminService.getGlobalStats();
+    });
+    try {
+      await _statsFuture;
+    } catch (e) {
+      debugPrint("Error refreshing admin stats: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _adminService.getGlobalStats(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text("${l10n.error}: ${snapshot.error}", style: const TextStyle(color: Colors.redAccent)));
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Colors.amber));
-        }
+    return RefreshIndicator(
+      color: Colors.amber,
+      backgroundColor: const Color(0xFF1E1E1E),
+      onRefresh: _handleRefresh,
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _statsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.hasError && !snapshot.hasData) {
+            return Center(child: Text("${l10n.error}: ${snapshot.error}", style: const TextStyle(color: Colors.redAccent)));
+          }
+          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator(color: Colors.amber));
+          }
 
-        final stats = snapshot.data ?? {};
+          final stats = snapshot.data ?? {};
 
-        return CustomScrollView(
-          slivers: [
+          return CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -103,7 +125,39 @@ class _AdminHomeTabState extends State<AdminHomeTab> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 20),
+
+                    // App Version Control Card
+                    _buildQuickAction(
+                      title: Localizations.localeOf(context).languageCode == 'ar'
+                          ? 'إدارة تحديث التطبيق والإلزام'
+                          : 'App Version & Force Update',
+                      subtitle: Localizations.localeOf(context).languageCode == 'ar'
+                          ? 'التحكم في الإصدارات وإجبار المستخدمين على التحديث'
+                          : 'Enforce or make updates optional',
+                      icon: Icons.system_update_rounded,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdminVersionControlPage()),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Pricing Tiers Control Card
+                    _buildQuickAction(
+                      title: Localizations.localeOf(context).languageCode == 'ar'
+                          ? 'إدارة باقات وأسعار الدورات'
+                          : 'Course Pricing Tiers',
+                      subtitle: Localizations.localeOf(context).languageCode == 'ar'
+                          ? 'تفعيل وتعطيل باقات الأسعار (60\$ - 90\$ وأخرى) للمعلمين'
+                          : 'Enable/disable course pricing tiers for teachers',
+                      icon: Icons.local_offer_rounded,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdminPricingTiersPage()),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
 
                     // Recent Activity Section Header
                     Row(
@@ -164,8 +218,9 @@ class _AdminHomeTabState extends State<AdminHomeTab> {
           ],
         );
       },
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildActivityItem(Map<String, dynamic> item) {
     return Container(

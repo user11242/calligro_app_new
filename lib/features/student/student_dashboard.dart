@@ -9,6 +9,7 @@ import 'package:calligro_app/features/student/data/services/student_service.dart
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   final bool isGuestMode;
@@ -32,6 +33,19 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   int _selectedIndex = 0;
   String? _initialCourseFilter;
   final int _navigationTrigger = 0;
+
+  Future<void> _openSupportWhatsApp() async {
+    final Uri whatsappUri = Uri.parse("https://wa.me/15645446119");
+    try {
+      if (await canLaunchUrl(whatsappUri)) {
+        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(whatsappUri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint("Error opening WhatsApp support: $e");
+    }
+  }
 
   void _handleCommunityProfileTap(String userId, String userRole) {
     setState(() {
@@ -84,9 +98,48 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     ];
 
     return Scaffold(
-        backgroundColor: AppColors.primary,
-        body: IndexedStack(index: _selectedIndex, children: pages),
-        bottomNavigationBar: BottomAppBar(
+      backgroundColor: AppColors.primary,
+      body: Stack(
+        children: [
+          IndexedStack(index: _selectedIndex, children: pages),
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.accentGold.withOpacity(0.35),
+                    blurRadius: 14,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: AppColors.accentGold,
+                shape: const CircleBorder(),
+                elevation: 4,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _openSupportWhatsApp,
+                  child: const SizedBox(
+                    width: 54,
+                    height: 54,
+                    child: Icon(
+                      Icons.support_agent_rounded,
+                      color: Colors.black,
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomAppBar(
         color: AppColors.cardBackground,
         height: 70,
         padding: EdgeInsets.zero,

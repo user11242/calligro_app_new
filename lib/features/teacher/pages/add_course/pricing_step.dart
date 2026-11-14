@@ -4,6 +4,7 @@ import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/core/utils/course_utils.dart';
 import '../../../../core/message/app_messenger.dart';
 import 'package:calligro_app/features/auth/pages/terms_and_conditions_page.dart';
+import 'package:calligro_app/core/services/price_tier_service.dart';
 
 class CoursePricePage extends StatefulWidget {
   final TextEditingController priceController;
@@ -30,14 +31,30 @@ class _CoursePricePageState extends State<CoursePricePage> {
   bool _isFirstTap = true;
   double _price = 0.0;
 
-  // Define the master tiers
-  final List<int> _priceTiers = [100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200];
+  // Define the master tiers in clean $10 increments from $60 to $200
+  List<int> _priceTiers = [
+    60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200
+  ];
 
   @override
   void initState() {
     super.initState();
     _price = double.tryParse(widget.priceController.text) ?? 0.0;
     widget.priceController.addListener(_onPriceChanged);
+    _loadEnabledTiers();
+  }
+
+  Future<void> _loadEnabledTiers() async {
+    try {
+      final tiers = await PriceTierService().getEnabledTiers();
+      if (mounted && tiers.isNotEmpty) {
+        setState(() {
+          _priceTiers = tiers;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading price tiers: $e');
+    }
   }
 
   @override

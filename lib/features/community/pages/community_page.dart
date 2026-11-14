@@ -643,6 +643,9 @@ class _CommunityPageState extends State<CommunityPage>
                             isSaved: _savedPostIds.contains(postId),
                             isEdited: postData['isEdited'] ?? false,
                             isPinned: postData['isPinned'] ?? true, // It is pinned
+                            isHidden: postData['isHidden'] ?? false,
+                            linkUrl: postData['linkUrl'] as String?,
+                            linkTitle: postData['linkTitle'] as String?,
                             onToggleSave: () async {
                                 final isCurrentlySaved = _savedPostIds.contains(postId);
                                 setState(() {
@@ -802,6 +805,9 @@ class _CommunityPageState extends State<CommunityPage>
                             isSaved: _savedPostIds.contains(postId), // Pass saved status
                             isEdited: postData['isEdited'] ?? false,
                             isPinned: postData['isPinned'] ?? false,
+                            isHidden: postData['isHidden'] ?? false,
+                            linkUrl: postData['linkUrl'] as String?,
+                            linkTitle: postData['linkTitle'] as String?,
                             onToggleSave: () async {
                                 // Optimistic update
                                 final isCurrentlySaved = _savedPostIds.contains(postId);

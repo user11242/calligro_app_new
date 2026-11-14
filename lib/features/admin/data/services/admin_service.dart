@@ -343,6 +343,67 @@ class AdminService {
     });
   }
 
+  /// Sends an administrative course notification to all enrolled students and the teacher
+  Future<int> sendCourseNotification({
+    required String courseId,
+    required String courseName,
+    required String teacherName,
+    required String teacherId,
+    required List<String> studentIds,
+    required String message,
+  }) async {
+    final String title = '📢 إشعار إداري: $courseName';
+    final String body = 'بخصوص دورتكم مع أ. $teacherName: $message';
+
+    // Unique recipients: students + teacher
+    final Set<String> recipients = {...studentIds};
+    if (teacherId.isNotEmpty) {
+      recipients.add(teacherId);
+    }
+
+    if (recipients.isEmpty) {
+      return 0;
+    }
+
+    final callable = _functions.httpsCallable('sendAdminDirectMessage');
+
+    final List<Future> tasks = [];
+
+    // Send direct notifications via Cloud Function
+    for (final uid in recipients) {
+      tasks.add(
+        callable.call({
+          'targetUserId': uid,
+          'title': title,
+          'body': body,
+        }).catchError((err) {
+          debugPrint("Failed to deliver admin notification to user $uid: $err");
+        }),
+      );
+    }
+
+    // Save as course announcement for in-app course board visibility
+    tasks.add(
+      _firestore
+          .collection('courses')
+          .doc(courseId)
+          .collection('announcements')
+          .add({
+        'title': title,
+        'message': message,
+        'formattedBody': body,
+        'senderName': 'إدارة كاليجرو',
+        'type': 'admin_announcement',
+        'timestamp': FieldValue.serverTimestamp(),
+      }).catchError((err) {
+        debugPrint("Failed to save course announcement: $err");
+      }),
+    );
+
+    await Future.wait(tasks);
+    return recipients.length;
+  }
+
   // --- CONTENT STREAMS ---
 
   Stream<List<Map<String, dynamic>>> getAllCourses() {

@@ -2,6 +2,7 @@
 
   import 'package:flutter/material.dart';
   import 'package:flutter/foundation.dart';
+  import 'dart:convert';
   import 'dart:developer' as developer;
   import 'package:firebase_core/firebase_core.dart';
   import 'package:firebase_messaging/firebase_messaging.dart';
@@ -37,6 +38,7 @@
   import 'package:calligro_app/features/student/pages/course_preview_page.dart';
   import 'package:calligro_app/features/community/pages/community_page.dart';
   import 'package:calligro_app/features/community/pages/single_post_page.dart';
+  import 'package:calligro_app/features/course_chat/pages/course_chat_page.dart';
 
   // --- ADMIN IMPORTS ---
   import 'package:calligro_app/features/admin/admin_dashboard.dart';
@@ -105,6 +107,7 @@
           id: message.hashCode,
           title: title,
           body: body,
+          payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,
           notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
               channel.id,
@@ -189,19 +192,7 @@
 
     // 💰 IAP Setup
     IAPService().initialize();
-    IAPService().fetchProducts([
-      'com.yazan.calligro.tier_100',
-      'com.yazan.calligro.tier_110',
-      'com.yazan.calligro.tier_120',
-      'com.yazan.calligro.tier_130',
-      'com.yazan.calligro.tier_140',
-      'com.yazan.calligro.tier_150',
-      'com.yazan.calligro.tier_160',
-      'com.yazan.calligro.tier_170',
-      'com.yazan.calligro.tier_180',
-      'com.yazan.calligro.tier_190',
-      'com.yazan.calligro.tier_200',
-    ]);
+    IAPService().fetchProducts();
 
     // 🌍 Register timeago locales
     timeago.setLocaleMessages('ar', timeago.ArMessages());
@@ -226,6 +217,18 @@
     try {
       await flutterLocalNotificationsPlugin.initialize(
         settings: initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          final payload = response.payload;
+          if (payload == null || payload.isEmpty) return;
+          try {
+            final decoded = jsonDecode(payload);
+            if (decoded is Map<String, dynamic>) {
+              DeepLinkService().handleFcmData(decoded);
+            }
+          } catch (e) {
+            developer.log("Failed to parse notification payload: $e");
+          }
+        },
       );
 
       await flutterLocalNotificationsPlugin
@@ -260,6 +263,7 @@
           id: message.hashCode,
           title: title,
           body: body,
+          payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,
           notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
               channel.id,
@@ -370,6 +374,20 @@ class CalligroApp extends StatelessWidget {
             '/postDetails': (context) {
               final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
               return SinglePostPage(postId: args['postId']);
+            },
+            '/courseChat': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
+              final teacherId = args['teacherId']?.toString() ?? '';
+              final currentUid = FirebaseAuth.instance.currentUser?.uid;
+              final rawName = args['courseName']?.toString() ?? '';
+              return CourseChatPage(
+                courseId: args['courseId'].toString(),
+                courseName: rawName.isNotEmpty
+                    ? rawName
+                    : AppLocalizations.of(context)!.courseGroupChat,
+                courseTeacherId: teacherId.isNotEmpty ? teacherId : null,
+                isTeacher: currentUid != null && currentUid == teacherId,
+              );
             },
           },
         );

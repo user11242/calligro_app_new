@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/colors.dart';
+import '../../../../core/utils/finance_utils.dart';
 import '../../../../l10n/app_localizations.dart';
 
 class TeacherSalesHistoryPage extends StatefulWidget {
@@ -510,7 +511,9 @@ class CourseSalesDetailsPage extends StatelessWidget {
     final String courseName = data['courseName'] ?? 'Unknown Course';
     final double amountPaid = (data['amount'] ?? 0.0).toDouble();
     final double fee = (data['fee'] ?? 0.0).toDouble();
-    final double netAmountPaid = fee > 0 ? amountPaid - fee : amountPaid / 1.08;
+    final double netAmountPaid = fee > 0
+        ? amountPaid - fee
+        : (amountPaid / FinanceUtils.feeMultiplier);
     final double teacherShare = (data['teacherShare'] ?? 0.0).toDouble();
 
     showModalBottomSheet(

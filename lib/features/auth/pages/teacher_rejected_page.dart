@@ -4,6 +4,7 @@ import 'package:calligro_app/core/theme/colors.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TeacherRejectedPage extends StatefulWidget {
   const TeacherRejectedPage({super.key});
@@ -120,11 +121,17 @@ class _TeacherRejectedPageState extends State<TeacherRejectedPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Logic for contact support (e.g. email)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.contactSupport)),
-                    );
+                  onPressed: () async {
+                    final Uri whatsappUri = Uri.parse("https://wa.me/15645446119");
+                    try {
+                      if (await canLaunchUrl(whatsappUri)) {
+                        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+                      } else {
+                        await launchUrl(whatsappUri, mode: LaunchMode.platformDefault);
+                      }
+                    } catch (e) {
+                      debugPrint("Error opening WhatsApp support: $e");
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,

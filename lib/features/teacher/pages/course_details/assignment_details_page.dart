@@ -15,6 +15,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'submission_watermark_helper.dart';
 
 class AssignmentDetailsPage extends StatefulWidget {
   final String courseId;
@@ -102,14 +103,41 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
       return;
     }
 
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
     setState(() => _isSubmitting = true);
 
     try {
       String? fileUrl = _existingSubmission?['fileUrl'];
       String? fileName = _existingSubmission?['fileName'];
 
-      // 1. Upload new file if picked
+      // 1. Fetch User and Teacher info
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final String studentName = userDoc.data()?['name'] ?? user.displayName ?? 'Student';
+      final String? studentImage = userDoc.data()?['photoUrl'];
+
+      String teacherName = 'Teacher';
+      try {
+        final courseDoc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
+        if (courseDoc.exists) {
+          teacherName = courseDoc.data()?['teacherName'] ?? 'Teacher';
+        }
+      } catch (e) {
+        debugPrint("Error fetching teacher name: $e");
+      }
+
+      // 2. Upload new file if picked (with info watermark on images)
       if (_pickedFile != null) {
+        File fileToUpload = File(_pickedFile!.path!);
+        if (SubmissionWatermarkHelper.isSupportedImage(_pickedFile!.path!)) {
+          fileToUpload = await SubmissionWatermarkHelper.watermarkSubmissionFile(
+            inputFile: fileToUpload,
+            studentName: studentName,
+            assignmentTitle: widget.assignmentData['title'] ?? 'Assignment',
+            teacherName: teacherName,
+            isRtl: isRtl,
+          );
+        }
+
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('course_submissions')
@@ -117,15 +145,10 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
             .child(widget.assignmentId)
             .child('${user.uid}_${_pickedFile!.name}');
 
-        final uploadTask = await storageRef.putFile(File(_pickedFile!.path!));
+        final uploadTask = await storageRef.putFile(fileToUpload);
         fileUrl = await uploadTask.ref.getDownloadURL();
         fileName = _pickedFile!.name;
       }
-
-      // 2. Fetch User Name
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final String studentName = userDoc.data()?['name'] ?? 'Student';
-      final String? studentImage = userDoc.data()?['photoUrl'];
 
       // 3. Update/Create Submission
       final submissionRef = FirebaseFirestore.instance

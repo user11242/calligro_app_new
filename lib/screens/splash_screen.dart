@@ -10,6 +10,7 @@ import 'package:calligro_app/features/teacher/teacher_dashboard.dart';
 import 'package:calligro_app/features/admin/admin_dashboard.dart';
 import 'package:calligro_app/features/auth/pages/login_page.dart';
 import 'package:calligro_app/screens/auth_wrapper.dart';
+import 'package:calligro_app/core/services/version_check_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -104,6 +105,26 @@ class _SplashScreenState extends State<SplashScreen> {
       await Future.delayed(remaining);
     }
     
+    // 3. Remote Version Control Check (Force or Optional Update)
+    if (mounted && !widget.disableNavigation) {
+      try {
+        final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+        final versionResult = await VersionCheckService().checkVersion(isArabic: isArabic);
+        if (versionResult.status == VersionStatus.forceUpdate) {
+          if (mounted) {
+            await VersionCheckService().showUpdateDialog(context, versionResult);
+          }
+          return; // Block entry: user MUST update app from store
+        } else if (versionResult.status == VersionStatus.optionalUpdate) {
+          if (mounted) {
+            await VersionCheckService().showUpdateDialog(context, versionResult);
+          }
+        }
+      } catch (e) {
+        debugPrint('[SplashScreen] Version check error: $e');
+      }
+    }
+
     if (mounted && !widget.disableNavigation) {
       // Navigate with a custom cross-fade or slide for "Creative" feel
       Navigator.of(context).pushReplacement(

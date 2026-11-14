@@ -20,9 +20,14 @@ class AddPostPage extends StatefulWidget {
 class _AddPostPageState extends State<AddPostPage> {
   // --- UI State ---
   final TextEditingController _captionController = TextEditingController();
+  final TextEditingController _linkUrlController = TextEditingController();
+  final TextEditingController _linkTitleController = TextEditingController();
   final List<File> _imageFiles = [];
   bool _isLoading = false; // For the submit button
   bool _isUserDataLoading = true; // For the header
+  bool _showLinkInput = false;
+  bool _pinImmediately = false;
+  bool _hideImmediately = false;
 
   // --- Logic / Service ---
   final CommunityService _communityService = CommunityService();
@@ -33,6 +38,14 @@ class _AddPostPageState extends State<AddPostPage> {
   void initState() {
     super.initState();
     _loadUserData();
+  }
+
+  @override
+  void dispose() {
+    _captionController.dispose();
+    _linkUrlController.dispose();
+    _linkTitleController.dispose();
+    super.dispose();
   }
 
   // --- UI-Related Logic ---
@@ -116,10 +129,29 @@ class _AddPostPageState extends State<AddPostPage> {
     });
 
     try {
+      String? rawLink = _linkUrlController.text.trim();
+      if (rawLink.isNotEmpty) {
+        if (!rawLink.startsWith('http://') && !rawLink.startsWith('https://')) {
+          rawLink = 'https://$rawLink';
+        }
+      } else {
+        rawLink = null;
+      }
+
+      final String? linkTitle = _linkTitleController.text.trim().isNotEmpty
+          ? _linkTitleController.text.trim()
+          : null;
+
+      final bool isAdmin = _userData['role'] == 'admin';
+
       await _communityService.createPost(
         caption: _captionController.text,
         images: _imageFiles,
         userData: _userData,
+        linkUrl: isAdmin ? rawLink : null,
+        linkTitle: isAdmin ? linkTitle : null,
+        isPinned: isAdmin && _pinImmediately,
+        isHidden: isAdmin && _hideImmediately,
       );
 
       if (mounted) {
@@ -200,6 +232,8 @@ class _AddPostPageState extends State<AddPostPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        if (_showLinkInput || _linkUrlController.text.isNotEmpty)
+                          _buildLinkInputSection(),
                         if (_imageFiles.isNotEmpty) _buildImagePreviewList(),
                       ],
                     ),
@@ -276,6 +310,8 @@ class _AddPostPageState extends State<AddPostPage> {
 
   Widget _buildToolbar() {
     final bool canAddMoreImages = _imageFiles.length < _maxImages;
+    final bool isAdmin = _userData['role'] == 'admin';
+
     return Row(
       children: [
         IconButton(
@@ -291,7 +327,197 @@ class _AddPostPageState extends State<AddPostPage> {
               ? AppLocalizations.of(context)!.addPhoto
               : AppLocalizations.of(context)!.limitPhotosReached(_maxImages),
         ),
+        if (isAdmin) ...[
+          IconButton(
+            icon: Icon(
+              _showLinkInput || _linkUrlController.text.isNotEmpty
+                  ? Icons.link
+                  : Icons.add_link,
+              color: _showLinkInput || _linkUrlController.text.isNotEmpty
+                  ? AppColors.accentGold
+                  : AppColors.textLight,
+              size: 28,
+            ),
+            onPressed: () {
+              setState(() {
+                _showLinkInput = !_showLinkInput;
+              });
+            },
+            tooltip: "Attach Link",
+          ),
+          const Spacer(),
+          // Admin quick hide toggle
+          InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              setState(() {
+                _hideImmediately = !_hideImmediately;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _hideImmediately
+                    ? Colors.orange.withOpacity(0.2)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _hideImmediately
+                      ? Colors.orange
+                      : AppColors.textLight.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _hideImmediately ? Icons.visibility_off : Icons.visibility_off_outlined,
+                    size: 16,
+                    color: _hideImmediately ? Colors.orangeAccent : AppColors.textLight,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Hide",
+                    style: TextStyle(
+                      color: _hideImmediately ? Colors.orangeAccent : AppColors.textLight,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Admin quick pin toggle
+          InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              setState(() {
+                _pinImmediately = !_pinImmediately;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: _pinImmediately
+                    ? AppColors.accentGold.withOpacity(0.2)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _pinImmediately
+                      ? AppColors.accentGold
+                      : AppColors.textLight.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _pinImmediately ? Icons.push_pin : Icons.push_pin_outlined,
+                    size: 16,
+                    color: _pinImmediately ? AppColors.accentGold : AppColors.textLight,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Pin Post",
+                    style: TextStyle(
+                      color: _pinImmediately ? AppColors.accentGold : AppColors.textLight,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildLinkInputSection() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accentGold.withOpacity(0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.link, color: AppColors.accentGold, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                "Attach Link",
+                style: TextStyle(
+                  color: AppColors.accentGold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _linkUrlController.clear();
+                    _linkTitleController.clear();
+                    _showLinkInput = false;
+                  });
+                },
+                child: const Icon(Icons.close, color: AppColors.textLight, size: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _linkUrlController,
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+            keyboardType: TextInputType.url,
+            decoration: InputDecoration(
+              hintText: "https://... (e.g. https://calligroacademy.com)",
+              hintStyle: TextStyle(color: AppColors.textLight.withOpacity(0.5), fontSize: 12),
+              isDense: true,
+              filled: true,
+              fillColor: AppColors.primary,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.textLight.withOpacity(0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.accentGold),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _linkTitleController,
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: "Link title / button label (optional, e.g. Visit Website)",
+              hintStyle: TextStyle(color: AppColors.textLight.withOpacity(0.5), fontSize: 12),
+              isDense: true,
+              filled: true,
+              fillColor: AppColors.primary,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColors.textLight.withOpacity(0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.accentGold),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

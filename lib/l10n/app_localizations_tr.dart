@@ -3842,4 +3842,80 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get bankTransferFeeNote =>
       'Not: Banka transferlerinde bankaların kendileri tarafından uygulanan, Calligro\'dan bağımsız komisyonlar olabilir.';
+
+  @override
+  String get courseGroupChat => 'Kurs Sohbeti';
+
+  @override
+  String get chatWithClassSubtitle => 'Eğitmen ve öğrencilerle sohbet';
+
+  @override
+  String get typeMessageHint => 'Bir mesaj yazın...';
+
+  @override
+  String get noMessagesYet => 'Henüz mesaj yok';
+
+  @override
+  String get startCourseConversation => 'Sınıfınızla sohbeti başlatın!';
+
+  @override
+  String get teacherBadge => 'Eğitmen';
+
+  @override
+  String get adminBadge => 'Yönetici';
+
+  @override
+  String get copyMessage => 'Kopyala';
+
+  @override
+  String get messageCopied => 'Mesaj kopyalandı';
+
+  @override
+  String get deleteMessage => 'Mesajı Sil';
+
+  @override
+  String get deleteMessageConfirm =>
+      'Bu mesajı silmek istediğinizden emin misiniz?';
+
+  @override
+  String get reportMessage => 'Mesajı Bildir';
+
+  @override
+  String get messageReportedSuccess =>
+      'Teşekkürler. Bu mesaj inceleme için bildirildi.';
+
+  @override
+  String get sendMessageFailed => 'Mesaj gönderilemedi';
+
+  @override
+  String get errorLoadingChat => 'Sohbet mesajları yüklenemedi.';
+
+  @override
+  String get meetWeakConnectionTitle => 'Zayıf bağlantı';
+
+  @override
+  String get meetWeakConnectionBody =>
+      'İnternet bağlantınız zayıf görünüyor. Veri tasarrufu yapmak ve sesi net tutmak için yalnızca ses moduna geçmek ister misiniz?';
+
+  @override
+  String get meetEnableAudioOnly => 'Yalnızca sese geç';
+
+  @override
+  String get meetAudioOnlyOn => 'Yalnızca ses modu açık';
+
+  @override
+  String get meetAudioOnlyOff => 'Video tekrar açık';
+
+  @override
+  String get meetTeacherLeaveOrEnd =>
+      'Dersten şimdilik ayrılmak mı, yoksa dersi tüm öğrenciler için bitirmek mi istiyorsunuz?';
+
+  @override
+  String get meetLeaveOnly => 'Sadece ayrıl';
+
+  @override
+  String get meetSpeakerView => 'Konuşmacı görünümü';
+
+  @override
+  String get meetGridView => 'Izgara görünümü';
 }

@@ -655,6 +655,10 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
                     commentsCount: commentsCount,
                     isSaved: isSaved,
                     isEdited: postData['isEdited'] ?? false,
+                    isPinned: postData['isPinned'] ?? false,
+                    isHidden: postData['isHidden'] ?? false,
+                    linkUrl: postData['linkUrl'] as String?,
+                    linkTitle: postData['linkTitle'] as String?,
                     onToggleSave: () async {
                        await CommunityService().toggleSavePost(
                           postId: postId,

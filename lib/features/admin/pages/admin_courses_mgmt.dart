@@ -97,6 +97,13 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
     final price = (course['price'] ?? 0).toDouble();
     final isFree = price == 0;
     
+    final dynamic studentsRaw = course['enrolledStudents'];
+    final List<dynamic> enrolledList = (studentsRaw is List) ? studentsRaw : [];
+    final int enrolledCount = enrolledList.length;
+    final int maxStudents = (course['maxStudents'] ?? 0);
+    final bool isFull = maxStudents > 0 && enrolledCount >= maxStudents;
+    final String locale = Localizations.localeOf(context).languageCode;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -239,6 +246,8 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
                                 ),
                               ),
                             );
+                          } else if (value == 'send_notification') {
+                            _showSendNotificationDialog(course);
                           } else if (value == 'add_student') {
                             _showAddStudentDialog(course['id'], courseName);
                           } else if (value == 'delete') {
@@ -253,6 +262,20 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
                                 const Icon(Icons.visibility, color: AppColors.accentGold, size: 20),
                                 const SizedBox(width: 12),
                                 Text(l10n.viewDetails, style: const TextStyle(color: AppColors.textPrimary)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: 'send_notification',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.campaign_rounded, color: Colors.amber, size: 20),
+                                const SizedBox(width: 12),
+                                Text(
+                                  Localizations.localeOf(context).languageCode == 'ar' ? 'إرسال إشعار' : 'Send Notification',
+                                  style: const TextStyle(color: AppColors.textPrimary),
+                                ),
                               ],
                             ),
                           ),
@@ -288,6 +311,38 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
                     left: 12,
                     child: _buildPremiumStatusBadge(_getCourseDisplayStatus(context, course['startDate'], course['endDate'])),
                   ),
+                  // Students Count Badge (Bottom Right)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.65),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.15)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.people_alt_rounded,
+                            size: 14,
+                            color: isFull ? const Color(0xFFFF4D6D) : AppColors.accentGold,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            maxStudents > 0 ? '$enrolledCount / $maxStudents' : '$enrolledCount',
+                            style: TextStyle(
+                              color: isFull ? const Color(0xFFFF4D6D) : Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
               
@@ -308,6 +363,52 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Students Enrollment Row
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.people_alt_rounded,
+                          size: 15,
+                          color: isFull ? const Color(0xFFFF4D6D) : const Color(0xFF00B4D8),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          maxStudents > 0
+                              ? (locale == 'ar'
+                                  ? '$enrolledCount من $maxStudents طالب مسجل'
+                                  : '$enrolledCount of $maxStudents students enrolled')
+                              : (locale == 'ar'
+                                  ? '$enrolledCount طالب مسجل'
+                                  : '$enrolledCount students enrolled'),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (isFull) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF4D6D).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFFF4D6D).withOpacity(0.4)),
+                            ),
+                            child: Text(
+                              locale == 'ar' ? 'مكتملة' : 'FULL',
+                              style: const TextStyle(
+                                color: Color(0xFFFF4D6D),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 12),
                     
@@ -389,6 +490,285 @@ class _AdminCoursesMgmtState extends State<AdminCoursesMgmt> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showSendNotificationDialog(Map<String, dynamic> course) {
+    final String courseId = course['id'] ?? '';
+    final String courseName = course['courseName'] ?? 'Course';
+    final String teacherName = course['teacherName'] ?? 'Instructor';
+    final String teacherId = course['teacherId'] ?? '';
+    final dynamic studentsRaw = course['enrolledStudents'];
+    final List<String> studentIds = (studentsRaw is List)
+        ? studentsRaw.map((e) => e.toString()).toList()
+        : <String>[];
+    final int enrolledCount = studentIds.length;
+    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
+
+    final TextEditingController msgController = TextEditingController();
+    bool isSending = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.campaign_rounded, color: Colors.amber, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          isArabic ? "إرسال إشعار للدورة" : "Send Course Notification",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Course Info Card
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          courseName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outline_rounded, color: Colors.white70, size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              isArabic ? "المعلم: $teacherName" : "Teacher: $teacherName",
+                              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.cyan.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isArabic ? "$enrolledCount طالب + المعلم" : "$enrolledCount students + teacher",
+                                style: const TextStyle(
+                                  color: Colors.cyanAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Live Preview Box
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.preview_rounded, size: 14, color: Colors.amber),
+                            const SizedBox(width: 6),
+                            Text(
+                              isArabic ? "شكل الإشعار كما سيصل للهواتف:" : "Notification Preview:",
+                              style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "📢 إشعار إداري: $courseName",
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          msgController.text.trim().isEmpty
+                              ? (isArabic
+                                  ? "بخصوص دورتكم مع أ. $teacherName: [نص رسالتك هنا...]"
+                                  : "Regarding your course with $teacherName: [Your message here...]")
+                              : (isArabic
+                                  ? "بخصوص دورتكم مع أ. $teacherName: ${msgController.text.trim()}"
+                                  : "Regarding your course with $teacherName: ${msgController.text.trim()}"),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 11,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Message Input Field
+                  Text(
+                    isArabic ? "نص الرسالة:" : "Message Body:",
+                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: msgController,
+                    maxLines: 4,
+                    minLines: 3,
+                    onChanged: (_) => setDialogState(() {}),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: isArabic
+                          ? "مثال: نود تذكيركم بمراجعة قسم الواجبات قبل بداية الحصة القادمة..."
+                          : "Type your message here...",
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 12),
+                      filled: true,
+                      fillColor: Colors.black.withOpacity(0.3),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.amber, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isSending ? null : () => Navigator.pop(dialogCtx),
+                        child: Text(
+                          isArabic ? "إلغاء" : "Cancel",
+                          style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: isSending || msgController.text.trim().isEmpty
+                            ? null
+                            : () async {
+                                final text = msgController.text.trim();
+                                if (text.isEmpty) return;
+
+                                setDialogState(() => isSending = true);
+
+                                try {
+                                  final count = await _adminService.sendCourseNotification(
+                                    courseId: courseId,
+                                    courseName: courseName,
+                                    teacherName: teacherName,
+                                    teacherId: teacherId,
+                                    studentIds: studentIds,
+                                    message: text,
+                                  );
+
+                                  if (mounted) {
+                                    Navigator.pop(dialogCtx);
+                                    AppMessenger.showSnackBar(
+                                      context,
+                                      title: isArabic ? "تم الإرسال" : "Sent",
+                                      message: isArabic
+                                          ? "تم إرسال الإشعار بنجاح إلى $count مستلم (الطلاب والمعلم)"
+                                          : "Notification sent successfully to $count recipients",
+                                      type: MessengerType.success,
+                                    );
+                                  }
+                                } catch (e) {
+                                  setDialogState(() => isSending = false);
+                                  if (mounted) {
+                                    AppMessenger.showSnackBar(
+                                      context,
+                                      title: isArabic ? "خطأ" : "Error",
+                                      message: "$e",
+                                      type: MessengerType.error,
+                                    );
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          disabledBackgroundColor: Colors.amber.withOpacity(0.3),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: isSending
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.send_rounded, size: 16, color: Colors.black),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isArabic ? "إرسال الإشعار" : "Send Notification",
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

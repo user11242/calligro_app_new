@@ -4,6 +4,9 @@ import 'package:calligro_app/features/admin/pages/admin_users_management_page.da
 import 'package:calligro_app/features/admin/pages/admin_pending_teachers.dart';
 import 'package:calligro_app/features/admin/pages/admin_courses_mgmt.dart';
 import 'package:calligro_app/features/admin/pages/admin_active_teachers_page.dart';
+import 'package:calligro_app/features/admin/pages/admin_version_control_page.dart';
+import 'package:calligro_app/features/admin/pages/admin_pricing_tiers_page.dart';
+import 'package:calligro_app/features/admin/pages/admin_settings.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 
 class AdminDrawer extends StatelessWidget {
@@ -75,6 +78,26 @@ class AdminDrawer extends StatelessWidget {
                   isSelected: true,
                 ),
                 _buildDrawerItem(
+                  icon: Icons.system_update_rounded,
+                  title: Localizations.localeOf(context).languageCode == 'ar'
+                      ? 'إدارة تحديث التطبيق والإلزام'
+                      : 'App Version & Force Update',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminVersionControlPage()));
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.local_offer_rounded,
+                  title: Localizations.localeOf(context).languageCode == 'ar'
+                      ? 'إدارة باقات وأسعار الدورات'
+                      : 'Course Pricing Tiers',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminPricingTiersPage()));
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.people_alt_rounded,
                   title: l10n.userManagement,
                   onTap: () {
@@ -106,6 +129,14 @@ class AdminDrawer extends StatelessWidget {
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (context) => AdminCoursesMgmt()));
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.settings_rounded,
+                  title: l10n.adminSettings,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminSettingsPage()));
                   },
                 ),
               ],

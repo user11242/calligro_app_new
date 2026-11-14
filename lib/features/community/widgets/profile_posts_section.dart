@@ -99,6 +99,10 @@ class ProfilePostsSection extends StatelessWidget {
                       commentsCount: postData['commentsCount'] ?? 0,
                       isSaved: savedPostIds.contains(postId),
                       isEdited: postData['isEdited'] ?? false,
+                      isPinned: postData['isPinned'] ?? false,
+                      isHidden: postData['isHidden'] ?? false,
+                      linkUrl: postData['linkUrl'] as String?,
+                      linkTitle: postData['linkTitle'] as String?,
                       onToggleSave: () => onToggleSave(postId, savedPostIds.contains(postId)),
                     ),
                   );

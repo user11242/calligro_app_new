@@ -27,6 +27,29 @@ jobs:
       - name: Run Flutter UI Widget Tests
         run: flutter test test/ui/
 
+      - name: Run Calligro Meet Tests (protocol, security, policies, backend contract, join flow)
+        run: flutter test test/features/meet/
+
+  calligro_meet_backend_tests:
+    name: Calligro Meet Cloud Functions Tests (LiveKit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./functions
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22' # matches "engines" in functions/package.json
+
+      - name: Install Functions Dependencies
+        run: npm ci
+
+      - name: Run LiveKit Function Tests
+        run: npx jest test/livekit.test.js test/transcoder.test.js
+
   web_portal_tests:
     name: Web Portal Lemon Squeezy Tests (Domain 1)
     runs-on: ubuntu-latest
@@ -49,7 +72,7 @@ jobs:
 
   deploy_ios:
     name: Deploy to Apple TestFlight (CD)
-    needs: [flutter_tests, web_portal_tests] # Only deploy if all tests pass
+    needs: [flutter_tests, web_portal_tests, calligro_meet_backend_tests] # Only deploy if all tests pass
     runs-on: macos-latest
     defaults:
       run:
@@ -66,7 +89,7 @@ jobs:
 
   deploy_android:
     name: Deploy to Google Play Beta (CD)
-    needs: [flutter_tests, web_portal_tests] # Only deploy if all tests pass
+    needs: [flutter_tests, web_portal_tests, calligro_meet_backend_tests] # Only deploy if all tests pass
     runs-on: ubuntu-latest
     defaults:
       run:

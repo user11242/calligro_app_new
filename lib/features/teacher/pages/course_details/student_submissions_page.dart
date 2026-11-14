@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:calligro_app/core/theme/colors.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'dart:ui';
+import 'dart:typed_data';
+import 'dart:ui' show ImageFilter;
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
+import 'package:calligro_app/features/teacher/pages/course_details/submission_watermark_helper.dart';
 
 class StudentSubmissionsPage extends StatefulWidget {
   final String courseId;
@@ -105,7 +107,10 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
             separatorBuilder: (context, index) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
               final doc = snapshot.data!.docs[index];
-              return _SubmissionCard(doc: doc)
+              return _SubmissionCard(
+                    doc: doc,
+                    assignmentTitle: widget.assignmentTitle,
+                  )
                   .animate()
                   .fadeIn(duration: 400.ms, delay: (index * 100).ms)
                   .slideY(begin: 0.1, end: 0);
@@ -119,7 +124,12 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
 
 class _SubmissionCard extends StatefulWidget {
   final QueryDocumentSnapshot doc;
-  const _SubmissionCard({required this.doc});
+  final String assignmentTitle;
+
+  const _SubmissionCard({
+    required this.doc,
+    required this.assignmentTitle,
+  });
 
   @override
   State<_SubmissionCard> createState() => _SubmissionCardState();
@@ -151,8 +161,14 @@ class _SubmissionCardState extends State<_SubmissionCard> {
         lowerUrl.contains('.webp');
   }
 
-  Future<void> _saveImageToGallery(String url, String name) async {
+  Future<void> _saveImageToGallery(
+    String url,
+    String name,
+    String studentName,
+    String timeStr,
+  ) async {
     if (_isDownloading) return;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
     setState(() => _isDownloading = true);
 
     try {
@@ -170,7 +186,22 @@ class _SubmissionCardState extends State<_SubmissionCard> {
       }
 
       final file = await DefaultCacheManager().getSingleFile(url);
-      final bytes = await file.readAsBytes();
+      Uint8List bytes = await file.readAsBytes();
+
+      if (SubmissionWatermarkHelper.isSupportedImage(name) ||
+          SubmissionWatermarkHelper.isSupportedImage(url)) {
+        try {
+          bytes = await SubmissionWatermarkHelper.stampImageBytes(
+            imageBytes: bytes,
+            studentName: studentName,
+            assignmentTitle: widget.assignmentTitle,
+            teacherName: 'Teacher',
+            isRtl: isRtl,
+          );
+        } catch (e) {
+          debugPrint("Error watermarking on download: $e");
+        }
+      }
 
       final title = name.isNotEmpty ? name : 'submission_${DateTime.now().millisecondsSinceEpoch}.jpg';
       await PhotoManager.editor.saveImage(
@@ -183,7 +214,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
         AppMessenger.showSnackBar(
           context,
           title: 'تم الحفظ',
-          message: 'تم حفظ الصورة في ألبوم الصور بنجاح 📸',
+          message: 'تم حفظ الصورة مع بيانات الطالب في ألبوم الصور بنجاح 📸',
           type: MessengerType.success,
         );
       }
@@ -202,7 +233,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
     }
   }
 
-  void _openFile(String url, String name) {
+  void _openFile(String url, String name, String studentName, String timeStr) {
     if (_isImageFile(url, name)) {
       Navigator.push(
         context,
@@ -210,6 +241,9 @@ class _SubmissionCardState extends State<_SubmissionCard> {
           builder: (context) => SubmissionImageViewerPage(
             imageUrl: url,
             title: name,
+            studentName: studentName,
+            assignmentTitle: widget.assignmentTitle,
+            submittedAtStr: timeStr,
           ),
         ),
       );
@@ -302,7 +336,12 @@ class _SubmissionCardState extends State<_SubmissionCard> {
                       const SizedBox(height: 16),
                     ],
                     if (data['fileUrl'] != null)
-                      _buildFileAction(data['fileUrl'], data['fileName'] ?? 'submission_file'),
+                      _buildFileAction(
+                        data['fileUrl'],
+                        data['fileName'] ?? 'submission_file',
+                        studentName,
+                        timeStr,
+                      ),
                     
                     const SizedBox(height: 20),
                     // Mark as seen toggle
@@ -363,14 +402,14 @@ class _SubmissionCardState extends State<_SubmissionCard> {
     );
   }
 
-  Widget _buildFileAction(String url, String name) {
+  Widget _buildFileAction(String url, String name, String studentName, String timeStr) {
     final bool isImage = _isImageFile(url, name);
 
     return Row(
       children: [
         Expanded(
           child: InkWell(
-            onTap: () => _openFile(url, name),
+            onTap: () => _openFile(url, name, studentName, timeStr),
             borderRadius: BorderRadius.circular(12),
             child: Container(
               padding: const EdgeInsets.all(12),
@@ -409,7 +448,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
         InkWell(
           onTap: () {
             if (isImage) {
-              _saveImageToGallery(url, name);
+              _saveImageToGallery(url, name, studentName, timeStr);
             } else {
               launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
             }
@@ -443,15 +482,21 @@ class _SubmissionCardState extends State<_SubmissionCard> {
   }
 }
 
-/// Full-screen zoomable image viewer (WhatsApp-style)
+/// Full-screen zoomable image viewer (WhatsApp-style) with student info banner & watermarking on save
 class SubmissionImageViewerPage extends StatefulWidget {
   final String imageUrl;
   final String title;
+  final String studentName;
+  final String assignmentTitle;
+  final String? submittedAtStr;
 
   const SubmissionImageViewerPage({
     super.key,
     required this.imageUrl,
     required this.title,
+    required this.studentName,
+    required this.assignmentTitle,
+    this.submittedAtStr,
   });
 
   @override
@@ -460,9 +505,11 @@ class SubmissionImageViewerPage extends StatefulWidget {
 
 class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
   bool _isSaving = false;
+  bool _showBanner = true;
 
   Future<void> _saveToPhotos() async {
     if (_isSaving) return;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
     setState(() => _isSaving = true);
 
     try {
@@ -480,7 +527,23 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
       }
 
       final file = await DefaultCacheManager().getSingleFile(widget.imageUrl);
-      final bytes = await file.readAsBytes();
+      Uint8List bytes = await file.readAsBytes();
+
+      // Stamp watermark if it's an image
+      if (SubmissionWatermarkHelper.isSupportedImage(widget.title) ||
+          SubmissionWatermarkHelper.isSupportedImage(widget.imageUrl)) {
+        try {
+          bytes = await SubmissionWatermarkHelper.stampImageBytes(
+            imageBytes: bytes,
+            studentName: widget.studentName,
+            assignmentTitle: widget.assignmentTitle,
+            teacherName: 'Teacher',
+            isRtl: isRtl,
+          );
+        } catch (e) {
+          debugPrint('Watermark error during viewer save: $e');
+        }
+      }
 
       final title = widget.title.isNotEmpty ? widget.title : 'submission_${DateTime.now().millisecondsSinceEpoch}.jpg';
       await PhotoManager.editor.saveImage(
@@ -493,7 +556,7 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
         AppMessenger.showSnackBar(
           context,
           title: 'تم الحفظ',
-          message: 'تم حفظ الصورة في ألبوم الصور بنجاح 📸',
+          message: 'تم حفظ الصورة مع بيانات الطالب في ألبوم الصور بنجاح 📸',
           type: MessengerType.success,
         );
       }
@@ -531,6 +594,14 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
         ),
         actions: [
           IconButton(
+            icon: Icon(
+              _showBanner ? Icons.info : Icons.info_outline,
+              color: AppColors.accentGold,
+            ),
+            tooltip: _showBanner ? 'إخفاء معلومات الطالب' : 'إظهار معلومات الطالب',
+            onPressed: () => setState(() => _showBanner = !_showBanner),
+          ),
+          IconButton(
             icon: _isSaving
                 ? const SizedBox(
                     width: 20,
@@ -543,23 +614,125 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
           ),
         ],
       ),
-      body: PhotoView(
-        imageProvider: CachedNetworkImageProvider(widget.imageUrl),
-        minScale: PhotoViewComputedScale.contained,
-        maxScale: PhotoViewComputedScale.covered * 4,
-        loadingBuilder: (context, event) => const Center(
-          child: CircularProgressIndicator(color: AppColors.accentGold),
-        ),
-        errorBuilder: (context, error, stackTrace) => const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.broken_image, color: Colors.white38, size: 60),
-              SizedBox(height: 12),
-              Text('تعذر تحميل الصورة', style: TextStyle(color: Colors.white38)),
-            ],
+      body: Stack(
+        children: [
+          PhotoView(
+            imageProvider: CachedNetworkImageProvider(widget.imageUrl),
+            minScale: PhotoViewComputedScale.contained,
+            maxScale: PhotoViewComputedScale.covered * 4,
+            loadingBuilder: (context, event) => const Center(
+              child: CircularProgressIndicator(color: AppColors.accentGold),
+            ),
+            errorBuilder: (context, error, stackTrace) => const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image, color: Colors.white38, size: 60),
+                  SizedBox(height: 12),
+                  Text('تعذر تحميل الصورة', style: TextStyle(color: Colors.white38)),
+                ],
+              ),
+            ),
           ),
-        ),
+
+          // Floating Student Info Banner (Dark theme with Gold border)
+          if (_showBanner)
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xF518181B), // Dark solid non-white background
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.accentGold, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.6),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentGold.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: AppColors.accentGold,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.assignmentTitle,
+                            style: const TextStyle(
+                              color: Color(0xFFEEE593),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Text(
+                                'الطالب: ',
+                                style: TextStyle(
+                                  color: AppColors.accentGold,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  widget.studentName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (widget.submittedAtStr != null && widget.submittedAtStr!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.submittedAtStr!,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white38, size: 18),
+                      tooltip: 'إخفاء',
+                      onPressed: () => setState(() => _showBanner = false),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

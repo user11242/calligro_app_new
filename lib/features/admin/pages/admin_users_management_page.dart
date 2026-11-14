@@ -75,7 +75,6 @@ class _AdminUsersManagementPageState extends State<AdminUsersManagementPage> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('users')
-                  .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -104,7 +103,18 @@ class _AdminUsersManagementPageState extends State<AdminUsersManagementPage> {
                   );
                 }
 
-                final allDocs = snapshot.data!.docs;
+                // In-memory sort by createdAt descending (safely handles missing createdAt)
+                final allDocs = List<QueryDocumentSnapshot>.from(snapshot.data!.docs);
+                allDocs.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aTime = aData['createdAt'] as Timestamp?;
+                  final bTime = bData['createdAt'] as Timestamp?;
+                  if (aTime == null && bTime == null) return 0;
+                  if (aTime == null) return 1;
+                  if (bTime == null) return -1;
+                  return bTime.compareTo(aTime);
+                });
                 
                 // Calculate counts
                 int totalCount = allDocs.length;

@@ -3,6 +3,8 @@ import 'package:calligro_app/features/auth/data/services/auth_service.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'admin_version_control_page.dart';
+import 'admin_pricing_tiers_page.dart';
 
 // Reuse existing pages where possible
 import '../../teacher/pages/settings/edit_profile_page.dart';
@@ -123,6 +125,38 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
                 title: AppLocalizations.of(context)!.security,
                 subtitle: AppLocalizations.of(context)!.securityAdminSubtitle,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SecurityPage())),
+              ),
+              const SizedBox(height: 24),
+              _buildSectionHeader(Localizations.localeOf(context).languageCode == 'ar'
+                  ? 'إدارة النظام والتطبيق'
+                  : 'System & App Management'),
+              _buildSettingsItem(
+                context,
+                icon: Icons.system_update_rounded,
+                title: Localizations.localeOf(context).languageCode == 'ar'
+                    ? 'إدارة إصدارات التطبيق والتحديث'
+                    : 'App Version & Force Update',
+                subtitle: Localizations.localeOf(context).languageCode == 'ar'
+                    ? 'التحكم في إلزام المستخدمين بالتحديث واختيار الإصدارات'
+                    : 'Control mandatory/optional updates and target versions',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminVersionControlPage()),
+                ),
+              ),
+              _buildSettingsItem(
+                context,
+                icon: Icons.local_offer_rounded,
+                title: Localizations.localeOf(context).languageCode == 'ar'
+                    ? 'إدارة باقات وأسعار الدورات'
+                    : 'Course Pricing Tiers',
+                subtitle: Localizations.localeOf(context).languageCode == 'ar'
+                    ? 'تفعيل وتعطيل باقات الأسعار المتاحة للمعلمين (60\$ - 90\$ وأخرى)'
+                    : 'Enable or disable price tiers available to teachers',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminPricingTiersPage()),
+                ),
               ),
               const SizedBox(height: 24),
               _buildSectionHeader(AppLocalizations.of(context)!.preferencesHeader),

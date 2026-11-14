@@ -3829,4 +3829,79 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get bankTransferFeeNote =>
       'ملاحظة: قد تكون هناك عمولات على التحويل البنكي يتم خصمها من قبل البنوك نفسها، وليس من كاليجرو.';
+
+  @override
+  String get courseGroupChat => 'محادثة الدورة';
+
+  @override
+  String get chatWithClassSubtitle => 'تواصل مع المعلم والطلاب';
+
+  @override
+  String get typeMessageHint => 'اكتب رسالة...';
+
+  @override
+  String get noMessagesYet => 'لا توجد رسائل بعد';
+
+  @override
+  String get startCourseConversation => 'ابدأ المحادثة مع طلاب ومعلم الدورة!';
+
+  @override
+  String get teacherBadge => 'المعلم';
+
+  @override
+  String get adminBadge => 'الإدارة';
+
+  @override
+  String get copyMessage => 'نسخ';
+
+  @override
+  String get messageCopied => 'تم نسخ الرسالة';
+
+  @override
+  String get deleteMessage => 'حذف الرسالة';
+
+  @override
+  String get deleteMessageConfirm => 'هل أنت متأكد من حذف هذه الرسالة؟';
+
+  @override
+  String get reportMessage => 'الإبلاغ عن الرسالة';
+
+  @override
+  String get messageReportedSuccess =>
+      'شكراً لك. تم الإبلاغ عن الرسالة للمراجعة.';
+
+  @override
+  String get sendMessageFailed => 'فشل إرسال الرسالة';
+
+  @override
+  String get errorLoadingChat => 'تعذر تحميل رسائل المحادثة.';
+
+  @override
+  String get meetWeakConnectionTitle => 'ضعف في الاتصال';
+
+  @override
+  String get meetWeakConnectionBody =>
+      'يبدو أن اتصال الإنترنت لديك ضعيف. هل ترغب في التحويل إلى وضع الصوت فقط لتوفير استهلاك البيانات وتحسين جودة الصوت؟';
+
+  @override
+  String get meetEnableAudioOnly => 'تفعيل وضع الصوت فقط';
+
+  @override
+  String get meetAudioOnlyOn => 'تم تفعيل وضع الصوت فقط';
+
+  @override
+  String get meetAudioOnlyOff => 'تم إلغاء وضع الصوت فقط';
+
+  @override
+  String get meetTeacherLeaveOrEnd =>
+      'هل ترغب في مغادرة الحصة مؤقتاً، أم إنهاء الحصة لجميع الطلاب؟';
+
+  @override
+  String get meetLeaveOnly => 'مغادرة فقط';
+
+  @override
+  String get meetSpeakerView => 'عرض المتحدث';
+
+  @override
+  String get meetGridView => 'عرض الشبكة';
 }

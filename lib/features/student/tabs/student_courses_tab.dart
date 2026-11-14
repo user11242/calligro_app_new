@@ -480,12 +480,15 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
     DateTime? startDate;
     if (data['startDate'] != null) {
       if (data['startDate'] is Timestamp) {
-        startDate = (data['startDate'] as Timestamp).toDate();
+        startDate = (data['startDate'] as Timestamp).toDate().toLocal();
       } else if (data['startDate'] is DateTime) {
-        startDate = data['startDate'];
+        startDate = (data['startDate'] as DateTime).toLocal();
       }
       if (startDate != null) {
-        final difference = startDate.difference(DateTime.now()).inDays;
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final startDay = DateTime(startDate.year, startDate.month, startDate.day);
+        final difference = startDay.difference(today).inDays;
         if (difference >= 0) daysRemaining = difference;
       }
     }
@@ -1090,6 +1093,12 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
     final locale = Localizations.localeOf(context).languageCode;
     if (days == 0) {
       return locale == 'ar' ? "تبدأ اليوم" : "Starts Today";
+    }
+    if (days == 1) {
+      return locale == 'ar' ? "تبدأ غداً" : "Starts Tomorrow";
+    }
+    if (days == 2) {
+      return locale == 'ar' ? "تبدأ بعد يومين" : "Starts in 2 days";
     }
     return locale == 'ar' ? "تبدأ بعد $days أيام" : "Starts in $days days";
   }

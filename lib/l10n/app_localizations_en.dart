@@ -3836,4 +3836,81 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bankTransferFeeNote =>
       'Note: There may be transfer commissions applied by the banks themselves, not by Calligro.';
+
+  @override
+  String get courseGroupChat => 'Course Chat';
+
+  @override
+  String get chatWithClassSubtitle => 'Talk with teacher & students';
+
+  @override
+  String get typeMessageHint => 'Type a message...';
+
+  @override
+  String get noMessagesYet => 'No messages yet';
+
+  @override
+  String get startCourseConversation =>
+      'Start the conversation with your class!';
+
+  @override
+  String get teacherBadge => 'Teacher';
+
+  @override
+  String get adminBadge => 'Admin';
+
+  @override
+  String get copyMessage => 'Copy';
+
+  @override
+  String get messageCopied => 'Message copied';
+
+  @override
+  String get deleteMessage => 'Delete Message';
+
+  @override
+  String get deleteMessageConfirm =>
+      'Are you sure you want to delete this message?';
+
+  @override
+  String get reportMessage => 'Report Message';
+
+  @override
+  String get messageReportedSuccess =>
+      'Thank you. This message has been reported for review.';
+
+  @override
+  String get sendMessageFailed => 'Failed to send message';
+
+  @override
+  String get errorLoadingChat => 'Could not load chat messages.';
+
+  @override
+  String get meetWeakConnectionTitle => 'Weak connection';
+
+  @override
+  String get meetWeakConnectionBody =>
+      'Your internet connection looks weak. Switch to audio-only mode to save data and keep the audio clear?';
+
+  @override
+  String get meetEnableAudioOnly => 'Switch to audio only';
+
+  @override
+  String get meetAudioOnlyOn => 'Audio-only mode is on';
+
+  @override
+  String get meetAudioOnlyOff => 'Video is back on';
+
+  @override
+  String get meetTeacherLeaveOrEnd =>
+      'Do you want to leave the class for now, or end it for all students?';
+
+  @override
+  String get meetLeaveOnly => 'Leave only';
+
+  @override
+  String get meetSpeakerView => 'Speaker view';
+
+  @override
+  String get meetGridView => 'Grid view';
 }

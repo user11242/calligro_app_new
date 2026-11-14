@@ -140,6 +140,10 @@ class _SinglePostPageState extends State<SinglePostPage> {
                     commentsCount: postData['commentsCount'] ?? 0,
                     isSaved: _savedPostIds.contains(widget.postId),
                     isEdited: postData['isEdited'] ?? false,
+                    isPinned: postData['isPinned'] ?? false,
+                    isHidden: postData['isHidden'] ?? false,
+                    linkUrl: postData['linkUrl'] as String?,
+                    linkTitle: postData['linkTitle'] as String?,
                     onToggleSave: () async {
                       if (GuestGuard.check(context, isGuest: isGuest)) {
                         final isCurrentlySaved = _savedPostIds.contains(widget.postId);

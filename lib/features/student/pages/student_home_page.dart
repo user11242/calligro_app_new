@@ -15,6 +15,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:calligro_app/core/utils/guest_guard.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:calligro_app/core/utils/video_asset_helper.dart';
+import 'package:calligro_app/core/utils/rating_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // ✅ IMPORTS
@@ -26,6 +27,7 @@ import '../../../core/widgets/smart_image.dart';
 import '../../../core/widgets/rating_display.dart';
 import '../../../core/utils/course_utils.dart';
 import '../../teacher/pages/notifications/notifications_page.dart';
+import '../../../core/widgets/notification_bell_button.dart';
 import '../../teacher/pages/public_profile/public_teacher_profile_page.dart';
 import 'gallery_page.dart';
 import 'teachers_page.dart';
@@ -393,17 +395,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
 
         const SizedBox(width: 12),
 
-        // --- Notifications ---
-        _buildHeaderIconButton(Icons.notifications_outlined, () {
-          if (GuestGuard.check(context, isGuest: widget.isGuestMode)) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const NotificationsPage(),
-              ),
-            );
-          }
-        }).animate().fadeIn(delay: 800.ms).scale(),
+        // --- Notifications with unread badge ---
+        NotificationBellButton(
+          isGuest: widget.isGuestMode,
+        ).animate().fadeIn(delay: 800.ms).scale(),
       ],
     );
   }
@@ -1837,7 +1832,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
             ),
             const SizedBox(height: 6),
             RatingDisplay(
-              averageRating: (teacher['totalStars'] ?? 0).toDouble(),
+              averageRating: RatingUtils.calculateAverageRating(
+                teacher['totalStars'] ?? 0,
+                teacher['reviewCount'] ?? 0,
+              ),
               reviewCount: teacher['reviewCount'] ?? 0,
               isCompact: true,
               starSize: 12,

@@ -13,6 +13,7 @@ class CalligroPreJoinPage extends StatefulWidget {
   final String roomName;
   final String courseId;
   final bool isTeacher;
+  final String? teacherId;
 
   const CalligroPreJoinPage({
     Key? key,
@@ -21,6 +22,7 @@ class CalligroPreJoinPage extends StatefulWidget {
     required this.roomName,
     required this.courseId,
     this.isTeacher = false,
+    this.teacherId,
   }) : super(key: key);
 
   @override
@@ -46,12 +48,35 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
   @override
   void initState() {
     super.initState();
-    // Default mic to ON for teachers so recording can start automatically.
-    // Camera remains OFF — teacher can choose to enable it manually.
+    // Default mic and camera to ON for teachers so recording can start automatically.
     if (widget.isTeacher) {
       _isMicOn = true;
+      // Camera starts ON for teachers: create the real preview track so the screen
+      // matches the "Cam On" state (it previously showed the avatar with no preview).
+      _startTeacherCameraPreview();
     }
     _fetchUserData();
+  }
+
+  Future<void> _startTeacherCameraPreview() async {
+    final status = await Permission.camera.request();
+    if (!status.isGranted || !mounted) return;
+    try {
+      final track = await LocalVideoTrack.createCameraTrack(
+        CameraCaptureOptions(cameraPosition: _cameraPosition),
+      );
+      if (!mounted) {
+        await track.stop();
+        await track.dispose();
+        return;
+      }
+      setState(() {
+        _cameraTrack = track;
+        _isCameraOn = true;
+      });
+    } catch (e) {
+      debugPrint('Teacher camera preview error: $e');
+    }
   }
 
   Future<void> _fetchUserData() async {
@@ -123,7 +148,7 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                   boxShadow: [
                     if (_isCameraOn)
                       BoxShadow(
-                        color: const Color(0xFFEBB937).withOpacity(0.3),
+                        color: const Color(0xFFEBB937).withValues(alpha: 0.3),
                         blurRadius: 20,
                         spreadRadius: 2,
                       ),
@@ -251,9 +276,9 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEBB937).withOpacity(0.1),
+                    color: const Color(0xFFEBB937).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFEBB937).withOpacity(0.4)),
+                    border: Border.all(color: const Color(0xFFEBB937).withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     children: [
@@ -309,6 +334,7 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                           roomName: widget.roomName,
                           courseId: widget.courseId,
                           isTeacher: widget.isTeacher,
+                          teacherId: widget.teacherId,
                           startWithMic: _isMicOn,
                           startWithCamera: _isCameraOn,
                           startCameraPosition: _cameraPosition,
@@ -321,7 +347,7 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 5,
-                    shadowColor: const Color(0xFFEBB937).withOpacity(0.5),
+                    shadowColor: const Color(0xFFEBB937).withValues(alpha: 0.5),
                   ),
                   child: Text(
                     l10n.joinClassroom,
@@ -348,7 +374,7 @@ class _CalligroPreJoinPageState extends State<CalligroPreJoinPage> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: (isActive ? Colors.white : const Color(0xFFEF4444)).withOpacity(0.3),
+                  color: (isActive ? Colors.white : const Color(0xFFEF4444)).withValues(alpha: 0.3),
                   blurRadius: 10,
                 ),
               ],

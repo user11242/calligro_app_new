@@ -1,6 +1,7 @@
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HelpCenterPage extends StatefulWidget {
   const HelpCenterPage({super.key});
@@ -10,6 +11,19 @@ class HelpCenterPage extends StatefulWidget {
 }
 
 class _HelpCenterPageState extends State<HelpCenterPage> {
+  Future<void> _openSupportWhatsApp() async {
+    final Uri whatsappUri = Uri.parse("https://wa.me/15645446119");
+    try {
+      if (await canLaunchUrl(whatsappUri)) {
+        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(whatsappUri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint("Error opening WhatsApp support: $e");
+    }
+  }
+
   List<Map<String, String>> _getFaqs(BuildContext context) => [
     {
       "question": AppLocalizations.of(context)!.faqEarningsQ,
@@ -136,9 +150,7 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: Launch Email or Chat
-                      },
+                      onPressed: _openSupportWhatsApp,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.accentGold,
                         foregroundColor: Colors.black,
@@ -147,9 +159,16 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(
-                        AppLocalizations.of(context)!.contactSupport,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.chat_outlined, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocalizations.of(context)!.contactSupport,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -164,6 +183,9 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
   }
 
   Widget _buildFaqTile(Map<String, String> faq) {
+    final bool isContactFaq =
+        faq['question'] == AppLocalizations.of(context)!.faqContactQ;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -186,7 +208,7 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
           collapsedIconColor: Colors.white54,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
                 faq['answer']!,
                 style: TextStyle(
@@ -196,6 +218,28 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
                 ),
               ),
             ),
+            if (isContactFaq)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton.icon(
+                    onPressed: _openSupportWhatsApp,
+                    icon: const Icon(
+                      Icons.chat_outlined,
+                      color: AppColors.accentGold,
+                      size: 18,
+                    ),
+                    label: Text(
+                      AppLocalizations.of(context)!.contactSupport,
+                      style: const TextStyle(
+                        color: AppColors.accentGold,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

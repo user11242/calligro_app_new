@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:calligro_app/features/meet/logic/meet_backend.dart';
 import 'package:calligro_app/features/meet/pages/calligro_pre_join_page.dart';
 import 'package:calligro_app/core/services/meet_debug_service.dart';
+
+/// Builds the screen shown after a token is received (overridable in tests,
+/// because the real pre-join page needs Firebase Auth and the camera).
+typedef PreJoinPageBuilder = Widget Function(MeetToken token, String courseId, bool isTeacher);
 
 class LiveKitMeetService {
   static final LiveKitMeetService _instance = LiveKitMeetService._internal();
   factory LiveKitMeetService() => _instance;
-  LiveKitMeetService._internal();
+  LiveKitMeetService._internal() : _call = null, _preJoinBuilder = null;
 
-  FirebaseFunctions? _functionsMock;
+  final MeetCallable? _call;
+  final PreJoinPageBuilder? _preJoinBuilder;
 
   @visibleForTesting
-  LiveKitMeetService.forTest({
-    FirebaseFunctions? functions,
-  }) : _functionsMock = functions;
-
-  FirebaseFunctions get _functions => _functionsMock ?? FirebaseFunctions.instance;
+  LiveKitMeetService.forTest({MeetCallable? call, PreJoinPageBuilder? preJoinBuilder})
+      : _call = call,
+        _preJoinBuilder = preJoinBuilder;
 
   bool _isJoining = false;
 
@@ -30,8 +33,10 @@ class LiveKitMeetService {
     }
     _isJoining = true;
 
+    bool dialogShowing = false;
     try {
       MeetDebugService().log("🟢 joinMeeting started for course $courseId");
+      dialogShowing = true;
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -41,42 +46,45 @@ class LiveKitMeetService {
       );
 
       MeetDebugService().log("⏳ Requesting LiveKit token...");
-      final result = await _functions
-          .httpsCallable('livekit-generateLiveKitToken')
-          .call({
-            'courseId': courseId,
-            'source': 'mobile',
-          });
+      final meetToken = await MeetBackend(courseId: courseId, call: _call).fetchToken();
 
-      MeetDebugService().log("✅ Token received, popping loading dialog");
-      Navigator.pop(context); // Close loading
+      if (dialogShowing && context.mounted) {
+        dialogShowing = false;
+        MeetDebugService().log("✅ Token received, popping loading dialog");
+        Navigator.pop(context); // Close loading
+      }
 
-      final data = result.data as Map<dynamic, dynamic>;
-      final token = data['token'] as String;
-      final serverUrl = data['serverUrl'] as String;
-      final roomName = data['roomName'] as String;
+      if (!context.mounted) return;
 
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CalligroPreJoinPage(
-            token: token,
-            serverUrl: serverUrl,
-            roomName: roomName,
-            courseId: courseId,
-            isTeacher: isTeacher,
-          ),
+          builder: (_) =>
+              _preJoinBuilder?.call(meetToken, courseId, isTeacher) ??
+              CalligroPreJoinPage(
+                token: meetToken.token,
+                serverUrl: meetToken.serverUrl,
+                roomName: meetToken.roomName,
+                courseId: courseId,
+                isTeacher: isTeacher,
+                teacherId: meetToken.teacherId,
+              ),
         ),
       );
     } catch (e) {
       MeetDebugService().log("❌ Token generation failed: $e. Popping top route.");
-      Navigator.pop(context); // Close loading if error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to join secure classroom: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (dialogShowing && context.mounted) {
+        dialogShowing = false;
+        Navigator.pop(context); // Close loading if error
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to join secure classroom: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       _isJoining = false;
       MeetDebugService().log("🏁 joinMeeting finished");

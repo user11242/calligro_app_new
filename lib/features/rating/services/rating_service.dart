@@ -51,11 +51,15 @@ class RatingService {
           'reviewCount': FieldValue.increment(1),
         });
 
-        // Sync to teachers collection
-        batch.update(_firestore.collection('teachers').doc(teacherId), {
-          'totalStars': FieldValue.increment(rating),
-          'reviewCount': FieldValue.increment(1),
-        });
+        // Sync to teachers collection if the document exists
+        final teachersDocRef = _firestore.collection('teachers').doc(teacherId);
+        final teachersDoc = await teachersDocRef.get();
+        if (teachersDoc.exists) {
+          batch.update(teachersDocRef, {
+            'totalStars': FieldValue.increment(rating),
+            'reviewCount': FieldValue.increment(1),
+          });
+        }
 
         await batch.commit();
       }

@@ -15,8 +15,8 @@ import '../pages/settings/payout_settings_page.dart';
 import '../pages/finance/teacher_finance_page.dart';
 import '../../student/pages/gallery_page.dart';
 import '../pages/course_details/course_details_page.dart';
-import '../pages/notifications/notifications_page.dart';
 import 'package:calligro_app/core/widgets/auto_translated_text.dart';
+import 'package:calligro_app/core/widgets/notification_bell_button.dart';
 
 // --- HELPER WIDGETS ---
 
@@ -422,37 +422,8 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                       ],
                     ),
                   ),
-                  // Notification Button in Container
-                  Container(
-                    width: 45,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBackground,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.notifications_outlined,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const NotificationsPage(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                  // Notification Button with unread counter badge
+                  const NotificationBellButton(),
                 ],
               );
 
