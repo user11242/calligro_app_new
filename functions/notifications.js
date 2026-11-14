@@ -39,6 +39,9 @@ function getLocalizedText(lang, key, params = {}) {
             session_rescheduled_body: "The session for '{courseName}' has been moved.",
             new_assignment_title: "New Assignment 📝",
             new_assignment_body: "A new assignment '{assignmentTitle}' has been added to '{courseName}' by {teacherName}.",
+            new_course_chat_title: "💬 {courseName}",
+            new_course_chat_body: "{senderName}: {message}",
+            new_course_chat_photo_body: "{senderName}: 📷 Sent a photo",
         },
         ar: {
             new_enrollment_title: "طالب جديد مسجل! 🎓",
@@ -69,6 +72,9 @@ function getLocalizedText(lang, key, params = {}) {
             session_rescheduled_body: "تم تغيير موعد جلسة '{courseName}'.",
             new_assignment_title: "واجب جديد 📝",
             new_assignment_body: "تمت إضافة واجب جديد '{assignmentTitle}' إلى '{courseName}' بواسطة {teacherName}.",
+            new_course_chat_title: "💬 {courseName}",
+            new_course_chat_body: "{senderName}: {message}",
+            new_course_chat_photo_body: "{senderName}: 📷 أرسل صورة",
         },
         tr: {
             new_enrollment_title: "Yeni Öğrenci Kaydoldu! 🎓",
@@ -99,6 +105,9 @@ function getLocalizedText(lang, key, params = {}) {
             session_rescheduled_body: "'{courseName}' kursunun oturum saati değiştirildi.",
             new_assignment_title: "Yeni Ödev 📝",
             new_assignment_body: "{teacherName} tarafından '{courseName}' kursuna yeni bir ödev '{assignmentTitle}' eklendi.",
+            new_course_chat_title: "💬 {courseName}",
+            new_course_chat_body: "{senderName}: {message}",
+            new_course_chat_photo_body: "{senderName}: 📷 Fotoğraf gönderdi",
         },
     };
 
@@ -318,6 +327,7 @@ exports.notifyTeacherOnEnrollment = onDocumentUpdated("courses/{courseId}", asyn
 exports.notifyStudentsOnAnnouncement = onDocumentCreated("courses/{courseId}/announcements/{announcementId}", async (event) => {
     const announcementData = event.data.data();
     if (!announcementData) return null;
+    if (announcementData.type === 'admin_announcement') return null;
 
     // Get course to find enrolled students and teacher info
     const courseDoc = await admin.firestore().collection("courses").doc(event.params.courseId).get();
@@ -872,3 +882,65 @@ exports.notifyAdminHelper = async ({ receiverId, teacherName, teacherUserId }) =
         }
     });
 };
+
+// ------------------------------------------------------------------------
+// Trigger: Course Group Chat Message (Notifies Teacher + Enrolled Students)
+// ------------------------------------------------------------------------
+exports.notifyCourseChatMembers = onDocumentCreated("courses/{courseId}/messages/{messageId}", async (event) => {
+    const messageData = event.data && event.data.data();
+    if (!messageData) return null;
+
+    const rawText = typeof messageData.text === "string" ? messageData.text.trim() : "";
+    const hasImage = typeof messageData.imageUrl === "string" && messageData.imageUrl.trim().length > 0;
+    if (!rawText && !hasImage) return null;
+
+    const courseId = event.params.courseId;
+    const courseDoc = await admin.firestore().collection("courses").doc(courseId).get();
+    if (!courseDoc.exists) return null;
+
+    const courseData = courseDoc.data() || {};
+    const senderId = messageData.senderId || "";
+    const recipients = new Set();
+
+    if (courseData.teacherId) {
+        recipients.add(courseData.teacherId);
+    }
+    if (Array.isArray(courseData.enrolledStudents)) {
+        for (const studentId of courseData.enrolledStudents) {
+            if (studentId) recipients.add(studentId);
+        }
+    }
+    if (senderId) {
+        recipients.delete(senderId);
+    }
+
+    if (recipients.size === 0) return null;
+
+    const courseName = courseData.courseName || courseData.courseTitle || "Course";
+    const senderName = messageData.senderName || "Member";
+    const preview = rawText.length > 120 ? `${rawText.slice(0, 117)}...` : rawText;
+    const bodyKey = rawText ? "new_course_chat_body" : "new_course_chat_photo_body";
+
+    const promises = Array.from(recipients).map((receiverId) =>
+        sendNotification({
+            receiverId,
+            type: "course_chat",
+            titleKey: "new_course_chat_title",
+            bodyKey,
+            params: {
+                courseName,
+                senderName,
+                message: preview,
+            },
+            payload: {
+                route: "/courseChat",
+                courseId,
+                courseName,
+                teacherId: courseData.teacherId || "",
+            },
+        })
+    );
+
+    await Promise.all(promises);
+    return null;
+});

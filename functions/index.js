@@ -17,12 +17,13 @@ const brevoApiKey = defineSecret("BREVO_API_KEY");
 // Initialize Firebase Admin
 // --------------------
 admin.initializeApp();
-setGlobalOptions({ maxInstances: 1, region: "us-central1" });
+setGlobalOptions({ maxInstances: 20, region: "us-central1" });
 
 // --------------------
 // Export Modular Functions
 // --------------------
 exports.livekit = require("./livekit.js");
+exports.transcoder = require("./transcoder.js");
 
 // --------------------
 // Utility: Generate OTP
@@ -340,8 +341,7 @@ exports.createCalligroClassroom = onCall(async (request) => {
     }
 
     // Generate a cryptographically secure, random Room ID
-    const randomSuffix = Math.random().toString(36).substring(2, 10) +
-      Math.random().toString(36).substring(2, 10);
+    const randomSuffix = crypto.randomBytes(8).toString("hex");
 
     let sanitizedName = courseName.replace(/[^a-zA-Z0-9]/g, "").substring(0, 15);
     if (!sanitizedName) {
@@ -350,8 +350,8 @@ exports.createCalligroClassroom = onCall(async (request) => {
 
     const roomId = `Calligro-${sanitizedName}-${randomSuffix}`;
 
-    // Generate a random 10-character password for extra security
-    const password = Math.random().toString(36).substring(2, 12);
+    // Generate a cryptographically secure password
+    const password = crypto.randomBytes(6).toString("hex");
 
     console.log(`✅ Branded Jitsi Room Created: ${roomId} with Password: [REDACTED]`);
 

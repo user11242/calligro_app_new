@@ -214,4 +214,125 @@ describe('Domain 5: Notifications & Cloud Triggers (Cloud Functions)', () => {
     await notifications.notifyCommenterOnReply(event);
     expect(admin.mockSend).toHaveBeenCalled();
   });
+
+  describe('notifyCourseChatMembers (Group Chat)', () => {
+    it('notifies all enrolled students and excludes the teacher when teacher sends a message', async () => {
+      admin.getMock.mockImplementation(() => Promise.resolve({
+        exists: true,
+        data: () => ({
+          courseName: 'Thuluth Basics',
+          teacherId: 'teacher_1',
+          enrolledStudents: ['student_1', 'student_2'],
+          fcmToken: 'tok_user',
+          preferredLanguage: 'en',
+        }),
+      }));
+
+      const event = {
+        params: { courseId: 'course_1', messageId: 'msg_1' },
+        data: {
+          data: () => ({
+            senderId: 'teacher_1',
+            senderName: 'Master Ali',
+            senderRole: 'teacher',
+            text: 'Practice the Alif stroke before class!',
+          }),
+        },
+      };
+
+      await notifications.notifyCourseChatMembers(event);
+
+      // Should send to student_1 and student_2 (2 recipients), NOT teacher_1
+      expect(admin.mockSend).toHaveBeenCalledTimes(2);
+      expect(admin.mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notification: {
+            title: '💬 Thuluth Basics',
+            body: 'Master Ali: Practice the Alif stroke before class!',
+          },
+          data: expect.objectContaining({
+            type: 'course_chat',
+            route: '/courseChat',
+            courseId: 'course_1',
+            courseName: 'Thuluth Basics',
+            teacherId: 'teacher_1',
+          }),
+        })
+      );
+    });
+
+    it('notifies teacher and other students (excluding sender) when a student sends a message', async () => {
+      admin.getMock.mockImplementation(() => Promise.resolve({
+        exists: true,
+        data: () => ({
+          courseName: 'Naskh',
+          teacherId: 'teacher_1',
+          enrolledStudents: ['student_1', 'student_2'],
+          fcmToken: 'tok_user',
+          preferredLanguage: 'en',
+        }),
+      }));
+
+      const event = {
+        params: { courseId: 'course_1', messageId: 'msg_2' },
+        data: {
+          data: () => ({
+            senderId: 'student_1',
+            senderName: 'Sara',
+            senderRole: 'student',
+            text: 'Is my slant angle correct?',
+          }),
+        },
+      };
+
+      await notifications.notifyCourseChatMembers(event);
+
+      // Should notify teacher_1 and student_2 (2 recipients), NOT student_1
+      expect(admin.mockSend).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses a localized photo label when image-only message is sent and skips empty messages', async () => {
+      admin.getMock.mockImplementation(() => Promise.resolve({
+        exists: true,
+        data: () => ({
+          courseName: 'Naskh',
+          teacherId: 'teacher_1',
+          enrolledStudents: ['student_1'],
+          fcmToken: 'tok_user',
+          preferredLanguage: 'ar',
+        }),
+      }));
+
+      await notifications.notifyCourseChatMembers({
+        params: { courseId: 'course_1', messageId: 'msg_3' },
+        data: {
+          data: () => ({
+            senderId: 'student_1',
+            senderName: 'سارة',
+            text: '',
+            imageUrl: 'https://example.com/img.jpg',
+          }),
+        },
+      });
+
+      expect(admin.mockSend).toHaveBeenCalledTimes(1);
+      expect(admin.mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notification: {
+            title: '💬 Naskh',
+            body: 'سارة: 📷 أرسل صورة',
+          },
+        })
+      );
+
+      jest.clearAllMocks();
+
+      // Empty message without image should do nothing
+      await notifications.notifyCourseChatMembers({
+        params: { courseId: 'course_1', messageId: 'msg_empty' },
+        data: { data: () => ({ senderId: 'student_1', senderName: 'Sara', text: '   ' }) },
+      });
+      expect(admin.mockSend).not.toHaveBeenCalled();
+    });
+  });
 });
