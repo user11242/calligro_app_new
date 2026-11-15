@@ -5,6 +5,7 @@ import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.
 import 'package:calligro_app/features/profile/presentation/profile_scope.dart';
 import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
 import 'package:calligro_app/features/community/presentation/community_scope.dart';
+import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +36,7 @@ class TeacherDashboardPage extends StatefulWidget {
 
 class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   /// Community screens use the same (injectable) Firestore/Auth as the dashboard.
+  late final CourseServices _courseServices = CourseServices.firebase(firestore: widget.firestore, auth: widget.auth);
   late final CommunityServices _communityServices =
       CommunityServices.firebase(firestore: widget.firestore, auth: widget.auth);
   late final ProfileServices _profileServices =
@@ -261,7 +263,10 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           services: _communityServices,
           child: ProfileScope(
             services: _profileServices,
-            child: IndexedStack(index: _selectedIndex, children: _pages),
+            child: CourseScope(
+              services: _courseServices,
+              child: IndexedStack(index: _selectedIndex, children: _pages),
+            ),
           ),
         ),
         bottomNavigationBar: BottomAppBar(

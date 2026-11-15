@@ -27,7 +27,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(900, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     purchases();
-    final services = CourseServices(courses: repo, purchases: purchases, currentUid: () => uid);
+    final services = CourseServices(courses: repo, authoring: FakeAuthoring(repo: repo), purchases: purchases, currentUid: () => uid);
     await tester.pumpWidget(MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

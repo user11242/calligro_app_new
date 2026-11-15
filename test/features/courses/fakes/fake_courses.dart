@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:calligro_app/features/courses/domain/course_draft.dart';
 import 'package:calligro_app/features/courses/domain/course_models.dart';
 import 'package:calligro_app/features/courses/domain/course_repositories.dart';
 
@@ -38,6 +39,9 @@ class FakeCourseRepository implements CourseRepository {
   @override
   Stream<List<Course>> watchEnrolled(String uid) =>
       _live(_changes.stream, () => _all.where((c) => c.enrolledStudents.contains(uid)).toList());
+  @override
+  Stream<List<Course>> watchTeaching(String teacherId) =>
+      _live(_changes.stream, () => _all.where((c) => c.teacherId == teacherId).toList());
   @override
   Stream<List<Course>> watchLatest({int limit = 10}) => _live(_changes.stream, () => _all.take(limit).toList());
   @override
@@ -112,4 +116,33 @@ class MemoryIntentStore implements PurchaseIntentStore {
   Future<PurchaseIntent?> find(String productId) async => saved[productId];
   @override
   Future<void> remove(String productId) async => saved.remove(productId);
+}
+
+/// Creating courses, in memory. Optionally adds the created course to [repo]
+/// so lists update as they would with Firestore.
+class FakeAuthoring implements CourseAuthoring {
+  FakeAuthoring({this.repo});
+  final FakeCourseRepository? repo;
+  final authors = <String, CourseAuthor>{};
+  final created = <({CourseDraft draft, CourseAuthor author, String generatedName, String meetLink, String password})>[];
+  final authorReads = <String>[];
+  Object? failCreate;
+  Completer<void>? holdCreate;
+
+  @override
+  Future<CourseAuthor?> author(String uid) async {
+    authorReads.add(uid);
+    return authors[uid];
+  }
+
+  @override
+  Future<String> create(CourseDraft draft, CourseAuthor author,
+      {String generatedName = '', String meetLink = '', String classroomPassword = ''}) async {
+    if (holdCreate != null) await holdCreate!.future;
+    if (failCreate != null) throw failCreate!;
+    created.add((draft: draft, author: author, generatedName: generatedName, meetLink: meetLink, password: classroomPassword));
+    final id = 'new${created.length}';
+    repo?.put(Course.fromMap(id, draft.toDocument(author, createdAt: DateTime(2026, 11, 15), generatedName: generatedName)));
+    return id;
+  }
 }

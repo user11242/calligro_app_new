@@ -2,8 +2,10 @@ import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/widgets/smart_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:calligro_app/features/courses/domain/course_models.dart' show Course;
+import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 import '../../../core/widgets/auto_translated_text.dart';
 import '../../../core/utils/course_utils.dart';
 import 'package:intl/intl.dart';
@@ -16,7 +18,9 @@ enum CourseFilter { all, active, upcoming, ended }
 
 class TeacherCoursesTab extends StatefulWidget {
   final FirebaseAuth? auth;
-  final FirebaseFirestore? firestore;
+
+  /// Kept for callers; courses come from the CourseScope above (live).
+  final Object? firestore;
 
   const TeacherCoursesTab({
     super.key,
@@ -32,7 +36,7 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
   String? _teacherId;
   bool _isTeacherIdLoading = true;
   CourseFilter _selectedFilter = CourseFilter.all;
-  Stream<QuerySnapshot>? _coursesStream;
+  Stream<List<Course>>? _coursesStream;
 
   @override
   void initState() {
@@ -44,8 +48,7 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
     final user = (widget.auth ?? FirebaseAuth.instance).currentUser;
     if (user != null) {
       _teacherId = user.uid;
-      _isTeacherIdLoading = false;
-      _initCoursesStream();
+      _isTeacherIdLoading = false; // stream created in build (needs the CourseScope)
     } else {
       _fetchTeacherId(); // Fallback for edge cases
     }
@@ -53,11 +56,7 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
 
   void _initCoursesStream() {
     if (_teacherId != null) {
-      _coursesStream = (widget.firestore ?? FirebaseFirestore.instance)
-          .collection('courses')
-          .where('teacherId', isEqualTo: _teacherId!)
-          .limit(50)
-          .snapshots();
+      _coursesStream = CourseScope.of(context).courses.watchTeaching(_teacherId!);
     }
   }
 
@@ -241,7 +240,7 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
       _initCoursesStream();
     }
 
-    return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<List<Course>>(
       stream: _coursesStream,
       builder: (context, courseSnapshot) {
         if (courseSnapshot.connectionState == ConnectionState.waiting && !courseSnapshot.hasData) {
@@ -257,20 +256,15 @@ class _TeacherCoursesTabState extends State<TeacherCoursesTab> {
           );
         }
 
-        final List<QueryDocumentSnapshot> courseDocs =
-            courseSnapshot.data?.docs ?? [];
-
-        final List<Map<String, dynamic>> allCoursesWithIds = courseDocs.map((
-          doc,
-        ) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {
-            'id': doc.id,
-            'data': data, // Pass the whole data for CourseUtils
-            'startDate': (data['startDate'] as Timestamp?)?.toDate(),
-            'endDate': (data['endDate'] as Timestamp?)?.toDate(),
-          };
-        }).toList();
+        final List<Map<String, dynamic>> allCoursesWithIds = [
+          for (final course in courseSnapshot.data ?? const <Course>[])
+            {
+              'id': course.id,
+              'data': course.raw, // Pass the whole data for CourseUtils
+              'startDate': course.startDate,
+              'endDate': course.endDate,
+            },
+        ];
         final List<Map<String, dynamic>> filteredCourses = allCoursesWithIds
             .where((course) {
               if (_selectedFilter == CourseFilter.all) {

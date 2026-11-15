@@ -91,32 +91,6 @@ void main() {
     });
 
     // -----------------------------------------------------------------------
-    // getEnrolledCourses
-    // -----------------------------------------------------------------------
-    test('getEnrolledCourses() returns stream of enrolled courses', () {
-      expect(studentService.getEnrolledCourses(), isA<Stream<List<Map<String, dynamic>>>>());
-    });
-    
-    test('getEnrolledCourses() yields empty list when not logged in', () async {
-      final loggedOutAuth = MockFirebaseAuth(signedIn: false);
-      final loggedOutService = StudentService(
-        auth: loggedOutAuth,
-        firestore: fakeFirestore,
-      );
-
-      final stream = loggedOutService.getEnrolledCourses();
-      final courses = await stream.first;
-      expect(courses, isEmpty);
-    });
-
-    // -----------------------------------------------------------------------
-    // getFeaturedCourses
-    // -----------------------------------------------------------------------
-    test('getFeaturedCourses() returns stream of active courses', () {
-      expect(studentService.getFeaturedCourses(), isA<Stream<List<Map<String, dynamic>>>>());
-    });
-
-    // -----------------------------------------------------------------------
     // getTeachersStream
     // -----------------------------------------------------------------------
     test('getTeachersStream() returns stream of approved teachers', () {

@@ -27,12 +27,6 @@ class FakeStudentService extends StudentService {
   Stream<StudentUserModel> getStudentStream() => _studentController.stream;
 
   @override
-  Stream<List<Map<String, dynamic>>> getEnrolledCourses() => _coursesController.stream;
-
-  @override
-  Stream<List<Map<String, dynamic>>> getFeaturedCourses() => _coursesController.stream;
-
-  @override
   Stream<List<Map<String, dynamic>>> getTeachersStream() => _coursesController.stream;
 }
 

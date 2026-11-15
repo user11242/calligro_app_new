@@ -32,6 +32,10 @@ import '../../../core/widgets/notification_bell_button.dart';
 import 'gallery_page.dart';
 import 'teachers_page.dart';
 import 'package:calligro_app/features/courses/presentation/pages/course_preview_page.dart';
+import 'package:calligro_app/features/courses/domain/course_models.dart' show Course;
+import 'package:calligro_app/features/courses/domain/course_policy.dart';
+import 'package:calligro_app/features/courses/presentation/course_scope.dart';
+import 'package:calligro_app/core/utils/shared_latest_stream.dart';
 import '../../teacher/pages/course_details/course_details_page.dart';
 import '../../gallery/services/gallery_service.dart';
 import '../../gallery/models/gallery_artist.dart';
@@ -77,12 +81,41 @@ class _StudentHomePageState extends State<StudentHomePage> {
     super.initState();
     _service = widget.studentService ?? StudentService(auth: widget.auth, firestore: widget.firestore);
     _studentStream = _service.getStudentStream();
-    _enrolledCoursesStream = _service.getEnrolledCourses();
     _galleryFuture = GalleryService(firestore: widget.firestore).getArtistsList();
     _teachersStream = _service.getTeachersStream();
-    _featuredCoursesStream = _service.getFeaturedCourses();
     _precacheGalleryImages();
     _checkForUnratedCompletedCourses();
+  }
+
+  bool _courseStreamsReady = false;
+  SharedLatestStream<List<Map<String, dynamic>>>? _enrolledShared;
+  SharedLatestStream<List<Map<String, dynamic>>>? _featuredShared;
+
+  /// Course lists come from the course repository (live, real fields), as
+  /// the maps the cards below already read.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_courseStreamsReady) return;
+    _courseStreamsReady = true;
+    final services = CourseScope.of(context);
+    final uid = services.currentUid();
+    List<Map<String, dynamic>> asMaps(Iterable<Course> list) => [for (final c in list) {...c.raw, 'id': c.id}];
+    // Several sections read the same list: one subscription, shared.
+    _enrolledShared = SharedLatestStream(services.courses.watchEnrolled(uid).map(asMaps));
+    _enrolledCoursesStream = _enrolledShared!.stream;
+    // Same rule as the catalogue: a started course is not offered to non-students.
+    _featuredShared = SharedLatestStream(services.courses.watchCatalog().map((all) =>
+        asMaps(all.where((c) => CoursePolicy.isVisibleInCatalog(c, uid, now: DateTime.now())).take(10))));
+    _featuredCoursesStream = _featuredShared!.stream;
+  }
+
+  @override
+  void dispose() {
+    _enrolledShared?.dispose();
+    _featuredShared?.dispose();
+    _heroPageController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkForUnratedCompletedCourses() async {
@@ -398,6 +431,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
         // --- Notifications with unread badge ---
         NotificationBellButton(
           isGuest: widget.isGuestMode,
+          auth: widget.auth,
+          firestore: widget.firestore,
         ).animate().fadeIn(delay: 800.ms).scale(),
       ],
     );

@@ -29,7 +29,8 @@ class Course {
   final List<String> selectedDays;
   /// [{name, icon}] maps, as course creation stores them.
   final List<Map<String, dynamic>> requiredTools;
-  final List<Map<String, dynamic>> curriculumSteps;
+  /// Step titles. The app stores plain strings; older data may hold {title} maps.
+  final List<String> curriculumSteps;
   final List<String> enrolledStudents;
   final int enrolledCount;
 
@@ -109,7 +110,10 @@ class Course {
       ],
       curriculumSteps: [
         for (final step in (d['curriculumSteps'] is List ? d['curriculumSteps'] as List : const []))
-          if (step is Map) Map<String, dynamic>.from(step),
+          if (step is String)
+            step
+          else if (step is Map && step['title'] is String)
+            step['title'] as String,
       ],
       enrolledStudents: enrolled,
       enrolledCount: d['enrolledCount'] is num ? (d['enrolledCount'] as num).toInt() : enrolled.length,

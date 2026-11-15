@@ -181,7 +181,6 @@ import 'package:calligro_app/features/teacher/pages/settings/security_page.dart'
 import 'package:calligro_app/features/teacher/pages/settings/language_settings_page.dart';
 import 'package:calligro_app/features/teacher/pages/add_course/course_information_step.dart';
 import 'package:calligro_app/features/teacher/pages/add_course/course_details_step.dart';
-import 'package:calligro_app/features/teacher/pages/add_course/courseFirebaseServices.dart';
 import 'package:calligro_app/features/teacher/pages/add_course/course_schedule_step.dart';
 import 'package:calligro_app/features/teacher/pages/add_course/pricing_step.dart';
 import 'package:calligro_app/features/teacher/pages/add_course/course_summary_page.dart';

@@ -133,7 +133,12 @@ service cloud.firestore {
         allow delete: if isOwner(userId) || 
                       (isSignedIn() && resource.data.userId == request.auth.uid) || 
                       (isSignedIn() && notificationId == 'follow_' + request.auth.uid);
-        allow create: if isAdmin() || isOwner(userId) || isTeacher() || 
+        // A teacher may notify only students of their own course (session moved).
+        allow create: if isAdmin() || isOwner(userId) ||
+                      (isTeacher() && request.resource.data.get('courseId', '') is string &&
+                        request.resource.data.get('courseId', '') != '' &&
+                        get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.teacherId == request.auth.uid &&
+                        userId in get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.get('enrolledStudents', [])) ||
                       (isSignedIn() && request.resource.data.userId == request.auth.uid);
       }
 
@@ -178,18 +183,41 @@ service cloud.firestore {
     // =========================================================
     match /courses/{courseId} {
       allow read: if true;
-      // Approved teachers create their own courses, empty (enrolment is server-only).
-      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid &&
-        (isApprovedTeacher() || isAdmin()) &&
-        request.resource.data.get('enrolledStudents', []).size() == 0 &&
-        request.resource.data.get('enrolledCount', 0) == 0;
-      
-      allow update: if isSignedIn() && (
-        resource.data.teacherId == request.auth.uid || 
-        isAdmin()
-      );
-      
-      allow delete: if (isSignedIn() && resource.data.teacherId == request.auth.uid) || isAdmin();
+
+      // A new course is shaped like CourseDraft.toDocument (lib/features/courses/domain):
+      // empty (enrolment is server-only), under the teacher's real name, server
+      // time (no pinning a course to the top of the catalogue), and a store
+      // product that matches its price (functions/purchases.js expectedProductId).
+      function validNewCourse(d) {
+        let me = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+        return d.teacherId == request.auth.uid &&
+          d.get('enrolledStudents', []).size() == 0 &&
+          d.get('enrolledCount', 0) == 0 &&
+          d.get('teacherName', '') == me.get('name', '') &&
+          d.price is number && d.price >= 0 &&
+          (!('iapProductId' in d) || d.iapProductId == 'com.yazan.calligro.tier_' + string(int(d.price))) &&
+          (!('maxStudents' in d) || (d.maxStudents is int && d.maxStudents >= 1)) &&
+          (!('createdAt' in d) || d.createdAt == request.time);
+      }
+
+      // The owner may only reschedule a session, or carry their own new
+      // name/photo onto the course (account deletion). Students, seats, price,
+      // product and owner are server/admin-only once a course exists.
+      function ownerUpdateOk() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        let me = getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+        return resource.data.teacherId == request.auth.uid &&
+          changed.hasOnly(['rescheduledSession', 'teacherName', 'teacherProfilePic']) &&
+          (!changed.hasAny(['teacherName']) || request.resource.data.teacherName == me.get('name', '')) &&
+          (!changed.hasAny(['teacherProfilePic']) || request.resource.data.teacherProfilePic == me.get('photoUrl', null));
+      }
+
+      allow create: if isSignedIn() && (isApprovedTeacher() || isAdmin()) && validNewCourse(request.resource.data);
+      allow update: if isAdmin() || (isSignedIn() && ownerUpdateOk());
+      // Never delete a course people paid for (admins handle refunds/removals).
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.teacherId == request.auth.uid &&
+        resource.data.get('enrolledStudents', []).size() == 0 &&
+        resource.data.get('enrolledCount', 0) == 0);
 
       match /announcements/{announcementId} {
         allow read: if true;
@@ -256,8 +284,9 @@ service cloud.firestore {
           get(/databases/$(database)/documents/courses/$(courseId)).data.enrolledStudents.hasAny([request.auth.uid]) ||
           isAdmin()
         );
+        // getAfter: written in the SAME batch as a new course (FirestoreCourseAuthoring.create).
         allow write: if isSignedIn() && (
-          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
+          getAfter(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
           isAdmin()
         );
       }

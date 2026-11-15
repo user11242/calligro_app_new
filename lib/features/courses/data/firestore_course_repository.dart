@@ -45,6 +45,11 @@ class FirestoreCourseRepository implements CourseRepository {
       ? Stream.value(const [])
       : _courses.where('enrolledStudents', arrayContains: uid).snapshots().map(_newestFirst);
 
+  @override
+  Stream<List<Course>> watchTeaching(String teacherId) => teacherId.isEmpty
+      ? Stream.value(const [])
+      : _courses.where('teacherId', isEqualTo: teacherId).snapshots().map(_newestFirst);
+
   /// The first [limit] of the catalogue (same query, same ordering rules).
   @override
   Stream<List<Course>> watchLatest({int limit = 10}) => watchCatalog().map((all) => all.take(limit).toList());

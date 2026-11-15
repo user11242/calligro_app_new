@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
 
+import '../application/course_creation.dart';
 import '../application/course_purchases.dart';
+import '../data/firestore_course_authoring.dart';
 import '../data/firestore_course_repository.dart';
 import '../data/store_gateways.dart';
 import '../domain/course_repositories.dart';
@@ -11,6 +13,7 @@ import '../domain/course_repositories.dart';
 class CourseServices {
   CourseServices({
     required this.courses,
+    required this.authoring,
     required CoursePurchases Function() purchases,
     required this.currentUid,
   }) : _purchases = purchases;
@@ -19,11 +22,16 @@ class CourseServices {
   /// the single app-wide instance ([appPurchases]).
   factory CourseServices.firebase({FirebaseFirestore? firestore, FirebaseAuth? auth}) => CourseServices(
         courses: FirestoreCourseRepository(firestore: firestore),
+        authoring: FirestoreCourseAuthoring(firestore: firestore),
         purchases: appPurchases,
         currentUid: () => (auth ?? FirebaseAuth.instance).currentUser?.uid ?? '',
       );
 
   final CourseRepository courses;
+
+  /// Teachers creating courses.
+  final CourseAuthoring authoring;
+  late final CourseCreation creation = CourseCreation(authoring: authoring, currentUid: currentUid);
   final String Function() currentUid;
   final CoursePurchases Function() _purchases;
 

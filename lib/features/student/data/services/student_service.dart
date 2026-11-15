@@ -77,45 +77,6 @@ class StudentService {
         });
   }
 
-  // --- NEW: Stream of Enrolled Courses ---
-  Stream<List<Map<String, dynamic>>> getEnrolledCourses() {
-    final user = _auth.currentUser;
-    if (user == null) return Stream.value([]);
-
-    return _firestore
-        .collection('courses')
-        .where('enrolledStudents', arrayContains: user.uid)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => {...doc.data(), 'id': doc.id})
-            .toList())
-        .handleError((e) {
-          debugPrint("EnrolledCourses Stream Error: $e");
-          return <Map<String, dynamic>>[];
-        });
-  }
-
-  // --- NEW: Stream of Featured / Discovery Courses ---
-  Stream<List<Map<String, dynamic>>> getFeaturedCourses() {
-    try {
-      return _firestore
-          .collection('courses')
-          .orderBy('createdAt', descending: true)
-          .limit(10)
-          .snapshots()
-          .map((snapshot) => snapshot.docs
-              .map((doc) => {...doc.data(), 'id': doc.id})
-              .toList())
-          .handleError((error) {
-            debugPrint("Error fetching featured courses: $error");
-            return <Map<String, dynamic>>[];
-          });
-    } catch (e) {
-      debugPrint("Exception in getFeaturedCourses: $e");
-      return Stream.value([]);
-    }
-  }
-
   // --- NEW: Stream of Teachers ---
   Stream<List<Map<String, dynamic>>> getTeachersStream() {
     try {

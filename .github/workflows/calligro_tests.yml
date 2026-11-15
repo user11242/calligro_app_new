@@ -31,7 +31,7 @@ jobs:
         run: flutter test test/features/meet/
 
       - name: Run Community Tests (policy, data layer, controllers, real screens, guard rails)
-        run: flutter test test/features/courses/ test/features/community/ test/features/profile/ test/features/teacher/ test/services/admin_service_test.dart
+        run: flutter test test/features/courses/ test/core/ test/features/community/ test/features/profile/ test/features/teacher/ test/services/admin_service_test.dart
 
   calligro_meet_backend_tests:
     name: Calligro Meet Cloud Functions Tests (LiveKit)

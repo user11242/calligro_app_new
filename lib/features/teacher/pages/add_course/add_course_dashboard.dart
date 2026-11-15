@@ -3,7 +3,9 @@ import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/core/utils/course_utils.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:calligro_app/features/courses/application/course_creation.dart';
+import 'package:calligro_app/features/courses/domain/course_draft.dart';
+import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 
 // --- Import Steps ---
 import 'course_information_step.dart';
@@ -14,7 +16,6 @@ import 'pricing_step.dart';
 
 // --- Import Summary & Services ---
 import 'course_summary_page.dart';
-import 'courseFirebaseServices.dart';
 import '../../../../core/message/app_messenger.dart';
 import '../settings/payout_settings_page.dart';
 
@@ -30,8 +31,9 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
   int _currentStep = 0;
   final PageController _pageController = PageController();
 
-  // --- Services ---
-  final CourseFirebaseService _firebaseService = CourseFirebaseService();
+  // --- Services (validation, payout check and the atomic write live in CourseCreation) ---
+  CourseCreation? _creation;
+  bool _saving = false;
 
   // --- Step 0: Information Data ---
   final _courseNameController = TextEditingController();
@@ -58,28 +60,32 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
   String teacherId = '';
   String teacherName = '';
   String teacherProfilePic = '';
-  bool _hasPayoutInfo = false;
   bool _hasCommissionRate = false;
   double _teacherEarningPercentage = 0.0;
 
   @override
-  void initState() {
-    super.initState();
-    _fetchTeacherDetails();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_creation == null) {
+      _creation = CourseScope.of(context).creation;
+      _fetchTeacherDetails();
+    }
   }
 
   Future<void> _fetchTeacherDetails() async {
     try {
-      var teacherDetails = await _firebaseService.fetchTeacherDetails();
+      final author = await _creation!.loadAuthor();
+      if (author == null) throw Exception('User not logged in');
+      if (!mounted) return;
       setState(() {
-        teacherId = teacherDetails['teacherId']!;
-        teacherName = teacherDetails['teacherName']!;
-        teacherProfilePic = teacherDetails['teacherProfilePic'] ?? '';
-        _hasPayoutInfo = teacherDetails['hasPayoutInfo'] ?? false;
-        _hasCommissionRate = teacherDetails['hasCommissionRate'] ?? false;
-        _teacherEarningPercentage = teacherDetails['earningPercentage'] ?? 0.0;
+        teacherId = author.id;
+        teacherName = author.name;
+        teacherProfilePic = author.photoUrl;
+        _hasCommissionRate = author.hasCommissionRate;
+        _teacherEarningPercentage = author.earningPercentage;
       });
     } catch (e) {
+      if (!mounted) return;
       _showMessage(AppLocalizations.of(context)!.error, AppLocalizations.of(context)!.errorFetchingUserData(e.toString()), MessengerType.error);
     }
   }
@@ -89,53 +95,27 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
     AppMessenger.showSnackBar(context, title: title, message: msg, type: type);
   }
 
-  // --- Logic: Image Assignment ---
-  String _assignCourseImage() {
-    const String basePath = 'assets/courses_backgrounds';
+  String _assignCourseImage() => CourseDraft.bannerFor(_selectedWritingType, _selectedCalligraphyStyle);
 
-    if (_selectedWritingType == "Normal Pen Writing") {
-      return '$basePath/normal_writing.jpg';
-    }
+  int _parseMaxStudents() => CourseDraft.parseMaxStudents(_numberOfStudentsController.text);
 
-    if (_selectedWritingType == "Arabic Calligraphy" &&
-        _selectedCalligraphyStyle != null) {
-      switch (_selectedCalligraphyStyle) {
-        case "Kufi":
-          return '$basePath/kufi.png';
-        case "Naskh":
-          return '$basePath/naskh.jpg';
-        case "Ruq'ah":
-          return '$basePath/ruqah.jpg';
-        case "Thuluth":
-          return '$basePath/thuluth.jpg';
-        case "Jali Thuluth":
-          return '$basePath/thuluth_jali.jpg';
-        case "Diwani":
-          return '$basePath/diwani.jpg';
-        case "Jali Diwani":
-          return '$basePath/diwani_jali.png';
-        case "Persian (Ta'liq)":
-          return '$basePath/taliq.png';
-        case "Ijaza":
-          return '$basePath/ijaza.png';
-        case "Muhaqqiq":
-          return '$basePath/muhaqqaq.jpg';
-        case "Rayhani":
-          return '$basePath/rayhani.jpg';
-        default:
-          return '$basePath/thuluth.jpg';
-      }
-    }
-    return '$basePath/thuluth.jpg';
-  }
-
-  int _parseMaxStudents() {
-    final parsedValue = int.tryParse(_numberOfStudentsController.text);
-    if (parsedValue != null && parsedValue > 0) {
-      return parsedValue;
-    }
-    return 30; // Default
-  }
+  CourseDraft _draft() => CourseDraft(
+        courseName: _courseNameController.text,
+        courseDescription: _courseDescriptionController.text,
+        writingType: _selectedWritingType,
+        calligraphyStyle: _selectedCalligraphyStyle,
+        level: _selectedCategory ?? 'Beginner',
+        ageCategory: _selectedAgeGroup,
+        startDate: _startDate,
+        endDate: _endDate,
+        startTime: _startTime,
+        endTime: _endTime,
+        selectedDays: _selectedDays,
+        requiredTools: _requiredTools,
+        curriculumSteps: _curriculumSteps,
+        price: double.tryParse(CourseUtils.normalizeNumerics(_priceController.text)) ?? 0.0,
+        maxStudents: _parseMaxStudents(),
+      );
 
   // --- Logic: Navigation & Handoff ---
   void _goToNextStep() {
@@ -149,87 +129,41 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
     }
   }
 
-  // --- Logic: Firebase Save ---
+  // --- Logic: Save (one atomic write: course + private meeting settings) ---
   Future<void> _saveCourseToFirebase(Map<String, String> meetData) async {
-    final String meetLink = meetData['link'] ?? '';
-    final String meetPassword = meetData['password'] ?? '';
-
-    if (!_hasPayoutInfo) {
-      _showPayoutRequiredDialog(meetData);
-      return;
-    }
-
-    final String courseName = _courseNameController.text.isEmpty
-        ? CourseUtils.getLocalizedCourseName(context, {
-            'writingType': _selectedWritingType,
-            'calligraphyStyle': _selectedCalligraphyStyle,
-            'selectedCategory': _selectedCategory,
-          })
-        : _courseNameController.text;
-
-    try {
-      print('Saving course to Firebase...');
-
-      String assignedBanner = _assignCourseImage();
-
-      // 🔐 SECURITY: Do NOT store classroomPassword or calligroMeetLink in the
-      // public course document. These are written to the private subcollection below.
-      Map<String, dynamic> courseData = {
-        'courseName': courseName,
-        'courseDescription': _courseDescriptionController.text,
-        'writingType': _selectedWritingType,
-        'calligraphyStyle': _selectedCalligraphyStyle,
-        'courseBanner': assignedBanner,
-        'teacherProfilePic': teacherProfilePic,
-        'levelColor': _selectedCategory,
-        'selectedCategory': _selectedCategory,
-        'ageCategory': _selectedAgeGroup,
-        'startDate': _startDate,
-        'endDate': _endDate,
-        'selectedTime': _startTime,
-        'startTime': _startTime,
-        'endTime': _endTime,
-        'selectedDays': _selectedDays,
-        'teacherId': teacherId,
-        'teacherName': teacherName,
-        'enrolledStudents': [],
-        'enrolledCount': 0,
-        'price': double.tryParse(_priceController.text) ?? 0.0,
-        'iapProductId': 'com.yazan.calligro.tier_${(double.tryParse(_priceController.text) ?? 50.0).toInt()}',
-        // 🔐 calligroMeetLink included here only so course page can show "Join" button
-        // The actual room name is hashed server-side — this value alone is useless to attackers
-        'calligroMeetLink': meetLink,
-        'maxStudents': _parseMaxStudents(),
-        'requiredTools': _requiredTools,
-        'isAutoGeneratedName': _courseNameController.text.isEmpty,
-        'curriculumSteps': _curriculumSteps,
-        'createdAt': DateTime.now(),
-      };
-
-      // Save public course data and get the generated course ID
-      final String courseId = await _firebaseService.saveCourse(courseData);
-
-      // 🔐 SECURITY FIX: Write sensitive credentials to private subcollection
-      // Only enrolled students and the teacher can read this (enforced by Firestore rules)
-      await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(courseId)
-          .collection('private')
-          .doc('meetingConfig')
-          .set({
-        'calligroMeetLink': meetLink,
-        'classroomPassword': meetPassword,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      print('🔐 Meeting credentials saved to private subcollection for course $courseId');
-
-      if (mounted) {
+    if (_saving) return;
+    final l10n = AppLocalizations.of(context)!;
+    final generatedName = CourseUtils.getLocalizedCourseName(context, {
+      'writingType': _selectedWritingType,
+      'calligraphyStyle': _selectedCalligraphyStyle,
+      'selectedCategory': _selectedCategory,
+    });
+    _saving = true;
+    final result = await _creation!.create(
+      _draft(),
+      generatedName: generatedName,
+      meetLink: meetData['link'] ?? '',
+      classroomPassword: meetData['password'] ?? '',
+    );
+    _saving = false;
+    if (!mounted) return;
+    switch (result.outcome) {
+      case CreateCourseOutcome.created:
         Navigator.pop(context, true);
-      }
-    } catch (e) {
-      print('Error saving course: $e');
-      _showMessage(AppLocalizations.of(context)!.error, "${AppLocalizations.of(context)!.error}: $e", MessengerType.error);
+      case CreateCourseOutcome.needsPayout:
+        _showPayoutRequiredDialog(meetData);
+      case CreateCourseOutcome.needsCommission:
+        _showMessage(l10n.actionRequired, l10n.cannotProceedNoCommission, MessengerType.error);
+      case CreateCourseOutcome.invalid:
+        final datesProblem = result.problems.contains(DraftProblem.missingDates) ||
+            result.problems.contains(DraftProblem.endBeforeStart);
+        _showMessage(l10n.validation, datesProblem ? l10n.selectStartEndDates : l10n.error, MessengerType.info);
+      case CreateCourseOutcome.notSignedIn:
+        _showMessage(l10n.error, l10n.errorFetchingUserData('not signed in'), MessengerType.error);
+      case CreateCourseOutcome.failed:
+        _showMessage(l10n.error, '${l10n.error}: ${result.message}', MessengerType.error);
+      case CreateCourseOutcome.busy:
+        break;
     }
   }
 
@@ -269,16 +203,9 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
                 MaterialPageRoute(builder: (context) => const PayoutSettingsPage(isFromWizard: true)),
               );
 
-              if (result == true) {
-                // Force immediate server refresh
-                await _fetchTeacherDetails();
-                if (_hasPayoutInfo) {
-                  _saveCourseToFirebase(meetData);
-                } else {
-                  // If still not updated, show the dialog again
-                  if (mounted) _showPayoutRequiredDialog(meetData);
-                }
-              }
+              // The teacher is re-read on save: if the details are still
+              // missing, the dialog simply shows again.
+              if (result == true && mounted) _saveCourseToFirebase(meetData);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentGold,

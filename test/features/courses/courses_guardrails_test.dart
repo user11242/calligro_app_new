@@ -140,6 +140,43 @@ void main() {
       final ci = Directory('.github/workflows').listSync().whereType<File>().map((f) => f.readAsStringSync()).join();
       expect(ci.contains('test/features/courses/'), isTrue);
     });
+
+    test('pass 2: courses are created ONLY through CourseCreation / FirestoreCourseAuthoring', () {
+      for (final file in dartIn('lib')) {
+        if (file.path.contains('features/courses/data/')) continue;
+        final content = file.readAsStringSync().replaceAll(RegExp(r'\s+'), '');
+        expect(content.contains(".collection('courses').add("), isFalse, reason: '${file.path} creates a course itself');
+        expect(content.contains(".collection('courses').doc().set("), isFalse, reason: '${file.path} creates a course itself');
+      }
+      for (final file in dartIn('lib/features/teacher/pages/add_course')) {
+        final content = file.readAsStringSync();
+        expect(content.contains('FirebaseFirestore'), isFalse, reason: '${file.path} talks to Firestore directly');
+      }
+      expect(File('lib/features/teacher/pages/add_course/courseFirebaseServices.dart').existsSync(), isFalse);
+    });
+
+    test('pass 2: teacher list and student home read courses from the repository', () {
+      for (final path in [
+        'lib/features/teacher/tabs/teacher_courses_tab.dart',
+        'lib/features/student/data/services/student_service.dart',
+      ]) {
+        expect(File(path).readAsStringSync().contains("collection('courses')"), isFalse, reason: path);
+      }
+      final home = File('lib/features/student/pages/student_home_page.dart').readAsStringSync();
+      expect(home.contains('watchEnrolled('), isTrue);
+      expect(home.contains('isVisibleInCatalog('), isTrue, reason: 'same visibility rule as the catalogue');
+    });
+
+    test('pass 2: the rules keep course owners away from students, price, product and owner', () {
+      final rules = File('firestore.rules').readAsStringSync();
+      expect(rules.contains("changed.hasOnly(['rescheduledSession', 'teacherName', 'teacherProfilePic'])"), isTrue);
+      expect(rules.contains("d.iapProductId == 'com.yazan.calligro.tier_' + string(int(d.price))"), isTrue,
+          reason: 'must match CoursePolicy.productIdFor and functions/purchases.js');
+      expect(rules.contains('d.createdAt == request.time'), isTrue);
+      // The document the app writes uses the same prefix.
+      final draft = File('lib/features/courses/domain/course_draft.dart').readAsStringSync();
+      expect(draft.contains(r"'${CoursePolicy.productPrefix}${price.truncate()}'"), isTrue);
+    });
   });
 }
 

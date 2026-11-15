@@ -1,3 +1,4 @@
+import 'course_draft.dart';
 import 'course_models.dart';
 
 /// Reading courses. Every query works on real course documents with the
@@ -11,11 +12,32 @@ abstract interface class CourseRepository {
   /// Courses [uid] is enrolled in, newest first.
   Stream<List<Course>> watchEnrolled(String uid);
 
+  /// Courses [teacherId] teaches (teacher's own tabs), newest first, live.
+  Stream<List<Course>> watchTeaching(String teacherId);
+
   /// Newest courses (home page "explore").
   Stream<List<Course>> watchLatest({int limit = 10});
 
   /// Read once per teacher and cached.
   Future<CourseTeacherSummary?> teacherSummary(String teacherId);
+}
+
+/// Creating courses (teachers). Kept apart from reading: students never need it.
+abstract interface class CourseAuthoring {
+  /// The teacher as the course document needs them, read fresh from the
+  /// server (payout details may have just been saved). null = no such user.
+  Future<CourseAuthor?> author(String uid);
+
+  /// Writes the public course document AND its private meeting settings in
+  /// one atomic batch (never a course without its classroom password).
+  /// Returns the new course id.
+  Future<String> create(
+    CourseDraft draft,
+    CourseAuthor author, {
+    String generatedName = '',
+    String meetLink = '',
+    String classroomPassword = '',
+  });
 }
 
 /// A completed store charge waiting for server verification.
