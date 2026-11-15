@@ -1,7 +1,8 @@
+import 'package:calligro_app/features/community/presentation/community_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/features/student/pages/student_home_page.dart';
-import 'package:calligro_app/features/community/pages/community_page.dart';
+import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/features/student/tabs/student_courses_tab.dart';
 import 'package:calligro_app/features/student/tabs/student_profile_tab.dart';
@@ -30,6 +31,10 @@ class StudentDashboardPage extends StatefulWidget {
 }
 
 class _StudentDashboardPageState extends State<StudentDashboardPage> {
+  /// Community screens use the same (injectable) Firestore/Auth as the dashboard.
+  late final CommunityServices _communityServices =
+      CommunityServices.firebase(firestore: widget.firestore, auth: widget.auth);
+
   int _selectedIndex = 0;
   String? _initialCourseFilter;
   final int _navigationTrigger = 0;
@@ -86,8 +91,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       // 3. Community Tab
       CommunityPage(
         onProfileTap: _handleCommunityProfileTap,
-        auth: widget.auth,
-        firestore: widget.firestore,
       ),
 
       // 4. Profile Tab
@@ -101,7 +104,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       backgroundColor: AppColors.primary,
       body: Stack(
         children: [
-          IndexedStack(index: _selectedIndex, children: pages),
+          CommunityScope(
+            services: _communityServices,
+            child: IndexedStack(index: _selectedIndex, children: pages),
+          ),
           Positioned(
             right: 16,
             bottom: 16,

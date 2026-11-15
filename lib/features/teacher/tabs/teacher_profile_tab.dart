@@ -12,8 +12,7 @@ import 'package:shimmer/shimmer.dart';
 import '../pages/settings/teacher_settings.dart';
 import '../../../core/widgets/rating_display.dart';
 import '../../../core/utils/rating_utils.dart';
-import '../../community/widgets/profile_posts_section.dart';
-import '../../community/services/community_service.dart';
+import '../../community/presentation/widgets/profile_posts_section.dart';
 import 'package:rxdart/rxdart.dart';
 import '../../../../core/widgets/profile_image_viewer.dart';
 import '../../../core/widgets/follow_list_bottom_sheet.dart';
@@ -50,7 +49,6 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String? currentUserId;
-  final CommunityService _communityService = CommunityService();
   Stream<Map<String, dynamic>>? _combinedProfileStream;
 
   @override
@@ -108,16 +106,6 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
 
   // Removed _fetchSavedPostIds as we use real-time stream now
 
-  Future<void> _onToggleSave(String postId, bool isSaved) async {
-    if (currentUserId == null) return;
-
-    // We rely on the real-time stream for state updates
-    await _communityService.toggleSavePost(
-      postId: postId,
-      currentUserId: currentUserId ?? '',
-      isSaved: isSaved,
-    );
-  }
 
   @override
   void dispose() {
@@ -189,20 +177,6 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
           },
         );
       },
-    );
-  }
-
-  void _openPostDetails(
-    BuildContext context,
-    Map<String, dynamic> postData,
-    String postId,
-  ) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            PostDetailsPage(postData: postData, postId: postId),
-      ),
     );
   }
 
@@ -323,236 +297,16 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
                 controller: _tabController,
                 children: [
                   SingleChildScrollView(
-                    child: ProfilePostsSection(
-                      title: AppLocalizations.of(context)!.saved,
-                      currentUserId: currentUserId ?? '',
-                      postsStream: (widget.firestore ?? FirebaseFirestore.instance)
-                          .collection('community_posts')
-                          .where(
-                            FieldPath.documentId,
-                            whereIn: savedPostIds.isNotEmpty
-                                ? savedPostIds.take(30).toList()
-                                : ['placeholder'],
-                          )
-                          .snapshots()
-                          .map((snapshot) {
-                            // Lazy cleanup of orphaned saved posts
-                            final idsToCheck = savedPostIds
-                                .take(30)
-                                .toList();
-                            if (snapshot.docs.length < idsToCheck.length) {
-                              final validIds = snapshot.docs
-                                  .map((d) => d.id)
-                                  .toSet();
-                              for (int i = 0; i < idsToCheck.length; i++) {
-                                final String id = idsToCheck[i];
-                                if (!validIds.contains(id)) {
-                                  (widget.firestore ?? FirebaseFirestore.instance)
-                                      .collection('users')
-                                      .doc(currentUserId)
-                                      .collection('saved_posts')
-                                      .doc(id)
-                                      .delete();
-                                }
-                              }
-                            }
-                            return snapshot;
-                          }),
-                      savedPostIds: savedPostIds,
-                      onToggleSave: _onToggleSave,
-                    ),
+                    child: ProfilePostsSection.saved(title: AppLocalizations.of(context)!.saved),
                   ),
                   SingleChildScrollView(
-                    child: ProfilePostsSection(
-                      title: AppLocalizations.of(context)!.liked,
-                      currentUserId: currentUserId ?? '',
-                      postsStream: (widget.firestore ?? FirebaseFirestore.instance)
-                          .collection('community_posts')
-                          .where('likes.$currentUserId', isEqualTo: true)
-                          .snapshots(),
-                      savedPostIds: savedPostIds,
-                      onToggleSave: _onToggleSave,
-                    ),
+                    child: ProfilePostsSection.liked(title: AppLocalizations.of(context)!.liked),
                   ),
                 ],
               ),
             );
           },
         ),
-      ),
-    );
-  }
-
-  // --- REUSABLE LIST BUILDER ---
-  Widget _buildPostList(
-    List<QueryDocumentSnapshot> posts, {
-    required bool showDate,
-  }) {
-    if (posts.isEmpty) {
-      return _buildEmptyState(
-        Icons.image_outlined,
-        AppLocalizations.of(context)!.nothingToShow,
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: posts.length,
-      cacheExtent: 2000,
-      separatorBuilder: (ctx, i) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final doc = posts[index];
-        final postData = doc.data() as Map<String, dynamic>;
-
-        return InkWell(
-          onTap: () => _openPostDetails(context, postData, doc.id),
-          borderRadius: BorderRadius.circular(12),
-          child: _buildPostStatsCard(postData, showDate),
-        );
-      },
-    );
-  }
-
-  Widget _buildPostStatsCard(Map<String, dynamic> data, bool showDate) {
-    List<String> imageUrls = List<String>.from(data['imageUrls'] ?? []);
-    String imageUrl = imageUrls.isNotEmpty ? imageUrls[0] : '';
-    String caption = data['caption'] ?? 'No caption';
-    int likes = data['likesCount'] ?? 0;
-    int comments = data['commentsCount'] ?? 0;
-
-    String dateStr = "";
-    if (showDate && data['timestamp'] != null) {
-      final date = (data['timestamp'] as Timestamp).toDate();
-      dateStr = DateFormat(
-        'MMM d, yyyy',
-        Localizations.localeOf(context).toString(),
-      ).format(date);
-    }
-
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(12),
-            ),
-            child: imageUrl.isNotEmpty
-                ? SmartImage(
-                    imageUrl: imageUrl,
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(12),
-                    ),
-                    placeholder: Shimmer.fromColors(
-                      baseColor: Colors.white.withOpacity(0.1),
-                      highlightColor: Colors.white.withOpacity(0.2),
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        color: Colors.white,
-                      ),
-                    ),
-                    errorWidget: Container(
-                      width: 100,
-                      height: 100,
-                      color: Colors.grey[900],
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.white24,
-                      ),
-                    ),
-                  )
-                : Container(
-                    width: 100,
-                    height: 100,
-                    color: Colors.grey[900],
-                    child: const Icon(Icons.image, color: Colors.white24),
-                  ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      if (showDate) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          dateStr,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.favorite,
-                        size: 14,
-                        color: Colors.redAccent.withOpacity(0.8),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        "$likes",
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(
-                        Icons.comment,
-                        size: 14,
-                        color: AppColors.accentGold.withOpacity(0.8),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        "$comments",
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(right: 16.0),
-            child: Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.white24,
-              size: 14,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -954,57 +708,6 @@ class _TeacherProfileTabState extends State<TeacherProfileTab>
     );
   }
 
-  Widget _buildEmptyState(IconData icon, String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 50.0, color: Colors.white24),
-          const SizedBox(height: 16.0),
-          Text(message, style: const TextStyle(color: Colors.white54)),
-        ],
-      ),
-    );
-  }
-
-  // --- NEW: Saved Posts Builder ---
-  // Since Saved Posts are a list of IDs, we need to fetch them.
-  // We can't use _buildPostList directly because that takes QueryDocumentSnapshot list.
-  Widget _buildSavedPostsList(List<String> postIds) {
-    if (postIds.isEmpty) {
-      return _buildEmptyState(
-        Icons.bookmark_border,
-        AppLocalizations.of(context)!.noSavedItems,
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: postIds.length,
-      separatorBuilder: (ctx, i) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final postId = postIds[index];
-        return FutureBuilder<DocumentSnapshot>(
-          future: (widget.firestore ?? FirebaseFirestore.instance)
-              .collection('community_posts')
-              .doc(postId)
-              .get(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData || !snapshot.data!.exists) {
-              return const SizedBox(); // Handle deleted posts gracefully
-            }
-            final postData = snapshot.data!.data() as Map<String, dynamic>;
-
-            return InkWell(
-              onTap: () => _openPostDetails(context, postData, postId),
-              borderRadius: BorderRadius.circular(12),
-              child: _buildPostStatsCard(postData, false),
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
 // -----------------------------------------------------------

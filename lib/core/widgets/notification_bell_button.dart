@@ -9,15 +9,21 @@ class NotificationBellButton extends StatelessWidget {
   final bool isGuest;
   final VoidCallback? customOnPressed;
 
+  /// Injected in tests; the real singletons otherwise.
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+
   const NotificationBellButton({
     super.key,
     this.isGuest = false,
     this.customOnPressed,
+    this.auth,
+    this.firestore,
   });
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = (auth ?? FirebaseAuth.instance).currentUser;
     final uid = user?.uid;
 
     void handleTap() {
@@ -67,7 +73,7 @@ class NotificationBellButton extends StatelessWidget {
               ),
               if (uid != null && !isGuest)
                 StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
+                  stream: (firestore ?? FirebaseFirestore.instance)
                       .collection('users')
                       .doc(uid)
                       .collection('notifications')

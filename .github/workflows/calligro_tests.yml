@@ -30,6 +30,9 @@ jobs:
       - name: Run Calligro Meet Tests (protocol, security, policies, backend contract, join flow)
         run: flutter test test/features/meet/
 
+      - name: Run Community Tests (policy, data layer, controllers, real screens, guard rails)
+        run: flutter test test/features/community/ test/services/admin_service_test.dart
+
   calligro_meet_backend_tests:
     name: Calligro Meet Cloud Functions Tests (LiveKit)
     runs-on: ubuntu-latest
@@ -49,6 +52,35 @@ jobs:
 
       - name: Run LiveKit Function Tests
         run: npx jest test/livekit.test.js test/transcoder.test.js
+
+  security_rules_tests:
+    name: Firestore & Storage Security Rules (emulators)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: Setup Java (for the emulators)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install Functions Dependencies
+        working-directory: ./functions
+        run: npm ci
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Run rules tests against the Firestore + Storage emulators
+        run: >
+          firebase emulators:exec --only firestore,storage --project demo-calligro
+          "cd functions && npx jest test/security_rules.test.js test/community_rules.test.js test/storage_rules.test.js"
 
   web_portal_tests:
     name: Web Portal Lemon Squeezy Tests (Domain 1)
@@ -72,7 +104,7 @@ jobs:
 
   deploy_ios:
     name: Deploy to Apple TestFlight (CD)
-    needs: [flutter_tests, web_portal_tests, calligro_meet_backend_tests] # Only deploy if all tests pass
+    needs: [flutter_tests, web_portal_tests, calligro_meet_backend_tests, security_rules_tests] # Only deploy if all tests pass
     runs-on: macos-latest
     defaults:
       run:
@@ -89,7 +121,7 @@ jobs:
 
   deploy_android:
     name: Deploy to Google Play Beta (CD)
-    needs: [flutter_tests, web_portal_tests, calligro_meet_backend_tests] # Only deploy if all tests pass
+    needs: [flutter_tests, web_portal_tests, calligro_meet_backend_tests, security_rules_tests] # Only deploy if all tests pass
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -1,3 +1,6 @@
+import 'package:calligro_app/features/community/data/community_device_adapters.dart';
+import 'package:calligro_app/features/community/data/firestore_community_repository.dart';
+import 'package:calligro_app/features/community/domain/repositories/community_repositories.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,14 +12,17 @@ class AdminService {
   final FirebaseFirestore? _firestoreMock;
   final FirebaseAuth? _authMock;
   final FirebaseFunctions? _functionsMock;
+  final CommunityMediaStorage? _mediaMock;
 
   AdminService({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
     FirebaseFunctions? functions,
+    CommunityMediaStorage? media,
   })  : _firestoreMock = firestore,
         _authMock = auth,
-        _functionsMock = functions;
+        _functionsMock = functions,
+        _mediaMock = media;
 
   FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
   FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
@@ -151,9 +157,18 @@ class AdminService {
     await _firestore.collection('courses').doc(courseId).delete();
   }
 
-  /// Deletes a community post
+  /// Deletes a community post the same way its author would: comments,
+  /// replies, post counters and images go with it (community data layer).
   Future<void> deletePost(String postId) async {
-    await _firestore.collection('community_posts').doc(postId).delete();
+    final doc = await _firestore.collection('community_posts').doc(postId).get();
+    final data = doc.data();
+    if (data == null) return;
+    final imageUrls = await FirestoreCommunityRepository(firestore: _firestore)
+        .deletePost(CommunityFirestoreMapper.post(doc.id, data));
+    final media = _mediaMock ?? FirebaseCommunityMediaStorage();
+    for (final url in imageUrls) {
+      await media.deleteByUrl(url);
+    }
   }
 
   // --- ROLE MANAGEMENT ---
@@ -416,7 +431,7 @@ class AdminService {
   Stream<List<Map<String, dynamic>>> getAllPosts() {
     return _firestore
         .collection('community_posts')
-        .orderBy('createdAt', descending: true)
+        .orderBy('timestamp', descending: true) // posts store `timestamp` (no `createdAt`)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => {'id': doc.id, ...doc.data()})

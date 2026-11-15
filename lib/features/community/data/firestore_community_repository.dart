@@ -1,394 +1,357 @@
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
-import '../domain/models/community_comment.dart';
-import '../domain/models/community_filter.dart';
+import '../domain/models/community_models.dart';
 import '../domain/models/community_post.dart';
-import '../domain/repositories/community_repository.dart';
-import '../domain/repositories/media_uploader.dart';
-import 'community_media_uploader_impl.dart';
+import '../domain/policies/community_policy.dart';
+import '../domain/repositories/community_repositories.dart';
 
-/// Concrete Firestore implementation of CommunityRepository.
-class FirestoreCommunityRepository implements CommunityRepository {
-  final FirebaseFirestore? _firestoreMock;
-  final MediaUploader _uploader;
+/// Firestore ⇄ domain mapping. The field names here ARE the database schema
+/// (shared with firestore.rules, the web portal and Cloud Functions) — the data
+/// tests pin every one of them.
+class CommunityFirestoreMapper {
+  CommunityFirestoreMapper._();
 
-  FirestoreCommunityRepository({
-    FirebaseFirestore? firestore,
-    MediaUploader? uploader,
-  })  : _firestoreMock = firestore,
-        _uploader = uploader ?? CommunityMediaUploaderImpl();
+  static DateTime? date(Object? v) => v is Timestamp ? v.toDate() : (v is DateTime ? v : null);
 
-  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
+  static String str(Object? v, [String fallback = '']) => v is String ? v : fallback;
 
-  @override
-  Stream<List<CommunityPost>> watchFeed({
-    required CommunityFilter filter,
-    required String currentUserId,
-    List<String>? followingIds,
-    List<String>? savedPostIds,
-    int limit = 20,
-  }) {
-    Query query = _firestore.collection('community_posts');
+  static int count(Object? v) => v is num ? v.toInt() : 0;
 
-    switch (filter) {
-      case CommunityFilter.myPosts:
-        query = query.where('userId', isEqualTo: currentUserId).orderBy('timestamp', descending: true);
-        break;
-      case CommunityFilter.popular:
-        query = query.orderBy('likesCount', descending: true);
-        break;
-      case CommunityFilter.friends:
-        if (followingIds != null && followingIds.isNotEmpty) {
-          final limited = followingIds.take(30).toList();
-          query = query.where('userId', whereIn: limited).orderBy('timestamp', descending: true);
-        } else {
-          return Stream.value(const []);
-        }
-        break;
-      case CommunityFilter.saved:
-        if (savedPostIds != null && savedPostIds.isNotEmpty) {
-          final limited = savedPostIds.take(30).toList();
-          query = query.where(FieldPath.documentId, whereIn: limited);
-        } else {
-          return Stream.value(const []);
-        }
-        break;
-      case CommunityFilter.teachers:
-        query = query.where('userRole', isEqualTo: 'teacher').orderBy('timestamp', descending: true);
-        break;
-      case CommunityFilter.all:
-        query = query.orderBy('timestamp', descending: true);
-        break;
-    }
-
-    return query.limit(limit).snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return CommunityPost.fromMap(
-          id: doc.id,
-          map: doc.data() as Map<String, dynamic>,
-          currentUserId: currentUserId,
-        );
-      }).toList();
-    }).handleError((e) {
-      debugPrint('⚠️ watchFeed error: $e');
-      return <CommunityPost>[];
-    });
-  }
-
-  @override
-  Stream<List<CommunityPost>> watchPinnedPosts() {
-    return _firestore
-        .collection('community_posts')
-        .where('isPinned', isEqualTo: true)
-        .limit(5)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return CommunityPost.fromMap(
-          id: doc.id,
-          map: doc.data(),
-        );
-      }).toList();
-    }).handleError((_) => <CommunityPost>[]);
-  }
-
-  @override
-  Stream<List<CommunityPost>> watchUserPosts(String userId, {String? currentUserId}) {
-    return _firestore
-        .collection('community_posts')
-        .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return CommunityPost.fromMap(
-          id: doc.id,
-          map: doc.data(),
-          currentUserId: currentUserId,
-        );
-      }).toList();
-    }).handleError((_) => <CommunityPost>[]);
-  }
-
-  @override
-  Future<CommunityPost?> getPost(String postId, {String? currentUserId}) async {
-    final doc = await _firestore.collection('community_posts').doc(postId).get();
-    if (!doc.exists || doc.data() == null) return null;
-    return CommunityPost.fromMap(
-      id: doc.id,
-      map: doc.data()!,
-      currentUserId: currentUserId,
+  static CommunityPost post(String id, Map<String, dynamic> d) {
+    final likes = d['likes'];
+    final images = d['imageUrls'];
+    return CommunityPost(
+      id: id,
+      authorId: str(d['userId']),
+      authorName: str(d['userName']),
+      authorPhotoUrl: str(d['userImageUrl']),
+      authorRole: str(d['userRole'], 'student'),
+      caption: str(d['caption']),
+      imageUrls: images is List ? images.whereType<String>().toList() : const [],
+      createdAt: date(d['timestamp']),
+      likesCount: count(d['likesCount']),
+      likerIds: likes is Map ? likes.keys.map((k) => k.toString()).toSet() : const {},
+      commentsCount: count(d['commentsCount']),
+      isEdited: d['isEdited'] == true,
+      isPinned: d['isPinned'] == true,
+      isHidden: d['isHidden'] == true,
+      linkUrl: d['linkUrl'] is String ? d['linkUrl'] as String : null,
+      linkTitle: d['linkTitle'] is String ? d['linkTitle'] as String : null,
     );
   }
 
-  @override
-  Future<void> createPost({
-    required CommunityPost post,
-    List<File> images = const [],
-  }) async {
-    List<String> finalImageUrls = List.of(post.imageUrls);
-
-    if (images.isNotEmpty) {
-      final uploaded = await _uploader.uploadPostImages(
-        userId: post.authorId,
-        imageFiles: images,
+  static CommunityComment comment(String id, Map<String, dynamic> d) => CommunityComment(
+        id: id,
+        authorId: str(d['userId']),
+        authorName: str(d['userName']),
+        authorPhotoUrl: str(d['userPhotoUrl']),
+        authorRole: str(d['userRole'], 'student'),
+        text: str(d['text']),
+        createdAt: date(d['timestamp']),
+        isEdited: d['isEdited'] == true,
+        replyCount: count(d['replyCount']),
       );
-      finalImageUrls.addAll(uploaded);
+
+  static Map<String, dynamic> newComment(CommunitySession author, String text) => {
+        'userId': author.userId,
+        'userName': author.name,
+        'userPhotoUrl': author.photoUrl,
+        'text': text,
+        'timestamp': FieldValue.serverTimestamp(),
+        'userRole': author.role,
+      };
+}
+
+class FirestoreCommunityRepository implements CommunityRepository {
+  FirestoreCommunityRepository({FirebaseFirestore? firestore}) : _db = firestore ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _db;
+
+  CollectionReference<Map<String, dynamic>> get _posts => _db.collection('community_posts');
+  DocumentReference<Map<String, dynamic>> _post(String id) => _posts.doc(id);
+  DocumentReference<Map<String, dynamic>> _comment(String postId, String commentId) =>
+      _post(postId).collection('comments').doc(commentId);
+  DocumentReference<Map<String, dynamic>> _user(String id) => _db.collection('users').doc(id);
+
+  static List<CommunityPost> _toPosts(QuerySnapshot<Map<String, dynamic>> s) =>
+      s.docs.map((d) => CommunityFirestoreMapper.post(d.id, d.data())).toList();
+
+  /// Permission errors (e.g. signed out mid-stream) end the stream quietly.
+  Stream<T> _quiet<T>(Stream<T> s, String what) =>
+      s.handleError((Object e) => debugPrint('Community $what stream error: $e'));
+
+  // ── Feed ───────────────────────────────────────────────────────────────
+  @override
+  Stream<List<CommunityPost>> watchFeed(
+    CommunityFilter filter, {
+    required String currentUserId,
+    List<String> followingIds = const [],
+    List<String> savedPostIds = const [],
+  }) {
+    Query<Map<String, dynamic>> q = _posts;
+    switch (filter) {
+      case CommunityFilter.myPosts:
+        if (currentUserId.isEmpty) return Stream.value(const []);
+        q = q.where('userId', isEqualTo: currentUserId).orderBy('timestamp', descending: true);
+      case CommunityFilter.popular:
+        q = q.orderBy('likesCount', descending: true);
+      case CommunityFilter.friends:
+        if (followingIds.isEmpty) return Stream.value(const []);
+        q = q
+            .where('userId', whereIn: followingIds.take(CommunityPolicy.maxWhereInIds).toList())
+            .orderBy('timestamp', descending: true);
+      case CommunityFilter.saved:
+        if (savedPostIds.isEmpty) return Stream.value(const []);
+        q = q.where(FieldPath.documentId, whereIn: savedPostIds.take(CommunityPolicy.maxWhereInIds).toList());
+      case CommunityFilter.teachers:
+        q = q.where('userRole', isEqualTo: 'teacher').orderBy('timestamp', descending: true);
+      case CommunityFilter.all:
+        q = q.orderBy('timestamp', descending: true);
     }
+    return _quiet(q.limit(CommunityPolicy.feedPageSize).snapshots().map(_toPosts), 'feed');
+  }
 
-    await _firestore.runTransaction((transaction) async {
-      final postRef = _firestore.collection('community_posts').doc();
-      final userRef = _firestore.collection('users').doc(post.authorId);
-      
-      // All reads first
-      final userDoc = await transaction.get(userRef);
-      final role = userDoc.data()?['role'] as String? ?? 'student';
-      final roleRef = (role == 'teacher' || role == 'student')
-          ? _firestore.collection(role == 'teacher' ? 'teachers' : 'students').doc(post.authorId)
-          : null;
-      final roleDoc = roleRef != null ? await transaction.get(roleRef) : null;
+  @override
+  Stream<List<CommunityPost>> watchPinnedPosts() =>
+      _quiet(_posts.where('isPinned', isEqualTo: true).limit(5).snapshots().map(_toPosts), 'pinned');
 
-      // All writes after reads
-      final Map<String, dynamic> postData = {
-        'userId': post.authorId,
-        'userName': post.authorName,
-        'userImageUrl': post.authorPhotoUrl,
-        'userRole': post.authorRole,
-        'caption': post.caption,
-        'imageUrls': finalImageUrls,
+  @override
+  Stream<List<CommunityPost>> watchUserPosts(String userId) => _quiet(
+      _posts.where('userId', isEqualTo: userId).orderBy('timestamp', descending: true).snapshots().map(_toPosts),
+      'user posts');
+
+  @override
+  Stream<List<CommunityPost>> watchLikedPosts(String userId) {
+    if (userId.isEmpty) return Stream.value(const []);
+    return _quiet(_posts.where('likes.$userId', isEqualTo: true).snapshots().map(_toPosts), 'liked posts');
+  }
+
+  @override
+  Stream<List<CommunityPost>> watchPostsByIds(List<String> postIds) {
+    if (postIds.isEmpty) return Stream.value(const []);
+    return _quiet(
+        _posts
+            .where(FieldPath.documentId, whereIn: postIds.take(CommunityPolicy.maxWhereInIds).toList())
+            .snapshots()
+            .map(_toPosts),
+        'posts by id');
+  }
+
+  @override
+  Stream<CommunityPost?> watchPost(String postId) => _quiet(
+      _post(postId).snapshots().map((d) => d.exists ? CommunityFirestoreMapper.post(d.id, d.data()!) : null), 'post');
+
+  // ── Create / edit / delete ─────────────────────────────────────────────
+  @override
+  Future<void> createPost(NewPost post, {required CommunitySession author, required List<String> imageUrls}) async {
+    final clean = CommunityPolicy.sanitizeForAuthor(post, author);
+    await _db.runTransaction((tx) async {
+      final postRef = _posts.doc();
+      final userRef = _user(author.userId);
+      final userDoc = await tx.get(userRef);
+      tx.set(postRef, {
+        'userId': author.userId,
+        'userName': author.name,
+        'userImageUrl': author.photoUrl,
+        'userRole': author.role,
+        'caption': clean.caption,
+        'imageUrls': imageUrls,
         'timestamp': FieldValue.serverTimestamp(),
         'likesCount': 0,
         'commentsCount': 0,
-        'likes': {},
-      };
-
-      if (post.isAdmin) {
-        if (post.linkUrl != null && post.linkUrl!.trim().isNotEmpty) {
-          postData['linkUrl'] = post.linkUrl!.trim();
-          if (post.linkTitle != null) postData['linkTitle'] = post.linkTitle!.trim();
-        }
-        if (post.isPinned) postData['isPinned'] = true;
-        if (post.isHidden) postData['isHidden'] = true;
-      }
-
-      transaction.set(postRef, postData);
-
+        'likes': <String, dynamic>{},
+        if (clean.linkUrl != null) 'linkUrl': clean.linkUrl,
+        if (clean.linkTitle != null) 'linkTitle': clean.linkTitle,
+        if (clean.isPinned) 'isPinned': true,
+        if (clean.isHidden) 'isHidden': true,
+      });
       if (userDoc.exists) {
-        transaction.update(userRef, {'postCount': FieldValue.increment(1)});
-        if (roleDoc != null && roleDoc.exists) {
-          transaction.update(roleRef!, {'postCount': FieldValue.increment(1)});
+        tx.update(userRef, {'postCount': FieldValue.increment(1)});
+        final role = userDoc.data()?['role'];
+        if (role == 'teacher' || role == 'student') {
+          tx.update(_db.collection(role == 'teacher' ? 'teachers' : 'students').doc(author.userId),
+              {'postCount': FieldValue.increment(1)});
         }
       }
     });
   }
 
   @override
-  Future<void> updatePost({
-    required String postId,
-    required String newCaption,
-    List<String>? keepImageUrls,
-    List<File>? newImages,
-    String? userId,
-  }) async {
-    final List<String> finalUrls = keepImageUrls != null ? List.of(keepImageUrls) : [];
-
-    if (newImages != null && newImages.isNotEmpty && userId != null) {
-      final uploaded = await _uploader.uploadPostImages(userId: userId, imageFiles: newImages);
-      finalUrls.addAll(uploaded);
-    }
-
-    await _firestore.collection('community_posts').doc(postId).update({
-      'caption': newCaption,
-      'imageUrls': finalUrls,
-      'isEdited': true,
-    });
-  }
+  Future<void> updatePost(String postId, {required String caption, required List<String> imageUrls}) =>
+      _post(postId).update({'caption': caption, 'imageUrls': imageUrls, 'isEdited': true});
 
   @override
-  Future<void> deletePost({
-    required String postId,
-    required String authorId,
-    required List<String> imageUrls,
-  }) async {
-    final commentsSnapshot = await _firestore.collection('community_posts').doc(postId).collection('comments').get();
-
-    WriteBatch batch = _firestore.batch();
-    int opCount = 0;
-
-    for (var commentDoc in commentsSnapshot.docs) {
-      final replies = await commentDoc.reference.collection('replies').get();
-      for (var reply in replies.docs) {
-        batch.delete(reply.reference);
-        opCount++;
-        if (opCount >= 450) {
-          await batch.commit();
-          batch = _firestore.batch();
-          opCount = 0;
-        }
-      }
-      batch.delete(commentDoc.reference);
-      opCount++;
-      if (opCount >= 450) {
+  Future<List<String>> deletePost(CommunityPost post) async {
+    // Comments + replies first, in batches below Firestore's 500-write limit.
+    var batch = _db.batch();
+    var ops = 0;
+    Future<void> add(DocumentReference ref) async {
+      batch.delete(ref);
+      if (++ops >= 450) {
         await batch.commit();
-        batch = _firestore.batch();
-        opCount = 0;
+        batch = _db.batch();
+        ops = 0;
       }
     }
 
-    if (opCount > 0) {
-      await batch.commit();
+    final comments = await _post(post.id).collection('comments').get();
+    for (final c in comments.docs) {
+      final replies = await c.reference.collection('replies').get();
+      for (final r in replies.docs) {
+        await add(r.reference);
+      }
+      await add(c.reference);
     }
+    if (ops > 0) await batch.commit();
 
-    await _firestore.runTransaction((transaction) async {
-      final postRef = _firestore.collection('community_posts').doc(postId);
-      final userRef = _firestore.collection('users').doc(authorId);
-
-      // All reads first
-      final userDoc = await transaction.get(userRef);
-      final role = userDoc.data()?['role'] as String? ?? 'student';
-      final roleRef = (role == 'teacher' || role == 'student')
-          ? _firestore.collection(role == 'teacher' ? 'teachers' : 'students').doc(authorId)
-          : null;
-      final roleDoc = roleRef != null ? await transaction.get(roleRef) : null;
-
-      // All writes after reads
-      transaction.delete(postRef);
-
-      if (userDoc.exists) {
-        final currentCount = userDoc.data()?['postCount'] ?? 0;
-        if (currentCount > 0) {
-          transaction.update(userRef, {'postCount': FieldValue.increment(-1)});
-          if (roleDoc != null && roleDoc.exists) {
-            transaction.update(roleRef!, {'postCount': FieldValue.increment(-1)});
-          }
+    await _db.runTransaction((tx) async {
+      final userRef = _user(post.authorId);
+      final userDoc = await tx.get(userRef);
+      tx.delete(_post(post.id));
+      tx.delete(userRef.collection('saved_posts').doc(post.id));
+      if (userDoc.exists && count(userDoc.data()?['postCount']) > 0) {
+        tx.update(userRef, {'postCount': FieldValue.increment(-1)});
+        final role = userDoc.data()?['role'];
+        if (role == 'teacher' || role == 'student') {
+          tx.update(_db.collection(role == 'teacher' ? 'teachers' : 'students').doc(post.authorId),
+              {'postCount': FieldValue.increment(-1)});
         }
       }
     });
-
-    for (String url in imageUrls) {
-      await _uploader.deleteMediaByUrl(url);
-    }
+    return post.imageUrls;
   }
 
-  @override
-  Future<void> toggleLike({
-    required String postId,
-    required String currentUserId,
-    required bool isLiked,
-  }) async {
-    final docRef = _firestore.collection('community_posts').doc(postId);
+  static int count(Object? v) => CommunityFirestoreMapper.count(v);
 
-    if (isLiked) {
-      await docRef.update({
-        'likes.$currentUserId': FieldValue.delete(),
-        'likesCount': FieldValue.increment(-1),
+  // ── Likes / pin / hide ─────────────────────────────────────────────────
+  @override
+  Future<void> setLiked(String postId, {required String userId, required bool like}) => _post(postId).update({
+        'likes.$userId': like ? true : FieldValue.delete(),
+        'likesCount': FieldValue.increment(like ? 1 : -1),
       });
-    } else {
-      await docRef.update({
-        'likes.$currentUserId': true,
-        'likesCount': FieldValue.increment(1),
-      });
-    }
-  }
 
   @override
-  Stream<List<CommunityComment>> watchComments(String postId) {
-    return _firestore
-        .collection('community_posts')
-        .doc(postId)
-        .collection('comments')
-        .orderBy('timestamp', descending: false)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return CommunityComment.fromMap(
-          id: doc.id,
-          postId: postId,
-          map: doc.data(),
-        );
-      }).toList();
-    }).handleError((_) => <CommunityComment>[]);
-  }
+  Future<void> setPinned(String postId, bool pinned) => _post(postId).update({'isPinned': pinned});
 
   @override
-  Future<void> addComment({
-    required String postId,
-    required CommunityComment comment,
-  }) async {
-    final postRef = _firestore.collection('community_posts').doc(postId);
-    final commentRef = postRef.collection('comments').doc();
+  Future<void> setHidden(String postId, bool hidden) => _post(postId).update({'isHidden': hidden});
 
-    final batch = _firestore.batch();
-    batch.set(commentRef, {
-      'userId': comment.authorId,
-      'userName': comment.authorName,
-      'userImageUrl': comment.authorPhotoUrl,
-      'userRole': comment.authorRole,
-      'comment': comment.text,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-    batch.update(postRef, {'commentsCount': FieldValue.increment(1)});
+  // ── Comments ───────────────────────────────────────────────────────────
+  @override
+  Stream<List<CommunityComment>> watchComments(String postId) => _quiet(
+      _post(postId)
+          .collection('comments')
+          .orderBy('timestamp', descending: true)
+          .snapshots()
+          .map((s) => s.docs.map((d) => CommunityFirestoreMapper.comment(d.id, d.data())).toList()),
+      'comments');
+
+  @override
+  Future<void> addComment(String postId, {required CommunitySession author, required String text}) async {
+    final batch = _db.batch()
+      ..set(_post(postId).collection('comments').doc(), CommunityFirestoreMapper.newComment(author, text))
+      ..update(_post(postId), {'commentsCount': FieldValue.increment(1)});
     await batch.commit();
   }
 
   @override
-  Future<void> deleteComment({
-    required String postId,
-    required String commentId,
-  }) async {
-    final postRef = _firestore.collection('community_posts').doc(postId);
-    final commentRef = postRef.collection('comments').doc(commentId);
+  Future<void> editComment(String postId, String commentId, String text) =>
+      _comment(postId, commentId).update({'text': text, 'isEdited': true});
 
-    final batch = _firestore.batch();
-    batch.delete(commentRef);
-    batch.update(postRef, {'commentsCount': FieldValue.increment(-1)});
+  @override
+  Future<void> deleteComment(String postId, String commentId) async {
+    // commentsCount moves by exactly 1 (firestore.rules only allow ±1 from non-authors).
+    final batch = _db.batch()
+      ..delete(_comment(postId, commentId))
+      ..update(_post(postId), {'commentsCount': FieldValue.increment(-1)});
+    await batch.commit();
+  }
+
+  // ── Replies ────────────────────────────────────────────────────────────
+  @override
+  Stream<List<CommunityComment>> watchReplies(String postId, String commentId) => _quiet(
+      _comment(postId, commentId)
+          .collection('replies')
+          .orderBy('timestamp')
+          .snapshots()
+          .map((s) => s.docs.map((d) => CommunityFirestoreMapper.comment(d.id, d.data())).toList()),
+      'replies');
+
+  @override
+  Future<void> addReply(String postId, String commentId,
+      {required CommunitySession author, required String text}) async {
+    final comment = _comment(postId, commentId);
+    final batch = _db.batch()
+      ..set(comment.collection('replies').doc(), CommunityFirestoreMapper.newComment(author, text))
+      ..update(comment, {'replyCount': FieldValue.increment(1)})
+      ..update(_post(postId), {'commentsCount': FieldValue.increment(1)});
     await batch.commit();
   }
 
   @override
-  Future<void> reportPost({
-    required String postId,
-    required String reporterId,
-    required String reason,
-  }) async {
-    await _firestore.collection('community_reports').add({
-      'postId': postId,
-      'reporterId': reporterId,
-      'reason': reason,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-  }
+  Future<void> editReply(String postId, String commentId, String replyId, String text) =>
+      _comment(postId, commentId).collection('replies').doc(replyId).update({'text': text, 'isEdited': true});
 
   @override
-  Future<void> blockUser({
-    required String currentUserId,
-    required String blockedUserId,
-  }) async {
-    await _firestore.collection('users').doc(currentUserId).collection('blocked_users').doc(blockedUserId).set({
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+  Future<void> deleteReply(String postId, String commentId, String replyId) async {
+    final comment = _comment(postId, commentId);
+    final batch = _db.batch()
+      ..delete(comment.collection('replies').doc(replyId))
+      ..update(comment, {'replyCount': FieldValue.increment(-1)})
+      ..update(_post(postId), {'commentsCount': FieldValue.increment(-1)});
+    await batch.commit();
   }
 
+  // ── Saved ──────────────────────────────────────────────────────────────
   @override
-  Future<void> toggleSavePost({
-    required String currentUserId,
-    required String postId,
-    required bool isSaved,
-  }) async {
-    final savedRef = _firestore.collection('users').doc(currentUserId).collection('saved_posts').doc(postId);
-    if (isSaved) {
-      await savedRef.delete();
-    } else {
-      await savedRef.set({'timestamp': FieldValue.serverTimestamp()});
+  Future<List<String>> getSavedPostIds(String userId) async {
+    if (userId.isEmpty) return const [];
+    try {
+      final s = await _user(userId).collection('saved_posts').get();
+      return s.docs.map((d) => d.id).toList();
+    } catch (e) {
+      debugPrint('Saved posts could not be loaded: $e');
+      return const [];
     }
   }
 
   @override
-  Future<List<String>> getSavedPostIds(String currentUserId) async {
-    if (currentUserId.isEmpty) return [];
-    final snap = await _firestore.collection('users').doc(currentUserId).collection('saved_posts').get();
-    return snap.docs.map((d) => d.id).toList();
+  Stream<List<String>> watchSavedPostIds(String userId) {
+    if (userId.isEmpty) return Stream.value(const []);
+    return _quiet(_user(userId).collection('saved_posts').limit(1000).snapshots().map((s) => s.docs.map((d) => d.id).toList()),
+        'saved posts');
+  }
+
+  @override
+  Future<void> setSaved(String postId, {required String userId, required bool saved}) {
+    final ref = _user(userId).collection('saved_posts').doc(postId);
+    return saved ? ref.set({'timestamp': FieldValue.serverTimestamp()}) : ref.delete();
+  }
+
+  // ── Moderation ─────────────────────────────────────────────────────────
+  @override
+  Future<void> reportPost(CommunityPost post, {required String reporterId}) => _db.collection('reports').add({
+        'postId': post.id,
+        'reportedUserId': post.authorId,
+        'reportedByUserId': reporterId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
+
+  @override
+  Future<void> blockUser(String userId, {required String blockedUserId}) =>
+      _user(userId).update({'blockedUsers': FieldValue.arrayUnion([blockedUserId])});
+
+  @override
+  Future<void> unblockUser(String userId, {required String blockedUserId}) =>
+      _user(userId).update({'blockedUsers': FieldValue.arrayRemove([blockedUserId])});
+
+  @override
+  Stream<List<String>> watchBlockedUserIds(String userId) {
+    if (userId.isEmpty) return Stream.value(const []);
+    return _quiet(
+        _user(userId).snapshots().map((d) => List<String>.from((d.data()?['blockedUsers'] as List?) ?? const [])),
+        'blocked users');
   }
 }

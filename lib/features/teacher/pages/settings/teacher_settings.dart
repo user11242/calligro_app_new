@@ -3,7 +3,7 @@ import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/features/auth/data/services/auth_service.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
-import '../../../community/pages/blocked_users_page.dart';
+import '../../../community/presentation/pages/blocked_users_page.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/features/auth/pages/terms_and_conditions_page.dart';
 

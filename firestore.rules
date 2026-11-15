@@ -22,6 +22,25 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
 
+    // Counters other users may move on someone's profile: follows by one,
+    // ratings by one review (reviewCount ±1 or 0 for an edited review,
+    // totalStars by at most 5), never below zero.
+    function delta(field) {
+      return request.resource.data.get(field, 0) - resource.data.get(field, 0);
+    }
+    function isPublicCounterUpdate() {
+      let keys = request.resource.data.diff(resource.data).affectedKeys();
+      return keys.hasOnly(['followerCount', 'followingCount', 'totalStars', 'reviewCount']) &&
+        delta('followerCount') in [-1, 0, 1] &&
+        delta('followingCount') in [-1, 0, 1] &&
+        delta('reviewCount') in [-1, 0, 1] &&
+        delta('totalStars') >= -5 && delta('totalStars') <= 5 &&
+        request.resource.data.get('followerCount', 0) >= 0 &&
+        request.resource.data.get('followingCount', 0) >= 0 &&
+        request.resource.data.get('reviewCount', 0) >= 0 &&
+        request.resource.data.get('totalStars', 0) >= 0;
+    }
+
     // =========================================================
     // 🌍 PUBLIC REGISTRIES (Uniqueness Locks)
     // =========================================================
@@ -69,7 +88,7 @@ service cloud.firestore {
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'commissionRate']) ||
           (!resource.data.keys().hasAny(['role']) && request.resource.data.role in ['student', 'teacher'])
         )) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount', 'followingCount', 'totalStars', 'reviewCount'])
+        isPublicCounterUpdate()
       );
 
       match /followers/{followerId} {
@@ -82,7 +101,9 @@ service cloud.firestore {
       }
 
       match /saved_posts/{postId} {
-        allow read, create, delete: if request.auth != null && request.auth.uid == userId;
+        allow read, create: if isOwner(userId);
+        // Admins too: deleting a post removes its author's bookmark of it.
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
       match /notifications/{notificationId} {
@@ -112,7 +133,9 @@ service cloud.firestore {
     match /teachers/{teacherId} {
       allow read: if true;
       allow create: if (isOwner(teacherId) && request.resource.data.role == 'teacher' && request.resource.data.status == 'pending') || isAdmin();
-      allow update: if isOwner(teacherId) || isAdmin();
+      allow update: if isOwner(teacherId) || isAdmin() ||
+        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalStars', 'reviewCount']) &&
+          isPublicCounterUpdate());
       allow delete: if isAdmin();
     }
 
@@ -140,6 +163,34 @@ service cloud.firestore {
       allow delete: if (isSignedIn() && resource.data.teacherId == request.auth.uid) || isAdmin();
 
       match /announcements/{announcementId} {
+        allow read: if true;
+        allow create, update, delete: if isSignedIn() && (
+          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
+          isAdmin()
+        );
+      }
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.get('enrolledStudents', []) ||
+          isAdmin()
+        );
+        allow create: if isSignedIn() &&
+          request.resource.data.senderId == request.auth.uid && (
+          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.get('enrolledStudents', []) ||
+          isAdmin()
+        );
+        allow delete: if isSignedIn() && (
+          resource.data.senderId == request.auth.uid ||
+          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
+          isAdmin()
+        );
+        allow update: if false;
+      }
+
+      match /materials/{materialId} {
         allow read: if true;
         allow create, update, delete: if isSignedIn() && (
           get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
@@ -224,45 +275,82 @@ service cloud.firestore {
     // =========================================================
     // 💬 COMMUNITY POSTS
     // =========================================================
+    // ---------------------------------------------------------
+    // COMMUNITY (lib/features/community/data writes exactly these shapes;
+    // functions/test/community_rules.test.js proves every rule below)
+    // ---------------------------------------------------------
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    // [field] moved by exactly +1 or -1 and is not negative.
+    function stepsByOne(field) {
+      return (request.resource.data[field] - resource.data.get(field, 0)) in [1, -1] &&
+        request.resource.data[field] >= 0;
+    }
+    // A like toggle: only MY entry in the likes map changes, and likesCount
+    // follows it (+1 when I add my like, -1 when I remove it).
+    function isMyLikeToggle() {
+      let before = resource.data.get('likes', {});
+      let after = request.resource.data.get('likes', {});
+      let me = request.auth.uid;
+      let added = (me in after) && !(me in before);
+      let removed = !(me in after) && (me in before);
+      return after.diff(before).affectedKeys().hasOnly([me]) &&
+        (!(me in after) || after[me] == true) &&
+        (added || removed) &&
+        request.resource.data.likesCount == resource.data.get('likesCount', 0) + (added ? 1 : -1);
+    }
+    // Comment / reply fields the author may change (edit + profile sync).
+    function isOwnCommentEdit() {
+      return isOwner(resource.data.userId) &&
+        changedKeys().hasOnly(['text', 'isEdited', 'userName', 'userPhotoUrl', 'userRole']);
+    }
+    function postAuthor(postId) {
+      return get(/databases/$(database)/documents/community_posts/$(postId)).data.userId;
+    }
+
     match /community_posts/{postId} {
       allow read: if true;
-      allow create: if isOwner(request.resource.data.userId);
+      // Own post, empty counters; pin / hide / link only for admins.
+      allow create: if isOwner(request.resource.data.userId) &&
+        request.resource.data.likesCount == 0 &&
+        request.resource.data.commentsCount == 0 &&
+        request.resource.data.get('likes', {}).size() == 0 &&
+        (isAdmin() || !request.resource.data.keys().hasAny(['isPinned', 'isHidden', 'linkUrl', 'linkTitle']));
       allow delete: if isOwner(resource.data.userId) || isAdmin();
       allow update: if isSignedIn() && (
-        isOwner(resource.data.userId) || 
-        (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likesCount', 'commentsCount']) &&
-          (
-            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['likesCount']) ||
-              request.resource.data.likesCount == resource.data.likesCount + 1 ||
-              request.resource.data.likesCount == resource.data.likesCount - 1) &&
-            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentsCount']) ||
-              request.resource.data.commentsCount == resource.data.commentsCount + 1 ||
-              request.resource.data.commentsCount == resource.data.commentsCount - 1)
-          )
-        )
+        isAdmin() ||
+        // The author: caption, images, edited flag, and the profile sync of name/photo/role.
+        (isOwner(resource.data.userId) &&
+          changedKeys().hasOnly(['caption', 'imageUrls', 'isEdited', 'userName', 'userImageUrl', 'userRole'])) ||
+        // Anyone signed in: their own like, or the comment counter by one.
+        (changedKeys().hasOnly(['likes', 'likesCount']) && isMyLikeToggle()) ||
+        (changedKeys().hasOnly(['commentsCount']) && stepsByOne('commentsCount'))
       );
 
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isOwner(request.resource.data.userId);
         allow update: if isSignedIn() && (
-          isOwner(resource.data.userId) || 
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount'])
+          isOwnCommentEdit() ||
+          (changedKeys().hasOnly(['replyCount']) && stepsByOne('replyCount'))
         );
         allow delete: if isSignedIn() && (
-          isOwner(resource.data.userId) || 
-          isOwner(get(/databases/$(database)/documents/community_posts/$(postId)).data.userId) ||
+          isOwner(resource.data.userId) ||
+          isOwner(postAuthor(postId)) ||
           isAdmin()
         );
 
         match /replies/{replyId} {
-          allow read: if isSignedIn();
+          // Public, like the comments they belong to.
+          allow read: if true;
           allow create: if isOwner(request.resource.data.userId);
-          allow update: if isOwner(request.resource.data.userId);
+          allow update: if isOwnCommentEdit();
+          // The post author too, so deleting a post can remove everyone's replies.
           allow delete: if isSignedIn() && (
-            isOwner(resource.data.userId) || 
+            isOwner(resource.data.userId) ||
             isOwner(get(/databases/$(database)/documents/community_posts/$(postId)/comments/$(commentId)).data.userId) ||
+            isOwner(postAuthor(postId)) ||
             isAdmin()
           );
         }
@@ -312,9 +400,11 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.source == 'admin_bypass'; // Transactions must only be created by secure Cloud Functions or bypass
     }
 
+    // Collection-group access for the profile sync (name / photo on all my comments).
+    // Same edit set as the community rules — never the author (userId) itself.
     match /{path=**}/comments/{commentId} {
       allow read: if true;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isOwnCommentEdit();
     }
 
     // =========================================================
@@ -338,8 +428,16 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.reportedByUserId == request.auth.uid;
       allow read, update, delete: if isAdmin();
+    }
+
+    // =========================================================
+    // ⚙️ APP CONFIG & VERSION CONTROL
+    // =========================================================
+    match /app_config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

@@ -5,6 +5,9 @@ import 'package:calligro_app/features/admin/data/services/admin_service.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:mockito/mockito.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../features/community/fakes/fake_community.dart';
 
 class MockFirebaseFunctions extends Mock implements FirebaseFunctions {
   @override
@@ -141,6 +144,36 @@ void main() {
       await adminService.deletePost('p1');
       final doc = await fakeFirestore.collection('community_posts').doc('p1').get();
       expect(doc.exists, false);
+    });
+
+    test('deletePost() also removes comments, replies, the post count and the images', () async {
+      final media = FakeMediaStorage();
+      final service = AdminService(firestore: fakeFirestore, auth: mockAuth, functions: mockFunctions, media: media);
+      await fakeFirestore.collection('users').doc('u1').set({'role': 'student', 'postCount': 1});
+      await fakeFirestore.collection('students').doc('u1').set({'postCount': 1});
+      final post = fakeFirestore.collection('community_posts').doc('p1');
+      await post.set({
+        'userId': 'u1', 'caption': 'x', 'imageUrls': ['https://cdn/a.jpg'], 'timestamp': Timestamp.now(),
+        'likes': <String, dynamic>{}, 'likesCount': 0, 'commentsCount': 2,
+      });
+      await post.collection('comments').doc('c1').set({'userId': 'u2', 'text': 'hi', 'timestamp': Timestamp.now()});
+      await post.collection('comments').doc('c1').collection('replies').doc('r1').set({'userId': 'u3', 'text': 'yo'});
+
+      await service.deletePost('p1');
+
+      expect((await post.get()).exists, isFalse);
+      expect((await post.collection('comments').get()).docs, isEmpty);
+      expect((await post.collection('comments').doc('c1').collection('replies').get()).docs, isEmpty);
+      expect((await fakeFirestore.collection('users').doc('u1').get()).data()!['postCount'], 0);
+      expect((await fakeFirestore.collection('students').doc('u1').get()).data()!['postCount'], 0);
+      expect(media.deleted, ['https://cdn/a.jpg']);
+    });
+
+    test('getAllPosts() lists posts newest first (posts store `timestamp`, not `createdAt`)', () async {
+      await fakeFirestore.collection('community_posts').doc('old').set({'userId': 'u', 'timestamp': Timestamp.fromDate(DateTime(2026, 1, 1))});
+      await fakeFirestore.collection('community_posts').doc('new').set({'userId': 'u', 'timestamp': Timestamp.fromDate(DateTime(2026, 2, 1))});
+      final posts = await adminService.getAllPosts().first;
+      expect(posts.map((p) => p['id']), ['new', 'old']);
     });
 
     // -----------------------------------------------------------------------

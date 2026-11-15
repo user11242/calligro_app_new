@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../theme/colors.dart';
 import '../../l10n/app_localizations.dart';
-import '../../features/community/widgets/follow_button.dart';
+import '../../features/community/presentation/widgets/follow_button.dart';
 
 class FollowListBottomSheet extends StatefulWidget {
   final DraggableScrollableController sheetController;

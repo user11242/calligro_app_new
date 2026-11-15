@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart';
-import '../../community/services/community_service.dart';
-import '../../community/widgets/profile_posts_section.dart';
+import '../../community/presentation/widgets/profile_posts_section.dart';
 import '../../../../core/widgets/profile_image_viewer.dart';
 import '../../../../core/widgets/profile_avatar.dart';
 import '../../../../core/widgets/follow_list_bottom_sheet.dart';
@@ -37,7 +36,6 @@ class _AdminProfileTabState extends State<AdminProfileTab>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String? currentUserId;
-  final CommunityService _communityService = CommunityService();
   Stream<Map<String, dynamic>>? _combinedProfileStream;
 
   @override
@@ -93,15 +91,6 @@ class _AdminProfileTabState extends State<AdminProfileTab>
     ).asBroadcastStream();
   }
 
-  Future<void> _onToggleSave(String postId, bool isSaved) async {
-    if (currentUserId == null) return;
-
-    await _communityService.toggleSavePost(
-      postId: postId,
-      currentUserId: currentUserId!,
-      isSaved: isSaved,
-    );
-  }
 
   @override
   void dispose() {
@@ -185,68 +174,13 @@ class _AdminProfileTabState extends State<AdminProfileTab>
                 controller: _tabController,
                 children: [
                   // 1. My Posts
-                  ProfilePostsSection(
-                    title: AppLocalizations.of(context)!.myPosts,
-                    currentUserId: currentUserId ?? '',
-                    postsStream: (widget.firestore ?? FirebaseFirestore.instance)
-                        .collection('community_posts')
-                        .where('userId', isEqualTo: currentUserId)
-                        .snapshots(),
-                    savedPostIds: savedPostIds,
-                    onToggleSave: _onToggleSave,
-                  ),
+                  ProfilePostsSection.byUser(title: AppLocalizations.of(context)!.myPosts, userId: currentUserId ?? ''),
 
                   // 2. Saved
-                  ProfilePostsSection(
-                    title: AppLocalizations.of(context)!.saved,
-                    currentUserId: currentUserId ?? '',
-                    postsStream: (widget.firestore ?? FirebaseFirestore.instance)
-                        .collection('community_posts')
-                        .where(
-                          FieldPath.documentId,
-                          whereIn: savedPostIds.isNotEmpty
-                              ? savedPostIds.take(30).toList()
-                              : ['placeholder'],
-                        )
-                        .snapshots()
-                        .map((snapshot) {
-                          // Lazy cleanup of orphaned saved posts
-                          final idsToCheck = savedPostIds.take(30).toList();
-                          if (snapshot.docs.length < idsToCheck.length) {
-                            final validIds = snapshot.docs
-                                .map((d) => d.id)
-                                .toSet();
-                            for (int i = 0; i < idsToCheck.length; i++) {
-                              final String id = idsToCheck[i];
-                              if (!validIds.contains(id)) {
-                                if (currentUserId != null) {
-                                  (widget.firestore ?? FirebaseFirestore.instance)
-                                      .collection('users')
-                                      .doc(currentUserId!)
-                                      .collection('saved_posts')
-                                      .doc(id)
-                                      .delete();
-                                }
-                              }
-                            }
-                          }
-                          return snapshot;
-                        }),
-                    savedPostIds: savedPostIds,
-                    onToggleSave: _onToggleSave,
-                  ),
+                  ProfilePostsSection.saved(title: AppLocalizations.of(context)!.saved),
 
                   // 3. Liked
-                  ProfilePostsSection(
-                    title: AppLocalizations.of(context)!.liked,
-                    currentUserId: currentUserId ?? '',
-                    postsStream: (widget.firestore ?? FirebaseFirestore.instance)
-                        .collection('community_posts')
-                        .where('likes.$currentUserId', isEqualTo: true)
-                        .snapshots(),
-                    savedPostIds: savedPostIds,
-                    onToggleSave: _onToggleSave,
-                  ),
+                  ProfilePostsSection.liked(title: AppLocalizations.of(context)!.liked),
                 ],
               ),
             );

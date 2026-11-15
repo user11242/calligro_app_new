@@ -4,9 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 // ✅ Adjust path to your FollowButton
-import '../../../../features/community/widgets/follow_button.dart';
-import '../../../../features/community/widgets/post_card.dart';
-import '../../../../features/community/services/community_service.dart';
+import '../../../../features/community/presentation/widgets/follow_button.dart';
+import '../../../../features/community/presentation/widgets/user_posts_view.dart';
 // ✅ Adjust path if you have the FollowListBottomSheet in a shared file,
 // otherwise import from the Teacher Public Profile where we defined it.
 import '../../../../core/widgets/follow_list_bottom_sheet.dart';
@@ -158,17 +157,11 @@ class _PublicStudentProfilePageState extends State<PublicStudentProfilePage> {
 
             final userData = userSnapshot.data!.data() as Map<String, dynamic>;
 
-            // Get Posts Count
-            return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('community_posts')
-                  .where('userId', isEqualTo: publicUserId)
-                  .snapshots(),
-              builder: (context, postSnapshot) {
-                String postCount = "0";
-                if (postSnapshot.hasData) {
-                  postCount = postSnapshot.data!.docs.length.toString();
-                }
+            return UserPostsView(
+              userId: publicUserId ?? '',
+              onOwnProfile: widget.onDashboardProfileTap,
+              builder: (context, count, postList) {
+                final postCount = count.toString();
 
                 return Column(
                   children: [
@@ -209,7 +202,7 @@ class _PublicStudentProfilePageState extends State<PublicStudentProfilePage> {
                     ),
 
                     // 3. List of Posts
-                    Expanded(child: _buildPostsList(postSnapshot)),
+                    Expanded(child: postList),
                   ],
                 );
               },
@@ -375,98 +368,6 @@ class _PublicStudentProfilePageState extends State<PublicStudentProfilePage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPostsList(AsyncSnapshot<QuerySnapshot> snapshot) {
-    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.grid_view, size: 60, color: Colors.white10),
-            const SizedBox(height: 10),
-            Text(AppLocalizations.of(context)!.noPostsYet, style: const TextStyle(color: Colors.white38)),
-          ],
-        ),
-      );
-    }
-
-    var posts = snapshot.data!.docs;
-    // Order by timestamp descending locally
-    try {
-      posts.sort((a, b) {
-        Timestamp t1 = a['timestamp'] ?? Timestamp.now();
-        Timestamp t2 = b['timestamp'] ?? Timestamp.now();
-        return t2.compareTo(t1);
-      });
-    } catch (e) {
-      // ordering failed
-    }
-
-    return FutureBuilder<List<String>>(
-      future: CommunityService().getSavedPostIds(_currentUserId ?? ''),
-      builder: (context, savedSnapshot) {
-        final List<String> savedPostIds = savedSnapshot.data ?? [];
-
-        return ListView.builder(
-          padding: const EdgeInsets.only(top: 10, bottom: 40),
-          itemCount: posts.length,
-          itemBuilder: (context, index) {
-            var postData = posts[index].data() as Map<String, dynamic>;
-            String postId = posts[index].id;
-            
-            String postUserId = postData['userId'] ?? '';
-            String postUserName = postData['userName'] ?? '';
-            String postUserImage = postData['userImageUrl'] ?? '';
-            String postUserRole = postData['userRole'] ?? '';
-            String caption = postData['caption'] ?? '';
-            List<String> imageUrls = List<String>.from(postData['imageUrls'] ?? []);
-            Timestamp? timestamp = postData['timestamp'] as Timestamp?;
-            int likesCount = postData['likesCount'] ?? 0;
-            int commentsCount = postData['commentsCount'] ?? 0;
-            Map<String, dynamic> likes = Map<String, dynamic>.from(postData['likes'] ?? {});
-            
-            bool isSaved = savedPostIds.contains(postId);
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: PostCard(
-                postId: postId,
-                userId: postUserId,
-                currentLoggedInUserId: _currentUserId ?? '',
-                isGuest: _currentUserId == null,
-                userName: postUserName,
-                userImageUrl: postUserImage,
-                userRole: postUserRole,
-                caption: caption,
-                imageUrls: imageUrls,
-                timestamp: timestamp,
-                onProfileTap: (uid, role) {
-                   // Already on profile
-                },
-                likesCount: likesCount,
-                likes: likes,
-                commentsCount: commentsCount,
-                isSaved: isSaved,
-                isEdited: postData['isEdited'] ?? false,
-                isPinned: postData['isPinned'] ?? false,
-                isHidden: postData['isHidden'] ?? false,
-                linkUrl: postData['linkUrl'] as String?,
-                linkTitle: postData['linkTitle'] as String?,
-                onToggleSave: () async {
-                   await CommunityService().toggleSavePost(
-                      postId: postId,
-                      currentUserId: _currentUserId ?? '',
-                      isSaved: isSaved,
-                   );
-                   setState(() {});
-                },
-              ),
-            );
-          },
-        );
-      }
     );
   }
 

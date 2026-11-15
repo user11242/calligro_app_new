@@ -1,154 +1,96 @@
-/// Immutable domain model for a community artwork / discussion post.
+/// A community post. Pure data: no Firestore types (mapping lives in data/).
 class CommunityPost {
   final String id;
   final String authorId;
   final String authorName;
   final String authorPhotoUrl;
+
+  /// 'student' | 'teacher' | 'admin'
   final String authorRole;
   final String caption;
   final List<String> imageUrls;
-  final DateTime createdAt;
+
+  /// Null while the server timestamp of a just-created post is pending.
+  final DateTime? createdAt;
   final int likesCount;
+
+  /// Everyone who liked the post (the `likes` map keys).
+  final Set<String> likerIds;
   final int commentsCount;
-  final bool isLikedByMe;
+  final bool isEdited;
   final bool isPinned;
   final bool isHidden;
-  final bool isEdited;
   final String? linkUrl;
   final String? linkTitle;
 
   const CommunityPost({
     required this.id,
     required this.authorId,
-    required this.authorName,
+    this.authorName = '',
     this.authorPhotoUrl = '',
     this.authorRole = 'student',
-    required this.caption,
+    this.caption = '',
     this.imageUrls = const [],
-    required this.createdAt,
+    this.createdAt,
     this.likesCount = 0,
+    this.likerIds = const {},
     this.commentsCount = 0,
-    this.isLikedByMe = false,
+    this.isEdited = false,
     this.isPinned = false,
     this.isHidden = false,
-    this.isEdited = false,
     this.linkUrl,
     this.linkTitle,
   });
 
-  bool get isTeacher => authorRole.toLowerCase() == 'teacher';
-  bool get isAdmin => authorRole.toLowerCase() == 'admin';
-  bool get hasImages => imageUrls.isNotEmpty;
+  bool isLikedBy(String userId) => userId.isNotEmpty && likerIds.contains(userId);
+  bool get hasLink => linkUrl != null && linkUrl!.trim().isNotEmpty;
+
+  /// The author's CURRENT profile (posts store a copy taken when they were written).
+  CommunityPost withAuthor({required String name, required String photoUrl, required String role}) => CommunityPost(
+        id: id,
+        authorId: authorId,
+        authorName: name.isNotEmpty ? name : authorName,
+        authorPhotoUrl: photoUrl.isNotEmpty ? photoUrl : authorPhotoUrl,
+        authorRole: role.isNotEmpty ? role : authorRole,
+        caption: caption,
+        imageUrls: imageUrls,
+        createdAt: createdAt,
+        likesCount: likesCount,
+        likerIds: likerIds,
+        commentsCount: commentsCount,
+        isEdited: isEdited,
+        isPinned: isPinned,
+        isHidden: isHidden,
+        linkUrl: linkUrl,
+        linkTitle: linkTitle,
+      );
 
   CommunityPost copyWith({
-    String? id,
-    String? authorId,
-    String? authorName,
-    String? authorPhotoUrl,
-    String? authorRole,
     String? caption,
     List<String>? imageUrls,
-    DateTime? createdAt,
     int? likesCount,
+    Set<String>? likerIds,
     int? commentsCount,
-    bool? isLikedByMe,
+    bool? isEdited,
     bool? isPinned,
     bool? isHidden,
-    bool? isEdited,
-    String? linkUrl,
-    String? linkTitle,
-  }) {
-    return CommunityPost(
-      id: id ?? this.id,
-      authorId: authorId ?? this.authorId,
-      authorName: authorName ?? this.authorName,
-      authorPhotoUrl: authorPhotoUrl ?? this.authorPhotoUrl,
-      authorRole: authorRole ?? this.authorRole,
-      caption: caption ?? this.caption,
-      imageUrls: imageUrls ?? this.imageUrls,
-      createdAt: createdAt ?? this.createdAt,
-      likesCount: likesCount ?? this.likesCount,
-      commentsCount: commentsCount ?? this.commentsCount,
-      isLikedByMe: isLikedByMe ?? this.isLikedByMe,
-      isPinned: isPinned ?? this.isPinned,
-      isHidden: isHidden ?? this.isHidden,
-      isEdited: isEdited ?? this.isEdited,
-      linkUrl: linkUrl ?? this.linkUrl,
-      linkTitle: linkTitle ?? this.linkTitle,
-    );
-  }
-
-  factory CommunityPost.fromMap({
-    required String id,
-    required Map<String, dynamic> map,
-    String? currentUserId,
-  }) {
-    DateTime parsedDate;
-    final rawTimestamp = map['timestamp'] ?? map['createdAt'];
-    if (rawTimestamp is DateTime) {
-      parsedDate = rawTimestamp;
-    } else if (rawTimestamp != null && rawTimestamp.toString().contains('Timestamp')) {
-      // Dynamic parsing of Firestore Timestamp without coupling domain to Firestore
-      try {
-        final seconds = (rawTimestamp as dynamic).seconds as int;
-        parsedDate = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
-      } catch (_) {
-        parsedDate = DateTime.now();
-      }
-    } else if (rawTimestamp is int) {
-      parsedDate = DateTime.fromMillisecondsSinceEpoch(rawTimestamp);
-    } else {
-      parsedDate = DateTime.now();
-    }
-
-    final rawImages = map['imageUrls'];
-    final List<String> images = rawImages is List
-        ? rawImages.map((e) => e.toString()).toList()
-        : const [];
-
-    final rawLikes = map['likes'];
-    bool liked = false;
-    if (currentUserId != null && rawLikes is Map) {
-      liked = rawLikes[currentUserId] != null;
-    }
-
-    return CommunityPost(
-      id: id,
-      authorId: map['userId'] ?? map['authorId'] ?? '',
-      authorName: map['userName'] ?? map['authorName'] ?? 'Anonymous',
-      authorPhotoUrl: map['userImageUrl'] ?? map['authorPhotoUrl'] ?? '',
-      authorRole: map['userRole'] ?? map['authorRole'] ?? 'student',
-      caption: map['caption'] ?? '',
-      imageUrls: images,
-      createdAt: parsedDate,
-      likesCount: (map['likesCount'] as num?)?.toInt() ?? 0,
-      commentsCount: (map['commentsCount'] as num?)?.toInt() ?? 0,
-      isLikedByMe: liked,
-      isPinned: map['isPinned'] == true,
-      isHidden: map['isHidden'] == true,
-      isEdited: map['isEdited'] == true,
-      linkUrl: map['linkUrl'],
-      linkTitle: map['linkTitle'],
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'userId': authorId,
-      'userName': authorName,
-      'userImageUrl': authorPhotoUrl,
-      'userRole': authorRole,
-      'caption': caption,
-      'imageUrls': imageUrls,
-      'createdAt': createdAt.millisecondsSinceEpoch,
-      'likesCount': likesCount,
-      'commentsCount': commentsCount,
-      'isPinned': isPinned,
-      'isHidden': isHidden,
-      'isEdited': isEdited,
-      if (linkUrl != null) 'linkUrl': linkUrl,
-      if (linkTitle != null) 'linkTitle': linkTitle,
-    };
-  }
+  }) =>
+      CommunityPost(
+        id: id,
+        authorId: authorId,
+        authorName: authorName,
+        authorPhotoUrl: authorPhotoUrl,
+        authorRole: authorRole,
+        caption: caption ?? this.caption,
+        imageUrls: imageUrls ?? this.imageUrls,
+        createdAt: createdAt,
+        likesCount: likesCount ?? this.likesCount,
+        likerIds: likerIds ?? this.likerIds,
+        commentsCount: commentsCount ?? this.commentsCount,
+        isEdited: isEdited ?? this.isEdited,
+        isPinned: isPinned ?? this.isPinned,
+        isHidden: isHidden ?? this.isHidden,
+        linkUrl: linkUrl,
+        linkTitle: linkTitle,
+      );
 }
-

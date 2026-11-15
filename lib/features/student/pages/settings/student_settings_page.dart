@@ -11,7 +11,7 @@ import '../../../teacher/pages/settings/edit_profile_page.dart';
 import '../../../teacher/pages/settings/language_settings_page.dart';
 import '../../../teacher/pages/settings/help_center_page.dart';
 import '../../../teacher/pages/settings/security_page.dart';
-import '../../../community/pages/blocked_users_page.dart';
+import '../../../community/presentation/pages/blocked_users_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calligro_app/core/services/iap_service.dart';

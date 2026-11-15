@@ -1,6 +1,7 @@
 // lib/features/teacher/pages/teacher_dashboard_page.dart
 //Done
 
+import 'package:calligro_app/features/community/presentation/community_scope.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,7 @@ import '../../l10n/app_localizations.dart';
 import '../../features/teacher/tabs/teacher_home_tab.dart'; // <--- Corrected Import
 import '../../features/teacher/tabs/teacher_courses_tab.dart';
 import '../../features/teacher/tabs/teacher_profile_tab.dart'; // <--- Assuming this is a separate file
-import '../community/pages/community_page.dart';
+import '../community/presentation/pages/community_page.dart';
 import 'pages/setup/teacher_setup_page.dart';
 import '../../core/message/app_messenger.dart';
 
@@ -31,6 +32,10 @@ class TeacherDashboardPage extends StatefulWidget {
 }
 
 class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
+  /// Community screens use the same (injectable) Firestore/Auth as the dashboard.
+  late final CommunityServices _communityServices =
+      CommunityServices.firebase(firestore: widget.firestore, auth: widget.auth);
+
   int _selectedIndex = 0;
 
   String _userName = "Teacher";
@@ -235,8 +240,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       TeacherCoursesTab(auth: widget.auth, firestore: widget.firestore),
       CommunityPage(
         onProfileTap: _handleCommunityProfileTap,
-        auth: widget.auth,
-        firestore: widget.firestore,
       ),
       TeacherProfileTab(
         userName: _userName,
@@ -271,7 +274,10 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     return Scaffold(
         backgroundColor: AppColors.primary,
         appBar: null,
-        body: IndexedStack(index: _selectedIndex, children: _pages),
+        body: CommunityScope(
+          services: _communityServices,
+          child: IndexedStack(index: _selectedIndex, children: _pages),
+        ),
         bottomNavigationBar: BottomAppBar(
           color: AppColors.cardBackground,
           elevation: 0,

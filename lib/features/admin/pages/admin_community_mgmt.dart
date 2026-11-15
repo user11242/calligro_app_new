@@ -63,7 +63,7 @@ class _AdminCommunityMgmtState extends State<AdminCommunityMgmt> {
   }
 
   Widget _buildPostItem(Map<String, dynamic> post) {
-    final DateTime date = CalligroDateUtils.toDateTime(post['createdAt']) ?? DateTime.now();
+    final DateTime date = CalligroDateUtils.toDateTime(post['timestamp']) ?? DateTime.now();
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -81,8 +81,8 @@ class _AdminCommunityMgmtState extends State<AdminCommunityMgmt> {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: Colors.amber.withOpacity(0.1),
-                backgroundImage: post['userProfilePic'] != null ? CachedNetworkImageProvider(post['userProfilePic']) : null,
-                child: post['userProfilePic'] == null ? const Icon(Icons.person, size: 18, color: Colors.amber) : null,
+                backgroundImage: (post['userImageUrl'] ?? '').toString().isNotEmpty ? CachedNetworkImageProvider(post['userImageUrl']) : null,
+                child: (post['userImageUrl'] ?? '').toString().isEmpty ? const Icon(Icons.person, size: 18, color: Colors.amber) : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -108,15 +108,15 @@ class _AdminCommunityMgmtState extends State<AdminCommunityMgmt> {
           ),
           const SizedBox(height: 12),
           Text(
-            post['content'] ?? "",
+            post['caption'] ?? "",
             style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
           ),
-          if (post['postImage'] != null) ...[
+          if ((post['imageUrls'] as List?)?.isNotEmpty ?? false) ...[
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: CachedNetworkImage(
-                imageUrl: post['postImage'],
+                imageUrl: (post['imageUrls'] as List).first as String,
                 width: double.infinity,
                 height: 200,
                 fit: BoxFit.cover,

@@ -423,7 +423,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                     ),
                   ),
                   // Notification Button with unread counter badge
-                  const NotificationBellButton(),
+                  NotificationBellButton(auth: widget.auth, firestore: widget.firestore),
                 ],
               );
 

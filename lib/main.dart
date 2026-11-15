@@ -36,8 +36,8 @@
   import 'package:calligro_app/features/teacher/pages/add_course/add_course_dashboard.dart';
   import 'package:calligro_app/features/teacher/tabs/teacher_profile_tab.dart'; // Ensure this path is correct
   import 'package:calligro_app/features/student/pages/course_preview_page.dart';
-  import 'package:calligro_app/features/community/pages/community_page.dart';
-  import 'package:calligro_app/features/community/pages/single_post_page.dart';
+  import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
+  import 'package:calligro_app/features/community/presentation/pages/single_post_page.dart';
   import 'package:calligro_app/features/course_chat/pages/course_chat_page.dart';
 
   // --- ADMIN IMPORTS ---

@@ -7,9 +7,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 // You might need to adjust this path depending on where you saved follow_button.dart
 import 'package:calligro_app/features/student/pages/public_profile/public_student_profile_page.dart';
-import '../../../community/widgets/follow_button.dart';
-import '../../../../features/community/widgets/post_card.dart';
-import '../../../../features/community/services/community_service.dart';
+import '../../../community/presentation/widgets/follow_button.dart';
+import '../../../../features/community/presentation/widgets/user_posts_view.dart';
 import '../../../../features/rating/services/rating_service.dart'; // Import RatingService
 import '../../../../core/widgets/rating_display.dart';
 import '../../../../core/utils/rating_utils.dart';
@@ -174,17 +173,11 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
 
             final userData = userSnapshot.data!.data() as Map<String, dynamic>;
 
-            return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('community_posts')
-                  .where('userId', isEqualTo: publicUserId)
-                  .snapshots(),
-              builder: (context, postSnapshot) {
-                String postCount = "0";
-                if (postSnapshot.connectionState == ConnectionState.active &&
-                    postSnapshot.hasData) {
-                  postCount = postSnapshot.data!.docs.length.toString();
-                }
+            return UserPostsView(
+              userId: publicUserId ?? '',
+              onOwnProfile: widget.onDashboardProfileTap,
+              builder: (context, count, postList) {
+                final postCount = count.toString();
 
                 return StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
@@ -224,7 +217,7 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
                         children: [
                           _buildCoursesTab(),
                           _buildReviewsTab(),
-                          _buildPostsTab(),
+                          postList,
                         ],
                       ),
                     );
@@ -564,117 +557,6 @@ class _PublicTeacherProfilePageState extends State<PublicTeacherProfilePage>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPostsTab() {
-    return FutureBuilder<List<String>>(
-      future: CommunityService().getSavedPostIds(_currentUserId ?? ''),
-      builder: (context, savedSnapshot) {
-        // We'll use a local list to track saves optimistically if needed, 
-        // but for now let's just use the initial fetch for simple "isSaved" check.
-        // For real-time updates on "saved" status across the app, a Stream is better,
-        // but getSavedPostIds returns a Future<List<String>>. Here we use it directly.
-        
-        final List<String> savedPostIds = savedSnapshot.data ?? [];
-
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('community_posts')
-              .where('userId', isEqualTo: publicUserId)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.accentGold),
-              );
-            }
-            if (snapshot.hasError) {
-              return _buildEmptyState(Icons.error_outline, AppLocalizations.of(context)!.somethingWentWrong);
-            }
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return _buildEmptyState(
-                Icons.grid_view_outlined,
-                AppLocalizations.of(context)!.noPostsYet,
-              );
-            }
-
-            var posts = snapshot.data!.docs;
-            // Order by timestamp descending locally since the query only filters by userId
-            // (Combined indices might be needed for server-side ordering)
-            try {
-              posts.sort((a, b) {
-                Timestamp t1 = a['timestamp'] ?? Timestamp.now();
-                Timestamp t2 = b['timestamp'] ?? Timestamp.now();
-                return t2.compareTo(t1);
-              });
-            } catch (e) {
-              // ordering failed, maybe missing timestamp
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.only(top: 10, bottom: 40),
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                var postData = posts[index].data() as Map<String, dynamic>;
-                String postId = posts[index].id;
-                
-                // Get user data for the post (though we are on their profile, so we already have it mostly)
-                // However, PostCard expects these fields:
-                String postUserId = postData['userId'] ?? '';
-                String postUserName = postData['userName'] ?? '';
-                String postUserImage = postData['userImageUrl'] ?? '';
-                String postUserRole = postData['userRole'] ?? '';
-                String caption = postData['caption'] ?? '';
-                List<String> imageUrls = List<String>.from(postData['imageUrls'] ?? []);
-                Timestamp? timestamp = postData['timestamp'] as Timestamp?;
-                int likesCount = postData['likesCount'] ?? 0;
-                int commentsCount = postData['commentsCount'] ?? 0;
-                Map<String, dynamic> likes = Map<String, dynamic>.from(postData['likes'] ?? {});
-                
-                bool isSaved = savedPostIds.contains(postId);
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: PostCard(
-                    postId: postId,
-                    userId: postUserId,
-                    currentLoggedInUserId: _currentUserId ?? '',
-                    isGuest: _currentUserId == null,
-                    userName: postUserName,
-                    userImageUrl: postUserImage,
-                    userRole: postUserRole,
-                    caption: caption,
-                    imageUrls: imageUrls,
-                    timestamp: timestamp,
-                    onProfileTap: (uid, role) {
-                        // Already on the profile, maybe do nothing or scroll to top?
-                    },
-                    likesCount: likesCount,
-                    likes: likes,
-                    commentsCount: commentsCount,
-                    isSaved: isSaved,
-                    isEdited: postData['isEdited'] ?? false,
-                    isPinned: postData['isPinned'] ?? false,
-                    isHidden: postData['isHidden'] ?? false,
-                    linkUrl: postData['linkUrl'] as String?,
-                    linkTitle: postData['linkTitle'] as String?,
-                    onToggleSave: () async {
-                       await CommunityService().toggleSavePost(
-                          postId: postId,
-                          currentUserId: _currentUserId ?? '',
-                          isSaved: isSaved,
-                       );
-                       // Trigger rebuild to update bookmark icon
-                       setState(() {}); 
-                    },
-                  ),
-                );
-              },
-            );
-          },
-        );
-      }
     );
   }
 

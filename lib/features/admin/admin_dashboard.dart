@@ -1,9 +1,10 @@
+import 'package:calligro_app/features/community/presentation/community_scope.dart';
 import 'package:calligro_app/features/admin/widgets/admin_drawer.dart';
 import 'package:calligro_app/features/admin/data/services/admin_service.dart';
 import 'package:calligro_app/features/admin/tabs/admin_home_tab.dart';
 import 'package:calligro_app/features/admin/tabs/admin_profile_tab.dart';
 import 'package:calligro_app/features/admin/pages/admin_users.dart';
-import 'package:calligro_app/features/community/pages/community_page.dart';
+import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
@@ -26,6 +27,10 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  /// Community screens use the same (injectable) Firestore/Auth as the dashboard.
+  late final CommunityServices _communityServices =
+      CommunityServices.firebase(firestore: widget.firestore, auth: widget.auth);
+
   int _selectedIndex = 0;
   late final AdminService _adminService;
 
@@ -74,8 +79,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       AdminUsersPage(firestore: widget.firestore),
       CommunityPage(
         onProfileTap: (uid, role) {},
-        auth: widget.auth,
-        firestore: widget.firestore,
       ),
       AdminProfileTab(
         userName: _userName,
@@ -119,9 +122,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           const SizedBox(width: 8),
         ],
       ) : null,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+      body: CommunityScope(
+        services: _communityServices,
+        child: IndexedStack(index: _selectedIndex, children: _pages),
       ),
       bottomNavigationBar: BottomAppBar(
         color: AppColors.cardBackground,

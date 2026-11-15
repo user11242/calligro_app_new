@@ -1,0 +1,75 @@
+rules_version = '2';
+// Proven by functions/test/storage_rules.test.js (Storage + Firestore emulators).
+// Paths are exactly the ones the app uploads to; everything else is closed.
+// NOTE: rules for overlapping paths are OR'd, so there is deliberately NO
+// catch-all write rule — one would re-open every path below.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isMe(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function course(courseId) {
+      return firestore.get(/databases/(default)/documents/courses/$(courseId)).data;
+    }
+    function isCourseTeacher(courseId) {
+      return isSignedIn() && course(courseId).teacherId == request.auth.uid;
+    }
+    function isCourseMember(courseId) {
+      return isCourseTeacher(courseId) ||
+        (isSignedIn() && request.auth.uid in course(courseId).get('enrolledStudents', []));
+    }
+    // File names that start with the uploader's id ("<uid>_...").
+    function isNamedByMe(fileName) {
+      return isSignedIn() && fileName.matches(request.auth.uid + '_.*');
+    }
+    function isImageUpTo(megabytes) {
+      return request.resource.contentType.matches('image/.*') &&
+        request.resource.size < megabytes * 1024 * 1024;
+    }
+
+    // Profile photos.
+    match /user_profile_images/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isMe(userId);
+    }
+
+    // Community post images: the author's folder; admins may delete (post removal).
+    match /community_posts/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isMe(userId) && isImageUpTo(10);
+      allow delete: if isMe(userId) || isAdmin();
+    }
+
+    // Course materials (PDFs, images, worksheets): the course teacher manages them.
+    match /course_materials/{courseId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isCourseTeacher(courseId) || isAdmin();
+    }
+
+    // Assignment submissions: "<studentUid>_<file>", seen by that student, the teacher, admins.
+    match /course_submissions/{courseId}/{assignmentId}/{fileName} {
+      allow read: if isNamedByMe(fileName) || isCourseTeacher(courseId) || isAdmin();
+      allow write: if isNamedByMe(fileName);
+    }
+
+    // Course chat images: "<uid>_<time>.jpg", course members only.
+    match /course_chats/{courseId}/{fileName} {
+      allow read: if isCourseMember(courseId) || isAdmin();
+      allow write: if isNamedByMe(fileName) && isCourseMember(courseId);
+    }
+
+    // Anything else (gallery, older uploads): readable, never writable from the app.
+    // The private folders are excluded here, otherwise this read would OR-open them.
+    match /{allPaths=**} {
+      allow read: if !allPaths.matches('^(course_submissions|course_chats)/.*');
+    }
+  }
+}
