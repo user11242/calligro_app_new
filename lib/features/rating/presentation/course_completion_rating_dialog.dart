@@ -1,23 +1,22 @@
-// lib/features/rating/widgets/course_completion_rating_dialog.dart
+// lib/features/rating/presentation/course_completion_rating_dialog.dart
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/colors.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/message/app_messenger.dart';
 import '../../../core/services/translation_service.dart';
-import '../services/rating_service.dart';
+import '../application/course_ratings.dart';
+import '../domain/rating_models.dart';
+import 'rating_scope.dart';
 
 class CourseCompletionRatingDialog extends StatefulWidget {
-  final String courseId;
+  final RateableCourse course;
   final String courseName;
-  final String teacherId;
 
   const CourseCompletionRatingDialog({
     super.key,
-    required this.courseId,
+    required this.course,
     required this.courseName,
-    required this.teacherId,
   });
 
   @override
@@ -27,7 +26,6 @@ class CourseCompletionRatingDialog extends StatefulWidget {
 
 class _CourseCompletionRatingDialogState
     extends State<CourseCompletionRatingDialog> {
-  final RatingService _ratingService = RatingService();
   final TextEditingController _reviewController = TextEditingController();
 
   int? _selectedRating;
@@ -73,50 +71,27 @@ class _CourseCompletionRatingDialogState
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
-
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) throw Exception('User not logged in');
-
-      await _ratingService.submitRating(
-        studentId: currentUser.uid,
-        studentName: currentUser.displayName ?? 'Student',
-        teacherId: widget.teacherId,
-        courseId: widget.courseId,
-        courseName: widget.courseName,
-        rating: _selectedRating!,
-        reviewText: _reviewController.text.trim().isNotEmpty
-            ? _reviewController.text.trim()
-            : null,
+    setState(() => _isSubmitting = true);
+    final result = await RatingScope.of(context).submit(
+      widget.course,
+      stars: _selectedRating!,
+      reviewText: _reviewController.text,
+      courseName: widget.courseName,
+    );
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    final l10n = AppLocalizations.of(context)!;
+    if (result.isRated) {
+      // Saved now, or already saved (a retry / another device): either way, done.
+      Navigator.of(context).pop();
+      AppMessenger.showSnackBar(context, title: l10n.thankYouRating, message: l10n.ratingSubmitted, type: MessengerType.success);
+    } else if (result.outcome != RatingOutcome.busy) {
+      AppMessenger.showSnackBar(
+        context,
+        title: l10n.error,
+        message: result.outcome == RatingOutcome.invalid ? l10n.selectRating : (result.message ?? l10n.error),
+        type: MessengerType.error,
       );
-
-      if (mounted) {
-        Navigator.of(context).pop();
-        AppMessenger.showSnackBar(
-          context,
-          title: AppLocalizations.of(context)!.thankYouRating,
-          message: AppLocalizations.of(context)!.ratingSubmitted,
-          type: MessengerType.success,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: AppLocalizations.of(context)!.error,
-          message: e.toString(),
-          type: MessengerType.error,
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
-      }
     }
   }
 
@@ -285,38 +260,15 @@ class _CourseCompletionRatingDialogState
   }
 }
 
-/// Helper function to show the rating dialog
+/// Shows the rating pop-up for [course] (chosen by CourseRatings.courseToRate,
+/// which already recorded that it was shown).
 Future<void> showCourseCompletionRatingDialog({
   required BuildContext context,
-  required String courseId,
+  required RateableCourse course,
   required String courseName,
-  required String teacherId,
-}) async {
-  // Check if student already rated this course
-  final ratingService = RatingService();
-  final currentUser = FirebaseAuth.instance.currentUser;
-
-  if (currentUser == null) return;
-
-  final hasRated = await ratingService.hasStudentRatedCourse(
-    studentId: currentUser.uid,
-    courseId: courseId,
-  );
-
-  if (hasRated) {
-    // Student already rated this course, don't show dialog
-    return;
-  }
-
-  if (context.mounted) {
-    await showDialog(
+}) =>
+    showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => CourseCompletionRatingDialog(
-        courseId: courseId,
-        courseName: courseName,
-        teacherId: teacherId,
-      ),
+      builder: (context) => CourseCompletionRatingDialog(course: course, courseName: courseName),
     );
-  }
-}

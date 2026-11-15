@@ -225,9 +225,11 @@ describe('follows and public counters', () => {
   });
   it('cannot add followers in someone else\'s name', () =>
     assertFails(setDoc(doc(as('stranger'), 'users/author/followers/fan'), {})));
-  it('rating totals move by one review at most (1–5 stars)', async () => {
-    await assertSucceeds(updateDoc(doc(as('stranger'), 'teachers/teach'), { totalStars: increment(4), reviewCount: increment(1) }));
-    await assertSucceeds(updateDoc(doc(as('stranger'), 'users/teach'), { totalStars: increment(4), reviewCount: increment(1) }));
+  it('nobody adds or removes stars from the app: the server computes rating totals (functions/ratings.js)', async () => {
+    await assertFails(updateDoc(doc(as('stranger'), 'teachers/teach'), { totalStars: increment(4), reviewCount: increment(1) }));
+    await assertFails(updateDoc(doc(as('stranger'), 'users/teach'), { totalStars: increment(4), reviewCount: increment(1) }));
+    await assertFails(updateDoc(doc(as('teach'), 'users/teach'), { totalStars: 500, reviewCount: 100 }));
+    await assertFails(updateDoc(doc(as('teach'), 'teachers/teach'), { totalStars: 500 }));
     await assertFails(updateDoc(doc(as('stranger'), 'teachers/teach'), { totalStars: 5000, reviewCount: 1000 }));
     await assertFails(updateDoc(doc(as('stranger'), 'users/teach'), { totalStars: increment(50) }));
     await assertFails(updateDoc(doc(as('stranger'), 'teachers/teach'), { totalStars: increment(-50), reviewCount: increment(-1) }));

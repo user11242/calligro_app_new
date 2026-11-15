@@ -41,7 +41,8 @@ import '../../gallery/services/gallery_service.dart';
 import '../../gallery/models/gallery_artist.dart';
 import '../../gallery/pages/artist_bio_page.dart';
 import '../../gallery/pages/artist_gallery_page.dart';
-import '../../rating/widgets/course_completion_rating_dialog.dart';
+import '../../rating/presentation/course_completion_rating_dialog.dart';
+import '../../rating/presentation/rating_scope.dart';
 
 class StudentHomePage extends StatefulWidget {
   final bool isGuestMode;
@@ -84,7 +85,10 @@ class _StudentHomePageState extends State<StudentHomePage> {
     _galleryFuture = GalleryService(firestore: widget.firestore).getArtistsList();
     _teachersStream = _service.getTeachersStream();
     _precacheGalleryImages();
-    _checkForUnratedCompletedCourses();
+    // After the first frame: the check reads the RatingScope.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkForUnratedCompletedCourses();
+    });
   }
 
   bool _courseStreamsReady = false;
@@ -118,56 +122,17 @@ class _StudentHomePageState extends State<StudentHomePage> {
     super.dispose();
   }
 
+  /// At most ONE rating pop-up, for one finished course, chosen and recorded
+  /// by CourseRatings (it used to come back on every visit).
   Future<void> _checkForUnratedCompletedCourses() async {
-    final user = (widget.auth ?? FirebaseAuth.instance).currentUser;
-    if (user == null || widget.isGuestMode) return;
-
-    try {
-      final coursesSnapshot = await (widget.firestore ?? FirebaseFirestore.instance)
-          .collection('courses')
-          .where('enrolledStudents', arrayContains: user.uid)
-          .get();
-
-      final now = DateTime.now();
-
-      for (final doc in coursesSnapshot.docs) {
-        final data = doc.data();
-        final endDateData = data['endDate'];
-        if (endDateData == null) continue;
-
-        DateTime endDate;
-        if (endDateData is Timestamp) {
-          endDate = endDateData.toDate();
-        } else if (endDateData is DateTime) {
-          endDate = endDateData;
-        } else {
-          continue;
-        }
-
-        if (now.isAfter(endDate)) {
-          final reviewQuery = await (widget.firestore ?? FirebaseFirestore.instance)
-              .collection('reviews')
-              .where('courseId', isEqualTo: doc.id)
-              .where('studentId', isEqualTo: user.uid)
-              .limit(1)
-              .get();
-
-          if (reviewQuery.docs.isEmpty) {
-            if (mounted) {
-              showCourseCompletionRatingDialog(
-                context: context,
-                courseId: doc.id,
-                courseName: CourseUtils.getLocalizedCourseName(context, data),
-                teacherId: data['teacherId'] ?? '',
-              );
-              break;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Error checking for unrated courses: $e");
-    }
+    if (widget.isGuestMode) return;
+    final course = await RatingScope.of(context).courseToRate();
+    if (course == null || !mounted) return;
+    await showCourseCompletionRatingDialog(
+      context: context,
+      course: course,
+      courseName: CourseUtils.getLocalizedCourseName(context, course.data),
+    );
   }
 
   void _precacheGalleryImages() {

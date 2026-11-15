@@ -46,6 +46,8 @@ beforeEach(async () => {
     await put(st, 'course_materials/c1/sheet.pdf', { contentType: 'application/pdf' });
     await put(st, 'course_submissions/c1/a1/s1_work.jpg');
     await put(st, 'course_chats/c1/s1_1.jpg');
+    await put(st, 'gallery/artist1/piece.jpg');
+    await put(st, 'logo.png');
   });
 });
 
@@ -123,5 +125,22 @@ describe('anything else', () => {
   it('no uploads to unknown paths', async () => {
     await assertFails(put(as('s1'), 'random/thing.jpg'));
     await assertFails(put(as('s1'), 'community_posts.jpg'));
+  });
+});
+
+describe('everything else (gallery, older uploads)', () => {
+  it('is readable by anyone', async () => {
+    await assertSucceeds(getBytes(ref(guest(), 'gallery/artist1/piece.jpg')));
+    await assertSucceeds(getBytes(ref(guest(), 'logo.png')));
+  });
+  it('is never writable from the app', async () => {
+    await assertFails(put(as('s1'), 'gallery/artist1/fake.jpg'));
+    await assertFails(put(as('s1'), 'fake.png'));
+  });
+  it('the private course folders stay closed to outsiders', async () => {
+    await assertFails(getBytes(ref(guest(), 'course_materials/c1/sheet.pdf')));
+    await assertFails(getBytes(ref(as('s2'), 'course_materials/c1/sheet.pdf')));
+    await assertFails(getBytes(ref(guest(), 'course_chats/c1/s1_1.jpg')));
+    await assertFails(getBytes(ref(as('s2'), 'course_submissions/c1/a1/s1_work.jpg')));
   });
 });

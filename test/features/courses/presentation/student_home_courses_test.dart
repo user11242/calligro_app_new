@@ -15,6 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/course_fixtures.dart';
 import '../fakes/fake_courses.dart';
+import '../../rating/fakes/fake_ratings.dart';
+import 'package:calligro_app/features/rating/application/course_ratings.dart';
+import 'package:calligro_app/features/rating/presentation/rating_scope.dart';
 
 class _Student extends StudentService {
   _Student(FakeFirebaseFirestore db, MockFirebaseAuth auth) : super(auth: auth, firestore: db);
@@ -52,7 +55,10 @@ void main() {
           purchases: () => throw StateError('not used') as CoursePurchases,
           currentUid: () => 's1',
         ),
-        child: StudentHomePage(studentService: _Student(db, auth), auth: auth, firestore: db),
+        child: RatingScope(
+          ratings: CourseRatings(repository: FakeRatingRepository(), currentUid: () => 's1'),
+          child: StudentHomePage(studentService: _Student(db, auth), auth: auth, firestore: db),
+        ),
       ),
     ));
     for (var i = 0; i < 20; i++) {

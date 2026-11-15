@@ -1,3 +1,6 @@
+import 'package:calligro_app/features/rating/application/course_ratings.dart';
+import 'package:calligro_app/features/rating/data/firestore_rating_repository.dart';
+import 'package:calligro_app/features/rating/presentation/rating_scope.dart';
 import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
 import 'package:calligro_app/features/profile/presentation/profile_scope.dart';
 import 'package:calligro_app/features/community/presentation/community_scope.dart';
@@ -40,6 +43,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       ProfileServices.firebase(firestore: widget.firestore, auth: widget.auth);
   late final CourseServices _courseServices =
       CourseServices.firebase(firestore: widget.firestore, auth: widget.auth);
+  late final CourseRatings _ratings = CourseRatings(
+    repository: FirestoreRatingRepository(firestore: widget.firestore),
+    currentUid: () => (widget.auth ?? FirebaseAuth.instance).currentUser?.uid ?? '',
+  );
 
   int _selectedIndex = 0;
   String? _initialCourseFilter;
@@ -113,7 +120,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
               services: _profileServices,
               child: CourseScope(
                 services: _courseServices,
-                child: IndexedStack(index: _selectedIndex, children: pages),
+                child: RatingScope(
+                  ratings: _ratings,
+                  child: IndexedStack(index: _selectedIndex, children: pages),
+                ),
               ),
             ),
           ),

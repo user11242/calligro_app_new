@@ -50,17 +50,16 @@ service cloud.firestore {
       return request.resource.data.keys().hasAny(['payoutSettings']) &&
         (resource == null || request.resource.data.diff(resource.data).affectedKeys().hasAny(['payoutSettings']));
     }
+    // Follow counters only. Rating totals (totalStars / reviewCount) are
+    // computed by the server from the reviews (functions/ratings.js); the app
+    // can no longer add or remove stars (anyone could, ±5 per write).
     function isPublicCounterUpdate() {
       let keys = request.resource.data.diff(resource.data).affectedKeys();
-      return keys.hasOnly(['followerCount', 'followingCount', 'totalStars', 'reviewCount']) &&
+      return keys.hasOnly(['followerCount', 'followingCount']) &&
         delta('followerCount') in [-1, 0, 1] &&
         delta('followingCount') in [-1, 0, 1] &&
-        delta('reviewCount') in [-1, 0, 1] &&
-        delta('totalStars') >= -5 && delta('totalStars') <= 5 &&
         request.resource.data.get('followerCount', 0) >= 0 &&
-        request.resource.data.get('followingCount', 0) >= 0 &&
-        request.resource.data.get('reviewCount', 0) >= 0 &&
-        request.resource.data.get('totalStars', 0) >= 0;
+        request.resource.data.get('followingCount', 0) >= 0;
     }
 
     // =========================================================
@@ -107,7 +106,7 @@ service cloud.firestore {
       allow update: if isSignedIn() && !writesPayoutPublicly() && (
         isAdmin() || 
         (isOwner(userId) && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'commissionRate']) ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'commissionRate', 'totalStars', 'reviewCount']) ||
           (!resource.data.keys().hasAny(['role']) && request.resource.data.role in ['student', 'teacher'])
         )) ||
         isPublicCounterUpdate()
@@ -120,6 +119,11 @@ service cloud.firestore {
       match /following/{followingId} {
         allow read: if true;
         allow create, delete: if isOwner(userId);
+      }
+
+      // How often the rating pop-up asked about each course (CourseRatings).
+      match /rating_prompts/{courseId} {
+        allow read, write: if isOwner(userId);
       }
 
       match /saved_posts/{postId} {
@@ -163,19 +167,34 @@ service cloud.firestore {
       allow read: if true;
       allow create: if !writesPayoutPublicly() &&
         ((isOwner(teacherId) && request.resource.data.role == 'teacher' && request.resource.data.status == 'pending') || isAdmin());
-      allow update: if !writesPayoutPublicly() && (isOwner(teacherId) || isAdmin() ||
-        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalStars', 'reviewCount']) &&
-          isPublicCounterUpdate()));
+      allow update: if !writesPayoutPublicly() && (isAdmin() ||
+        (isOwner(teacherId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['totalStars', 'reviewCount'])));
       allow delete: if isAdmin();
     }
 
     // =========================================================
     // ⭐ REVIEWS & RATINGS
     // =========================================================
+    // ONE rating per student per course (id "<courseId>_<studentId>"), by an
+    // enrolled student, after the course has ended, for that course's teacher.
+    // Shape = Review.toDocument (lib/features/rating/domain). Totals: functions/ratings.js.
     match /reviews/{reviewId} {
+      function validReview(d) {
+        let course = get(/databases/$(database)/documents/courses/$(d.courseId)).data;
+        return reviewId == d.courseId + '_' + request.auth.uid &&
+          d.keys().hasOnly(['studentId', 'studentName', 'teacherId', 'courseId', 'courseName', 'rating', 'reviewText', 'timestamp', 'isPublic']) &&
+          d.studentId == request.auth.uid &&
+          request.auth.uid in course.get('enrolledStudents', []) &&
+          d.teacherId == course.teacherId &&
+          course.endDate < request.time &&
+          d.rating is int && d.rating >= 1 && d.rating <= 5 &&
+          d.get('reviewText', '') is string && d.get('reviewText', '').size() <= 1000 &&
+          d.timestamp == request.time;
+      }
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isSignedIn() && validReview(request.resource.data);
+      // A rating is final (no re-rating to game totals); admins moderate.
+      allow update, delete: if isAdmin();
     }
 
     // =========================================================

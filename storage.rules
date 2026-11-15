@@ -68,8 +68,13 @@ service firebase.storage {
 
     // Anything else (gallery, older uploads): readable, never writable from the app.
     // The private folders are excluded here, otherwise this read would OR-open them.
-    match /{allPaths=**} {
-      allow read: if !allPaths.matches('^(course_submissions|course_chats|course_materials)/.*');
+    // Matched on the first folder name (a string), not the whole path: a path is
+    // not text, so the old .matches() check was not reliable.
+    match /{folder}/{rest=**} {
+      allow read: if !(folder in ['course_submissions', 'course_chats', 'course_materials']);
+    }
+    match /{file} {
+      allow read: if true;
     }
   }
 }
