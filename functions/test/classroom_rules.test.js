@@ -157,7 +157,7 @@ describe('moving a session (FirestoreBoardRepository.reschedule)', () => {
     }
     return b.commit();
   };
-  it('the teacher moves it and notifies the students in ONE batch', () => assertSucceeds(batchFor('teach', ['student'])));
-  it('the whole batch fails if it tries to notify someone outside the course', () => assertFails(batchFor('teach', ['student', 'outsider'])));
-  it('another teacher cannot', () => assertFails(batchFor('teach2', ['student'])));
+  it('the teacher moves it (the server notifies the students)', () => assertSucceeds(batchFor('teach', [])));
+  it('the app can no longer write the notices itself (they arrived twice)', () => assertFails(batchFor('teach', ['student'])));
+  it('another teacher cannot', () => assertFails(batchFor('teach2', [])));
 });

@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:calligro_app/features/notifications/presentation/notification_services.dart';
 
 class DeepLinkService {
   static final DeepLinkService _instance = DeepLinkService._internal();
@@ -60,25 +61,9 @@ class DeepLinkService {
     });
   }
 
-  /// Handle data from Firebase Cloud Messaging (FCM)
-  void handleFcmData(Map<String, dynamic> data) {
-    debugPrint("Handling FCM data: $data");
-    final route = data['route']?.toString();
-    if (route == '/postDetails' && data['postId'] != null) {
-      _pushNamed('/postDetails', {'postId': data['postId']});
-      return;
-    }
-
-    if (route == '/courseChat' &&
-        data['courseId'] != null &&
-        data['courseId'].toString().isNotEmpty) {
-      _pushNamed('/courseChat', {
-        'courseId': data['courseId'].toString(),
-        'courseName': data['courseName']?.toString() ?? '',
-        'teacherId': data['teacherId']?.toString() ?? '',
-      });
-    }
-  }
+  /// Notification taps go through NotificationServices.instance.opener
+  /// (lib/features/notifications), which knows every route the server sends.
+  void handleFcmData(Map<String, dynamic> data) => NotificationServices.instance.opener.openData(data);
 
   void dispose() {
     _linkSubscription?.cancel();

@@ -1,6 +1,7 @@
   // lib/main.dart
 
-  import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
+  import 'package:calligro_app/features/notifications/presentation/notification_services.dart';
+import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
 import 'package:flutter/material.dart';
   import 'package:flutter/foundation.dart';
   import 'dart:convert';
@@ -223,7 +224,7 @@ import 'package:flutter/material.dart';
           try {
             final decoded = jsonDecode(payload);
             if (decoded is Map<String, dynamic>) {
-              DeepLinkService().handleFcmData(decoded);
+              NotificationServices.instance.opener.openData(decoded);
             }
           } catch (e) {
             developer.log("Failed to parse notification payload: $e");
@@ -257,8 +258,10 @@ import 'package:flutter/material.dart';
       
       debugPrint("📩 Foreground message: $title");
       
-      // Explicitly show local notification in foreground as Firebase sometimes suppresses it
-      if (title != null || body != null) {
+      // Android shows nothing for a push while the app is open, so we show it.
+      // iOS already shows it (setForegroundNotificationPresentationOptions):
+      // showing it here too was the second copy.
+      if ((title != null || body != null) && defaultTargetPlatform == TargetPlatform.android) {
         flutterLocalNotificationsPlugin.show(
           id: message.hashCode,
           title: title,
@@ -278,17 +281,27 @@ import 'package:flutter/material.dart';
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint("📩 App opened from notification (Background): ${message.notification?.title}");
-      DeepLinkService().handleFcmData(message.data);
+      NotificationServices.instance.opener.openData(message.data);
     });
 
     // 🔔 Handle taps when the app is completely closed (Terminated State)
     RemoteMessage? initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
       debugPrint("📩 App opened from notification (Terminated): ${initialMessage.notification?.title}");
-      // Add a short delay to ensure the Navigator has mounted after runApp
-      Future.delayed(const Duration(milliseconds: 800), () {
-        DeepLinkService().handleFcmData(initialMessage.data);
-      });
+      // Kept until a dashboard is on screen (NotificationTapHandler), not a fixed delay.
+      NotificationServices.instance.opener.openData(initialMessage.data);
+    }
+
+    // The app was launched by tapping a notification WE showed (Android, foreground copy).
+    try {
+      final launch = await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+      final payload = launch?.notificationResponse?.payload;
+      if ((launch?.didNotificationLaunchApp ?? false) && payload != null && payload.isNotEmpty) {
+        final decoded = jsonDecode(payload);
+        if (decoded is Map<String, dynamic>) NotificationServices.instance.opener.openData(decoded);
+      }
+    } catch (e) {
+      developer.log("Failed to read notification launch details: $e");
     }
 
     runApp(

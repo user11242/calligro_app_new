@@ -423,6 +423,8 @@ Object.assign(exports, require("./notifications.js"));
 exports.syncProfileCopiesOnUpdate = require("./profile_sync.js").syncProfileCopiesOnUpdate;
 // Rating totals recomputed from the reviews (the app no longer touches them).
 exports.recomputeRatingsOnReview = require("./ratings.js").recomputeRatingsOnReview;
+// One push token per account (a phone switching accounts got 2-3 copies).
+exports.claimPushToken = require("./notification_tokens.js").claimPushToken;
 
 // DEPRECATED: Google Meet functions removed to simplify UX and avoid restrictions.
 // Students now use the branded 'Calligro Classroom' powered by Jitsi.

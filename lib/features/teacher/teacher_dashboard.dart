@@ -1,6 +1,7 @@
 // lib/features/teacher/pages/teacher_dashboard_page.dart
 //Done
 
+import 'package:calligro_app/features/notifications/presentation/app_notification_navigator.dart';
 import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
 import 'package:calligro_app/features/profile/presentation/profile_scope.dart';
 import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
@@ -239,8 +240,11 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
     ];
   }
 
+  /// Notification taps open from this dashboard while it is on screen.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => NotificationTapHandler(child: _buildDashboard(context));
+
+  Widget _buildDashboard(BuildContext context) {
     if (_isLoading) {
        return const Scaffold(
          backgroundColor: AppColors.primary,

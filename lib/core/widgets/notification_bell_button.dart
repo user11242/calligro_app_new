@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/colors.dart';
-import '../../features/teacher/pages/notifications/notifications_page.dart';
+import '../../features/notifications/data/firestore_notification_repositories.dart';
+import '../../features/notifications/presentation/notification_services.dart';
+import '../../features/notifications/presentation/notifications_page.dart';
 import '../utils/guest_guard.dart';
 
 class NotificationBellButton extends StatelessWidget {
@@ -72,20 +74,18 @@ class NotificationBellButton extends StatelessWidget {
                 size: 24,
               ),
               if (uid != null && !isGuest)
-                StreamBuilder<QuerySnapshot>(
-                  stream: (firestore ?? FirebaseFirestore.instance)
-                      .collection('users')
-                      .doc(uid)
-                      .collection('notifications')
-                      .where('read', isEqualTo: false)
-                      .limit(100)
-                      .snapshots(),
+                StreamBuilder<int>(
+                  // Counts old (isRead) and new (read) items alike.
+                  stream: (firestore != null
+                          ? FirestoreInboxRepository(firestore: firestore)
+                          : NotificationScope.of(context).inbox)
+                      .watchUnreadCount(uid),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    if (!snapshot.hasData || snapshot.data == 0) {
                       return const SizedBox.shrink();
                     }
 
-                    final count = snapshot.data!.docs.length;
+                    final count = snapshot.data!;
                     final displayCount = count > 99 ? '99+' : count.toString();
 
                     return Positioned(

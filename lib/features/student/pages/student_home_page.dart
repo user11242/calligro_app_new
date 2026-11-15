@@ -27,7 +27,7 @@ import '../../../core/widgets/profile_avatar.dart';
 import '../../../core/widgets/smart_image.dart';
 import '../../../core/widgets/rating_display.dart';
 import '../../../core/utils/course_utils.dart';
-import '../../teacher/pages/notifications/notifications_page.dart';
+import '../../notifications/presentation/notifications_page.dart';
 import '../../../core/widgets/notification_bell_button.dart';
 import 'gallery_page.dart';
 import 'teachers_page.dart';

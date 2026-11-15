@@ -72,8 +72,7 @@ abstract interface class BoardRepository {
   Stream<List<Announcement>> watchAnnouncements(String courseId);
   Future<void> postAnnouncement(String courseId, {required String message, required String senderName});
 
-  /// Sets rescheduledSession AND notifies every student enrolled right now, in
-  /// one atomic batch (no "moved but nobody told", no half-sent notices).
+  /// Sets rescheduledSession; the server notifies the students (once).
   Future<void> reschedule(String courseId, SessionChange change);
   Future<void> cancelReschedule(String courseId);
   Future<String> displayName(String uid);

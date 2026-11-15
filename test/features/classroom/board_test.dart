@@ -22,8 +22,6 @@ void main() {
     originalDate: DateTime(2026, 12, 2),
     newStart: DateTime(2026, 12, 2, 19),
     newEnd: DateTime(2026, 12, 2, 20),
-    title: 'Session rescheduled',
-    message: 'Moved to 7:00 PM',
   );
 
   setUp(() async {
@@ -33,14 +31,12 @@ void main() {
     await db.doc('courses/c1').set({'teacherId': 't1', 'enrolledStudents': ['s1', 's2']});
   });
 
-  test('moving the session sets it AND tells every current student', () async {
+  test('moving the session sets it; the app writes NO notices (the server sends one — it used to be two)', () async {
     expect((await board.reschedule('c1', CourseRole.owner, change)).ok, isTrue);
     final session = (await db.doc('courses/c1').get()).data()!['rescheduledSession'] as Map;
     expect((session['newStartTime'] as Timestamp).toDate(), DateTime(2026, 12, 2, 19));
     for (final s in ['s1', 's2']) {
-      final n = (await db.collection('users/$s/notifications').get()).docs.single.data();
-      expect([n['title'], n['message'], n['type'], n['courseId'], n['isRead']],
-          ['Session rescheduled', 'Moved to 7:00 PM', 'reschedule', 'c1', false]);
+      expect((await db.collection('users/$s/notifications').get()).docs, isEmpty);
     }
     expect((await board.cancelReschedule('c1', CourseRole.owner)).ok, isTrue);
     expect((await db.doc('courses/c1').get()).data()!.containsKey('rescheduledSession'), isFalse);
@@ -49,8 +45,7 @@ void main() {
   test('students cannot move sessions or post; an end before the start is refused', () async {
     expect((await board.reschedule('c1', CourseRole.student, change)).outcome, ClassroomOutcome.notAllowed);
     expect((await board.post('c1', CourseRole.visitor, 'x')).outcome, ClassroomOutcome.notAllowed);
-    final backwards = SessionChange(
-        originalDate: change.originalDate, newStart: change.newEnd, newEnd: change.newStart, title: '', message: '');
+    final backwards = SessionChange(originalDate: change.originalDate, newStart: change.newEnd, newEnd: change.newStart);
     expect((await board.reschedule('c1', CourseRole.owner, backwards)).outcome, ClassroomOutcome.invalid);
     expect((await db.collection('users/s1/notifications').get()).docs, isEmpty);
   });

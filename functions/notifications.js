@@ -2,6 +2,7 @@ const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const { deliverOnce } = require("./notification_delivery");
 
 const brevoApiKey = defineSecret("BREVO_API_KEY");
 
@@ -185,66 +186,25 @@ function getLocalizedText(lang, key, params = {}) {
     return text;
 }
 
-// Helper: Send Notification
-async function sendNotification({ receiverId, type, titleKey, bodyKey, params = {}, payload = {} }) {
+// Helper: Send Notification — once per event per user (see notification_delivery.js).
+// [key] must be unique for the event (event.id): a retried trigger finds the
+// inbox item already there and sends nothing.
+async function sendNotification({ receiverId, key, type, titleKey, bodyKey, params = {}, payload = {} }) {
     try {
-        console.log(`[Notification] Attempting to notify ${receiverId} (Type: ${type})`);
-        const userDoc = await admin.firestore().collection("users").doc(receiverId).get();
-        if (!userDoc.exists) return;
-
-        const userData = userDoc.data();
-        const token = userData.fcmToken;
-        const lang = userData.preferredLanguage || "en";
-
-        const title = getLocalizedText(lang, titleKey, params);
-        const body = getLocalizedText(lang, bodyKey, params);
-
-        // 1. Save to in-app inbox
-        await admin.firestore().collection("users").doc(receiverId).collection("notifications").add({
-            title,
-            body,
+        const result = await deliverOnce({
+            db: admin.firestore(),
+            messaging: admin.messaging(),
+            receiverId,
+            // Every trigger passes event.id; the fallback only covers callers without an event.
+            key: key || `${type}_${receiverId}_${Date.now()}`,
             type,
-            read: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            payload,
+            render: (lang) => ({
+                title: getLocalizedText(lang, titleKey, params),
+                body: getLocalizedText(lang, bodyKey, params),
+            }),
         });
-
-        // 2. Send Push Notification
-        if (token) {
-            console.log(`[Notification] Sending FCM to token ending in ...${token.slice(-5)}`);
-            await admin.messaging().send({
-                token,
-                notification: {
-                    title,
-                    body,
-                },
-                data: {
-                    type,
-                    title,
-                    body,
-                    ...payload
-                },
-                android: {
-                    priority: "high",
-                    notification: {
-                        channelId: "calligro_alerts",
-                    }
-                },
-                apns: {
-                    payload: {
-                        aps: {
-                            alert: {
-                                title,
-                                body
-                            },
-                            sound: "default",
-                        }
-                    }
-                }
-            });
-            console.log(`[Notification] FCM sent successfully to ${receiverId}`);
-        } else {
-            console.warn(`[Notification] No FCM token found for user ${receiverId}`);
-        }
+        console.log(`[Notification] ${type} → ${receiverId}: ${result}`);
     } catch (err) {
         console.error("sendNotification error:", err);
     }
@@ -313,11 +273,13 @@ exports.notifyTeacherOnEnrollment = onDocumentUpdated("courses/{courseId}", asyn
     const studentName = studentDoc.exists ? (studentDoc.data().name || "A student") : "A student";
 
     await sendNotification({
+        key: event.id,
         receiverId: teacherId,
         type: "enrollment",
         titleKey: "new_enrollment_title",
         bodyKey: "new_enrollment_body",
-        params: { studentName, courseName: afterData.courseName || afterData.courseTitle || "your course" }
+        params: { studentName, courseName: afterData.courseName || afterData.courseTitle || "your course" },
+        payload: { route: '/courseDetails', courseId: event.params.courseId }
     });
 });
 
@@ -343,6 +305,7 @@ exports.notifyStudentsOnAnnouncement = onDocumentCreated("courses/{courseId}/ann
     // Send push to all enrolled students
     const promises = enrolledStudents.map(studentId => 
         sendNotification({
+        key: event.id,
             receiverId: studentId,
             type: "announcement",
             titleKey: "new_announcement_title",
@@ -388,6 +351,7 @@ exports.notifyStudentsOnAssignment = onDocumentCreated("courses/{courseId}/assig
     // Send push to all enrolled students
     const promises = enrolledStudents.map(studentId => 
         sendNotification({
+        key: event.id,
             receiverId: studentId,
             type: "assignment",
             titleKey: "new_assignment_title",
@@ -430,6 +394,7 @@ exports.notifyStudentsOnReschedule = onDocumentUpdated("courses/{courseId}", asy
     // Send push to all enrolled students
     const promises = enrolledStudents.map(studentId => 
         sendNotification({
+        key: event.id,
             receiverId: studentId,
             type: "reschedule",
             titleKey: "session_rescheduled_title",
@@ -471,6 +436,7 @@ exports.notifyAuthorOnComment = onDocumentCreated("community_posts/{postId}/comm
     }
 
     await sendNotification({
+        key: event.id,
         receiverId: postAuthorId,
         type: "comment",
         titleKey: "new_comment_title",
@@ -516,6 +482,7 @@ exports.notifyAuthorOnLike = onDocumentUpdated("community_posts/{postId}", async
     }
 
     await sendNotification({
+        key: event.id,
         receiverId: postAuthorId,
         type: "like",
         titleKey: "new_like_title",
@@ -547,11 +514,13 @@ exports.notifyTeacherOnSubmission = onDocumentCreated("courses/{courseId}/assign
     const assignmentTitle = assignmentDoc.exists ? (assignmentDoc.data().title || "Assignment") : "Assignment";
 
     await sendNotification({
+        key: event.id,
         receiverId: teacherId,
         type: "assignment",
         titleKey: "new_submission_title",
         bodyKey: "new_submission_body",
-        params: { assignmentTitle }
+        params: { assignmentTitle },
+        payload: { route: '/courseDetails', courseId: event.params.courseId }
     });
 });
 
@@ -573,6 +542,7 @@ exports.notifyTeacherOnApproval = onDocumentUpdated({
 
         // 1. Send Push Notification & In-App notification
         await sendNotification({
+        key: event.id,
             receiverId: event.params.uid,
             type: "account_status",
             titleKey: "account_approved_title",
@@ -600,6 +570,7 @@ exports.notifyTeacherOnApproval = onDocumentUpdated({
 
         // 1. Send Push Notification & In-App notification
         await sendNotification({
+        key: event.id,
             receiverId: event.params.uid,
             type: "account_status",
             titleKey: "account_rejected_title",
@@ -642,6 +613,11 @@ exports.notifyUsersOnBroadcast = onDocumentCreated("broadcasts/{broadcastId}", a
         audienceFilter = 'student';
     }
 
+    // A retried trigger must not send the whole broadcast again.
+    if (broadcastData.processedAt || broadcastData.processingStartedAt) return null;
+    await event.data.ref.update({ processingStartedAt: admin.firestore.FieldValue.serverTimestamp() });
+    const seenTokens = new Set(); // across ALL pages (it was per page of 500)
+
     try {
         console.log(`[Broadcast] Starting optimized broadcast to audience: ${audienceStr}`);
 
@@ -665,7 +641,8 @@ exports.notifyUsersOnBroadcast = onDocumentCreated("broadcasts/{broadcastId}", a
             const tokens = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
-                if (data.fcmToken && !tokens.includes(data.fcmToken)) {
+                if (data.fcmToken && !seenTokens.has(data.fcmToken)) {
+                    seenTokens.add(data.fcmToken);
                     tokens.push(data.fcmToken);
                 }
                 totalRecipients++;
@@ -723,6 +700,7 @@ exports.notifyUserOnFollow = onDocumentCreated("users/{targetId}/followers/{foll
         const followerName = followerDoc.exists ? (followerDoc.data().name || "Someone") : "Someone";
 
         await sendNotification({
+        key: event.id,
             receiverId: targetId,
             type: "new_follower",
             titleKey: "new_follower_title",
@@ -847,6 +825,7 @@ exports.notifyCommenterOnReply = onDocumentCreated("community_posts/{postId}/com
         }
 
         await sendNotification({
+        key: event.id,
             receiverId: commentAuthorId,
             type: "reply",
             titleKey: "new_reply_title",
@@ -871,13 +850,14 @@ exports.notifyCommenterOnReply = onDocumentCreated("community_posts/{postId}/com
 // ------------------------------------------------------------------------
 exports.notifyAdminHelper = async ({ receiverId, teacherName, teacherUserId }) => {
     await sendNotification({
+        key: `new_teacher_${teacherUserId}`,
         receiverId,
         type: "new_teacher",
         titleKey: "new_teacher_title",
         bodyKey: "new_teacher_body",
         params: { teacherName },
         payload: {
-            route: '/admin/teachers',
+            route: '/adminPendingTeachers',
             userId: teacherUserId,
         }
     });
@@ -923,6 +903,7 @@ exports.notifyCourseChatMembers = onDocumentCreated("courses/{courseId}/messages
 
     const promises = Array.from(recipients).map((receiverId) =>
         sendNotification({
+        key: event.id,
             receiverId,
             type: "course_chat",
             titleKey: "new_course_chat_title",

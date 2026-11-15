@@ -27,23 +27,15 @@ class Announcement {
   }
 }
 
-/// Today's session moved to another time; students are told in the same write.
+/// Today's session moved to another time. Students are notified by the server
+/// (functions/notifications.js notifyStudentsOnReschedule) — the app used to
+/// write its own notice too, so every student got two.
 class SessionChange {
   final DateTime originalDate;
   final DateTime newStart;
   final DateTime newEnd;
 
-  /// The notification students get (already in the teacher's language).
-  final String title;
-  final String message;
-
-  const SessionChange({
-    required this.originalDate,
-    required this.newStart,
-    required this.newEnd,
-    required this.title,
-    required this.message,
-  });
+  const SessionChange({required this.originalDate, required this.newStart, required this.newEnd});
 
   bool get isValid => newEnd.isAfter(newStart);
 }

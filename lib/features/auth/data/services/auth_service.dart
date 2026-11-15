@@ -1,5 +1,6 @@
 // lib/features/auth/data/services/auth_service.dart
 
+import 'package:calligro_app/features/notifications/presentation/notification_services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -202,6 +203,12 @@ class AuthService {
   // ============ 🛠️ UTILITIES ============
 
   Future<void> signOut() async {
+    // Take this phone's push token off the account FIRST (a phone used by
+    // several accounts got one copy of every notification per account).
+    if (_authMock == null) {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      await NotificationServices.instance.tokens.unregister(uid);
+    }
     await (_authMock ?? FirebaseAuth.instance).signOut();
     if (_authMock == null) {
       await _googleAuth.signOut();

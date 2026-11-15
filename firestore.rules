@@ -137,13 +137,12 @@ service cloud.firestore {
         allow delete: if isOwner(userId) || 
                       (isSignedIn() && resource.data.userId == request.auth.uid) || 
                       (isSignedIn() && notificationId == 'follow_' + request.auth.uid);
-        // A teacher may notify only students of their own course (session moved).
-        allow create: if isAdmin() || isOwner(userId) ||
-                      (isTeacher() && request.resource.data.get('courseId', '') is string &&
-                        request.resource.data.get('courseId', '') != '' &&
-                        get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.teacherId == request.auth.uid &&
-                        userId in get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.get('enrolledStudents', [])) ||
-                      (isSignedIn() && request.resource.data.userId == request.auth.uid);
+        // The server writes notifications (functions/notification_delivery.js).
+        // Clients: only admins (payout status) and the user themself — teachers
+        // no longer write into students' inboxes (that was the second copy of
+        // every reschedule notice). No more "userId == me" back door either:
+        // anyone could put anything into anyone's inbox with it.
+        allow create: if isAdmin() || isOwner(userId);
       }
 
       match /private/{document} {

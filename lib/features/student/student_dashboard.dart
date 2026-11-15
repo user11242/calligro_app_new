@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/notifications/presentation/app_notification_navigator.dart';
 import 'package:calligro_app/features/rating/application/course_ratings.dart';
 import 'package:calligro_app/features/rating/data/firestore_rating_repository.dart';
 import 'package:calligro_app/features/rating/presentation/rating_scope.dart';
@@ -71,8 +72,11 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     });
   }
 
+  /// Notification taps open from this dashboard while it is on screen.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => NotificationTapHandler(child: _buildDashboard(context));
+
+  Widget _buildDashboard(BuildContext context) {
     final List<Widget> pages = [
       // 1. Home Tab (Safe ✅)
       StudentHomePage(

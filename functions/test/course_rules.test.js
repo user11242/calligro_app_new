@@ -159,13 +159,14 @@ describe('changing an existing course', () => {
   });
 });
 
-describe('teacher notifications', () => {
+describe('notifications are written by the server', () => {
   const notif = (courseId) => ({ title: 'Session moved', message: 'x', type: 'reschedule', courseId, isRead: false, createdAt: serverTimestamp() });
-  it('a teacher can notify the students of their own course', () =>
-    assertSucceeds(addDoc(collection(as('teach'), 'users/student/notifications'), notif('c1'))));
-  it('but not people outside it, nor for someone else\'s course, nor without a course (spam / phishing)', async () => {
-    await assertFails(addDoc(collection(as('teach'), 'users/outsider/notifications'), notif('c1')));
-    await assertFails(addDoc(collection(as('teach2'), 'users/student/notifications'), notif('c1')));
+  it('teachers no longer write into students\' inboxes (that was the second copy of every reschedule notice)', async () => {
+    await assertFails(addDoc(collection(as('teach'), 'users/student/notifications'), notif('c1')));
     await assertFails(addDoc(collection(as('teach'), 'users/outsider/notifications'), { title: 'Your account is locked, click here' }));
   });
+  it('nobody fills someone else\'s inbox through the old "userId == me" back door', () =>
+    assertFails(addDoc(collection(as('outsider'), 'users/student/notifications'), { userId: 'outsider', title: 'Free course, click here' })));
+  it('admins still can (payout status)', () =>
+    assertSucceeds(addDoc(collection(as('admin'), 'users/teach/notifications'), { title: 'Payout Completed', body: 'x', type: 'payout_status', read: false })));
 });

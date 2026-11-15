@@ -2094,20 +2094,11 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
 
       setState(() => _isSavingReschedule = true);
       try {
-        // Moving the session and telling the students is ONE atomic write.
-        final courseName = _getLocalizedCourseName(context, widget.courseData);
-        final formattedTime = DateFormat.jm(Localizations.localeOf(context).toString()).format(newStartTime);
-        final l10n = AppLocalizations.of(context)!;
+        // The server tells the students (once).
         final result = await ClassroomScope.of(context).board.reschedule(
               widget.courseId,
               _role,
-              SessionChange(
-                originalDate: now,
-                newStart: newStartTime,
-                newEnd: newEndTime,
-                title: l10n.sessionRescheduled,
-                message: "${l10n.teacherMovedSession} '$courseName'. ${l10n.newTime} $formattedTime",
-              ),
+              SessionChange(originalDate: now, newStart: newStartTime, newEnd: newEndTime),
             );
         if (!result.ok) throw Exception(result.message ?? result.outcome.name);
         if (!mounted) return;

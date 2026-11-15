@@ -27,30 +27,13 @@ class FirestoreBoardRepository implements BoardRepository {
       });
 
   @override
-  Future<void> reschedule(String courseId, SessionChange change) async {
-    // The CURRENT students (firestore.rules only lets a teacher notify them).
-    final course = (await _course(courseId).get()).data() ?? const {};
-    final students = [for (final s in (course['enrolledStudents'] as List?) ?? const []) if (s is String) s];
-    final batch = _db.batch()
-      ..update(_course(courseId), {
+  Future<void> reschedule(String courseId, SessionChange change) => _course(courseId).update({
         'rescheduledSession': {
           'originalDate': Timestamp.fromDate(change.originalDate),
           'newStartTime': Timestamp.fromDate(change.newStart),
           'newEndTime': Timestamp.fromDate(change.newEnd),
         },
       });
-    for (final uid in students) {
-      batch.set(_db.collection('users').doc(uid).collection('notifications').doc(), {
-        'title': change.title,
-        'message': change.message,
-        'createdAt': FieldValue.serverTimestamp(),
-        'isRead': false,
-        'type': 'reschedule',
-        'courseId': courseId,
-      });
-    }
-    await batch.commit();
-  }
 
   @override
   Future<void> cancelReschedule(String courseId) =>

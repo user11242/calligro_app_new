@@ -43,6 +43,7 @@ jest.mock('firebase-admin', () => {
     limit: jest.fn().mockReturnThis(),
     startAfter: jest.fn().mockReturnValue({ get: jest.fn().mockResolvedValue({ empty: true }) }),
     add: jest.fn(),
+    create: jest.fn(),
   };
   
   const mockSend = jest.fn().mockResolvedValue({ successCount: 1, failureCount: 0 });
@@ -152,8 +153,9 @@ describe('Domain 5: Notifications & Cloud Triggers (Cloud Functions)', () => {
     const event = {
       params: { postId: 'p1' },
       data: {
-        before: { data: () => ({ likes: [] }) },
-        after: { data: () => ({ likes: ['u2'], authorId: 'u1' }) }
+        // Real shape: likes is a map { likerId: true }, the author is userId.
+        before: { data: () => ({ likes: {}, userId: 'u1' }) },
+        after: { data: () => ({ likes: { u2: true }, userId: 'u1' }) }
       }
     };
     await notifications.notifyAuthorOnLike(event);

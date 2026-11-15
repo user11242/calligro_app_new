@@ -189,7 +189,7 @@ import 'package:calligro_app/features/teacher/pages/setup/teacher_setup_page.dar
 import 'package:calligro_app/features/teacher/pages/finance/teacher_finance_page.dart';
 import 'package:calligro_app/features/teacher/pages/finance/transaction_history_page.dart';
 import 'package:calligro_app/features/teacher/pages/finance/teacher_sales_history_page.dart';
-import 'package:calligro_app/features/teacher/pages/notifications/notifications_page.dart';
+import 'package:calligro_app/features/notifications/presentation/notifications_page.dart';
 import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart';
 import 'package:calligro_app/firebase_options.dart';
 import 'package:calligro_app/screens/on_boarding_page.dart';
