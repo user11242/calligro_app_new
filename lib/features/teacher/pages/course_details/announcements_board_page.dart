@@ -1,7 +1,9 @@
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:calligro_app/features/classroom/application/classroom_board.dart';
+import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
+import 'package:calligro_app/features/classroom/domain/course_board.dart';
+import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
@@ -11,11 +13,15 @@ class AnnouncementsBoardPage extends StatefulWidget {
   final String courseName;
   final bool isTeacher;
 
+  /// The viewer's role in THIS course; defaults from [isTeacher].
+  final CourseRole? role;
+
   const AnnouncementsBoardPage({
     super.key,
     required this.courseId,
     required this.courseName,
     this.isTeacher = false,
+    this.role,
   });
 
   @override
@@ -25,6 +31,18 @@ class AnnouncementsBoardPage extends StatefulWidget {
 class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
   final TextEditingController _messageController = TextEditingController();
   bool _isPosting = false;
+  ClassroomBoard? _board;
+  Stream<List<Announcement>>? _announcements;
+
+  CourseRole get _role => widget.role ?? (widget.isTeacher ? CourseRole.owner : CourseRole.student);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_board != null) return;
+    _board = ClassroomScope.of(context).board;
+    _announcements = _board!.repository.watchAnnouncements(widget.courseId);
+  }
 
   Future<void> _postAnnouncement() async {
     if (_messageController.text.trim().isEmpty) return;
@@ -32,19 +50,8 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
     setState(() => _isPosting = true);
 
     try {
-      final message = _messageController.text.trim();
-      
-      await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .collection('announcements')
-          .add({
-            'message': message,
-            'timestamp': FieldValue.serverTimestamp(),
-            'senderName': FirebaseAuth.instance.currentUser?.displayName ?? 'Instructor',
-            'type': 'teacher_post',
-          });
-
+      final result = await _board!.post(widget.courseId, _role, _messageController.text);
+      if (!result.ok) throw Exception(result.message ?? result.outcome.name);
       _messageController.clear();
       if (mounted) {
         AppMessenger.showSnackBar(
@@ -141,7 +148,7 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
           ),
 
           // --- 1. TEACHER COMPOSER (Top Section) ---
-          if (widget.isTeacher)
+          if (_role.canManage)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(20),
@@ -218,13 +225,8 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
 
           // --- 2. FEED (History) ---
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('courses')
-                  .doc(widget.courseId)
-                  .collection('announcements')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
+            child: StreamBuilder<List<Announcement>>(
+              stream: _announcements,
               builder: (context, snapshot) {
                 if (snapshot.hasError) return const SizedBox();
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -234,7 +236,7 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
                     ),
                   );
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -258,13 +260,11 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
 
                 return ListView.separated(
                   padding: const EdgeInsets.all(20),
-                  itemCount: snapshot.data!.docs.length,
+                  itemCount: snapshot.data!.length,
                   separatorBuilder: (ctx, i) => const SizedBox(height: 16),
                   itemBuilder: (ctx, i) {
-                    final data =
-                        snapshot.data!.docs[i].data() as Map<String, dynamic>;
-                    final timestamp = (data['timestamp'] as Timestamp?)
-                        ?.toDate();
+                    final item = snapshot.data![i];
+                    final timestamp = item.timestamp;
                     final timeStr = timestamp != null
                         ? DateFormat.yMMMd(Localizations.localeOf(context).toString()).add_jm().format(timestamp)
                         : AppLocalizations.of(context)!.justNow;
@@ -295,7 +295,7 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    data['senderName'] ?? AppLocalizations.of(context)!.instructor,
+                                    item.senderName.isEmpty ? AppLocalizations.of(context)!.instructor : item.senderName,
                                     style: const TextStyle(
                                       color: Colors.orangeAccent,
                                       fontWeight: FontWeight.bold,
@@ -314,7 +314,7 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            data['message'] ?? "",
+                            item.message,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 15,

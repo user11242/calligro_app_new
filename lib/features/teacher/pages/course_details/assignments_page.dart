@@ -1,6 +1,9 @@
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:calligro_app/features/classroom/application/classroom_assignments.dart';
+import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
+import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
+import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
@@ -11,12 +14,14 @@ import 'dart:ui';
 
 class AssignmentsPage extends StatefulWidget {
   final String courseId;
-  final bool isTeacher;
+
+  /// The viewer's role in THIS course (computed by the course page).
+  final CourseRole role;
 
   const AssignmentsPage({
     super.key,
     required this.courseId,
-    this.isTeacher = false,
+    this.role = CourseRole.visitor,
   });
 
   @override
@@ -41,28 +46,31 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
   ];
 
   DateTime? _courseStartDate;
+  ClassroomAssignments? _work;
+  Stream<List<Assignment>>? _assignments;
+  final _submissionCounts = <String, Stream<int>>{};
+
+  bool get _isTeacher => widget.role.canManage;
 
   @override
-  void initState() {
-    super.initState();
-    _fetchCourseStartDate();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_work != null) return;
+    _work = ClassroomScope.of(context).assignments;
+    _assignments = _work!.repository.watchAssignments(widget.courseId);
+    _fetchCourseStartDate(CourseScope.of(context));
   }
 
-  Future<void> _fetchCourseStartDate() async {
+  Future<void> _fetchCourseStartDate(CourseServices courses) async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
-      if (doc.exists && doc.data()!.containsKey('startDate')) {
-        final data = doc.data()!;
-        if (data['startDate'] is Timestamp) {
-          _courseStartDate = (data['startDate'] as Timestamp).toDate();
-        } else if (data['startDate'] != null) {
-          _courseStartDate = DateTime.parse(data['startDate'].toString());
-        }
-      }
+      _courseStartDate = (await courses.courses.watchCourse(widget.courseId).first)?.startDate;
     } catch (e) {
       debugPrint("Error fetching course start date: $e");
     }
   }
+
+  Stream<int> _submissionCount(String assignmentId) => _submissionCounts[assignmentId] ??=
+      _work!.repository.watchSubmissions(widget.courseId, assignmentId).map((l) => l.length);
 
   // --- LOGIC: CREATE ASSIGNMENT ---
   Future<void> _createAssignment() async {
@@ -87,19 +95,26 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
       _selectedTime!.minute,
     );
 
-    await FirebaseFirestore.instance
-        .collection('courses')
-        .doc(widget.courseId)
-        .collection('assignments')
-        .add({
-          'title': _titleController.text.trim(),
-          'instructions': _instructionsController.text.trim(),
-          'dueDate': Timestamp.fromDate(finalDeadline),
-          'createdAt': FieldValue.serverTimestamp(),
-          'submissionCount': 0,
-          if (_selectedPaperTemplate != null) 'practiceSheet': _selectedPaperTemplate,
-        });
-
+    final result = await _work!.createAssignment(
+      widget.courseId,
+      widget.role,
+      AssignmentDraft(
+        title: _titleController.text,
+        instructions: _instructionsController.text,
+        dueDate: finalDeadline,
+        practiceSheet: _selectedPaperTemplate,
+      ),
+    );
+    if (!mounted) return;
+    if (!result.ok) {
+      AppMessenger.showSnackBar(
+        context,
+        title: AppLocalizations.of(context)!.error,
+        message: result.message ?? AppLocalizations.of(context)!.titleDateTimeRequired,
+        type: MessengerType.error,
+      );
+      return;
+    }
     _titleController.clear();
     _instructionsController.clear();
     setState(() {
@@ -434,22 +449,12 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
     
     return Scaffold(
       backgroundColor: AppColors.primary,
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('courses')
-            .doc(widget.courseId)
-            .collection('assignments')
-            .orderBy('dueDate', descending: false)
-            .limit(100)
-            .snapshots(),
+      body: StreamBuilder<List<Assignment>>(
+        stream: _assignments,
         builder: (context, snapshot) {
-          final docs = snapshot.data?.docs ?? [];
+          final docs = snapshot.data ?? const <Assignment>[];
           final totalAssignments = docs.length;
-          final activeAssignments = docs.where((d) {
-            final data = d.data() as Map<String, dynamic>;
-            final dueDate = (data['dueDate'] as Timestamp).toDate();
-            return DateTime.now().isBefore(dueDate);
-          }).length;
+          final activeAssignments = docs.where((a) => a.isOpenAt(DateTime.now())).length;
 
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
@@ -545,7 +550,7 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
                   ),
                 ),
                 actions: [
-                  if (widget.isTeacher)
+                  if (_isTeacher)
                     Padding(
                       padding: const EdgeInsetsDirectional.only(end: 24.0), // Increased space from edge using Directional
                       child: Center(
@@ -568,9 +573,7 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
-                        final data = docs[index].data() as Map<String, dynamic>;
-                        final assignmentId = docs[index].id;
-                        return _buildModernAssignmentCard(data, assignmentId, index);
+                        return _buildModernAssignmentCard(docs[index], index);
                       },
                       childCount: docs.length,
                     ),
@@ -695,8 +698,9 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
     );
   }
 
-  Widget _buildModernAssignmentCard(Map<String, dynamic> data, String assignmentId, int index) {
-    final dueDate = (data['dueDate'] as Timestamp).toDate();
+  Widget _buildModernAssignmentCard(Assignment assignment, int index) {
+    final assignmentId = assignment.id;
+    final dueDate = assignment.dueDate ?? DateTime.now();
     final isExpired = DateTime.now().isAfter(dueDate);
     final l10n = AppLocalizations.of(context)!;
     final String locale = Localizations.localeOf(context).toString();
@@ -723,14 +727,15 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: InkWell(
             onTap: () {
-              if (widget.isTeacher) {
+              if (_isTeacher) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => StudentSubmissionsPage(
                       courseId: widget.courseId,
                       assignmentId: assignmentId,
-                      assignmentTitle: data['title'] ?? 'Untitled',
+                      assignmentTitle: assignment.title.isEmpty ? 'Untitled' : assignment.title,
+                      role: widget.role,
                     ),
                   ),
                 );
@@ -740,8 +745,8 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
                   MaterialPageRoute(
                     builder: (context) => AssignmentDetailsPage(
                       courseId: widget.courseId,
-                      assignmentId: assignmentId,
-                      assignmentData: data,
+                      assignment: assignment,
+                      role: widget.role,
                     ),
                   ),
                 );
@@ -779,7 +784,7 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    data['title'] ?? "Untitled",
+                    assignment.title.isEmpty ? "Untitled" : assignment.title,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -802,23 +807,17 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
                       ),
                     ],
                   ),
-                  if (widget.isTeacher) ...[
+                  if (_isTeacher) ...[
                     const SizedBox(height: 20),
                     const Divider(color: Colors.white10),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         // Live submission count via StreamBuilder
-                        StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('courses')
-                              .doc(widget.courseId)
-                              .collection('assignments')
-                              .doc(assignmentId)
-                              .collection('submissions')
-                              .snapshots(),
+                        StreamBuilder<int>(
+                          stream: _submissionCount(assignmentId),
                           builder: (context, subSnap) {
-                            final count = subSnap.data?.docs.length ?? 0;
+                            final count = subSnap.data ?? 0;
                             return _buildSubStat(
                               icon: Icons.people_rounded,
                               label: l10n.submissions,

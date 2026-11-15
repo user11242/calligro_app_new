@@ -219,8 +219,9 @@ service cloud.firestore {
         resource.data.get('enrolledStudents', []).size() == 0 &&
         resource.data.get('enrolledCount', 0) == 0);
 
+      // Course content is for the people in the course.
       match /announcements/{announcementId} {
-        allow read: if true;
+        allow read: if isCourseMember(courseId);
         allow create, update, delete: if isSignedIn() && (
           get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
           isAdmin()
@@ -233,12 +234,16 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.get('enrolledStudents', []) ||
           isAdmin()
         );
+        // The "teacher" / "admin" badge must be true (CourseChatService._resolveSenderRole),
+        // and the time is the server's.
         allow create: if isSignedIn() &&
-          request.resource.data.senderId == request.auth.uid && (
-          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.get('enrolledStudents', []) ||
-          isAdmin()
-        );
+          request.resource.data.senderId == request.auth.uid &&
+          isCourseMember(courseId) &&
+          request.resource.data.get('createdAt', request.time) == request.time &&
+          (request.resource.data.get('senderRole', 'student') == 'student' ||
+            (request.resource.data.senderRole == 'teacher' &&
+              get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid) ||
+            (request.resource.data.senderRole == 'admin' && isAdmin()));
         allow delete: if isSignedIn() && (
           resource.data.senderId == request.auth.uid ||
           get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
@@ -256,24 +261,42 @@ service cloud.firestore {
         );
       }
 
+      // Assignments: the course's teacher (or an admin) manages them; members read them.
       match /assignments/{assignmentId} {
-        allow read: if true;
-        allow create, delete: if isSignedIn() && get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid;
-        allow update: if isSignedIn() && (
-          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submissionCount'])
-        );
-        
-        match /submissions/{submissionId} {
-          allow create, delete: if isSignedIn() && request.auth.uid == submissionId;
-          allow update: if isSignedIn() && (
-             request.auth.uid == submissionId || 
-             get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid
-          );
-          allow read: if isSignedIn() && (
-             request.auth.uid == submissionId || 
-             get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid 
-          );
+        allow read: if isCourseMember(courseId);
+        allow create: if isSignedIn() &&
+          (get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid || isAdmin()) &&
+          request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+          request.resource.data.dueDate is timestamp;
+        // (submissionCount is no longer written by clients: nobody reads it, and
+        // any signed-in user could set it.)
+        allow update, delete: if isSignedIn() &&
+          (get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid || isAdmin());
+
+        // One submission per enrolled student (doc id = their uid), changeable
+        // until the due date. Students write only their own fields; the
+        // teacher only marks/grades (app: seenByTeacher; web: status/points/feedback).
+        match /submissions/{studentId} {
+          function course() { return get(/databases/$(database)/documents/courses/$(courseId)).data; }
+          function assignment() { return get(/databases/$(database)/documents/courses/$(courseId)/assignments/$(assignmentId)).data; }
+          function isThisStudent() {
+            return isSignedIn() && request.auth.uid == studentId &&
+              request.auth.uid in course().get('enrolledStudents', []);
+          }
+          function isOpen() { return request.time < assignment().dueDate; }
+          function isGrader() { return isSignedIn() && (course().teacherId == request.auth.uid || isAdmin()); }
+
+          allow read: if (isSignedIn() && request.auth.uid == studentId) || isGrader();
+          allow create: if isThisStudent() && isOpen() &&
+            request.resource.data.keys().hasOnly(['note', 'fileUrl', 'fileName', 'submittedAt', 'studentName', 'studentImage', 'studentId']) &&
+            request.resource.data.studentId == studentId &&
+            request.resource.data.submittedAt == request.time;
+          allow update: if (isThisStudent() && isOpen() &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['note', 'fileUrl', 'fileName', 'submittedAt', 'studentName', 'studentImage']) &&
+              request.resource.data.submittedAt == request.time) ||
+            (isGrader() &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByTeacher', 'status', 'points', 'feedback', 'gradedAt']));
+          allow delete: if (isThisStudent() && isOpen()) || isAdmin();
         }
       }
 
@@ -325,8 +348,10 @@ service cloud.firestore {
           get(/databases/$(database)/documents/courses/$(courseId)).data.enrolledStudents.hasAny([request.auth.uid]) ||
           isAdmin()
         );
-        // Teacher can update the recording title
-        allow update: if isSignedIn() && get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid;
+        // The course's teacher may only rename (the file, status and links are the server's).
+        allow update: if isSignedIn() &&
+          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title']);
         allow create, delete: if false; // Created by Cloud Functions
       }
     }

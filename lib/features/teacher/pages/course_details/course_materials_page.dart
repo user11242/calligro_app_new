@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:calligro_app/features/classroom/application/classroom_assignments.dart' show ClassroomOutcome;
+import 'package:calligro_app/features/classroom/application/classroom_materials.dart';
+import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
+import 'package:calligro_app/features/classroom/domain/course_materials.dart';
+import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,124 +22,6 @@ import 'package:calligro_app/core/message/app_messenger.dart';
 // ============================================================================
 // DATA MODELS (WITH RETROACTIVE BACKWARD COMPATIBILITY)
 // ============================================================================
-
-class CourseMaterialFileItem {
-  final String title;
-  final String fileName;
-  final String fileUrl;
-  final String fileSize;
-  final String storagePath;
-  final String type; // 'pdf' or 'image'
-
-  CourseMaterialFileItem({
-    required this.title,
-    required this.fileName,
-    required this.fileUrl,
-    required this.fileSize,
-    required this.storagePath,
-    required this.type,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'title': title,
-      'fileName': fileName,
-      'fileUrl': fileUrl,
-      'fileSize': fileSize,
-      'storagePath': storagePath,
-      'type': type,
-    };
-  }
-
-  factory CourseMaterialFileItem.fromMap(Map<String, dynamic> map, {String fallbackType = 'image'}) {
-    return CourseMaterialFileItem(
-      title: map['title'] ?? map['fileName'] ?? '',
-      fileName: map['fileName'] ?? '',
-      fileUrl: map['fileUrl'] ?? '',
-      fileSize: map['fileSize'] ?? '',
-      storagePath: map['storagePath'] ?? '',
-      type: map['type'] ?? fallbackType,
-    );
-  }
-}
-
-class CourseMaterialFolder {
-  final String id;
-  final String title;
-  final String type; // 'pdf', 'image', or 'folder'
-  final String totalSize;
-  final String? previewUrl;
-  final DateTime? createdAt;
-  final String uploadedByName;
-  final List<CourseMaterialFileItem> files;
-
-  CourseMaterialFolder({
-    required this.id,
-    required this.title,
-    required this.type,
-    required this.totalSize,
-    this.previewUrl,
-    this.createdAt,
-    required this.uploadedByName,
-    required this.files,
-  });
-
-  bool get isPdf => type == 'pdf' || (files.isNotEmpty && files.every((f) => f.type == 'pdf'));
-  int get itemCount => files.length;
-
-  factory CourseMaterialFolder.fromDoc(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? {};
-    final String type = data['type'] ?? 'image';
-    final List<CourseMaterialFileItem> parsedFiles = [];
-
-    // 1. If it has a modern 'files' list
-    if (data['files'] is List && (data['files'] as List).isNotEmpty) {
-      for (final f in data['files'] as List) {
-        if (f is Map) {
-          parsedFiles.add(CourseMaterialFileItem.fromMap(
-            Map<String, dynamic>.from(f),
-            fallbackType: type,
-          ));
-        }
-      }
-    } else if (data['fileUrl'] != null && (data['fileUrl'] as String).isNotEmpty) {
-      // 2. Legacy single-item document
-      parsedFiles.add(CourseMaterialFileItem(
-        title: data['title'] ?? '',
-        fileName: data['fileName'] ?? '',
-        fileUrl: data['fileUrl'] ?? '',
-        fileSize: data['fileSize'] ?? '',
-        storagePath: data['storagePath'] ?? '',
-        type: type,
-      ));
-    }
-
-    DateTime? created;
-    if (data['createdAt'] is Timestamp) {
-      created = (data['createdAt'] as Timestamp).toDate();
-    }
-
-    String preview = data['previewUrl'] ?? '';
-    if (preview.isEmpty && parsedFiles.isNotEmpty) {
-      final img = parsedFiles.firstWhere(
-        (f) => f.type == 'image',
-        orElse: () => parsedFiles.first,
-      );
-      if (img.type == 'image') preview = img.fileUrl;
-    }
-
-    return CourseMaterialFolder(
-      id: doc.id,
-      title: data['title'] ?? 'مجلد الملحقات',
-      type: type,
-      totalSize: data['totalSize'] ?? data['fileSize'] ?? '',
-      previewUrl: preview.isNotEmpty ? preview : null,
-      createdAt: created,
-      uploadedByName: data['uploadedByName'] ?? 'Instructor',
-      files: parsedFiles,
-    );
-  }
-}
 
 // ============================================================================
 // MAIN PAGE: FOLDERS LIST
@@ -167,7 +51,20 @@ class _CourseMaterialsPageState extends State<CourseMaterialsPage> {
   double _uploadProgress = 0.0;
   String _uploadStatusText = '';
 
-  bool get _canManage => widget.isTeacher || widget.isAdmin;
+  bool get _canManage => _role.canManage;
+  CourseRole get _role => widget.isTeacher
+      ? CourseRole.owner
+      : (widget.isAdmin ? CourseRole.admin : CourseRole.student);
+  ClassroomMaterials? _materials;
+  Stream<List<CourseMaterialFolder>>? _folders;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_materials != null) return;
+    _materials = ClassroomScope.of(context).materials;
+    _folders = _materials!.repository.watchFolders(widget.courseId);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -262,13 +159,8 @@ class _CourseMaterialsPageState extends State<CourseMaterialsPage> {
 
               // Materials Folders Stream
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('courses')
-                      .doc(widget.courseId)
-                      .collection('materials')
-                      .orderBy('createdAt', descending: true)
-                      .snapshots(),
+                child: StreamBuilder<List<CourseMaterialFolder>>(
+                  stream: _folders,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(
@@ -285,9 +177,7 @@ class _CourseMaterialsPageState extends State<CourseMaterialsPage> {
                       );
                     }
 
-                    final docs = snapshot.data?.docs ?? [];
-                    final folders = docs
-                        .map((d) => CourseMaterialFolder.fromDoc(d))
+                    final folders = (snapshot.data ?? const <CourseMaterialFolder>[])
                         .where((folder) {
                       if (_selectedFilter == 'all') return true;
                       if (_selectedFilter == 'pdf') return folder.isPdf;
@@ -1137,90 +1027,54 @@ class _CourseMaterialsPageState extends State<CourseMaterialsPage> {
       _uploadStatusText = isArabic ? "جاري تهيئة الرفع..." : "Preparing upload...";
     });
 
-    final List<Map<String, dynamic>> uploadedFiles = [];
-    int totalBytes = 0;
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-
-      for (int i = 0; i < items.length; i++) {
-        final item = items[i];
-        final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-        final String storagePath = 'course_materials/${widget.courseId}/${timestamp}_${item.fileName}';
-
+    final result = await _materials!.uploadFolder(
+      widget.courseId,
+      _role,
+      title: folderTitle,
+      type: type,
+      items: [
+        for (final item in items)
+          MaterialUpload(
+            localPath: item.file.path,
+            fileName: item.fileName,
+            title: item.title,
+            fileSize: item.fileSize,
+            bytes: item.bytes,
+          ),
+      ],
+      onProgress: (i, item) {
+        if (!mounted) return;
         setState(() {
           _uploadProgress = i / items.length;
           _uploadStatusText = isArabic
               ? "جاري رفع (${i + 1} من ${items.length}):\n${item.fileName}"
               : "Uploading (${i + 1} of ${items.length}):\n${item.fileName}";
         });
+      },
+    );
 
-        final ref = FirebaseStorage.instance.ref().child(storagePath);
-        final uploadTask = ref.putFile(item.file);
-        final snapshot = await uploadTask;
-        final downloadUrl = await snapshot.ref.getDownloadURL();
-
-        totalBytes += item.bytes;
-        uploadedFiles.add({
-          'title': item.title,
-          'fileName': item.fileName,
-          'fileUrl': downloadUrl,
-          'fileSize': item.fileSize,
-          'storagePath': storagePath,
-          'type': type,
-        });
-      }
-
-      setState(() {
-        _uploadStatusText = isArabic ? "جاري حفظ المجلد..." : "Saving folder...";
-      });
-
-      // Write SINGLE Folder document to Firestore
-      final String? previewUrl = type == 'image' && uploadedFiles.isNotEmpty
-          ? uploadedFiles.first['fileUrl']
-          : null;
-
-      await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .collection('materials')
-          .add({
-        'title': folderTitle,
-        'type': type,
-        'itemCount': uploadedFiles.length,
-        'totalSize': _formatBytes(totalBytes),
-        'previewUrl': previewUrl,
-        'files': uploadedFiles,
-        'uploadedBy': user?.uid ?? '',
-        'uploadedByName': user?.displayName ?? 'Instructor',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
+    if (!mounted) return;
+    setState(() {
+      _isUploading = false;
+      _uploadProgress = 0.0;
+      _uploadStatusText = '';
+    });
+    if (result.ok) {
       AppMessenger.showSnackBar(
         context,
         title: isArabic ? "تم إنشاء المجلد بنجاح" : "Folder Created",
         message: isArabic
             ? "تم رفع وحفظ مجلد ($folderTitle) ومحتوياته بنجاح"
-            : "Successfully created folder '$folderTitle' with ${uploadedFiles.length} files",
+            : "Successfully created folder '$folderTitle' with ${items.length} files",
         type: MessengerType.success,
       );
-    } catch (e) {
-      if (!mounted) return;
+    } else if (result.outcome != ClassroomOutcome.busy) {
       AppMessenger.showSnackBar(
         context,
         title: isArabic ? "خطأ في الرفع" : "Upload Error",
-        message: "$e",
+        message: result.message ?? result.outcome.name,
         type: MessengerType.error,
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-          _uploadProgress = 0.0;
-          _uploadStatusText = '';
-        });
-      }
     }
   }
 
@@ -1268,12 +1122,7 @@ class _CourseMaterialsPageState extends State<CourseMaterialsPage> {
               final newTitle = controller.text.trim();
               if (newTitle.isNotEmpty) {
                 Navigator.pop(ctx);
-                await FirebaseFirestore.instance
-                    .collection('courses')
-                    .doc(widget.courseId)
-                    .collection('materials')
-                    .doc(folder.id)
-                    .update({'title': newTitle});
+                await _materials!.rename(widget.courseId, _role, folder.id, newTitle);
               }
             },
             child: Text(isArabic ? "حفظ" : "Save"),
@@ -1314,24 +1163,18 @@ class _CourseMaterialsPageState extends State<CourseMaterialsPage> {
             onPressed: () async {
               Navigator.pop(ctx);
 
-              // 1. Delete Firestore doc
-              await FirebaseFirestore.instance
-                  .collection('courses')
-                  .doc(widget.courseId)
-                  .collection('materials')
-                  .doc(folder.id)
-                  .delete();
-
-              // 2. Delete all files from Storage
-              for (final f in folder.files) {
-                if (f.storagePath.isNotEmpty) {
-                  try {
-                    await FirebaseStorage.instance.ref().child(f.storagePath).delete();
-                  } catch (_) {}
-                }
-              }
-
+              // The folder document, then its files (best effort).
+              final result = await _materials!.deleteFolder(widget.courseId, _role, folder);
               if (!mounted) return;
+              if (!result.ok) {
+                AppMessenger.showSnackBar(
+                  context,
+                  title: isArabic ? "خطأ" : "Error",
+                  message: result.message ?? result.outcome.name,
+                  type: MessengerType.error,
+                );
+                return;
+              }
               AppMessenger.showSnackBar(
                 context,
                 title: isArabic ? "تم الحذف" : "Deleted",
@@ -1396,6 +1239,8 @@ class CourseMaterialFolderPage extends StatefulWidget {
 
 class _CourseMaterialFolderPageState extends State<CourseMaterialFolderPage> {
   late CourseMaterialFolder _currentFolder;
+  ClassroomMaterials? _materials;
+  Stream<CourseMaterialFolder?>? _folderStream;
 
   @override
   void initState() {
@@ -1403,7 +1248,18 @@ class _CourseMaterialFolderPageState extends State<CourseMaterialFolderPage> {
     _currentFolder = widget.folder;
   }
 
-  bool get _canManage => widget.isTeacher || widget.isAdmin;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_materials != null) return;
+    _materials = ClassroomScope.of(context).materials;
+    _folderStream = _materials!.repository.watchFolder(widget.courseId, widget.folder.id);
+  }
+
+  CourseRole get _role => widget.isTeacher
+      ? CourseRole.owner
+      : (widget.isAdmin ? CourseRole.admin : CourseRole.student);
+  bool get _canManage => _role.canManage;
 
   Future<void> _deleteFileFromFolder(CourseMaterialFileItem file) async {
     final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
@@ -1438,55 +1294,23 @@ class _CourseMaterialFolderPageState extends State<CourseMaterialFolderPage> {
 
     if (confirm != true || !mounted) return;
 
-    try {
-      final updatedFiles = _currentFolder.files
-          .where((f) => f.fileUrl != file.fileUrl)
-          .map((f) => f.toMap())
-          .toList();
-
-      if (updatedFiles.isEmpty) {
-        await FirebaseFirestore.instance
-            .collection('courses')
-            .doc(widget.courseId)
-            .collection('materials')
-            .doc(_currentFolder.id)
-            .delete();
-        if (mounted) Navigator.pop(context);
-      } else {
-        await FirebaseFirestore.instance
-            .collection('courses')
-            .doc(widget.courseId)
-            .collection('materials')
-            .doc(_currentFolder.id)
-            .update({
-          'files': updatedFiles,
-          'itemCount': updatedFiles.length,
-        });
-      }
-
-      if (file.storagePath.isNotEmpty) {
-        try {
-          await FirebaseStorage.instance.ref().child(file.storagePath).delete();
-        } catch (_) {}
-      }
-
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: isArabic ? "تم الحذف" : "Deleted",
-          message: isArabic ? "تم حذف الملف بنجاح" : "File deleted successfully",
-          type: MessengerType.info,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: isArabic ? "خطأ" : "Error",
-          message: "$e",
-          type: MessengerType.error,
-        );
-      }
+    final result = await _materials!.removeFile(widget.courseId, _role, _currentFolder, file);
+    if (!mounted) return;
+    if (result.ok) {
+      if (result.id == 'folder-deleted') Navigator.pop(context);
+      AppMessenger.showSnackBar(
+        context,
+        title: isArabic ? "تم الحذف" : "Deleted",
+        message: isArabic ? "تم حذف الملف بنجاح" : "File deleted successfully",
+        type: MessengerType.info,
+      );
+    } else {
+      AppMessenger.showSnackBar(
+        context,
+        title: isArabic ? "خطأ" : "Error",
+        message: result.message ?? result.outcome.name,
+        type: MessengerType.error,
+      );
     }
   }
 
@@ -1494,16 +1318,11 @@ class _CourseMaterialFolderPageState extends State<CourseMaterialFolderPage> {
   Widget build(BuildContext context) {
     final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .collection('materials')
-          .doc(widget.folder.id)
-          .snapshots(),
+    return StreamBuilder<CourseMaterialFolder?>(
+      stream: _folderStream,
       builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data!.exists) {
-          _currentFolder = CourseMaterialFolder.fromDoc(snapshot.data!);
+        if (snapshot.data != null) {
+          _currentFolder = snapshot.data!;
         }
 
         final folder = _currentFolder;

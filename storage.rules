@@ -57,7 +57,7 @@ service firebase.storage {
     // Assignment submissions: "<studentUid>_<file>", seen by that student, the teacher, admins.
     match /course_submissions/{courseId}/{assignmentId}/{fileName} {
       allow read: if isNamedByMe(fileName) || isCourseTeacher(courseId) || isAdmin();
-      allow write: if isNamedByMe(fileName);
+      allow write: if isNamedByMe(fileName) && isCourseMember(courseId); // only people in the course
     }
 
     // Course chat images: "<uid>_<time>.jpg", course members only.

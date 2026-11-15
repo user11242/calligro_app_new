@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:calligro_app/features/classroom/application/classroom_recordings.dart';
+import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
+import 'package:calligro_app/features/classroom/domain/course_recordings.dart';
+import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/core/theme/colors.dart';
@@ -10,7 +13,10 @@ import 'package:calligro_app/features/meet/data/meet_backend.dart';
 class RecordingsPage extends StatefulWidget {
   final String courseId;
 
-  const RecordingsPage({Key? key, required this.courseId}) : super(key: key);
+  /// The viewer's role in THIS course (only its teacher / an admin renames).
+  final CourseRole role;
+
+  const RecordingsPage({Key? key, required this.courseId, this.role = CourseRole.student}) : super(key: key);
 
   @override
   State<RecordingsPage> createState() => _RecordingsPageState();
@@ -18,6 +24,16 @@ class RecordingsPage extends StatefulWidget {
 
 class _RecordingsPageState extends State<RecordingsPage> {
   bool _isReconciling = false;
+  ClassroomRecordings? _recordings;
+  Stream<List<CourseRecording>>? _stream;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_recordings != null) return;
+    _recordings = ClassroomScope.of(context).recordings;
+    _stream = _recordings!.repository.watchRecordings(widget.courseId);
+  }
 
   @override
   void initState() {
@@ -56,9 +72,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
 
     if (!mounted) return;
     if (url == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.recordingError)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.recordingError)));
       return;
     }
     Navigator.push(
@@ -76,9 +90,9 @@ class _RecordingsPageState extends State<RecordingsPage> {
     _isReconciling = true;
 
     try {
-      await FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('livekit-reconcileCourseRecordings')
-          .call({'courseId': widget.courseId});
+      await FirebaseFunctions.instanceFor(
+        region: 'us-central1',
+      ).httpsCallable('livekit-reconcileCourseRecordings').call({'courseId': widget.courseId});
     } catch (e) {
       debugPrint('Silent recordings reconciliation error: $e');
     } finally {
@@ -126,22 +140,8 @@ class _RecordingsPageState extends State<RecordingsPage> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
-                final newTitle = controller.text.trim();
-                if (newTitle.isNotEmpty) {
-                  await FirebaseFirestore.instance
-                      .collection('courses')
-                      .doc(widget.courseId)
-                      .collection('recordings')
-                      .doc(recordingId)
-                      .update({'title': newTitle});
-                } else {
-                  await FirebaseFirestore.instance
-                      .collection('courses')
-                      .doc(widget.courseId)
-                      .collection('recordings')
-                      .doc(recordingId)
-                      .update({'title': FieldValue.delete()});
-                }
+                // Empty = back to "Lesson N".
+                await _recordings!.rename(widget.courseId, widget.role, recordingId, controller.text);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
               child: Text(l10n.save, style: const TextStyle(color: Colors.white)),
@@ -155,14 +155,11 @@ class _RecordingsPageState extends State<RecordingsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          l10n.classRecordings,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+        title: Text(l10n.classRecordings, style: const TextStyle(fontWeight: FontWeight.w700)),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -178,38 +175,21 @@ class _RecordingsPageState extends State<RecordingsPage> {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('courses')
-            .doc(widget.courseId)
-            .collection('recordings')
-            .orderBy('recordedAt', descending: true)
-            .snapshots(),
+      body: StreamBuilder<List<CourseRecording>>(
+        stream: _stream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.accentGold),
-            );
+            return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
           }
           if (snapshot.hasError) {
             return Center(
-              child: Text(
-                l10n.errorLoadingRecordings,
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text(l10n.errorLoadingRecordings, style: const TextStyle(color: Colors.white)),
             );
           }
-          final allDocs = snapshot.data?.docs ?? [];
-          // Filter out recordings older than 14 days to match Cloudflare R2 retention
-          final fourteenDaysAgo = DateTime.now().subtract(const Duration(days: 14));
-          final docs = allDocs.where((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            // LiveKit reported this recording failed: there is no playable file.
-            if (data['status'] == 'failed') return false;
-            final recordedAt = data['recordedAt'] as Timestamp?;
-            if (recordedAt == null) return true; // Keep if no date (fallback)
-            return recordedAt.toDate().isAfter(fourteenDaysAgo);
-          }).toList();
+          final allDocs = snapshot.data ?? const <CourseRecording>[];
+          // Not failed, and within Cloudflare R2's 14-day retention.
+          final now = DateTime.now();
+          final docs = allDocs.where((r) => r.isAvailableAt(now)).toList();
           if (docs.isEmpty) {
             return RefreshIndicator(
               color: AppColors.accentGold,
@@ -223,18 +203,11 @@ class _RecordingsPageState extends State<RecordingsPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.videocam_off_rounded,
-                          size: 64,
-                          color: Colors.white.withValues(alpha: 0.2),
-                        ),
+                        Icon(Icons.videocam_off_rounded, size: 64, color: Colors.white.withValues(alpha: 0.2)),
                         const SizedBox(height: 16),
                         Text(
                           l10n.noRecordingsAvailable,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 16,
-                          ),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
                         ),
                       ],
                     ),
@@ -264,10 +237,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
                       Expanded(
                         child: Text(
                           l10n.recordingExpirationNote,
-                          style: TextStyle(
-                            color: Colors.blue[100],
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: Colors.blue[100], fontSize: 13),
                         ),
                       ),
                     ],
@@ -280,34 +250,19 @@ class _RecordingsPageState extends State<RecordingsPage> {
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final doc = docs[index];
-                      final data = doc.data() as Map<String, dynamic>;
-                      final videoUrl = data['videoUrl'] as String?;
-                      final recordedAt = data['recordedAt'] as Timestamp?;
-                      final Map<String, dynamic>? rawQualities = data['qualities'] as Map<String, dynamic>?;
-                      final Map<String, String>? qualities = rawQualities?.map(
-                        (k, v) => MapEntry(k, v.toString()),
-                      );
-                      
+                      final videoUrl = doc.videoUrl;
+                      final recordedAt = doc.recordedAt;
+                      final Map<String, String>? qualities = doc.qualities;
+
                       final dateStr = recordedAt != null
-                          ? DateFormat.yMMMd(l10n.localeName).format(recordedAt.toDate())
+                          ? DateFormat.yMMMd(l10n.localeName).format(recordedAt)
                           : 'Unknown Date';
 
                       final originalIndex = allDocs.indexOf(doc);
                       final lessonNumber = allDocs.length - originalIndex;
-                      final customTitle = data['title'] as String?;
-                      final displayTitle = customTitle ?? '${l10n.lesson} $lessonNumber';
+                      final displayTitle = doc.title ?? '${l10n.lesson} $lessonNumber';
+                      final durationSeconds = doc.durationSeconds;
 
-                      final dynamic durationRaw = data['duration'];
-                      int durationSeconds = 0;
-                      if (durationRaw != null) {
-                        if (durationRaw is num) {
-                          durationSeconds = durationRaw > 100000000 ? (durationRaw / 1000000000).round() : durationRaw.round();
-                        } else if (durationRaw is String) {
-                          final parsed = double.tryParse(durationRaw) ?? 0;
-                          durationSeconds = parsed > 100000000 ? (parsed / 1000000000).round() : parsed.round();
-                        }
-                      }
-                      
                       String durationStr = '';
                       if (durationSeconds > 0) {
                         final h = durationSeconds ~/ 3600;
@@ -324,10 +279,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF1E2026),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            width: 1,
-                          ),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
                         ),
                         child: Material(
                           color: Colors.transparent,
@@ -354,25 +306,15 @@ class _RecordingsPageState extends State<RecordingsPage> {
                                       gradient: LinearGradient(
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
-                                        colors: [
-                                          AppColors.accentGold.withValues(alpha: 0.15),
-                                          const Color(0xFF121418),
-                                        ],
+                                        colors: [AppColors.accentGold.withValues(alpha: 0.15), const Color(0xFF121418)],
                                       ),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: AppColors.accentGold.withValues(alpha: 0.15),
-                                        width: 1,
-                                      ),
+                                      border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.15), width: 1),
                                     ),
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
-                                        const Icon(
-                                          Icons.play_arrow_rounded,
-                                          color: AppColors.accentGold,
-                                          size: 32,
-                                        ),
+                                        const Icon(Icons.play_arrow_rounded, color: AppColors.accentGold, size: 32),
                                         if (durationStr.isNotEmpty)
                                           Positioned(
                                             bottom: 4,
@@ -398,7 +340,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
                                     ),
                                   ),
                                   const SizedBox(width: 14),
-                                  
+
                                   // 2. Title, Date & Multi-Quality Badge
                                   Expanded(
                                     child: Column(
@@ -427,10 +369,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
                                                 fontSize: 13,
                                               ),
                                             ),
-                                            Text(
-                                              '•',
-                                              style: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                                            ),
+                                            Text('•', style: TextStyle(color: Colors.white.withValues(alpha: 0.3))),
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                               decoration: BoxDecoration(
@@ -442,11 +381,11 @@ class _RecordingsPageState extends State<RecordingsPage> {
                                                 ),
                                               ),
                                               child: Text(
-                                                (data['transcodingStatus'] == 'processing')
+                                                (doc.transcodingStatus == 'processing')
                                                     ? '1080p • جاري تجهيز الجودات'
                                                     : (qualities != null && qualities.length > 1)
-                                                        ? '1080p • متعدد الجودات' 
-                                                        : '1080p Full HD',
+                                                    ? '1080p • متعدد الجودات'
+                                                    : '1080p Full HD',
                                                 style: const TextStyle(
                                                   color: AppColors.accentGold,
                                                   fontSize: 11,
@@ -459,16 +398,21 @@ class _RecordingsPageState extends State<RecordingsPage> {
                                       ],
                                     ),
                                   ),
-                                  
-                                  // 3. Edit Button
-                                  IconButton(
-                                    icon: Icon(Icons.edit_outlined, color: Colors.white.withValues(alpha: 0.5), size: 20),
-                                    onPressed: () {
-                                      _showEditTitleDialog(context, l10n, doc.id, displayTitle);
-                                    },
-                                    padding: const EdgeInsets.only(left: 4, top: 4),
-                                    constraints: const BoxConstraints(),
-                                  ),
+
+                                  // 3. Edit Button (the course's teacher / an admin only)
+                                  if (widget.role.canManage)
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.edit_outlined,
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        _showEditTitleDialog(context, l10n, doc.id, displayTitle);
+                                      },
+                                      padding: const EdgeInsets.only(left: 4, top: 4),
+                                      constraints: const BoxConstraints(),
+                                    ),
                                 ],
                               ),
                             ),

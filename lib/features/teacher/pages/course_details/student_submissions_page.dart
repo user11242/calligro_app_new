@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:calligro_app/features/classroom/application/classroom_assignments.dart';
+import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
+import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:calligro_app/l10n/app_localizations.dart';
@@ -19,11 +21,15 @@ class StudentSubmissionsPage extends StatefulWidget {
   final String assignmentId;
   final String assignmentTitle;
 
+  /// The viewer's role in THIS course (only its teacher / an admin sees work).
+  final CourseRole role;
+
   const StudentSubmissionsPage({
     super.key,
     required this.courseId,
     required this.assignmentId,
     required this.assignmentTitle,
+    this.role = CourseRole.owner,
   });
 
   @override
@@ -31,6 +37,17 @@ class StudentSubmissionsPage extends StatefulWidget {
 }
 
 class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
+  ClassroomAssignments? _work;
+  Stream<List<Submission>>? _submissions;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_work != null) return;
+    _work = ClassroomScope.of(context).assignments;
+    _submissions = _work!.repository.watchSubmissions(widget.courseId, widget.assignmentId);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,11 +67,7 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
             ),
             Text(
               widget.assignmentTitle,
-              style: const TextStyle(
-                color: Colors.white38,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -74,21 +87,13 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('courses')
-            .doc(widget.courseId)
-            .collection('assignments')
-            .doc(widget.assignmentId)
-            .collection('submissions')
-            .orderBy('submittedAt', descending: true)
-            .limit(100)
-            .snapshots(),
+      body: StreamBuilder<List<Submission>>(
+        stream: _submissions,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: AppColors.accentGold));
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -103,17 +108,16 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
 
           return ListView.separated(
             padding: const EdgeInsets.all(20),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: snapshot.data!.length,
             separatorBuilder: (context, index) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
+              final submission = snapshot.data![index];
               return _SubmissionCard(
-                    doc: doc,
-                    assignmentTitle: widget.assignmentTitle,
-                  )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: (index * 100).ms)
-                  .slideY(begin: 0.1, end: 0);
+                submission: submission,
+                assignmentTitle: widget.assignmentTitle,
+                onToggleSeen: (seen) =>
+                    _work!.setSeen(widget.courseId, widget.assignmentId, submission.studentId, widget.role, seen),
+              ).animate().fadeIn(duration: 400.ms, delay: (index * 100).ms).slideY(begin: 0.1, end: 0);
             },
           );
         },
@@ -123,13 +127,11 @@ class _StudentSubmissionsPageState extends State<StudentSubmissionsPage> {
 }
 
 class _SubmissionCard extends StatefulWidget {
-  final QueryDocumentSnapshot doc;
+  final Submission submission;
   final String assignmentTitle;
+  final Future<ClassroomResult> Function(bool seen) onToggleSeen;
 
-  const _SubmissionCard({
-    required this.doc,
-    required this.assignmentTitle,
-  });
+  const _SubmissionCard({required this.submission, required this.assignmentTitle, required this.onToggleSeen});
 
   @override
   State<_SubmissionCard> createState() => _SubmissionCardState();
@@ -141,7 +143,8 @@ class _SubmissionCardState extends State<_SubmissionCard> {
 
   Future<void> _toggleSeen(bool currentValue) async {
     try {
-      await widget.doc.reference.update({'seenByTeacher': !currentValue});
+      final r = await widget.onToggleSeen(!currentValue);
+      if (!r.ok) debugPrint("Error updating seen status: ${r.message ?? r.outcome.name}");
     } catch (e) {
       debugPrint("Error updating seen status: $e");
     }
@@ -161,12 +164,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
         lowerUrl.contains('.webp');
   }
 
-  Future<void> _saveImageToGallery(
-    String url,
-    String name,
-    String studentName,
-    String timeStr,
-  ) async {
+  Future<void> _saveImageToGallery(String url, String name, String studentName, String timeStr) async {
     if (_isDownloading) return;
     final isRtl = Directionality.of(context) == TextDirection.rtl;
     setState(() => _isDownloading = true);
@@ -188,8 +186,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
       final file = await DefaultCacheManager().getSingleFile(url);
       Uint8List bytes = await file.readAsBytes();
 
-      if (SubmissionWatermarkHelper.isSupportedImage(name) ||
-          SubmissionWatermarkHelper.isSupportedImage(url)) {
+      if (SubmissionWatermarkHelper.isSupportedImage(name) || SubmissionWatermarkHelper.isSupportedImage(url)) {
         try {
           bytes = await SubmissionWatermarkHelper.stampImageBytes(
             imageBytes: bytes,
@@ -204,11 +201,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
       }
 
       final title = name.isNotEmpty ? name : 'submission_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await PhotoManager.editor.saveImage(
-        bytes,
-        title: title,
-        filename: title,
-      );
+      await PhotoManager.editor.saveImage(bytes, title: title, filename: title);
 
       if (mounted) {
         AppMessenger.showSnackBar(
@@ -254,134 +247,128 @@ class _SubmissionCardState extends State<_SubmissionCard> {
 
   @override
   Widget build(BuildContext context) {
-    final data = widget.doc.data() as Map<String, dynamic>;
-    final bool isSeen = data['seenByTeacher'] ?? false;
-    final submittedAt = (data['submittedAt'] as Timestamp?)?.toDate();
+    final sub = widget.submission;
+    final bool isSeen = sub.seenByTeacher;
+    final submittedAt = sub.submittedAt;
     final timeStr = submittedAt != null
         ? DateFormat('MMM d, h:mm a', Localizations.localeOf(context).toString()).format(submittedAt)
         : '';
-    final String? photoUrl = data['studentImage'] as String?;
-    final String studentName = data['studentName'] ?? 'Unknown Student';
+    final String? photoUrl = sub.studentImage;
+    final String studentName = sub.studentName.isEmpty ? 'Unknown Student' : sub.studentName;
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.cardBackground.withOpacity(0.7),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isSeen ? Colors.green.withOpacity(0.3) : Colors.white.withOpacity(0.08),
-        ),
+        border: Border.all(color: isSeen ? Colors.green.withOpacity(0.3) : Colors.white.withOpacity(0.08)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            onExpansionChanged: (expanded) => setState(() => _isExpanded = expanded),
-            leading: _buildAvatar(photoUrl, studentName),
-            title: Row(
+          // Own transparent Material so the tile's ink is not hidden by the card colour.
+          child: Material(
+            type: MaterialType.transparency,
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              onExpansionChanged: (expanded) => setState(() => _isExpanded = expanded),
+              leading: _buildAvatar(photoUrl, studentName),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      studentName,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+                    ),
+                  ),
+                  if (isSeen)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: const Icon(Icons.check_circle, color: Colors.greenAccent, size: 14),
+                    ),
+                ],
+              ),
+              subtitle: Text(timeStr, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+              trailing: AnimatedRotation(
+                turns: _isExpanded ? 0.5 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: AppColors.accentGold.withOpacity(0.1), shape: BoxShape.circle),
+                  child: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.accentGold, size: 20),
+                ),
+              ),
               children: [
-                Expanded(
-                  child: Text(
-                    studentName,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Divider(color: Colors.white10),
+                      const SizedBox(height: 12),
+                      if (sub.note.isNotEmpty) ...[
+                        Text(
+                          AppLocalizations.of(context)!.studentNote,
+                          style: const TextStyle(
+                            color: AppColors.accentGold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(sub.note, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                        const SizedBox(height: 16),
+                      ],
+                      if (sub.fileUrl != null)
+                        _buildFileAction(sub.fileUrl!, sub.fileName ?? 'submission_file', studentName, timeStr),
+
+                      const SizedBox(height: 20),
+                      // Mark as seen toggle
+                      InkWell(
+                        onTap: () => _toggleSeen(isSeen),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: isSeen ? Colors.green.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isSeen ? Colors.green.withOpacity(0.3) : Colors.white10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isSeen ? Icons.check_circle : Icons.radio_button_unchecked,
+                                color: isSeen ? Colors.greenAccent : Colors.white38,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isSeen
+                                    ? AppLocalizations.of(context)!.markedAsReviewed
+                                    : AppLocalizations.of(context)!.markAsReviewed,
+                                style: TextStyle(
+                                  color: isSeen ? Colors.greenAccent : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (isSeen)
-                  Container(
-                    margin: const EdgeInsets.only(left: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green.withOpacity(0.3)),
-                    ),
-                    child: const Icon(Icons.check_circle, color: Colors.greenAccent, size: 14),
-                  ),
               ],
             ),
-            subtitle: Text(timeStr, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-            trailing: AnimatedRotation(
-              turns: _isExpanded ? 0.5 : 0.0,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.accentGold.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.accentGold,
-                  size: 20,
-                ),
-              ),
-            ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Divider(color: Colors.white10),
-                    const SizedBox(height: 12),
-                    if (data['note'] != null && data['note'].toString().isNotEmpty) ...[
-                      Text(
-                        AppLocalizations.of(context)!.studentNote,
-                        style: const TextStyle(color: AppColors.accentGold, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(data['note'], style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                      const SizedBox(height: 16),
-                    ],
-                    if (data['fileUrl'] != null)
-                      _buildFileAction(
-                        data['fileUrl'],
-                        data['fileName'] ?? 'submission_file',
-                        studentName,
-                        timeStr,
-                      ),
-                    
-                    const SizedBox(height: 20),
-                    // Mark as seen toggle
-                    InkWell(
-                      onTap: () => _toggleSeen(isSeen),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: isSeen ? Colors.green.withOpacity(0.1) : Colors.white.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isSeen ? Colors.green.withOpacity(0.3) : Colors.white10),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              isSeen ? Icons.check_circle : Icons.radio_button_unchecked,
-                              color: isSeen ? Colors.greenAccent : Colors.white38,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              isSeen
-                                  ? AppLocalizations.of(context)!.markedAsReviewed
-                                  : AppLocalizations.of(context)!.markAsReviewed,
-                              style: TextStyle(
-                                color: isSeen ? Colors.greenAccent : Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -434,11 +421,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Icon(
-                    isImage ? Icons.visibility_outlined : Icons.open_in_new,
-                    color: Colors.white38,
-                    size: 16,
-                  ),
+                  Icon(isImage ? Icons.visibility_outlined : Icons.open_in_new, color: Colors.white38, size: 16),
                 ],
               ),
             ),
@@ -465,16 +448,9 @@ class _SubmissionCardState extends State<_SubmissionCard> {
                 ? const SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: AppColors.accentGold,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accentGold),
                   )
-                : const Icon(
-                    Icons.download_rounded,
-                    color: AppColors.accentGold,
-                    size: 24,
-                  ),
+                : const Icon(Icons.download_rounded, color: AppColors.accentGold, size: 24),
           ),
         ),
       ],
@@ -546,11 +522,7 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
       }
 
       final title = widget.title.isNotEmpty ? widget.title : 'submission_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await PhotoManager.editor.saveImage(
-        bytes,
-        title: title,
-        filename: title,
-      );
+      await PhotoManager.editor.saveImage(bytes, title: title, filename: title);
 
       if (mounted) {
         AppMessenger.showSnackBar(
@@ -594,10 +566,7 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
         ),
         actions: [
           IconButton(
-            icon: Icon(
-              _showBanner ? Icons.info : Icons.info_outline,
-              color: AppColors.accentGold,
-            ),
+            icon: Icon(_showBanner ? Icons.info : Icons.info_outline, color: AppColors.accentGold),
             tooltip: _showBanner ? 'إخفاء معلومات الطالب' : 'إظهار معلومات الطالب',
             onPressed: () => setState(() => _showBanner = !_showBanner),
           ),
@@ -620,9 +589,8 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
             imageProvider: CachedNetworkImageProvider(widget.imageUrl),
             minScale: PhotoViewComputedScale.contained,
             maxScale: PhotoViewComputedScale.covered * 4,
-            loadingBuilder: (context, event) => const Center(
-              child: CircularProgressIndicator(color: AppColors.accentGold),
-            ),
+            loadingBuilder: (context, event) =>
+                const Center(child: CircularProgressIndicator(color: AppColors.accentGold)),
             errorBuilder: (context, error, stackTrace) => const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -648,26 +616,15 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.accentGold, width: 1.5),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.6),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
+                    BoxShadow(color: Colors.black.withOpacity(0.6), blurRadius: 16, offset: const Offset(0, 4)),
                   ],
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentGold.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        color: AppColors.accentGold,
-                        size: 20,
-                      ),
+                      decoration: BoxDecoration(color: AppColors.accentGold.withOpacity(0.15), shape: BoxShape.circle),
+                      child: const Icon(Icons.person_rounded, color: AppColors.accentGold, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -677,11 +634,7 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
                         children: [
                           Text(
                             widget.assignmentTitle,
-                            style: const TextStyle(
-                              color: Color(0xFFEEE593),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
+                            style: const TextStyle(color: Color(0xFFEEE593), fontWeight: FontWeight.bold, fontSize: 14),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -712,13 +665,7 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
                           ),
                           if (widget.submittedAtStr != null && widget.submittedAtStr!.isNotEmpty) ...[
                             const SizedBox(height: 2),
-                            Text(
-                              widget.submittedAtStr!,
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 11,
-                              ),
-                            ),
+                            Text(widget.submittedAtStr!, style: const TextStyle(color: Colors.white54, fontSize: 11)),
                           ],
                         ],
                       ),

@@ -1,8 +1,9 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:calligro_app/features/classroom/application/classroom_assignments.dart';
+import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
+import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
+import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:calligro_app/core/message/app_messenger.dart';
@@ -19,14 +20,16 @@ import 'submission_watermark_helper.dart';
 
 class AssignmentDetailsPage extends StatefulWidget {
   final String courseId;
-  final String assignmentId;
-  final Map<String, dynamic> assignmentData;
+  final Assignment assignment;
+
+  /// The viewer's role in THIS course (only enrolled students hand in).
+  final CourseRole role;
 
   const AssignmentDetailsPage({
     super.key,
     required this.courseId,
-    required this.assignmentId,
-    required this.assignmentData,
+    required this.assignment,
+    this.role = CourseRole.student,
   });
 
   @override
@@ -37,36 +40,37 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
   final TextEditingController _noteController = TextEditingController();
   PlatformFile? _pickedFile;
   bool _isSubmitting = false;
-  Map<String, dynamic>? _existingSubmission;
+  Submission? _existingSubmission;
   bool _isLoadingSubmission = true;
   bool _isEditing = false;
+  ClassroomAssignments? _work;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_work != null) return;
+    _work = ClassroomScope.of(context).assignments;
     _fetchExistingSubmission();
   }
 
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchExistingSubmission() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
+    final uid = _work!.currentUid;
+    if (uid.isEmpty) {
+      if (mounted) setState(() => _isLoadingSubmission = false);
+      return;
+    }
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .collection('assignments')
-          .doc(widget.assignmentId)
-          .collection('submissions')
-          .doc(user.uid)
-          .get();
-
-      if (doc.exists && mounted) {
+      final mine = await _work!.repository.watchSubmission(widget.courseId, widget.assignment.id, uid).first;
+      if (mounted) {
         setState(() {
-          _existingSubmission = doc.data();
-          if (_existingSubmission != null) {
-            _noteController.text = _existingSubmission!['note'] ?? '';
-          }
+          _existingSubmission = mine;
+          if (mine != null) _noteController.text = mine.note;
         });
       }
     } catch (e) {
@@ -89,9 +93,21 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
     }
   }
 
+  void _showResult(ClassroomResult result, String successMessage) {
+    final l10n = AppLocalizations.of(context)!;
+    final (title, message, type) = switch (result.outcome) {
+      ClassroomOutcome.done => (l10n.success, successMessage, MessengerType.success),
+      ClassroomOutcome.closed => (l10n.error, l10n.deadlinePassed, MessengerType.error),
+      ClassroomOutcome.empty => (l10n.error, l10n.pleasePickFile, MessengerType.info),
+      _ => (l10n.error, "${l10n.error}: ${result.message ?? result.outcome.name}", MessengerType.error),
+    };
+    if (result.outcome == ClassroomOutcome.busy) return;
+    AppMessenger.showSnackBar(context, title: title, message: message, type: type);
+  }
+
   Future<void> _submitAssignment() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = _work!.currentUid;
+    if (uid.isEmpty) return;
 
     if (_pickedFile == null && _existingSubmission == null) {
       AppMessenger.showSnackBar(
@@ -104,92 +120,39 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
     }
 
     final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final courses = CourseScope.of(context).courses;
     setState(() => _isSubmitting = true);
-
     try {
-      String? fileUrl = _existingSubmission?['fileUrl'];
-      String? fileName = _existingSubmission?['fileName'];
-
-      // 1. Fetch User and Teacher info
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final String studentName = userDoc.data()?['name'] ?? user.displayName ?? 'Student';
-      final String? studentImage = userDoc.data()?['photoUrl'];
-
-      String teacherName = 'Teacher';
-      try {
-        final courseDoc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
-        if (courseDoc.exists) {
-          teacherName = courseDoc.data()?['teacherName'] ?? 'Teacher';
-        }
-      } catch (e) {
-        debugPrint("Error fetching teacher name: $e");
-      }
-
-      // 2. Upload new file if picked (with info watermark on images)
+      // Watermark a newly picked image with the student / assignment / teacher.
+      String? localPath;
       if (_pickedFile != null) {
         File fileToUpload = File(_pickedFile!.path!);
         if (SubmissionWatermarkHelper.isSupportedImage(_pickedFile!.path!)) {
+          final me = await _work!.repository.studentProfile(uid);
+          final teacherName = (await courses.watchCourse(widget.courseId).first)?.teacherName ?? 'Teacher';
           fileToUpload = await SubmissionWatermarkHelper.watermarkSubmissionFile(
             inputFile: fileToUpload,
-            studentName: studentName,
-            assignmentTitle: widget.assignmentData['title'] ?? 'Assignment',
-            teacherName: teacherName,
+            studentName: me.name.isEmpty ? 'Student' : me.name,
+            assignmentTitle: widget.assignment.title.isEmpty ? 'Assignment' : widget.assignment.title,
+            teacherName: teacherName.isEmpty ? 'Teacher' : teacherName,
             isRtl: isRtl,
           );
         }
-
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('course_submissions')
-            .child(widget.courseId)
-            .child(widget.assignmentId)
-            .child('${user.uid}_${_pickedFile!.name}');
-
-        final uploadTask = await storageRef.putFile(fileToUpload);
-        fileUrl = await uploadTask.ref.getDownloadURL();
-        fileName = _pickedFile!.name;
+        localPath = fileToUpload.path;
       }
 
-      // 3. Update/Create Submission
-      final submissionRef = FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .collection('assignments')
-          .doc(widget.assignmentId)
-          .collection('submissions')
-          .doc(user.uid);
-
-      await submissionRef.set({
-        'note': _noteController.text.trim(),
-        'fileUrl': fileUrl,
-        'fileName': fileName,
-        'submittedAt': FieldValue.serverTimestamp(),
-        'status': _existingSubmission?['status'] ?? 'submitted',
-        'points': _existingSubmission?['points'] ?? 0,
-        'studentName': studentName,
-        'studentImage': studentImage,
-        'studentId': user.uid,
-      });
-
-      // 4. Update submissionCount on assignment (only if new)
-      if (_existingSubmission == null) {
-        await FirebaseFirestore.instance
-            .collection('courses')
-            .doc(widget.courseId)
-            .collection('assignments')
-            .doc(widget.assignmentId)
-            .update({
-          'submissionCount': FieldValue.increment(1),
-        });
-      }
-
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: AppLocalizations.of(context)!.success,
-          message: AppLocalizations.of(context)!.assignmentSubmitted,
-          type: MessengerType.success,
-        );
+      final result = await _work!.submit(
+        widget.courseId,
+        widget.assignment,
+        widget.role,
+        note: _noteController.text,
+        existing: _existingSubmission,
+        localPath: localPath,
+        fileName: _pickedFile?.name,
+      );
+      if (!mounted) return;
+      _showResult(result, AppLocalizations.of(context)!.assignmentSubmitted);
+      if (result.ok) {
         setState(() {
           _isEditing = false;
           _pickedFile = null;
@@ -211,9 +174,6 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
   }
 
   Future<void> _deleteSubmission() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -234,63 +194,25 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
       ),
     );
 
-    if (confirm != true) return;
-
+    if (confirm != true || !mounted) return;
     setState(() => _isSubmitting = true);
-
-    try {
-      // 1. Delete from Firestore
-      await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .collection('assignments')
-          .doc(widget.assignmentId)
-          .collection('submissions')
-          .doc(user.uid)
-          .delete();
-
-      // 2. Decrement submissionCount
-      await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .collection('assignments')
-          .doc(widget.assignmentId)
-          .update({
-        'submissionCount': FieldValue.increment(-1),
+    final result = await _work!.withdraw(widget.courseId, widget.assignment, widget.role);
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    _showResult(result, AppLocalizations.of(context)!.deleted);
+    if (result.ok) {
+      setState(() {
+        _existingSubmission = null;
+        _noteController.clear();
+        _pickedFile = null;
+        _isEditing = false;
       });
-
-      // 3. Clear State
-      if (mounted) {
-        setState(() {
-          _existingSubmission = null;
-          _noteController.clear();
-          _pickedFile = null;
-          _isEditing = false;
-        });
-        AppMessenger.showSnackBar(
-          context,
-          title: AppLocalizations.of(context)!.success,
-          message: AppLocalizations.of(context)!.deleted,
-          type: MessengerType.success,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: AppLocalizations.of(context)!.error,
-          message: "${AppLocalizations.of(context)!.error}: $e",
-          type: MessengerType.error,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dueDate = (widget.assignmentData['dueDate'] as Timestamp).toDate();
+    final dueDate = widget.assignment.dueDate ?? DateTime.now();
     final isExpired = DateTime.now().isAfter(dueDate);
     final l10n = AppLocalizations.of(context)!;
 
@@ -326,8 +248,8 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
                   .animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                 const SizedBox(height: 32),
 
-                if (widget.assignmentData['practiceSheet'] != null)
-                  _buildPracticeSheetSection(l10n, widget.assignmentData['practiceSheet'])
+                if (widget.assignment.practiceSheet != null)
+                  _buildPracticeSheetSection(l10n, widget.assignment.practiceSheet!)
                     .animate().fadeIn(duration: 400.ms, delay: 150.ms),
 
                 // Instructions
@@ -342,7 +264,7 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
                     border: Border.all(color: Colors.white.withOpacity(0.05)),
                   ),
                   child: Text(
-                    widget.assignmentData['instructions'] ?? l10n.noInstructionsProvided,
+                    widget.assignment.instructions.isEmpty ? l10n.noInstructionsProvided : widget.assignment.instructions,
                     style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.6),
                   ),
                 ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(begin: 0.05, end: 0),
@@ -397,7 +319,7 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                widget.assignmentData['title'],
+                widget.assignment.title,
                 style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5),
               ),
               const SizedBox(height: 20),
@@ -450,7 +372,7 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
   }
 
   Widget _buildStatusBadge(AppLocalizations l10n) {
-    final status = _existingSubmission!['status'] ?? 'submitted';
+    final status = _existingSubmission!.status;
     final isGraded = status == 'graded';
 
     return Container(
@@ -482,7 +404,7 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
                     style: TextStyle(color: isGraded ? Colors.greenAccent : Colors.blueAccent, fontWeight: FontWeight.w900, fontSize: 14),
                   ),
                   Text(
-                    DateFormat.yMMMd(Localizations.localeOf(context).toString()).add_jm().format((_existingSubmission!['submittedAt'] as Timestamp).toDate()),
+                    DateFormat.yMMMd(Localizations.localeOf(context).toString()).add_jm().format(_existingSubmission!.submittedAt ?? DateTime.now()),
                     style: const TextStyle(color: Colors.white24, fontSize: 11),
                   ),
                 ],
@@ -513,7 +435,7 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
   }
 
   Widget _buildFilePicker(AppLocalizations l10n) {
-    final String? fileName = _pickedFile?.name ?? _existingSubmission?['fileName'];
+    final String? fileName = _pickedFile?.name ?? _existingSubmission?.fileName;
 
     return InkWell(
       onTap: _pickFile,
@@ -581,7 +503,7 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
   }
 
   Widget _buildPostSubmissionActions(AppLocalizations l10n, bool isExpired) {
-    final String? fileName = _existingSubmission?['fileName'];
+    final String? fileName = _existingSubmission?.fileName;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -789,27 +711,26 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
     } else {
       Printing.layoutPdf(
         onLayout: (PdfPageFormat format) => _generatePdfBytes(template, l10n),
-        name: 'Practice_Sheet_${widget.assignmentData['title']}',
+        name: 'Practice_Sheet_${widget.assignment.title}',
       );
     }
   }
 
   Future<Uint8List> _generatePdfBytes(String template, AppLocalizations l10n) async {
-    final user = FirebaseAuth.instance.currentUser;
-    final studentName = user?.displayName ?? l10n.studentLabel;
-    
-    // Fetch Teacher Name from Course
+    final courses = CourseScope.of(context).courses;
+    final isRtlEarly = Directionality.of(context) == TextDirection.rtl;
+    String studentName = l10n.studentLabel;
     String teacherName = l10n.teacherLabel;
     try {
-      final courseDoc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
-      if (courseDoc.exists) {
-        teacherName = courseDoc.data()?['teacherName'] ?? l10n.teacherLabel;
-      }
+      final me = await _work!.repository.studentProfile(_work!.currentUid);
+      if (me.name.isNotEmpty) studentName = me.name;
+      final course = await courses.watchCourse(widget.courseId).first;
+      if (course != null && course.teacherName.isNotEmpty) teacherName = course.teacherName;
     } catch (e) {
-      debugPrint("Error fetching teacher name: $e");
+      debugPrint("Error fetching names: $e");
     }
 
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final isRtl = isRtlEarly;
     final ttf = await PdfGoogleFonts.cairoRegular();
     final ttfBold = await PdfGoogleFonts.cairoBold();
 
@@ -855,7 +776,7 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
                         runSpacing: 4,
                         children: [
                           pw.Text(
-                            '${l10n.assignmentLabel}: ${widget.assignmentData['title']}',
+                            '${l10n.assignmentLabel}: ${widget.assignment.title}',
                             style: const pw.TextStyle(
                               fontSize: 12, 
                               color: PdfColor(0.2, 0.2, 0.2),
@@ -877,11 +798,11 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
                           ),
                         ],
                       ),
-                      if (widget.assignmentData['instructions'] != null && widget.assignmentData['instructions'].toString().isNotEmpty)
+                      if (widget.assignment.instructions.isNotEmpty)
                         ...[
                           pw.SizedBox(height: 6),
                           pw.Text(
-                            '${l10n.instructions}: ${widget.assignmentData['instructions']}',
+                            '${l10n.instructions}: ${widget.assignment.instructions}',
                             style: const pw.TextStyle(
                               fontSize: 12,
                               color: PdfColor(0.2, 0.2, 0.2),

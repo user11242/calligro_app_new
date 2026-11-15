@@ -1,3 +1,6 @@
+import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
+import 'package:calligro_app/features/classroom/domain/course_board.dart';
+import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
 import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -56,15 +59,20 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   String userRole = 'student'; // Default to student
   String? courseTeacherId;
 
-  bool get isTeacher {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null &&
-        ((courseTeacherId != null && courseTeacherId == uid) ||
-         (widget.courseData['teacherId'] != null && widget.courseData['teacherId'] == uid))) {
-      return true;
-    }
-    return userRole == 'teacher';
-  }
+  List<String> _enrolledStudents = const [];
+
+  /// The viewer's role in THIS course. Being a teacher of another course
+  /// gives no teacher controls here (it used to: `userRole == 'teacher'`).
+  CourseRole get _role => ClassroomAccess.roleOf(
+        teacherId: courseTeacherId ?? (widget.courseData['teacherId'] as String? ?? ''),
+        enrolledStudents: _enrolledStudents,
+        uid: FirebaseAuth.instance.currentUser?.uid ?? '',
+        isAdmin: userRole == 'admin',
+      );
+
+  bool get isTeacher => _role == CourseRole.owner;
+
+  static List<String> _ids(Object? v) => v is List ? [for (final e in v) if (e is String) e] : const [];
 
   String courseName = '';
   String? courseBanner;
@@ -162,6 +170,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     if (mounted) {
       setState(() {
         courseTeacherId = widget.courseData['teacherId'];
+        _enrolledStudents = _ids(widget.courseData['enrolledStudents']);
         courseName = _getLocalizedCourseName(context, widget.courseData);
         courseBanner = widget.courseData['courseBanner'];
         calligroMeetLink =
@@ -207,6 +216,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
 
         setState(() {
           courseTeacherId = data['teacherId'] ?? courseTeacherId;
+          _enrolledStudents = _ids(data['enrolledStudents']);
           courseName = _getLocalizedCourseName(context, data);
           courseBanner = data['courseBanner'] ?? courseBanner;
           courseDescription =
@@ -1661,6 +1671,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                           courseId: widget.courseId,
                           courseName: courseName,
                           isTeacher: isTeacher,
+                          role: _role,
                         ),
                       ),
                     ),
@@ -1683,7 +1694,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                     MaterialPageRoute(
                       builder: (context) => AssignmentsPage(
                         courseId: widget.courseId,
-                        isTeacher: isTeacher,
+                        role: _role,
                       ),
                     ),
                   ),
@@ -1701,7 +1712,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => RecordingsPage(courseId: widget.courseId),
+                          builder: (context) => RecordingsPage(courseId: widget.courseId, role: _role),
                         ),
                       );
                     },
@@ -1739,7 +1750,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => RecordingsPage(courseId: widget.courseId),
+                          builder: (context) => RecordingsPage(courseId: widget.courseId, role: _role),
                         ),
                       );
                     },
@@ -2083,53 +2094,23 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
 
       setState(() => _isSavingReschedule = true);
       try {
-        await FirebaseFirestore.instance
-            .collection('courses')
-            .doc(widget.courseId)
-            .update({
-              'rescheduledSession': {
-                'originalDate': Timestamp.fromDate(now), // Effectively today
-                'newStartTime': Timestamp.fromDate(newStartTime),
-                'newEndTime': Timestamp.fromDate(newEndTime),
-              },
-            });
-
-        // Add Notification Logic
-        final dynamic studentsRaw = widget.courseData['enrolledStudents'];
-        final List<String> enrolledStudentIds = (studentsRaw is List)
-            ? List<String>.from(studentsRaw.whereType<String>())
-            : [];
-
-        if (enrolledStudentIds.isNotEmpty) {
-          final courseName = _getLocalizedCourseName(
-            context,
-            widget.courseData,
-          );
-          final formattedTime = DateFormat.jm(
-            Localizations.localeOf(context).toString(),
-          ).format(newStartTime);
-          final title = AppLocalizations.of(context)!.sessionRescheduled;
-          final message =
-              "${AppLocalizations.of(context)!.teacherMovedSession} '$courseName'. ${AppLocalizations.of(context)!.newTime} $formattedTime";
-
-          final batch = FirebaseFirestore.instance.batch();
-          for (var studentId in enrolledStudentIds) {
-            final notifRef = FirebaseFirestore.instance
-                .collection('users')
-                .doc(studentId)
-                .collection('notifications')
-                .doc();
-            batch.set(notifRef, {
-              'title': title,
-              'message': message,
-              'createdAt': FieldValue.serverTimestamp(),
-              'isRead': false,
-              'type': 'reschedule',
-              'courseId': widget.courseId,
-            });
-          }
-          await batch.commit();
-        }
+        // Moving the session and telling the students is ONE atomic write.
+        final courseName = _getLocalizedCourseName(context, widget.courseData);
+        final formattedTime = DateFormat.jm(Localizations.localeOf(context).toString()).format(newStartTime);
+        final l10n = AppLocalizations.of(context)!;
+        final result = await ClassroomScope.of(context).board.reschedule(
+              widget.courseId,
+              _role,
+              SessionChange(
+                originalDate: now,
+                newStart: newStartTime,
+                newEnd: newEndTime,
+                title: l10n.sessionRescheduled,
+                message: "${l10n.teacherMovedSession} '$courseName'. ${l10n.newTime} $formattedTime",
+              ),
+            );
+        if (!result.ok) throw Exception(result.message ?? result.outcome.name);
+        if (!mounted) return;
 
         _showMessage(
           AppLocalizations.of(context)!.success,
@@ -2150,10 +2131,8 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   Future<void> _cancelReschedule() async {
     setState(() => _isSavingReschedule = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .update({'rescheduledSession': FieldValue.delete()});
+      final result = await ClassroomScope.of(context).board.cancelReschedule(widget.courseId, _role);
+      if (!result.ok) throw Exception(result.message ?? result.outcome.name);
       _showMessage(
         AppLocalizations.of(context)!.success,
         AppLocalizations.of(context)!.sessionBackToNormal,

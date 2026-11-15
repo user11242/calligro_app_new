@@ -99,6 +99,8 @@ describe('assignment submissions', () => {
     await assertSucceeds(put(as('s1'), 'course_submissions/c1/a1/s1_v2.jpg'));
     await assertFails(put(as('s2'), 'course_submissions/c1/a1/s1_fake.jpg'));
   });
+  it('people outside the course cannot upload there, even under their own name', () =>
+    assertFails(put(as('s2'), 'course_submissions/c1/a1/s2_spam.jpg')));
   it('only the student, the course teacher and admins can see a submission', async () => {
     await assertSucceeds(getBytes(ref(as('s1'), mine)));
     await assertSucceeds(getBytes(ref(as('t1'), mine)));
