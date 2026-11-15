@@ -17,7 +17,9 @@ const brevoApiKey = defineSecret("BREVO_API_KEY");
 // Initialize Firebase Admin
 // --------------------
 admin.initializeApp();
-setGlobalOptions({ maxInstances: 20, region: "us-central1" });
+// 5 copies per function is ample for current traffic and keeps the project under
+// the Cloud Run CPU quota (max instances × CPU is reserved per function).
+setGlobalOptions({ maxInstances: 5, region: "us-central1" });
 
 // --------------------
 // Export Modular Functions
