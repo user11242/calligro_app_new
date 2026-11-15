@@ -41,6 +41,10 @@ void main() {
       courses: store,
       reviews: store,
       viewer: viewers,
+      editor: FakeProfileEditor(),
+      photos: FakePhotoUploader(),
+      phones: FakePhoneChecker(),
+      pickPhoto: () async => null,
     );
     await tester.binding.setSurfaceSize(const Size(800, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));

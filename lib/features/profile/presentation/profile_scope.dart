@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/features/community/data/firestore_community_repository.dart';
 
+import '../data/firestore_profile_editor.dart';
 import '../data/firestore_profile_repository.dart';
+import '../data/profile_device_adapters.dart';
 import '../domain/profile_models.dart';
 import '../domain/profile_repositories.dart';
 
@@ -19,6 +21,10 @@ class ProfileServices {
     required this.courses,
     required this.reviews,
     required this.viewer,
+    required this.editor,
+    required this.photos,
+    required this.phones,
+    required this.pickPhoto,
   });
 
   factory ProfileServices.firebase({FirebaseFirestore? firestore, FirebaseAuth? auth}) => ProfileServices(
@@ -29,6 +35,10 @@ class ProfileServices {
         courses: FirestoreTeacherCoursesRepository(firestore: firestore),
         reviews: FirestoreTeacherReviewsRepository(firestore: firestore),
         viewer: FirebaseProfileViewerSource(auth: auth, firestore: firestore),
+        editor: FirestoreProfileEditorRepository(firestore: firestore),
+        photos: FirebaseProfilePhotoUploader(),
+        phones: LibPhoneNumberChecker(),
+        pickPhoto: pickProfilePhotoFromGallery,
       );
 
   final ProfileRepository profiles;
@@ -37,6 +47,12 @@ class ProfileServices {
   final TeacherCoursesRepository courses;
   final TeacherReviewsRepository reviews;
   final ProfileViewerSource viewer;
+
+  // Editing your own profile.
+  final ProfileEditorRepository editor;
+  final ProfilePhotoUploader photos;
+  final PhoneNumberChecker phones;
+  final ProfilePhotoPicker pickPhoto;
 }
 
 /// Provides [ProfileServices] below it; without one the real Firebase services are used.

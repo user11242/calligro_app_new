@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:calligro_app/features/profile/domain/profile_edit.dart';
 import 'package:calligro_app/features/profile/domain/profile_models.dart';
 import 'package:calligro_app/features/profile/domain/profile_repositories.dart';
 
@@ -114,3 +115,72 @@ const ali = UserProfile(
   commissionRate: 0.6,
 );
 const boss = UserProfile(id: 'a1', role: 'admin', name: 'Admin', email: 'admin@calligro.com');
+
+// ── Editing ────────────────────────────────────────────────────────────────
+class FakeProfileEditor implements ProfileEditorRepository {
+  final profiles = <String, EditableProfile>{};
+  final takenNames = <String>{}; // lower-case names reserved by someone else
+  final takenPhones = <String>{};
+  final saves = <(EditableProfile, ProfileDraft, String)>[];
+  final nameChecks = <String>[];
+  bool failSave = false;
+
+  @override
+  Future<EditableProfile?> load(String uid) async => profiles[uid];
+
+  /// Per-name delay, to test answers arriving out of order.
+  final nameDelays = <String, Duration>{};
+
+  @override
+  Future<bool> isNameTaken(String name, {required String uid}) async {
+    nameChecks.add(name);
+    final d = nameDelays[name];
+    if (d != null) await Future<void>.delayed(d);
+    return takenNames.contains(name.trim().toLowerCase());
+  }
+
+  @override
+  Future<bool> isPhoneTaken(String phone, {required String uid}) async => takenPhones.contains(phone);
+
+  @override
+  Future<void> save(EditableProfile original, ProfileDraft draft, {required String photoUrl}) async {
+    if (failSave) throw Exception('permission-denied');
+    saves.add((original, draft, photoUrl));
+    profiles[original.uid] = EditableProfile(
+      uid: original.uid,
+      role: original.role,
+      name: draft.name.trim(),
+      bio: draft.bio.trim(),
+      phone: draft.phone.trim(),
+      photoUrl: photoUrl,
+      email: original.email,
+    );
+  }
+}
+
+class FakePhotoUploader implements ProfilePhotoUploader {
+  final uploads = <String>[];
+  bool fail = false;
+  @override
+  Future<String> upload(String uid, String localPath) async {
+    if (fail) throw Exception('upload failed');
+    uploads.add(localPath);
+    return 'https://cdn/$uid/${localPath.split('/').last}';
+  }
+}
+
+class FakePhoneChecker implements PhoneNumberChecker {
+  final invalid = <String>{};
+  @override
+  Future<bool> isValid(String phone, String isoCode) async => !invalid.contains(phone);
+
+  @override
+  Future<(String, String)?> split(String phone) async =>
+      phone.startsWith('+962') ? ('JO', phone.substring(4)) : null;
+
+  @override
+  Future<String> deviceCountry() async => 'JO';
+}
+
+const editableAli = EditableProfile(
+    uid: 't1', role: 'teacher', name: 'Ali Hassan', bio: 'Teacher', phone: '+962791234567', photoUrl: 'old.jpg', email: 't1@x.com');

@@ -1,7 +1,8 @@
+import 'package:calligro_app/features/profile/domain/profile_edit.dart';
+import 'package:calligro_app/features/profile/presentation/profile_scope.dart';
 import 'dart:io';
 import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/core/theme/colors.dart';
-import 'package:calligro_app/core/utils/image_utils.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -31,7 +32,6 @@ class TeacherSetupPage extends StatefulWidget {
 class _TeacherSetupPageState extends State<TeacherSetupPage> {
   late final FirebaseAuth _auth;
   late final FirebaseFirestore _firestore;
-  late final FirebaseStorage _storage;
   
   File? _selectedImage;
   bool _isLoading = false;
@@ -46,7 +46,6 @@ class _TeacherSetupPageState extends State<TeacherSetupPage> {
     super.initState();
     _auth = widget.auth ?? FirebaseAuth.instance;
     _firestore = widget.firestore ?? FirebaseFirestore.instance;
-    _storage = widget.storage ?? FirebaseStorage.instance;
     _checkGoogleConnection();
   }
 
@@ -357,61 +356,17 @@ class _TeacherSetupPageState extends State<TeacherSetupPage> {
       final user = _auth.currentUser;
       if (user == null) return;
 
-      // 1. Upload Image with EXIF correction
-      final File correctedImage = await fixExifRotation(_selectedImage!);
-      String fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference ref = _storage
-          .ref()
-          .child('user_profile_images')
-          .child(user.uid)
-          .child(fileName);
-
-      await ref.putFile(correctedImage);
-      final String downloadUrl = await ref.getDownloadURL();
-
-      // 2. Batch Update (Same logic as EditProfilePage)
-      final batch = _firestore.batch();
-      
-      // Update Users
-      batch.update(_firestore.collection('users').doc(user.uid), {
-        'photoUrl': downloadUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Update Teachers
-      batch.update(_firestore.collection('teachers').doc(user.uid), {
-        'photoUrl': downloadUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Sync to Courses
-      final coursesQuery = await _firestore
-          .collection('courses')
-          .where('teacherId', isEqualTo: user.uid)
-          .get();
-      for (var doc in coursesQuery.docs) {
-        batch.update(doc.reference, {'teacherProfilePic': downloadUrl});
-      }
-
-      // Sync to Posts
-      final postsQuery = await _firestore
-          .collection('community_posts')
-          .where('userId', isEqualTo: user.uid)
-          .get();
-      for (var doc in postsQuery.docs) {
-        batch.update(doc.reference, {'userImageUrl': downloadUrl});
-      }
-
-      // Sync to Comments
-      final commentsQuery = await _firestore
-          .collectionGroup('comments')
-          .where('userId', isEqualTo: user.uid)
-          .get();
-      for (var doc in commentsQuery.docs) {
-        batch.update(doc.reference, {'userPhotoUrl': downloadUrl});
-      }
-
-      await batch.commit();
+      // Same upload + save as Edit Profile. Copies of the photo on courses, posts
+      // and comments are refreshed by the syncProfileCopies Cloud Function.
+      final services = ProfileScope.of(context);
+      final profile = await services.editor.load(user.uid);
+      if (profile == null) throw Exception('Profile not found');
+      final downloadUrl = await services.photos.upload(user.uid, _selectedImage!.path);
+      await services.editor.save(
+        profile,
+        ProfileDraft(name: profile.name, bio: profile.bio, phone: profile.phone),
+        photoUrl: downloadUrl,
+      );
 
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/teacherDashboard');

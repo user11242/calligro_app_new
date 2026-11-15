@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/features/auth/data/services/auth_service.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
@@ -7,7 +8,6 @@ import 'admin_version_control_page.dart';
 import 'admin_pricing_tiers_page.dart';
 
 // Reuse existing pages where possible
-import '../../teacher/pages/settings/edit_profile_page.dart';
 import '../../teacher/pages/settings/language_settings_page.dart';
 import '../../teacher/pages/settings/help_center_page.dart';
 import '../../teacher/pages/settings/security_page.dart';

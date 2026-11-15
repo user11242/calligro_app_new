@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 
 import 'package:calligro_app/features/auth/data/services/auth_service.dart';
@@ -8,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:calligro_app/features/auth/pages/terms_and_conditions_page.dart';
 
 // IMPORTS FOR YOUR PAGES
-import 'edit_profile_page.dart';
 import 'payout_settings_page.dart';
 import 'language_settings_page.dart';
 import 'help_center_page.dart';

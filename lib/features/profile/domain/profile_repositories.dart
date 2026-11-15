@@ -1,3 +1,4 @@
+import 'profile_edit.dart';
 import 'profile_models.dart';
 
 /// A user's profile, live. Emits null when the user does not exist.
@@ -32,3 +33,35 @@ abstract interface class TeacherReviewsRepository {
 abstract interface class ProfileViewerSource {
   Future<ProfileViewer> currentViewer();
 }
+
+/// Loading / checking / saving the signed-in user's own profile.
+abstract interface class ProfileEditorRepository {
+  Future<EditableProfile?> load(String uid);
+
+  /// Reserved by someone else (your own reservation does not count).
+  Future<bool> isNameTaken(String name, {required String uid});
+  Future<bool> isPhoneTaken(String phone, {required String uid});
+
+  /// Saves the profile and moves the name / phone reservations, atomically.
+  /// Copies of the name / photo elsewhere are updated by the server.
+  Future<void> save(EditableProfile original, ProfileDraft draft, {required String photoUrl});
+}
+
+/// Uploads a new profile photo; returns its download URL.
+abstract interface class ProfilePhotoUploader {
+  Future<String> upload(String uid, String localPath);
+}
+
+/// Phone number format check for a country (ISO code like 'JO').
+abstract interface class PhoneNumberChecker {
+  Future<bool> isValid(String phone, String isoCode);
+
+  /// Splits a saved international number for the phone field: (ISO country code, national number).
+  Future<(String, String)?> split(String phone);
+
+  /// The device's country (SIM, then system region) for an empty phone field; 'US' when unknown.
+  Future<String> deviceCountry();
+}
+
+/// Opens the gallery; returns the picked photo's local path (null when cancelled).
+typedef ProfilePhotoPicker = Future<String?> Function();

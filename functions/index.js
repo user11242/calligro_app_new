@@ -687,5 +687,8 @@ exports.enrollInFreeCourse = onCall(
 // --------------------
 Object.assign(exports, require("./notifications.js"));
 
+// Keeps name / photo copies (courses, posts, comments, replies) in sync after a profile edit.
+exports.syncProfileCopiesOnUpdate = require("./profile_sync.js").syncProfileCopiesOnUpdate;
+
 // DEPRECATED: Google Meet functions removed to simplify UX and avoid restrictions.
 // Students now use the branded 'Calligro Classroom' powered by Jitsi.

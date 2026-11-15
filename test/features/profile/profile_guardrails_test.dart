@@ -78,8 +78,18 @@ void main() {
       expect(header, contains('if (c.showEmail'));
     });
 
-    test('the phone number never leaves the data layer (only the flag does)', () {
-      expectNone({...domain, ...application, ...presentation}, 'phone', 'only countryFlag is exposed');
+    test('viewing a profile never exposes the phone number (only the flag)', () {
+      // Editing your OWN profile handles your phone; nothing that shows profiles to others may.
+      const editing = {
+        'profile_edit.dart',
+        'profile_repositories.dart',
+        'edit_profile_controller.dart',
+        'edit_profile_page.dart',
+        'profile_scope.dart', // wires the phone checker used by editing
+      };
+      expectNone({...domain, ...application, ...presentation}, 'phone', 'only countryFlag is exposed', allow: editing);
+      final models = domain.entries.firstWhere((e) => e.key.endsWith('profile_models.dart')).value;
+      expect(models.contains('phone'), isFalse, reason: 'UserProfile (what others see) has no phone');
     });
   });
 
@@ -95,6 +105,12 @@ void main() {
       ]) {
         expectNone(outside, old, 'use MyProfileTab / PublicProfilePage');
       }
+    });
+
+    test('the old edit page is gone; name / photo copies are synced by the server, not the app', () {
+      expectNone(outside, 'teacher/pages/settings/edit_profile_page.dart', 'use profile EditProfilePage');
+      expectNone({...outside, ...data, ...presentation}, "collectionGroup('comments')",
+          'copies are updated by the syncProfileCopies Cloud Function');
     });
 
     test('other features open profiles through ProfileNavigation or PublicProfilePage', () {
