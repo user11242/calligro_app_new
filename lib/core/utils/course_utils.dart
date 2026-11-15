@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
+import 'package:calligro_app/core/utils/search_normalizer.dart';
 
 class CourseUtils {
   static String getLocalizedCourseName(BuildContext context, Map<String, dynamic> data) {
@@ -92,53 +93,15 @@ class CourseUtils {
   }
 
   /// Normalizes Arabic/Indic digits to standard English digits (0-9).
-  static String normalizeNumerics(String input) {
-    if (input.isEmpty) return "";
-    const Map<String, String> digitMap = {
-      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
-      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
-      '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
-      '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
-    };
-
-    String result = input;
-    digitMap.forEach((key, value) {
-      result = result.replaceAll(key, value);
-    });
-    return result;
-  }
+  static String normalizeNumerics(String input) => SearchNormalizer.numerics(input);
 
   /// Normalizes Arabic text for searching:
   /// - Standardizes Alif (أ, إ, آ -> ا)
   /// - Standardizes Taa Marbuta (ة -> ه)
   /// - Standardizes Ya (ى -> ي)
   /// - Removes Arabic diacritics (Harakat)
-  static String normalizeArabic(String text) {
-    if (text.isEmpty) return "";
-    
-    String normalized = text;
-
-    // Remove Harakat (Diacritics)
-    final harakatRegex = RegExp(r"[\u064B-\u0652]");
-    normalized = normalized.replaceAll(harakatRegex, "");
-
-    // Normalize Alif
-    normalized = normalized.replaceAll(RegExp(r"[أإآ]"), "ا");
-
-    // Normalize Taa Marbuta to Haa (Common in search)
-    normalized = normalized.replaceAll("ة", "ه");
-
-    // Normalize Ya
-    normalized = normalized.replaceAll("ى", "ي");
-
-    return normalized;
-  }
+  static String normalizeArabic(String text) => SearchNormalizer.arabic(text);
 
   /// Combined normalization for English and Arabic search
-  static String prepareForSearch(String text) {
-    String res = text.toLowerCase().trim();
-    res = normalizeNumerics(res);
-    res = normalizeArabic(res);
-    return res;
-  }
+  static String prepareForSearch(String text) => SearchNormalizer.prepare(text);
 }

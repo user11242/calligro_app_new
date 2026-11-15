@@ -36,6 +36,7 @@ dependencies:
   flutter_appauth: ^10.0.0
   intl: ^0.20.2
   in_app_purchase: ^3.3.0  # ✅ REQUIRED for App Store/Play Store digital goods
+  in_app_purchase_android: ^0.5.3  # consume tier purchases only after the server enrols
   livekit_client: 2.10.0
   crypto: ^3.0.3
   collection: ^1.18.0

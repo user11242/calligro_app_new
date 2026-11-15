@@ -14,7 +14,7 @@ import '../../../teacher/pages/settings/security_page.dart';
 import '../../../community/presentation/pages/blocked_users_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:calligro_app/core/services/iap_service.dart';
+import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 
 class StudentSettingsPage extends StatefulWidget {
   const StudentSettingsPage({super.key});
@@ -389,7 +389,7 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
                 child: TextButton(
                   onPressed: () async {
                     try {
-                      await IAPService().restorePurchases();
+                      await CourseServices.appPurchases().restore();
                       if (context.mounted) {
                         AppMessenger.showSnackBar(
                           context,

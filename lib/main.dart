@@ -35,7 +35,7 @@ import 'package:flutter/material.dart';
   import 'package:calligro_app/features/student/student_dashboard.dart';
   import 'package:calligro_app/features/teacher/teacher_dashboard.dart';
   import 'package:calligro_app/features/teacher/pages/add_course/add_course_dashboard.dart';
-  import 'package:calligro_app/features/student/pages/course_preview_page.dart';
+  import 'package:calligro_app/features/courses/presentation/pages/course_preview_page.dart';
   import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
   import 'package:calligro_app/features/community/presentation/pages/single_post_page.dart';
   import 'package:calligro_app/features/course_chat/pages/course_chat_page.dart';
@@ -46,7 +46,7 @@ import 'package:flutter/material.dart';
   import 'package:calligro_app/features/admin/pages/admin_pending_teachers.dart';
   import 'package:calligro_app/core/services/deep_link_service.dart';
   import 'package:calligro_app/core/services/security_service.dart';
-  import 'package:calligro_app/core/services/iap_service.dart';
+  import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 
   // 🔔 Local Notifications setup
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = 
@@ -190,9 +190,9 @@ import 'package:flutter/material.dart';
     // 🛡️ Security Setup (Screenshot Protection)
     await SecurityService().init();
 
-    // 💰 IAP Setup
-    IAPService().initialize();
-    IAPService().fetchProducts();
+    // 💰 Course purchases: ONE app-wide flow, started at launch so purchases the
+    // store re-delivers (after a crash / failed verification) are enrolled.
+    CourseServices.appPurchases();
 
     // 🌍 Register timeago locales
     timeago.setLocaleMessages('ar', timeago.ArMessages());

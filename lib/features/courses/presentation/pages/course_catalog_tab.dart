@@ -4,11 +4,16 @@ import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui';
-import '../pages/course_preview_page.dart';
-import '../../teacher/pages/course_details/course_details_page.dart';
+import 'course_preview_page.dart';
+
+import '../../application/course_controllers.dart';
+import '../../domain/course_models.dart';
+import '../../domain/course_policy.dart';
+import '../course_scope.dart';
+import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart'; // Added Import
-import '../../../core/widgets/auto_translated_text.dart';
+import 'package:calligro_app/core/widgets/auto_translated_text.dart';
 import 'package:calligro_app/core/utils/guest_guard.dart';
 import 'package:calligro_app/core/utils/course_utils.dart';
 
@@ -34,7 +39,9 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
   final TextEditingController _searchController = TextEditingController();
   String _searchText = "";
   String _selectedFilter = ""; // Initialized in didChangeDependencies
-  late Stream<QuerySnapshot> _coursesStream;
+  CourseCatalogController? _catalog;
+  late CourseServices _services;
+  final _teacherLookups = <String, Future<CourseTeacherSummary?>>{};
   
   int _currentPage = 1;
   final int _itemsPerPage = 5;
@@ -42,15 +49,20 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
   @override
   bool get wantKeepAlive => true;
 
-  @override
-  void initState() {
-    super.initState();
-    _coursesStream = (widget.firestore ?? FirebaseFirestore.instance)
-        .collection('courses')
-        .snapshots()
-        .handleError((e) {
-          debugPrint('Error fetching courses: $e');
-        });
+  /// Chip label (translated) → the filter it stands for.
+  CourseFilter _filterFor(String label) {
+    final l10n = AppLocalizations.of(context)!;
+    final byLabel = {
+      l10n.myCourses: CourseFilter.myCourses,
+      l10n.thuluth: CourseFilter.thuluth,
+      l10n.naskh: CourseFilter.naskh,
+      l10n.diwani: CourseFilter.diwani,
+      l10n.kufi: CourseFilter.kufi,
+      l10n.ruqah: CourseFilter.ruqah,
+      l10n.beginner: CourseFilter.beginner,
+      l10n.advanced: CourseFilter.advanced,
+    };
+    return byLabel[label] ?? CourseFilter.all;
   }
 
   // The categories for our "Smart Filter" system
@@ -69,6 +81,10 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_catalog == null) {
+      _services = CourseScope.of(context);
+      _catalog = CourseCatalogController(repository: _services.courses, uid: _services.currentUid())..start();
+    }
     if (_selectedFilter.isEmpty) {
       _selectedFilter = widget.initialFilter ?? AppLocalizations.of(context)!.all;
     }
@@ -86,6 +102,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
 
   @override
   void dispose() {
+    _catalog?.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -104,114 +121,26 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
 
             // --- COURSE LIST SECTION ---
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _coursesStream,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+              child: ListenableBuilder(
+                listenable: _catalog!,
+                builder: (context, _) {
+                  final catalog = _catalog!;
+                  if (catalog.isLoading) {
                     return const Center(
                       child: CircularProgressIndicator(
                         color: AppColors.accentGold,
                       ),
                     );
                   }
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  if (catalog.all.isEmpty) {
                     return _buildEmptyState(AppLocalizations.of(context)!.noCoursesFound);
                   }
-
-                  // --- FILTRATION LOGIC ---
-                  final currentUser = (widget.auth ?? FirebaseAuth.instance).currentUser;
-                  final String normalizedQuery = CourseUtils.prepareForSearch(_searchText);
-
-                  final courses = snapshot.data!.docs.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    
-                    // 1. Construct Search Corpus for this course
-                    final String rawName = data['courseName'] ?? "";
-                    final String localizedTitle = CourseUtils.getLocalizedCourseName(context, data);
-                    final String teacher = data['teacherName'] ?? "";
-                    final String description = data['description'] ?? "";
-                    final String style = data['calligraphyStyle'] ?? "";
-                    final String level = data['selectedCategory'] ?? ""; // 'Beginner', etc.
-
-                    // Check enrollment status
-                    final dynamic studentsRaw = data['enrolledStudents'];
-                    final List<dynamic> enrolledStudents = (studentsRaw is List) ? studentsRaw : [];
-                    final bool isEnrolled = currentUser != null && enrolledStudents.contains(currentUser.uid);
-
-                    // SEARCH MATCHING: Combines multiple fields and normalizes them
-                    bool matchesSearch = true;
-                    if (normalizedQuery.isNotEmpty) {
-                      final String searchCorpus = CourseUtils.prepareForSearch(
-                        "$rawName $localizedTitle $teacher $description $style"
-                      );
-                      matchesSearch = searchCorpus.contains(normalizedQuery);
-                    }
-
-                    // 2. Chip Filter Match
-                    bool matchesFilter = true;
-                    final l10n = AppLocalizations.of(context)!;
-                    if (_selectedFilter != l10n.all) {
-                      if (_selectedFilter == l10n.myCourses) {
-                        // Show only enrolled courses
-                        matchesFilter = isEnrolled;
-                      } else if (_selectedFilter == l10n.beginner ||
-                          _selectedFilter == l10n.advanced) {
-                        // Filter by Level
-                        matchesFilter = level == (_selectedFilter == l10n.beginner ? "Beginner" : "Advanced");
-                      } else {
-                        // Filter by Style (Thuluth, etc.)
-                        String selectedStyle = "All";
-                        if (_selectedFilter == l10n.thuluth) {
-                          selectedStyle = "Thuluth";
-                        } else if (_selectedFilter == l10n.naskh) {
-                          selectedStyle = "Naskh";
-                        } else if (_selectedFilter == l10n.diwani) {
-                          selectedStyle = "Diwani";
-                        } else if (_selectedFilter == l10n.kufi) {
-                          selectedStyle = "Kufi";
-                        } else if (_selectedFilter == l10n.ruqah) {
-                          selectedStyle = "Ruq'ah";
-                        }
-                        
-                        matchesFilter = style == selectedStyle;
-                      }
-                    }
-
-                    // 3. Visibility Check: Hide started courses from non-enrolled students
-                    bool isStarted = false;
-                    if (data['startDate'] != null) {
-                      DateTime? start;
-                      if (data['startDate'] is Timestamp) {
-                        start = (data['startDate'] as Timestamp).toDate();
-                      } else if (data['startDate'] is DateTime) {
-                        start = data['startDate'];
-                      }
-                      
-                      if (start != null) {
-                        final now = DateTime.now();
-                        // If course started (or starts today), and student is not enrolled, hide it
-                        if (now.isAfter(start) && !isEnrolled) {
-                          return false; 
-                        }
-                      }
-                    }
-
-                    return matchesSearch && matchesFilter;
-                  }).toList();
-
-                  // Sort from newest to oldest by createdAt
-                  courses.sort((a, b) {
-                    final aData = a.data() as Map<String, dynamic>;
-                    final bData = b.data() as Map<String, dynamic>;
-                    final aCreatedAt = aData['createdAt'];
-                    final bCreatedAt = bData['createdAt'];
-                    if (aCreatedAt == null && bCreatedAt == null) return 0;
-                    if (aCreatedAt == null) return 1;
-                    if (bCreatedAt == null) return -1;
-                    final aDate = (aCreatedAt as Timestamp).toDate();
-                    final bDate = (bCreatedAt as Timestamp).toDate();
-                    return bDate.compareTo(aDate); // descending
-                  });
+                  // Visibility (started courses), chip filter and search: CoursePolicy.
+                  catalog.filter = _filterFor(_selectedFilter);
+                  catalog.query = _searchText;
+                  final courses = catalog.visible(
+                    displayTitle: (c) => CourseUtils.getLocalizedCourseName(context, c.raw),
+                  );
 
                   if (courses.isEmpty) {
                     final l10n = AppLocalizations.of(context)!;
@@ -244,7 +173,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                   // Protect against invalid range if failsafe hasn't triggered rebuild yet
                   final paginatedCourses = startIndex < courses.length 
                       ? courses.sublist(startIndex, endIndex)
-                      : <QueryDocumentSnapshot>[];
+                      : <Course>[];
 
                   return Column(
                     children: [
@@ -260,8 +189,8 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                           separatorBuilder: (context, index) =>
                               const SizedBox(height: 20),
                           itemBuilder: (context, index) {
-                            final doc = paginatedCourses[index];
-                            return _buildAwesomeCourseCard(context, doc);
+                            final course = paginatedCourses[index];
+                            return _buildAwesomeCourseCard(context, course);
                           },
                         ),
                       ),
@@ -402,7 +331,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                   onTap: () {
                     final l10n = AppLocalizations.of(context)!;
                     if (filter == l10n.myCourses) {
-                      if (!GuestGuard.check(context, isGuest: (widget.auth ?? FirebaseAuth.instance).currentUser == null)) {
+                      if (!GuestGuard.check(context, isGuest: _services.currentUid().isEmpty)) {
                         return;
                       }
                     }
@@ -452,9 +381,9 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
   // --- WIDGET: The "Awesome" Course Card (Redesigned) ---
   Widget _buildAwesomeCourseCard(
     BuildContext context,
-    QueryDocumentSnapshot doc,
+    Course course,
   ) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = course.raw;
     final String bannerUrl = data['courseBanner'] ?? '';
     final String title = _getLocalizedCourseName(context, data);
     final String teacherName = data['teacherName'] ?? 'Unknown Teacher';
@@ -472,8 +401,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
     final int currentEnrollment = enrolledStudents.length;
     final int maxStudents = (data['maxStudents'] ?? 0);
 
-    final currentUser = (widget.auth ?? FirebaseAuth.instance).currentUser;
-    final bool isEnrolled = currentUser != null && enrolledStudents.contains(currentUser.uid);
+    final bool isEnrolled = CoursePolicy.isEnrolled(course, _services.currentUid());
 
     // --- COUNTDOWN LOGIC ---
     int? daysRemaining;
@@ -542,7 +470,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                   context,
                   MaterialPageRoute(
                     builder: (context) => CourseDetailsPage(
-                      courseId: doc.id,
+                      courseId: course.id,
                       courseData: data,
                     ),
                   ),
@@ -552,7 +480,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                   context,
                   MaterialPageRoute(
                     builder: (context) => CoursePreviewPage(
-                      courseId: doc.id,
+                      courseId: course.id,
                       courseData: data,
                     ),
                   ),
@@ -570,7 +498,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                     children: [
                       Positioned.fill(
                         child: Hero(
-                          tag: 'course_img_${doc.id}',
+                          tag: 'course_img_${course.id}',
                           child: bannerUrl.startsWith('assets')
                               ? Image.asset(bannerUrl, fit: BoxFit.cover)
                               : CachedNetworkImage(
@@ -618,7 +546,7 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                                 _buildAgeBadge(ageCategory, context),
                               ],
                             ),
-                            _buildFloatingBadge(context, isEnrolled, priceTag, doc.id, title, data['teacherId'] ?? ''),
+                            _buildFloatingBadge(context, isEnrolled, priceTag, course.id, title, data['teacherId'] ?? ''),
                           ],
                         ),
                       ),
@@ -871,20 +799,11 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
   Widget _buildInlineTeacherLanguages(String? teacherId) {
     if (teacherId == null || teacherId.isEmpty) return const SizedBox.shrink();
 
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(teacherId).get(),
+    // One cached read per teacher (not one per card per rebuild).
+    return FutureBuilder<CourseTeacherSummary?>(
+      future: _teacherLookups[teacherId] ??= _services.courses.teacherSummary(teacherId),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const SizedBox.shrink();
-        }
-        final userData = snapshot.data!.data() as Map<String, dynamic>?;
-        if (userData == null) return const SizedBox.shrink();
-
-        final dynamic languagesRaw = userData['spokenLanguages'];
-        List<String> languages = [];
-        if (languagesRaw is List) {
-          languages = List<String>.from(languagesRaw);
-        }
+        final languages = snapshot.data?.spokenLanguages ?? const <String>[];
         if (languages.isEmpty) return const SizedBox.shrink();
 
         return Row(

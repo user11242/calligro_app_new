@@ -5,7 +5,7 @@ import '../../student/data/model/student_user_model.dart';
 import '../../auth/data/services/auth_service.dart';
 import '../../student/pages/settings/student_settings_page.dart';
 import '../../teacher/pages/settings/help_center_page.dart';
-import '../pages/student_my_courses_page.dart';
+import 'package:calligro_app/features/courses/presentation/pages/my_courses_page.dart';
 import '../pages/gallery_page.dart';
 import '../../../core/utils/guest_guard.dart';
 import '../../../core/widgets/profile_avatar.dart';

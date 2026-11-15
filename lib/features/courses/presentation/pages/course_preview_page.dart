@@ -1,28 +1,27 @@
-import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:intl/intl.dart' as intl;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:calligro_app/core/services/iap_service.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
-import 'dart:async';
 import 'package:calligro_app/core/message/app_messenger.dart';
-import 'package:calligro_app/features/student/pages/purchase_success_page.dart';
-import '../../../core/utils/guest_guard.dart';
-import '../../../core/utils/course_utils.dart';
-import '../../../core/utils/rating_utils.dart';
-import '../../../core/widgets/auto_translated_text.dart';
-import '../../../core/widgets/profile_avatar.dart';
-import '../../../core/widgets/smart_image.dart';
-import '../../../../core/utils/country_utils.dart';
+import 'package:calligro_app/core/utils/guest_guard.dart';
+import 'package:calligro_app/core/utils/course_utils.dart';
+import 'package:calligro_app/core/utils/rating_utils.dart';
+import 'package:calligro_app/core/widgets/auto_translated_text.dart';
+import 'package:calligro_app/core/widgets/profile_avatar.dart';
+import 'package:calligro_app/core/widgets/smart_image.dart';
+
 import 'package:calligro_app/features/student/widgets/course_share_card.dart';
 import 'package:calligro_app/core/utils/share_utils.dart';
-import '../../teacher/pages/course_details/course_details_page.dart';
+import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
 
-import 'package:cloud_functions/cloud_functions.dart';
+import '../../application/course_controllers.dart';
+import '../../application/course_purchases.dart';
+import '../../domain/course_models.dart';
+import '../course_scope.dart';
+import 'purchase_success_page.dart';
+
 
 class CoursePreviewPage extends StatefulWidget {
   final String courseId;
@@ -42,175 +41,108 @@ class CoursePreviewPage extends StatefulWidget {
 
 class _CoursePreviewPageState extends State<CoursePreviewPage> {
   final GlobalKey _shareKey = GlobalKey();
-  bool _isProcessing = false;
-  late StreamSubscription<PurchaseResult> _subscription;
-  Timer? _safetyTimer;
+  CoursePreviewController? _preview;
+  late CourseServices _services;
+  PurchaseStage _lastStage = PurchaseStage.idle;
+
+  CoursePurchases get _purchases => _services.purchases;
+  String get _uid => _services.currentUid();
+
+  /// The live course document (falls back to what the caller passed in).
+  Map<String, dynamic> get courseData => _preview?.course?.raw ?? widget.courseData;
+
+  bool get _isProcessing => _purchases.statusOf(widget.courseId).isBusy;
 
   @override
-  void initState() {
-    super.initState();
-    _subscription = IAPService().purchaseStream.listen((result) {
-      if (result.status == PurchaseStatus.purchased || result.status == PurchaseStatus.restored) {
-        _handleServerValidation(result);
-      } else if (result.status == PurchaseStatus.error || result.status == PurchaseStatus.canceled) {
-        _safetyTimer?.cancel();
-        if (mounted) setState(() => _isProcessing = false);
-      } else if (result.status == PurchaseStatus.pending) {
-        debugPrint('💰 UI: Purchase is pending...');
-      }
-    });
-  }
-
-  Future<void> _handleServerValidation(PurchaseResult result) async {
-    _safetyTimer?.cancel(); // Cancel the initial safety timer as Apple side is done
-    
-    // Start a new server-validation timer
-    _safetyTimer = Timer(const Duration(seconds: 20), () {
-      if (mounted && _isProcessing) {
-        setState(() => _isProcessing = false);
-        AppMessenger.showSnackBar(
-          context,
-          title: "Validation Timeout",
-          message: "The purchase was successful but the server is taking too long to verify. Please refresh the page.",
-          type: MessengerType.info,
-        );
-      }
-    });
-
-    try {
-      final String? receipt = result.receipt;
-      if (receipt == null) throw "Receipt data missing.";
-
-      debugPrint("📡 Calling verifyPurchase Cloud Function...");
-      final callable = FirebaseFunctions.instance.httpsCallable('verifyPurchase');
-      final validationResult = await callable.call({
-        'receiptData': receipt,
-        'purchaseToken': result.serverReceipt,
-        'courseId': widget.courseId,
-        'productId': result.productId,
-        'platform': Platform.isAndroid ? 'android' : 'ios', // Android receipts are not Apple receipts
-      });
-
-      final bool success = validationResult.data['success'] ?? false;
-      if (success && mounted) {
-        _safetyTimer?.cancel();
-        setState(() => _isProcessing = false);
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PurchaseSuccessPage(
-              courseId: widget.courseId,
-              courseData: widget.courseData,
-            ),
-          ),
-        );
-      } else {
-        throw validationResult.data['message'] ?? "Validation failed.";
-      }
-    } catch (e) {
-      _safetyTimer?.cancel();
-      if (mounted) {
-        setState(() => _isProcessing = false);
-        AppMessenger.showSnackBar(
-          context,
-          title: "Security Validation Error",
-          message: e.toString(),
-          type: MessengerType.error,
-        );
-      }
-    }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_preview != null) return;
+    _services = CourseScope.of(context);
+    _preview = CoursePreviewController(
+      repository: _services.courses,
+      courseId: widget.courseId,
+      uid: _uid,
+      initial: Course.fromMap(widget.courseId, widget.courseData),
+    )..start();
+    _purchases.addListener(_onPurchaseChanged);
   }
 
   @override
   void dispose() {
-    _subscription.cancel();
-    _safetyTimer?.cancel();
+    _purchases.removeListener(_onPurchaseChanged);
+    _preview?.dispose();
     super.dispose();
   }
 
-  Future<void> _enrollStudent() async {
-    // Only used for FREE courses now. Paid courses use verifyPurchase Cloud Function.
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final callable = FirebaseFunctions.instance.httpsCallable('enrollInFreeCourse');
-      await callable.call({'courseId': widget.courseId});
-
-      if (mounted) {
-        setState(() => _isProcessing = false);
+  /// Reacts to THIS course's purchase status (the flow itself lives app-wide).
+  void _onPurchaseChanged() {
+    if (!mounted) return;
+    final status = _purchases.statusOf(widget.courseId);
+    if (status.stage == _lastStage) return;
+    _lastStage = status.stage;
+    final l10n = AppLocalizations.of(context)!;
+    switch (status.stage) {
+      case PurchaseStage.enrolled:
+        _purchases.clear(widget.courseId);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => PurchaseSuccessPage(
-              courseId: widget.courseId,
-              courseData: widget.courseData,
-            ),
+            builder: (context) => PurchaseSuccessPage(courseId: widget.courseId, courseData: courseData),
           ),
         );
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isProcessing = false);
-      debugPrint("Enrollment error: $e");
-    }
-  }
-
-  Future<void> _handlePurchase() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final bool isGuest = currentUser == null;
-
-    if (GuestGuard.check(
-      context,
-      isGuest: isGuest,
-      returnTo: '/studentDashboard',
-    )) {
-      if (widget.courseData['price'] == 0) {
-        setState(() => _isProcessing = true);
-        await _enrollStudent();
-        return;
-      }
-
-      setState(() => _isProcessing = true);
-      _safetyTimer?.cancel();
-      _safetyTimer = Timer(const Duration(seconds: 25), () {
-        if (mounted && _isProcessing) {
-          setState(() => _isProcessing = false);
-          AppMessenger.showSnackBar(
-            context,
-            title: "Safety Timeout",
-            message: "Purchase timed out. Check the Debug Logs button on top.",
-            type: MessengerType.error,
-          );
-        }
-      });
-
-      final productId = widget.courseData['iapProductId'] ??
-          'com.yazan.calligro.tier_${(widget.courseData['price'] ?? 50.0).toInt()}';
-
-      try {
-        await IAPService().buyCourse(productId);
-      } catch (e) {
-        _safetyTimer?.cancel();
-        if (mounted) setState(() => _isProcessing = false);
+      case PurchaseStage.failed:
+        _purchases.clear(widget.courseId);
         AppMessenger.showSnackBar(
           context,
-          title: "IAP Error",
-          message: e.toString(),
+          title: l10n.error,
+          message: _purchaseErrorText(status, l10n),
           type: MessengerType.error,
         );
-      }
+      case PurchaseStage.cancelled:
+        _purchases.clear(widget.courseId);
+      case PurchaseStage.idle || PurchaseStage.buying || PurchaseStage.verifying:
+        break;
     }
   }
 
+  String _purchaseErrorText(PurchaseStatus s, AppLocalizations l10n) => switch (s.code) {
+        'failed-precondition' => s.message ?? l10n.somethingWentWrong,
+        'already-exists' => s.message ?? l10n.somethingWentWrong,
+        _ => s.message ?? l10n.somethingWentWrong,
+      };
+
+  Future<void> _onMainButton() async {
+    final action = _preview?.action;
+    final course = _preview?.course;
+    if (action == null || course == null) return;
+    switch (action) {
+      case CourseAction.open || CourseAction.manage:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CourseDetailsPage(courseId: widget.courseId, courseData: courseData),
+          ),
+        );
+      case CourseAction.soldOut:
+        break;
+      case CourseAction.buy || CourseAction.enrollFree:
+        if (!GuestGuard.check(context, isGuest: _uid.isEmpty, returnTo: '/studentDashboard')) return;
+        final result = action == CourseAction.buy ? await _purchases.buy(course) : await _purchases.enrollFree(course);
+        if (result == BuyResult.failed && mounted) _onPurchaseChanged();
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: Listenable.merge([_preview!, _purchases]),
+        builder: (context, _) => _buildPage(context),
+      );
+
+  Widget _buildPage(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final bannerUrl = widget.courseData['courseBanner'] ?? '';
-    final price = (widget.courseData['price'] ?? 0).toDouble();
+    final bannerUrl = courseData['courseBanner'] ?? '';
+    final price = (courseData['price'] ?? 0).toDouble();
     final isFree = price == 0;
-    final teacherId = widget.courseData['teacherId'] ?? '';
 
     return Scaffold(
       backgroundColor: AppColors.primary,
@@ -257,7 +189,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                               await ShareUtils.shareWidgetAsImage(
                                 boundaryKey: _shareKey,
                                 text:
-                                    "Check out this calligraphy course: ${CourseUtils.getLocalizedCourseName(context, widget.courseData)} on Calligro!",
+                                    "Check out this calligraphy course: ${CourseUtils.getLocalizedCourseName(context, courseData)} on Calligro!",
                                 subject: "Calligraphy Course",
                               );
                             },
@@ -365,30 +297,14 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                           bottom: 0,
                           left: 0,
                           right: 0,
-                          child: StreamBuilder<DocumentSnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(teacherId)
-                                .snapshots(),
-                            builder: (context, snapshot) {
-                              String name = widget.courseData['teacherName'] ?? 'Master Artist';
-                              String photo = widget.courseData['teacherProfilePic'] ?? '';
-                              Map<String, dynamic> teacherData = {};
-
-                              if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
-                                teacherData = snapshot.data!.data() as Map<String, dynamic>;
-                                name = teacherData['name'] ?? name;
-                                photo = teacherData['photoUrl'] ?? photo;
-                              }
-
-                              final double avgRating = RatingUtils.calculateAverageRating(
-                                teacherData['totalStars'] ?? 0,
-                                teacherData['reviewCount'] ?? 0,
-                              );
-                              final String flag = CountryUtils.getFlagFromPhoneNumber(
-                                teacherData['phone'] ?? teacherData['phoneNumber'],
-                              );
-                              final List<String> languages = List<String>.from(teacherData['spokenLanguages'] ?? []);
+                          child: Builder(
+                            builder: (context) {
+                              final t = _preview?.teacher;
+                              final String name = (t != null && t.name.isNotEmpty) ? t.name : (courseData['teacherName'] ?? 'Master Artist');
+                              final String photo = (t != null && t.photoUrl.isNotEmpty) ? t.photoUrl : (courseData['teacherProfilePic'] ?? '');
+                              final double avgRating = t?.averageRating ?? 0;
+                              final String flag = t?.countryFlag ?? '';
+                              final List<String> languages = t?.spokenLanguages ?? const [];
 
                               return ClipRRect(
                                 borderRadius: const BorderRadius.only(
@@ -420,7 +336,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         // Course Title
-                                        Text(CourseUtils.getLocalizedCourseName(context, widget.courseData),
+                                        Text(CourseUtils.getLocalizedCourseName(context, courseData),
                                           textAlign: TextAlign.start,
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -516,12 +432,12 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                           children: [
                                             _buildMetaChip(
                                               Icons.signal_cellular_alt_rounded,
-                                              _getLocalizedLevel(context, widget.courseData['selectedCategory'] ?? 'Beginner'),
+                                              _getLocalizedLevel(context, courseData['selectedCategory'] ?? 'Beginner'),
                                             ),
-                                            if (widget.courseData['ageCategory'] != null)
+                                            if (courseData['ageCategory'] != null)
                                               _buildMetaChip(
                                                 Icons.face_rounded,
-                                                _getLocalizedAgeCategory(context, widget.courseData['ageCategory']?.toString() ?? ''),
+                                                _getLocalizedAgeCategory(context, courseData['ageCategory']?.toString() ?? ''),
                                               ),
                                             if (languages.isNotEmpty)
                                               _buildMetaChip(
@@ -559,42 +475,12 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     const SizedBox(height: 8),
-                    StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(teacherId)
-                          .snapshots(),
-                      builder: (context, userSnap) {
-                        return StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('courses')
-                              .where('teacherId', isEqualTo: teacherId)
-                              .snapshots(),
-                          builder: (context, courseSnap) {
-                            final userData =
-                                userSnap.data?.data() as Map<String, dynamic>? ??
-                                {};
-                            final avgRating = RatingUtils.calculateAverageRating(
-                              userData['totalStars'] ?? 0,
-                              userData['reviewCount'] ?? 0,
-                            );
-                            final followerCount = userData['followerCount'] ?? 0;
-                            final courseCount =
-                                courseSnap.hasData
-                                    ? courseSnap.data!.docs.length
-                                    : 0;
-
-                            // Sum up enrolledStudents across ALL this teacher's courses
-                            int totalStudents = 0;
-                            if (courseSnap.hasData) {
-                              for (final doc in courseSnap.data!.docs) {
-                                final data = doc.data() as Map<String, dynamic>;
-                                final dynamic enrolled = data['enrolledStudents'];
-                                if (enrolled is List) {
-                                  totalStudents += enrolled.length;
-                                }
-                              }
-                            }
+                    Builder(
+                      builder: (context) {
+                            final t = _preview?.teacher;
+                            final avgRating = t?.averageRating ?? 0.0;
+                            final courseCount = t?.courseCount ?? 0;
+                            final totalStudents = t?.totalStudents ?? 0;
 
                             return Container(
                               padding: const EdgeInsets.symmetric(
@@ -629,15 +515,13 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                 ],
                               ),
                             );
-                          },
-                        );
                       },
                     ),
                     const SizedBox(height: 32),
                     _buildPremiumHeader(l10n.description, icon: Icons.info_outline),
                     const SizedBox(height: 16),
                     AutoTranslatedText(
-                      widget.courseData['courseDescription'] ?? '',
+                      courseData['courseDescription'] ?? '',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 16,
@@ -709,7 +593,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                   l10n.startDate,
                                   _formatTimestamp(
                                     context,
-                                    widget.courseData['startDate'],
+                                    courseData['startDate'],
                                   ),
                                   Icons.calendar_today_rounded,
                                 ),
@@ -723,10 +607,10 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                 child: _buildGridItem(
                                   context,
                                   l10n.endDate,
-                                  widget.courseData['endDate'] != null
+                                  courseData['endDate'] != null
                                       ? _formatTimestamp(
                                         context,
-                                        widget.courseData['endDate'],
+                                        courseData['endDate'],
                                       )
                                       : l10n.tbd,
                                   Icons.calendar_month_rounded,
@@ -746,7 +630,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                   l10n.startTime,
                                   _formatTimestamp(
                                     context,
-                                    widget.courseData['startTime'],
+                                    courseData['startTime'],
                                     isTime: true,
                                   ),
                                   Icons.access_time_filled_rounded,
@@ -763,7 +647,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                                   l10n.endTime,
                                   _formatTimestamp(
                                     context,
-                                    widget.courseData['endTime'],
+                                    courseData['endTime'],
                                     isTime: true,
                                   ),
                                   Icons.history_toggle_off_rounded,
@@ -777,7 +661,7 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                             l10n.weeklySession,
                             _getLocalizedDays(
                               context,
-                              widget.courseData['selectedDays'] as List<dynamic>?,
+                              courseData['selectedDays'] as List<dynamic>?,
                             ),
                           ),
                         ],
@@ -789,14 +673,14 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                       icon: Icons.auto_stories_outlined,
                     ),
                     const SizedBox(height: 24),
-                    _buildPremiumCurriculum(widget.courseData, l10n),
+                    _buildPremiumCurriculum(courseData, l10n),
                     const SizedBox(height: 40),
                     _buildPremiumHeader(
                       l10n.toolsRequirements.toUpperCase(),
                       icon: Icons.draw_outlined,
                     ),
                     const SizedBox(height: 24),
-                    _buildToolsList(widget.courseData, l10n),
+                    _buildToolsList(courseData, l10n),
                     const SizedBox(height: 40),
                     const SizedBox(height: 150),
                   ]),
@@ -829,31 +713,11 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                   stops: const [0, 0.4, 1.0],
                 ),
               ),
-              child: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('courses')
-                    .doc(widget.courseId)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  final currentUser = FirebaseAuth.instance.currentUser;
-                  bool isEnrolled = false;
-                  bool isFull = false;
-
-                  if (snapshot.hasData && snapshot.data!.exists) {
-                    final data = snapshot.data!.data() as Map<String, dynamic>;
-                    final List<dynamic> enrolledStudents =
-                        data['enrolledStudents'] ?? [];
-                    final int maxStudents = data['maxStudents'] ?? 0;
-                        
-                    if (currentUser != null &&
-                        enrolledStudents.contains(currentUser.uid)) {
-                      isEnrolled = true;
-                    }
-                    if (maxStudents > 0 && enrolledStudents.length >= maxStudents) {
-                      isFull = true;
-                    }
-                  }
-
+              child: Builder(
+                builder: (context) {
+                  final action = _preview?.action;
+                  final bool isEnrolled = action == CourseAction.open || action == CourseAction.manage;
+                  final bool isFull = action == CourseAction.soldOut;
                   if (isFull && !isEnrolled) {
                     return ElevatedButton(
                       onPressed: null,
@@ -885,22 +749,8 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
                   }
 
                   return ElevatedButton(
-                    onPressed: _isProcessing ? null : () {
-                      if (isEnrolled) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CourseDetailsPage(
-                              courseId: widget.courseId,
-                              courseData:
-                                  snapshot.data!.data() as Map<String, dynamic>,
-                            ),
-                          ),
-                        );
-                      } else {
-                        _handlePurchase();
-                      }
-                    },
+                    key: const Key('course-main-button'),
+                    onPressed: _isProcessing ? null : _onMainButton,
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           isEnrolled ? Colors.green : AppColors.accentGold,
@@ -955,9 +805,9 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
             child: RepaintBoundary(
               key: _shareKey,
               child: CourseShareCard(
-                courseData: widget.courseData,
-                teacherName: widget.courseData['teacherName'] ?? 'Master Artist',
-                teacherProfilePic: widget.courseData['teacherProfilePic'] ?? '',
+                courseData: courseData,
+                teacherName: courseData['teacherName'] ?? 'Master Artist',
+                teacherProfilePic: courseData['teacherProfilePic'] ?? '',
               ),
             ),
           ),

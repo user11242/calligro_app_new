@@ -1,13 +1,16 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/utils/course_utils.dart';
-import '../../teacher/pages/course_details/course_details_page.dart';
-import '../../../core/widgets/auto_translated_text.dart';
+import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
+
+import '../../application/course_controllers.dart';
+import '../../domain/course_models.dart' show Course;
+import '../course_scope.dart';
+import 'package:calligro_app/core/widgets/auto_translated_text.dart';
 
 enum CourseStatusFilter { all, upcoming, active, completed }
 enum CourseStatus { upcoming, active, ended }
@@ -23,11 +26,27 @@ class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
   CourseStatusFilter _selectedFilter = CourseStatusFilter.all;
   int _currentPage = 1;
   final int _itemsPerPage = 5;
+  CourseListController? _mine;
+  String _uid = '';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_mine != null) return;
+    final services = CourseScope.of(context);
+    _uid = services.currentUid();
+    _mine = CourseListController(services.courses.watchEnrolled(_uid))..start(); // live
+  }
+
+  @override
+  void dispose() {
+    _mine?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: AppColors.primary,
@@ -37,37 +56,32 @@ class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
           SliverToBoxAdapter(
             child: _buildFilterBar(context, l10n),
           ),
-          if (currentUser == null)
+          if (_uid.isEmpty)
             SliverFillRemaining(
               child: _buildLoginWarning(context, l10n),
             )
           else
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('courses')
-                  .where('enrolledStudents', arrayContains: currentUser.uid)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+            ListenableBuilder(
+              listenable: _mine!,
+              builder: (context, _) {
+                final mine = _mine!;
+                if (mine.isLoading) {
                   return const SliverFillRemaining(
                     child: Center(
                       child: CircularProgressIndicator(color: AppColors.accentGold),
                     ),
                   );
                 }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (mine.all.isEmpty) {
                   return SliverFillRemaining(
                     child: _buildEmptyState(context, l10n),
                   );
                 }
-
-                final allCourses = snapshot.data!.docs;
-                final now = DateTime.now();
+                final allCourses = mine.all;
 
                 // Calculate statuses and filter
-                final filteredCourses = allCourses.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
+                final filteredCourses = allCourses.where((course) {
+                  final data = course.raw;
                   final status = _getCourseStatus(data);
                   
                   if (_selectedFilter == CourseStatusFilter.all) return true;
@@ -99,7 +113,7 @@ class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
                 
                 final paginatedCourses = startIndex < filteredCourses.length 
                     ? filteredCourses.sublist(startIndex, endIndex)
-                    : <DocumentSnapshot>[];
+                    : <Course>[];
 
                 return SliverMainAxisGroup(
                   slivers: [
@@ -108,12 +122,12 @@ class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
-                            final doc = paginatedCourses[index];
-                            final data = doc.data() as Map<String, dynamic>;
+                            final course = paginatedCourses[index];
+                            final data = course.raw;
                             final status = _getCourseStatus(data);
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 20),
-                              child: _buildCourseCard(context, doc.id, data, status),
+                              child: _buildCourseCard(context, course.id, data, status),
                             );
                           },
                           childCount: paginatedCourses.length,
@@ -294,7 +308,6 @@ class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
         statusColor = Colors.grey;
         break;
       case CourseStatus.active:
-      default:
         statusColor = const Color(0xFF4CAF50);
         break;
     }
@@ -572,7 +585,6 @@ class _StudentMyCoursesPageState extends State<StudentMyCoursesPage> {
       case CourseStatus.ended:
         return l10n.completedCaps;
       case CourseStatus.active:
-      default:
         return l10n.activeCaps;
     }
   }
