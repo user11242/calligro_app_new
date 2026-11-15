@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { createWhopCheckout } from "@/lib/whop";
+import { FEE_MULTIPLIER } from "@/lib/pricingConfig";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,9 +20,9 @@ export async function POST(req: NextRequest) {
     const courseData = courseDoc.data()!;
     const originalPrice = Number(courseData.price || 0);
 
-    // 50% Academy Grant + 8% Service Fee Buffer
+    // 50% Academy Grant + Platform Fee Buffer
     const discountedPrice = originalPrice / 2;
-    const finalAmount = Number((discountedPrice * 1.08).toFixed(2));
+    const finalAmount = Number((discountedPrice * FEE_MULTIPLIER).toFixed(2));
 
     if (finalAmount <= 0) {
       return NextResponse.json({ error: "Invalid course price" }, { status: 400 });

@@ -22,7 +22,7 @@ class PurchaseService {
   PurchaseService(this.analytics);
 
   Future<void> simulateSuccessfulPurchase(String courseId, double price) async {
-    // 1. Core business logic happens here (handled by Lemon Squeezy)
+    // 1. Core business logic happens here (handled by Whop / the app stores)
     
     // 2. Fire the critical marketing event
     await analytics.logEvent(

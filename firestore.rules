@@ -21,6 +21,22 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
+    // Approved teachers (newer accounts: status 'approved'; older ones: approved == true).
+    function isApprovedTeacher() {
+      return isTeacher() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status', '') == 'approved' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('approved', false) == true
+      );
+    }
+    // The course's teacher, an enrolled student or an admin.
+    function isCourseMember(courseId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return isSignedIn() && (
+        course.teacherId == request.auth.uid ||
+        request.auth.uid in course.get('enrolledStudents', []) ||
+        isAdmin()
+      );
+    }
 
     // Counters other users may move on someone's profile: follows by one,
     // ratings by one review (reviewCount ±1 or 0 for an edited review,
@@ -162,7 +178,11 @@ service cloud.firestore {
     // =========================================================
     match /courses/{courseId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      // Approved teachers create their own courses, empty (enrolment is server-only).
+      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid &&
+        (isApprovedTeacher() || isAdmin()) &&
+        request.resource.data.get('enrolledStudents', []).size() == 0 &&
+        request.resource.data.get('enrolledCount', 0) == 0;
       
       allow update: if isSignedIn() && (
         resource.data.teacherId == request.auth.uid || 
@@ -199,8 +219,9 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // Paid content: only people in the course.
       match /materials/{materialId} {
-        allow read: if true;
+        allow read: if isCourseMember(courseId);
         allow create, update, delete: if isSignedIn() && (
           get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid ||
           isAdmin()
@@ -406,7 +427,9 @@ service cloud.firestore {
         resource.data.teacherId == request.auth.uid || 
         isAdmin()
       );
-      allow create: if isSignedIn() && request.resource.data.source == 'admin_bypass'; // Transactions must only be created by secure Cloud Functions or bypass
+      // Money records are written by Cloud Functions / the web server (Admin SDK).
+      // Only admins may add one from a client (the development "join for free" button).
+      allow create: if isAdmin() && request.resource.data.source == 'admin_bypass';
     }
 
     // Collection-group access for the profile sync (name / photo on all my comments).

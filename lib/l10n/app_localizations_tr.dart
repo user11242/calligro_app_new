@@ -1362,9 +1362,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get card => 'Kart';
 
   @override
-  String get paypal => 'PayPal';
-
-  @override
   String get cardDetails => 'Kart Bilgileri';
 
   @override
@@ -1919,9 +1916,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get learningOutcomes => 'Learning Outcomes';
-
-  @override
-  String get paypalEmail => 'PayPal Email';
 
   @override
   String get coursePreviewNote =>
@@ -2489,7 +2483,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get faqEarningsA =>
-      'Kazançlarınızı Banka Transferi veya PayPal ile çekebilirsiniz. Bilgilerinizi eklemek için Ayarlar > Ödeme Ayarları\'na gidin. Ödemeler her Pazartesi işlenir.';
+      'Kazançlarınızı Banka Transferi veya CliQ ile çekebilirsiniz. Bilgilerinizi eklemek için Ayarlar > Ödeme Ayarları\'na gidin. Ödemeler her Pazartesi işlenir.';
 
   @override
   String get faqAvailabilityQ => 'Müsaitlik durumumu nasıl değiştirebilirim?';

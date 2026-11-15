@@ -8,9 +8,7 @@ export interface CreateCheckoutParams {
 }
 
 export async function createWhopCheckout(params: CreateCheckoutParams) {
-  const rawApiKey =
-    process.env.WHOP_API_KEY ||
-    "apik_Ta7ofXZxGNm21_C7847943_C_e8fb6aaf66eef06e22a9af3f54513954dd8425ab230ed3a62dd106f87b577b";
+  const rawApiKey = process.env.WHOP_API_KEY || ""; // never hard-code the key (the old literal must be revoked)
   const apiKey = rawApiKey.replace(/['"]/g, "").trim();
 
   const rawCompanyId = process.env.WHOP_COMPANY_ID || "biz_TtxhlwxC6B0RBZ";

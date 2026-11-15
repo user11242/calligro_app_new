@@ -1359,9 +1359,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get card => 'بطاقة ائتمان';
 
   @override
-  String get paypal => 'PayPal';
-
-  @override
   String get cardDetails => 'تفاصيل البطاقة';
 
   @override
@@ -1914,9 +1911,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get learningOutcomes => 'نتائج التعلم';
-
-  @override
-  String get paypalEmail => 'بريد PayPal الإلكتروني';
 
   @override
   String get coursePreviewNote =>
@@ -2482,7 +2476,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get faqEarningsA =>
-      'يمكنك سحب أرباحك عبر التحويل البنكي أو PayPal. انتقل إلى الإعدادات > إعدادات الدفع لإضافة تفاصيلك. يتم معالجة الدفعات كل يوم الاثنين.';
+      'يمكنك سحب أرباحك عبر التحويل البنكي أو CliQ. انتقل إلى الإعدادات > إعدادات الدفع لإضافة تفاصيلك. يتم معالجة الدفعات كل يوم الاثنين.';
 
   @override
   String get faqAvailabilityQ => 'كيف أغير توفري؟';

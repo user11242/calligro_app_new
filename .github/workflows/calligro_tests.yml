@@ -77,13 +77,22 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
+      - name: Install Web Portal Dependencies (for the Whop enrolment test)
+        working-directory: ./web_portal
+        run: npm install --legacy-peer-deps
+
       - name: Run rules tests against the Firestore + Storage emulators
         run: >
           firebase emulators:exec --only firestore,storage --project demo-calligro
-          "cd functions && npx jest test/security_rules.test.js test/community_rules.test.js test/storage_rules.test.js test/migrate_payout_private.test.js test/profile_sync.test.js test/profile_rules.test.js"
+          "cd functions && npx jest test/security_rules.test.js test/community_rules.test.js test/storage_rules.test.js test/migrate_payout_private.test.js test/profile_sync.test.js test/profile_rules.test.js test/course_rules.test.js test/purchases.test.js"
+
+      - name: Run Whop enrolment tests against the Firestore emulator
+        run: >
+          firebase emulators:exec --only firestore --project demo-calligro
+          "cd web_portal && npx vitest run tests/whop_enrollment.test.ts"
 
   web_portal_tests:
-    name: Web Portal Lemon Squeezy Tests (Domain 1)
+    name: Web Portal Finance Tests (Domain 1)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -100,7 +109,7 @@ jobs:
         run: npm install --legacy-peer-deps
         
       - name: Run Finance Webhook Tests
-        run: npx vitest run tests/finance.test.ts
+        run: npx vitest run tests/finance.test.ts tests/whop_webhook.test.ts
 
   deploy_ios:
     name: Deploy to Apple TestFlight (CD)

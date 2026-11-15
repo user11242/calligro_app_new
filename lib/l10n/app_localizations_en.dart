@@ -1365,9 +1365,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get card => 'Card';
 
   @override
-  String get paypal => 'PayPal';
-
-  @override
   String get cardDetails => 'Card Details';
 
   @override
@@ -1918,9 +1915,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get learningOutcomes => 'Learning Outcomes';
-
-  @override
-  String get paypalEmail => 'PayPal Email';
 
   @override
   String get coursePreviewNote =>
@@ -2487,7 +2481,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get faqEarningsA =>
-      'You can withdraw your earnings via Bank Transfer or PayPal. Go to Settings > Payout Settings to add your details. Payouts are processed every Monday.';
+      'You can withdraw your earnings via Bank Transfer or CliQ. Go to Settings > Payout Settings to add your details. Payouts are processed every Monday.';
 
   @override
   String get faqAvailabilityQ => 'How do I change my availability?';

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -84,8 +85,10 @@ class _CoursePreviewPageState extends State<CoursePreviewPage> {
       final callable = FirebaseFunctions.instance.httpsCallable('verifyPurchase');
       final validationResult = await callable.call({
         'receiptData': receipt,
+        'purchaseToken': result.serverReceipt,
         'courseId': widget.courseId,
         'productId': result.productId,
+        'platform': Platform.isAndroid ? 'android' : 'ios', // Android receipts are not Apple receipts
       });
 
       final bool success = validationResult.data['success'] ?? false;

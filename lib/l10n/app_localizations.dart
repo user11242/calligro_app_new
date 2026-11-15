@@ -2572,12 +2572,6 @@ abstract class AppLocalizations {
   /// **'Card'**
   String get card;
 
-  /// No description provided for @paypal.
-  ///
-  /// In en, this message translates to:
-  /// **'PayPal'**
-  String get paypal;
-
   /// No description provided for @cardDetails.
   ///
   /// In en, this message translates to:
@@ -3615,12 +3609,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Learning Outcomes'**
   String get learningOutcomes;
-
-  /// No description provided for @paypalEmail.
-  ///
-  /// In en, this message translates to:
-  /// **'PayPal Email'**
-  String get paypalEmail;
 
   /// No description provided for @coursePreviewNote.
   ///
@@ -4675,7 +4663,7 @@ abstract class AppLocalizations {
   /// No description provided for @faqEarningsA.
   ///
   /// In en, this message translates to:
-  /// **'You can withdraw your earnings via Bank Transfer or PayPal. Go to Settings > Payout Settings to add your details. Payouts are processed every Monday.'**
+  /// **'You can withdraw your earnings via Bank Transfer or CliQ. Go to Settings > Payout Settings to add your details. Payouts are processed every Monday.'**
   String get faqEarningsA;
 
   /// No description provided for @faqAvailabilityQ.

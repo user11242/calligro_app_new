@@ -84,7 +84,13 @@ describe('course materials', () => {
     await assertFails(deleteObject(ref(as('s1'), 'course_materials/c1/sheet.pdf')));
     await assertSucceeds(deleteObject(ref(as('admin'), 'course_materials/c1/sheet.pdf')));
   });
-  it('are readable (shared with students)', () => assertSucceeds(getBytes(ref(as('s2'), 'course_materials/c1/sheet.pdf'))));
+  it('only enrolled students, the teacher and admins can download them', async () => {
+    await assertSucceeds(getBytes(ref(as('s1'), 'course_materials/c1/sheet.pdf')));
+    await assertSucceeds(getBytes(ref(as('t1'), 'course_materials/c1/sheet.pdf')));
+    await assertSucceeds(getBytes(ref(as('admin'), 'course_materials/c1/sheet.pdf')));
+    await assertFails(getBytes(ref(as('s2'), 'course_materials/c1/sheet.pdf')));
+    await assertFails(getBytes(ref(guest(), 'course_materials/c1/sheet.pdf')));
+  });
 });
 
 describe('assignment submissions', () => {

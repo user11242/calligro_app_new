@@ -50,7 +50,7 @@ service firebase.storage {
 
     // Course materials (PDFs, images, worksheets): the course teacher manages them.
     match /course_materials/{courseId}/{allPaths=**} {
-      allow read: if true;
+      allow read: if isCourseMember(courseId) || isAdmin(); // paid content
       allow write: if isCourseTeacher(courseId) || isAdmin();
     }
 
@@ -69,7 +69,7 @@ service firebase.storage {
     // Anything else (gallery, older uploads): readable, never writable from the app.
     // The private folders are excluded here, otherwise this read would OR-open them.
     match /{allPaths=**} {
-      allow read: if !allPaths.matches('^(course_submissions|course_chats)/.*');
+      allow read: if !allPaths.matches('^(course_submissions|course_chats|course_materials)/.*');
     }
   }
 }

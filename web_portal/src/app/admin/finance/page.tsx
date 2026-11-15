@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ArrowUpRight, Plus, Calendar, Clock, TrendingUp as TrendingUpIcon, Loader2, Search, ChevronDown, Landmark, BadgeDollarSign, ReceiptText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { financeService, Transaction, Expense } from "@/lib/financeService";
+import { FEE_RATE } from "@/lib/pricingConfig";
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 const translations = {
@@ -24,7 +25,7 @@ const translations = {
     netRevenue: "Net Revenue (ex-8%)",
     grossDiv108: "Gross ÷ 1.08",
     lsProcessing: "LS Processing (5%+$0.50)",
-    paidToLS: "Paid to Lemon Squeezy",
+    paidToLS: "Paid to Whop",
     lsExchange: "LS Exchange (1.5%)",
     currencyConversion: "Currency conversion",
     bankReceivingFees: "Bank Receiving Fees",
@@ -56,7 +57,7 @@ const translations = {
     noTeacherData: "No teacher data for this period.",
     totalRow: "Total",
     inboundSettlements: "Inbound Settlements",
-    settlementSubtitle: "Log every Lemon Squeezy wire to your bank. Bank fee is editable per transfer.",
+    settlementSubtitle: "Log every Whop wire to your bank. Bank fee is editable per transfer.",
     totalNetCash: "Total Net Cash Received",
     dateReceived: "Date Received",
     grossWiredByLS: "Gross Wired by LS",
@@ -89,7 +90,7 @@ const translations = {
     dateLabel: "Date",
     logOutcome: "Log Outcome",
     modalLogSettlement: "Log Settlement",
-    settlementDesc: "When Lemon Squeezy wires money to your bank, log it here with the exact bank fee you were charged.",
+    settlementDesc: "When Whop wires money to your bank, log it here with the exact bank fee you were charged.",
     dateReceivedLabel: "Date Received",
     grossWiredLabel: "Gross Wired by LS ($)",
     bankFeeLabel: "Your Bank Receiving Fee ($) ✏️",
@@ -114,7 +115,7 @@ const translations = {
     netRevenue: "الإيراد الصافي (بدون 8%)",
     grossDiv108: "الإجمالي ÷ 1.08",
     lsProcessing: "رسوم LS (5%+$0.50)",
-    paidToLS: "مدفوعة لـ Lemon Squeezy",
+    paidToLS: "مدفوعة لـ Whop",
     lsExchange: "رسوم صرف LS (1.5%)",
     currencyConversion: "تحويل العملة",
     bankReceivingFees: "رسوم استقبال البنك",
@@ -146,7 +147,7 @@ const translations = {
     noTeacherData: "لا توجد بيانات لهذه الفترة.",
     totalRow: "المجموع",
     inboundSettlements: "التسويات الواردة",
-    settlementSubtitle: "سجّل كل تحويل من Lemon Squeezy لبنكك. رسوم البنك قابلة للتعديل لكل تحويل.",
+    settlementSubtitle: "سجّل كل تحويل من Whop لبنكك. رسوم البنك قابلة للتعديل لكل تحويل.",
     totalNetCash: "إجمالي النقد الصافي المستلم",
     dateReceived: "تاريخ الاستلام",
     grossWiredByLS: "المبلغ المحوّل من LS",
@@ -179,7 +180,7 @@ const translations = {
     dateLabel: "التاريخ",
     logOutcome: "تسجيل",
     modalLogSettlement: "تسجيل تسوية",
-    settlementDesc: "عند استلام تحويل من Lemon Squeezy، سجّله هنا مع رسوم بنكك الفعلية.",
+    settlementDesc: "عند استلام تحويل من Whop، سجّله هنا مع رسوم بنكك الفعلية.",
     dateReceivedLabel: "تاريخ الاستلام",
     grossWiredLabel: "المبلغ المحوّل من LS ($)",
     bankFeeLabel: "رسوم استقبال بنكك ($) ✏️",
@@ -193,7 +194,7 @@ const translations = {
 const LS_PROCESSING_RATE = 0.05;
 const LS_PROCESSING_FLAT = 0.50;
 const LS_EXCHANGE_RATE   = 0.015;
-const FEE_BUFFER_RATE    = 0.08;
+const FEE_BUFFER_RATE    = FEE_RATE;
 
 function toNetRevenue(gross: number) { return gross / (1 + FEE_BUFFER_RATE); }
 function lsProcessingFee(gross: number) { return gross * LS_PROCESSING_RATE + LS_PROCESSING_FLAT; }

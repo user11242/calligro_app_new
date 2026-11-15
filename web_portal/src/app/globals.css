@@ -405,37 +405,6 @@ body {
   opacity: 1;
 }
 
-/* ═══ PayPal Overlay Fix ═══ */
-/* PayPal renders its checkout overlay directly in the DOM.
-   Our dark body background + white text makes PayPal's own dark text invisible.
-   Force a light background & dark text on every PayPal container. */
-div[data-paypal-overlay],
-div[class*="paypal"],
-.paypal-overlay-context-popup,
-.paypal-checkout-sandbox,
-.zoid-component-frame,
-div[id*="paypal"],
-div[id*="zoid"] {
-  background-color: #ffffff !important;
-  color: #2c2e2f !important;
-}
-
-div[data-paypal-overlay] *,
-div[class*="paypal"] *,
-.paypal-overlay-context-popup *,
-div[id*="paypal"] *,
-div[id*="zoid"] * {
-  color: #2c2e2f !important;
-}
-
-/* Keep PayPal buttons themselves untouched */
-div[class*="paypal"] button,
-div[class*="paypal"] a,
-div[class*="paypal"] .paypal-button,
-div[id*="paypal"] button {
-  color: inherit !important;
-}
-
 /* Carousel/Slider Hiding Scrollbar */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
