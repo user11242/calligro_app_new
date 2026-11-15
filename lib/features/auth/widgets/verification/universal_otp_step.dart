@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import '../../../auth/data/services/auth_service.dart';
+import '../../application/email_codes.dart';
+import '../../domain/email_code.dart';
+import '../../presentation/auth_scope.dart';
 import '../../../../core/message/app_messenger.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/utils/numeric_utils.dart';
@@ -12,10 +14,15 @@ class UniversalOtpStep extends StatefulWidget {
   final String destination;
   final VoidCallback onVerified;
 
+  /// Email codes only: registration uses the code up; password reset keeps it
+  /// for the final step ([UniversalOtpStepState.verifiedCode]).
+  final EmailCodePurpose emailPurpose;
+
   const UniversalOtpStep({
     super.key,
     required this.destination,
     required this.onVerified,
+    this.emailPurpose = EmailCodePurpose.register,
   });
 
   @override
@@ -28,7 +35,8 @@ class UniversalOtpStepState extends State<UniversalOtpStep> {
 
   String? _verificationId;
   int? _resendToken;
-  String? _generatedEmailOtp;
+  /// The email code the server accepted (password reset sends it again with the new password).
+  String? verifiedCode;
   int _resendCooldown = 0;
   Timer? _timer;
   bool isLoading = false;
@@ -74,10 +82,19 @@ class UniversalOtpStepState extends State<UniversalOtpStep> {
     setState(() => isLoading = true);
     try {
       if (_isEmail) {
-        _generatedEmailOtp = (Random().nextInt(900000) + 100000).toString();
-        await _authService.sendEmailOtp(widget.destination, _generatedEmailOtp!);
-        _startCooldown();
-        AppMessenger.showSnackBar(context, title: l10n.otpSent, message: l10n.checkInbox, type: MessengerType.success);
+        // The SERVER creates, emails and checks the code (functions/email_codes.js).
+        final outcome = await AuthScope.of(context).emailCodes.send(widget.destination);
+        if (!mounted) return;
+        switch (outcome) {
+          case SendCodeOutcome.sent:
+            _startCooldown();
+            AppMessenger.showSnackBar(context, title: l10n.otpSent, message: l10n.checkInbox, type: MessengerType.success);
+          case SendCodeOutcome.cooldown:
+            _startCooldown();
+            AppMessenger.showSnackBar(context, title: l10n.error, message: l10n.tooManyRequests, type: MessengerType.error);
+          case SendCodeOutcome.failed:
+            AppMessenger.showSnackBar(context, title: l10n.error, message: l10n.verificationFailed, type: MessengerType.error);
+        }
       } else {
         await _authService.startPhoneVerification(
           phone: widget.destination,
@@ -112,7 +129,6 @@ class UniversalOtpStepState extends State<UniversalOtpStep> {
     final rawCode = otpController.text.trim();
     final smsCode = NumericUtils.normalize(rawCode);
     
-    debugPrint("DEBUG: verifyAndSubmit called for ${widget.destination} with code: $smsCode");
 
     if (smsCode.length != 6) {
       AppMessenger.showSnackBar(context, title: l10n.inputError, message: l10n.enter6Digits, type: MessengerType.error);
@@ -123,20 +139,23 @@ class UniversalOtpStepState extends State<UniversalOtpStep> {
     try {
       bool success = false;
       if (_isEmail) {
-        debugPrint("DEBUG: Comparing email OTP: $smsCode vs $_generatedEmailOtp");
-        success = (smsCode == _generatedEmailOtp);
+        final check = await AuthScope.of(context).emailCodes.verify(widget.destination, smsCode, purpose: widget.emailPurpose);
+        success = check == EmailCodeCheck.ok;
+        if (success) verifiedCode = smsCode;
+        if (check == EmailCodeCheck.locked && mounted) {
+          // Five wrong tries: this code no longer works; a new one is needed.
+          AppMessenger.showSnackBar(context, title: l10n.incorrectCode, message: l10n.tooManyRequests, type: MessengerType.error);
+          return false;
+        }
       } else {
         if (_verificationId == null) {
-          debugPrint("DEBUG: Error: _verificationId is null for phone OTP");
           AppMessenger.showSnackBar(context, title: l10n.error, message: l10n.idMissing, type: MessengerType.error);
           return false;
         }
-        debugPrint("DEBUG: Verifying phone OTP for ID: $_verificationId");
         final cred = await _authService.verifySmsCode(verificationId: _verificationId!, smsCode: smsCode);
         success = (cred != null);
       }
 
-      debugPrint("DEBUG: Verification result: $success");
       if (success) {
         widget.onVerified();
         return true;
@@ -145,7 +164,6 @@ class UniversalOtpStepState extends State<UniversalOtpStep> {
         return false;
       }
     } catch (e) {
-      debugPrint("DEBUG: OTP verification exception: $e");
       AppMessenger.showSnackBar(context, title: l10n.error, message: l10n.verificationFailed, type: MessengerType.error);
       return false;
     } finally {

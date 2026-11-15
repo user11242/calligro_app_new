@@ -22,7 +22,6 @@ class OtpAuthService {
       // Keep '+' if it exists at the start
       final String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
       
-      print("📱 Starting verification for: $cleanPhone (Original: $phone)");
 
       await _auth.verifyPhoneNumber(
         phoneNumber: cleanPhone,
@@ -54,7 +53,6 @@ class OtpAuthService {
 
         // 📩 CODE SENT (Standard Flow)
         codeSent: (String verificationId, int? resendToken) {
-          print("✅ OTP Code Sent to $cleanPhone");
           codeSent(verificationId, resendToken);
         },
 

@@ -1,5 +1,6 @@
 // lib/features/auth/data/services/apple_auth_service.dart
 
+import 'package:calligro_app/features/auth/data/account_locks.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,7 +9,6 @@ import 'dart:ui' as ui;
 import '../models/user_model.dart';
 import 'auth_service.dart';
 import 'package:flutter/foundation.dart';
-import '../../../../core/utils/numeric_utils.dart';
 
 class AppleAuthService {
   // --- 1. Singleton Setup ---
@@ -202,42 +202,13 @@ class AppleAuthService {
         batch.set(teacherRef, newUser.toMap());
       }
 
-      // C. Lock the Email (Security)
-      if (user.email != null && user.email!.isNotEmpty) {
-        DocumentReference emailLockRef = _firestore
-            .collection('locked_emails')
-            .doc(user.email!.trim().toLowerCase());
-        batch.set(emailLockRef, {
-          'uid': user.uid,
-          'createdAt': Timestamp.now(),
-        });
-      }
+      // C-E. Reserve email, username (not the default "User") and phone.
+      AccountLocks.reserve(_firestore, batch,
+          uid: user.uid,
+          email: user.email,
+          username: newUser.name != "User" ? newUser.name : null,
+          phone: phone);
 
-      // D. Lock the Username (Security)
-      if (newUser.name.isNotEmpty && newUser.name != "User") {
-        DocumentReference usernameLockRef = _firestore
-            .collection('locked_usernames')
-            .doc(newUser.name.trim().toLowerCase());
-        batch.set(usernameLockRef, {
-          'uid': user.uid,
-          'createdAt': Timestamp.now(),
-        });
-      }
-
-      // E. Lock the Phone (Security - Only if provided)
-      if (phone != null && phone.isNotEmpty) {
-        final cleanPhone = NumericUtils.normalize(phone, clean: true);
-        DocumentReference phoneRef = _firestore
-            .collection('locked_phones')
-            .doc(cleanPhone);
-        batch.set(phoneRef, {
-          'uid': user.uid,
-          'email': user.email,
-          'createdAt': Timestamp.now(),
-        });
-      }
-
-      // 4. Commit everything at once
       await batch.commit();
       print("✅ Apple user document created for role: $role (uid: ${user.uid})");
       return null; // null means success

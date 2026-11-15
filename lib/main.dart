@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
   import 'package:firebase_auth/firebase_auth.dart';
   import 'package:cloud_firestore/cloud_firestore.dart';
   import 'package:firebase_app_check/firebase_app_check.dart';
-  import 'package:flutter_dotenv/flutter_dotenv.dart';
   import 'dart:ui'; // Import for PlatformDispatcher
   import 'package:calligro_app/screens/splash_screen.dart'; // Import SplashScreen
   import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -139,8 +138,8 @@ import 'package:flutter/material.dart';
       DeviceOrientation.portraitDown,
     ]);
 
-    // 1. Load Environment Variables
-    await dotenv.load(fileName: ".env");
+    // (No .env in the app any more: it bundled Twilio/Postmark/Brevo keys that
+    // anyone could unpack. Email codes are sent by the server.)
 
     // 2. Initialize Firebase
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

@@ -1,4 +1,5 @@
 import 'package:calligro_app/features/auth/data/services/auth_service.dart';
+import 'package:calligro_app/features/auth/domain/auth_destination.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -61,38 +62,44 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   /// Build the appropriate dashboard widget based on user data.
   /// Extracted to avoid duplication between live and cached paths.
-  Widget _buildForUserData(Map<String, dynamic> userData) {
-    final String? role = userData['role'];
-    final String status = userData['status'] ?? 'approved';
+  Widget _buildForUserData(Map<String, dynamic> userData) => switch (AuthRouting.destinationFor(userData)) {
+        AuthDestination.onboarding => const OnboardingPage(key: ValueKey('onboarding_root')),
+        AuthDestination.teacherDashboard => const TeacherDashboardPage(),
+        AuthDestination.teacherRejected => const TeacherRejectedPage(),
+        AuthDestination.teacherPending => const TeacherPendingPage(),
+        AuthDestination.adminDashboard => const AdminDashboardPage(),
+        AuthDestination.studentDashboard => const StudentDashboardPage(),
+      };
 
-    if (role == null || role.isEmpty) {
-      return const OnboardingPage(key: ValueKey('onboarding_root'));
-    }
+  // ONE sign-in listener and ONE profile listener per user (they used to be
+  // re-created on every rebuild, re-subscribing each time).
+  late final Stream<User?> _authChanges = (widget.auth ?? FirebaseAuth.instance).authStateChanges();
+  String? _profileUid;
+  Stream<DocumentSnapshot?>? _profile;
 
-    if (role == 'teacher') {
-      if (status == 'approved') {
-        return const TeacherDashboardPage();
-      } else if (status == 'rejected') {
-        return const TeacherRejectedPage();
-      } else {
-        return const TeacherPendingPage();
-      }
-    } else if (role == 'admin') {
-      return const AdminDashboardPage();
-    } else {
-      return const StudentDashboardPage();
+  Stream<DocumentSnapshot?> _profileOf(String uid) {
+    if (_profileUid != uid || _profile == null) {
+      _profileUid = uid;
+      _profile = (widget.firestore ?? FirebaseFirestore.instance)
+          .collection('users')
+          .doc(uid)
+          .snapshots()
+          .handleError((e) {
+        debugPrint("AuthWrapper Stream Error: $e");
+        return null; // This will trigger the hasError or empty check below
+      });
     }
+    return _profile!;
   }
 
   @override
   Widget build(BuildContext context) {
-    final _auth = widget.auth ?? FirebaseAuth.instance;
-    final _firestore = widget.firestore ?? FirebaseFirestore.instance;
-    
+    final auth = widget.auth ?? FirebaseAuth.instance;
+
     return StreamBuilder<User?>(
-      stream: _auth.authStateChanges(),
+      stream: _authChanges,
       // ✅ FIX: Provide initial data to prevent "waiting" flicker
-      initialData: _auth.currentUser,
+      initialData: auth.currentUser,
       builder: (context, snapshot) {
         // 1. User Logged In -> Fetch Role
         if (snapshot.hasData && snapshot.data != null) {
@@ -102,10 +109,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           _refreshFCM(user.uid);
 
           return StreamBuilder<DocumentSnapshot?>(
-            stream: _firestore.collection('users').doc(user.uid).snapshots().handleError((e) {
-              debugPrint("AuthWrapper Stream Error: $e");
-              return null; // This will trigger the hasError or empty check below
-            }),
+            stream: _profileOf(user.uid),
             builder: (context, userSnapshot) {
               // 1. Check for errors (e.g. permission-denied during logout)
               //    Only redirect to onboarding if we have NO cached data.

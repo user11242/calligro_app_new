@@ -61,7 +61,6 @@ import 'package:calligro_app/features/auth/data/services/otp_auth_service.dart';
 import 'package:calligro_app/features/auth/data/services/google_auth_service.dart';
 import 'package:calligro_app/features/auth/data/services/auth_service.dart';
 import 'package:calligro_app/features/auth/data/services/fcm_service.dart';
-import 'package:calligro_app/features/auth/data/services/email_service.dart';
 import 'package:calligro_app/features/auth/data/services/apple_auth_service.dart';
 import 'package:calligro_app/features/auth/data/services/email_auth_service.dart';
 import 'package:calligro_app/features/auth/pages/register_page.dart';

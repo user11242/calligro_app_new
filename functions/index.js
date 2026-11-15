@@ -7,6 +7,20 @@ const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const SibApiV3Sdk = require("sib-api-v3-sdk");
 const crypto = require("crypto");
+const { checkCode, normalizeEmail } = require("./email_codes.js");
+
+/** = lib/features/auth/domain/account_keys.dart AccountKeys.phone */
+function phoneKey(phone) {
+  const foreign = "٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹०१२३४५६७८९০১২৩৪৫৬৭৮৯";
+  let out = "";
+  for (const ch of String(phone || "")) {
+    const i = foreign.indexOf(ch);
+    if (i !== -1) out += String(i % 10);
+    else if (/[0-9+]/.test(ch)) out += ch;
+  }
+  return out;
+}
+exports.phoneKey = phoneKey;
 
 // --------------------
 // Define Secret
@@ -225,7 +239,8 @@ exports.deleteOwnAccount = onCall(async (request) => {
       batch.delete(admin.firestore().collection("locked_usernames").doc(nameKey));
     }
     if (phone) {
-      const cleanPhone = phone.replace(/[^\d+]/g, "");
+      // Same key as the app's AccountKeys.phone (foreign digits → 0-9, keep "+").
+      const cleanPhone = phoneKey(phone);
       batch.delete(admin.firestore().collection("locked_phones").doc(cleanPhone));
     }
 
@@ -264,29 +279,22 @@ exports.resetPasswordWithOtp = onCall(async (request) => {
   }
 
   try {
-    // 1. Verify OTP
-    const docRef = admin.firestore().collection("emailOtps").doc(email);
-    const doc = await docRef.get();
-    
-    if (!doc.exists) {
+    // 1. Verify AND use up the code (5 wrong tries and it stops working).
+    const check = await checkCode(admin.firestore(), email, otp, { consume: true });
+    if (check === "missing") {
       throw new HttpsError("permission-denied", "No verification code found for this email.");
     }
-
-    const data = doc.data();
-    if (data.otp !== otp || data.expiresAt.toMillis() < Date.now()) {
+    if (check !== "ok") {
       throw new HttpsError("permission-denied", "Invalid or expired verification code.");
     }
 
     // 2. Get user by email
-    const userRecord = await admin.auth().getUserByEmail(email);
+    const userRecord = await admin.auth().getUserByEmail(normalizeEmail(email));
 
     // 3. Update the user's password
     await admin.auth().updateUser(userRecord.uid, {
       password: newPassword,
     });
-
-    // 4. Cleanup OTP
-    await docRef.delete();
 
     console.log(`Successfully reset password for user: ${email}`);
 
@@ -425,6 +433,9 @@ exports.syncProfileCopiesOnUpdate = require("./profile_sync.js").syncProfileCopi
 exports.recomputeRatingsOnReview = require("./ratings.js").recomputeRatingsOnReview;
 // One push token per account (a phone switching accounts got 2-3 copies).
 exports.claimPushToken = require("./notification_tokens.js").claimPushToken;
+// Email codes created, sent and checked on the server (the app no longer holds the Brevo key).
+exports.sendEmailCode = require("./email_codes.js").sendEmailCode;
+exports.verifyEmailCode = require("./email_codes.js").verifyEmailCode;
 
 // DEPRECATED: Google Meet functions removed to simplify UX and avoid restrictions.
 // Students now use the branded 'Calligro Classroom' powered by Jitsi.

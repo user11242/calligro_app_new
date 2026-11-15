@@ -5,14 +5,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'email_service.dart';
 import 'email_auth_service.dart';
 import 'google_auth_service.dart';
 import 'apple_auth_service.dart';
 import 'otp_auth_service.dart';
 import 'fcm_service.dart';
 import 'package:flutter/foundation.dart';
-import '../../../../core/utils/numeric_utils.dart';
+import '../../domain/account_keys.dart';
 
 class AuthService {
   late final EmailAuthService _emailAuth;
@@ -20,7 +19,6 @@ class AuthService {
   late final AppleAuthService _appleAuth;
   late final OtpAuthService _otpAuth;
   late final FcmService _fcmService;
-  late final EmailService _emailService;
 
   GoogleAuthService get googleAuth => _googleAuth;
   AppleAuthService get appleAuth => _appleAuth;
@@ -36,7 +34,6 @@ class AuthService {
     AppleAuthService? appleAuth,
     OtpAuthService? otpAuth,
     FcmService? fcmService,
-    EmailService? emailService,
   })  : _firestoreMock = firestore,
         _authMock = auth {
     _emailAuth = emailAuth ?? EmailAuthService();
@@ -44,7 +41,6 @@ class AuthService {
     _appleAuth = appleAuth ?? AppleAuthService.instance;
     _otpAuth = otpAuth ?? OtpAuthService();
     _fcmService = fcmService ?? FcmService();
-    _emailService = emailService ?? EmailService();
   }
   
   FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
@@ -57,7 +53,7 @@ class AuthService {
     try {
       final doc = await _firestore
           .collection('locked_usernames')
-          .doc(name.trim().toLowerCase())
+          .doc(AccountKeys.username(name))
           .get();
       return doc.exists;
     } catch (e) {
@@ -69,7 +65,7 @@ class AuthService {
     try {
       final doc = await _firestore
           .collection('locked_emails')
-          .doc(email.trim().toLowerCase())
+          .doc(AccountKeys.email(email))
           .get();
       return doc.exists;
     } catch (e) {
@@ -79,7 +75,7 @@ class AuthService {
 
   Future<bool> isPhoneTaken(String phone) async {
     try {
-      final cleanPhone = NumericUtils.normalize(phone, clean: true);
+      final cleanPhone = AccountKeys.phone(phone);
       final doc = await _firestore
           .collection('locked_phones')
           .doc(cleanPhone)
@@ -335,11 +331,13 @@ class AuthService {
     }
 
     // 2. Release Locks (Allow these credentials to be used by new users)
+    // Same keys as registration (AccountKeys): the phone used to lose its "+"
+    // here, so the reservation was never found and the phone stayed "taken".
     if (email != null && email.isNotEmpty) {
-      batch.delete(_firestore.collection('locked_emails').doc(email.trim().toLowerCase()));
+      batch.delete(_firestore.collection('locked_emails').doc(AccountKeys.email(email)));
     }
     if (phone != null && phone.isNotEmpty) {
-      final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+      final cleanPhone = AccountKeys.phone(phone);
       if (cleanPhone.isNotEmpty) {
         batch.delete(_firestore.collection('locked_phones').doc(cleanPhone));
       }
@@ -369,9 +367,6 @@ class AuthService {
 
   Future<String> loginWithEmail(String email, String password) =>
       _emailAuth.login(email: email, password: password);
-
-  Future<bool> sendEmailOtp(String email, String otpCode) =>
-      _emailService.sendOtp(email, otpCode);
 
   Future<void> saveUserFcmToken(String uid) async {
     try {

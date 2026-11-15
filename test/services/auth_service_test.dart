@@ -7,7 +7,6 @@ import 'package:calligro_app/features/auth/data/services/google_auth_service.dar
 import 'package:calligro_app/features/auth/data/services/apple_auth_service.dart';
 import 'package:calligro_app/features/auth/data/services/otp_auth_service.dart';
 import 'package:calligro_app/features/auth/data/services/fcm_service.dart';
-import 'package:calligro_app/features/auth/data/services/email_service.dart';
 import 'package:mockito/mockito.dart';
 
 class MockEmailAuthService extends Mock implements EmailAuthService {}
@@ -15,7 +14,6 @@ class MockGoogleAuthService extends Mock implements GoogleAuthService {}
 class MockAppleAuthService extends Mock implements AppleAuthService {}
 class MockOtpAuthService extends Mock implements OtpAuthService {}
 class MockFcmService extends Mock implements FcmService {}
-class MockEmailService extends Mock implements EmailService {}
 
 void main() {
   group('Layer 2: AuthService Tests (Coverage)', () {
@@ -35,7 +33,6 @@ void main() {
         appleAuth: MockAppleAuthService(),
         otpAuth: MockOtpAuthService(),
         fcmService: MockFcmService(),
-        emailService: MockEmailService(),
       );
     });
 

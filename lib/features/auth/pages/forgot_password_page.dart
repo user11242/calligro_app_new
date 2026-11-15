@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../domain/email_code.dart';
+import '../presentation/auth_scope.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
 import '../../../core/theme/colors.dart';
@@ -40,6 +42,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   bool isLoading = false;
   int _currentStep = 0; // 0: Email, 1: OTP, 2: New Password
   String? _userEmail;
+  String? _verifiedCode;
 
   // Placeholder for GlobalKey
 
@@ -355,16 +358,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => isLoading = true);
 
     try {
-      // Call Cloud Function to reset password
-      final callable = FirebaseFunctions.instance.httpsCallable(
-        'resetPasswordWithOtp',
-      );
-      final result = await callable.call({
-        'email': _userEmail,
-        'newPassword': newPassword,
-      });
+      // The server checks the code typed at the previous step (it used to be
+      // left out, so the server refused every reset) and sets the password.
+      await AuthScope.of(context).emailCodes.resetPassword(_userEmail!, _verifiedCode ?? '', newPassword);
 
-      if (result.data['success'] == true) {
+      {
         if (!mounted) return;
 
         showDialog(
@@ -454,30 +452,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           ),
           ),
         );
-      } else {
-        _showMessage(
-          context,
-          l10n.error,
-          l10n.pleaseTryAgain,
-          MessengerType.error,
-        );
-      }
-    } on FirebaseFunctionsException catch (e) {
-      print("DEBUG: FirebaseFunctionsException: ${e.code} - ${e.message}");
-      if (e.code == 'permission-denied') {
-        _showMessage(
-          context,
-          l10n.error,
-          "Developer Action Required: Cloud Function permissions not set. Check implementation plan.",
-          MessengerType.error,
-        );
-      } else {
-        _showMessage(
-          context,
-          l10n.error,
-          e.message ?? l10n.pleaseTryAgain,
-          MessengerType.error,
-        );
       }
     } catch (e) {
       _showMessage(
@@ -545,7 +519,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         UniversalOtpStep(
           key: _otpStepKey,
           destination: _userEmail!,
+          emailPurpose: EmailCodePurpose.reset,
           onVerified: () {
+            // Kept for the last step: the server checks it again with the new password.
+            _verifiedCode = _otpStepKey.currentState?.verifiedCode;
             setState(() => _currentStep = 2);
           },
         ),

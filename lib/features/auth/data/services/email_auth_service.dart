@@ -1,8 +1,8 @@
+import 'package:calligro_app/features/auth/data/account_locks.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
-import '../../../../core/utils/numeric_utils.dart';
 class EmailAuthService {
   final FirebaseAuth? _authMock;
   final FirebaseFirestore? _firestoreMock;
@@ -70,32 +70,9 @@ class EmailAuthService {
         batch.set(_firestore.collection('teachers').doc(uid), newUser.toMap());
       }
  
-      // Locks
-      batch.set(
-        _firestore.collection('locked_emails').doc(email.trim().toLowerCase()),
-        {'uid': uid, 'createdAt': Timestamp.now()},
-      );
-      batch.set(
-        _firestore
-            .collection('locked_usernames')
-            .doc(name.trim().toLowerCase()),
-        {'uid': uid, 'createdAt': Timestamp.now()},
-      );
- 
-      // ✅ ADDED: Lock the Phone (Security - Only if provided)
-      if (phone != null && phone.isNotEmpty) {
-        final cleanPhone = NumericUtils.normalize(phone, clean: true);
-        debugPrint("DEBUG: Locking phone: $cleanPhone");
-        batch.set(
-          _firestore.collection('locked_phones').doc(cleanPhone),
-          {
-            'uid': uid,
-            'email': email.trim().toLowerCase(),
-            'createdAt': Timestamp.now(),
-          },
-        );
-      }
- 
+      // Locks (shared keys: AccountLocks / AccountKeys)
+      AccountLocks.reserve(_firestore, batch, uid: uid, email: email, username: name, phone: phone);
+
       await batch.commit();
       debugPrint("DEBUG: Batch commit successful for $uid");
       return null;
