@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -53,11 +54,9 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
           commissionRate = (userData['commissionRate'] as num).toDouble();
         }
 
-        if (userData.containsKey('payoutSettings')) {
-          final settings = userData['payoutSettings'] as Map<String, dynamic>;
-          selectedMethod = settings['selectedMethod'];
-        }
       }
+      // Payout details are private (users/{uid}/private/payout).
+      selectedMethod = (await PayoutSettingsRepository().load(_currentUserId))?.selectedMethod;
 
       // 2. Fetch Courses to map end dates
       final coursesQuery = await FirebaseFirestore.instance

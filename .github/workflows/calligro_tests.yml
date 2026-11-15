@@ -31,7 +31,7 @@ jobs:
         run: flutter test test/features/meet/
 
       - name: Run Community Tests (policy, data layer, controllers, real screens, guard rails)
-        run: flutter test test/features/community/ test/services/admin_service_test.dart
+        run: flutter test test/features/community/ test/features/teacher/ test/services/admin_service_test.dart
 
   calligro_meet_backend_tests:
     name: Calligro Meet Cloud Functions Tests (LiveKit)
@@ -80,7 +80,7 @@ jobs:
       - name: Run rules tests against the Firestore + Storage emulators
         run: >
           firebase emulators:exec --only firestore,storage --project demo-calligro
-          "cd functions && npx jest test/security_rules.test.js test/community_rules.test.js test/storage_rules.test.js"
+          "cd functions && npx jest test/security_rules.test.js test/community_rules.test.js test/storage_rules.test.js test/migrate_payout_private.test.js"
 
   web_portal_tests:
     name: Web Portal Lemon Squeezy Tests (Domain 1)

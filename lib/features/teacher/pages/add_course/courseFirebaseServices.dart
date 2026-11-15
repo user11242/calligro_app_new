@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -23,7 +24,7 @@ class CourseFirebaseService {
             'teacherName': data['name'] ?? 'Unknown Teacher',
             // FIXED: Fetches 'photoUrl' (Teacher Identity) from your database
             'teacherProfilePic': data['photoUrl'] ?? '',
-            'hasPayoutInfo': data.containsKey('payoutSettings'),
+            'hasPayoutInfo': await PayoutSettingsRepository(firestore: _firestore).hasPayoutInfo(user.uid),
             'hasCommissionRate': data.containsKey('commissionRate'),
             'earningPercentage': data.containsKey('commissionRate') ? (data['commissionRate'] * 100).toDouble() : 0.0,
           };

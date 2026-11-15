@@ -1,6 +1,7 @@
 // lib/features/teacher/pages/teacher_dashboard_page.dart
 //Done
 
+import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
 import 'package:calligro_app/features/community/presentation/community_scope.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -168,6 +169,10 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       availableBalance -= totalWithdrawn;
       if (availableBalance < 0) availableBalance = 0;
 
+      // Payout details are private (users/{uid}/private/payout).
+      final hasPayoutInfo = await PayoutSettingsRepository(firestore: db).hasPayoutInfo(userDoc.id);
+      if (!mounted) return;
+
       setState(() {
         _userName = fetchedName;
         _userEmail = fetchedEmail;
@@ -183,10 +188,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         }
 
         // Check for payout info
-        if (userDoc.exists) {
-          final data = userDoc.data() as Map<String, dynamic>?;
-          _hasPayoutInfo = data != null && data.containsKey('payoutSettings');
-        }
+        _hasPayoutInfo = hasPayoutInfo;
 
         _isLoading = false;
         _initializePages(); // Update with fetched data

@@ -28,6 +28,12 @@ service cloud.firestore {
     function delta(field) {
       return request.resource.data.get(field, 0) - resource.data.get(field, 0);
     }
+    // Bank / CliQ details are private (users/{uid}/private/payout). They must never
+    // be (re)written onto the public users / teachers documents — not even by old app versions.
+    function writesPayoutPublicly() {
+      return request.resource.data.keys().hasAny(['payoutSettings']) &&
+        (resource == null || request.resource.data.diff(resource.data).affectedKeys().hasAny(['payoutSettings']));
+    }
     function isPublicCounterUpdate() {
       let keys = request.resource.data.diff(resource.data).affectedKeys();
       return keys.hasOnly(['followerCount', 'followingCount', 'totalStars', 'reviewCount']) &&
@@ -73,7 +79,7 @@ service cloud.firestore {
       allow read: if true;
       
       // ✅ FIXED: Allow initial document creation without a role (for FCM token save)
-      allow create: if isOwner(userId) && (
+      allow create: if isOwner(userId) && !writesPayoutPublicly() && (
         (request.resource.data.role == 'student') || 
         (request.resource.data.role == 'teacher' && request.resource.data.status == 'pending') ||
         request.resource.data.keys().hasOnly(['fcmToken', 'preferredLanguage', 'lastTokenUpdate'])
@@ -82,7 +88,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
       
       // ✅ FIXED: Allow owner to set their role for the first time
-      allow update: if isSignedIn() && (
+      allow update: if isSignedIn() && !writesPayoutPublicly() && (
         isAdmin() || 
         (isOwner(userId) && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'commissionRate']) ||
@@ -117,6 +123,8 @@ service cloud.firestore {
 
       match /private/{document} {
         allow read, write: if isOwner(userId);
+        // Admins read payout details to send teachers their money.
+        allow read: if document == 'payout' && isAdmin();
       }
     }
 
@@ -132,10 +140,11 @@ service cloud.firestore {
 
     match /teachers/{teacherId} {
       allow read: if true;
-      allow create: if (isOwner(teacherId) && request.resource.data.role == 'teacher' && request.resource.data.status == 'pending') || isAdmin();
-      allow update: if isOwner(teacherId) || isAdmin() ||
+      allow create: if !writesPayoutPublicly() &&
+        ((isOwner(teacherId) && request.resource.data.role == 'teacher' && request.resource.data.status == 'pending') || isAdmin());
+      allow update: if !writesPayoutPublicly() && (isOwner(teacherId) || isAdmin() ||
         (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalStars', 'reviewCount']) &&
-          isPublicCounterUpdate());
+          isPublicCounterUpdate()));
       allow delete: if isAdmin();
     }
 

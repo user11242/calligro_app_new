@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,6 +17,7 @@ class PayoutSettingsPage extends StatefulWidget {
 class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
   final _formKey = GlobalKey<FormState>();
   final User? currentUser = FirebaseAuth.instance.currentUser;
+  final PayoutSettingsRepository _payouts = PayoutSettingsRepository();
   bool _isLoading = false;
 
   // Track the User's selection vs What is saved in DB
@@ -78,31 +80,26 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
           _userPhone = docData['phone'] ?? '';
         });
 
-        if (docData.containsKey('payoutSettings')) {
-          final data = docData['payoutSettings'] as Map<String, dynamic>;
+      }
 
+      // Bank / CliQ details are private (users/{uid}/private/payout).
+      final saved = await _payouts.load(currentUser!.uid);
+      if (saved != null && mounted) {
         setState(() {
           // Set both the UI selection and the "Saved" tracker
-          _savedMethod = data['selectedMethod'] ?? 'cliq';
-          _selectedMethod = _savedMethod!;
-
-          // Load CliQ
-          final cliq = data['cliq'] ?? {};
-          _cliqAliasController.text = cliq['alias'] ?? '';
-          _cliqNameController.text = cliq['holderName'] ?? '';
-
-          // Load Bank Transfer
-          final bank = data['bankTransfer'] ?? {};
-          _bankNameController.text = bank['bankName'] ?? '';
-          _bankAccountNameController.text = bank['accountName'] ?? '';
-          _swiftController.text = bank['swift'] ?? '';
-          _ibanController.text = bank['iban'] ?? '';
-          _countryController.text = bank['country'] ?? '';
-          _cityController.text = bank['city'] ?? '';
-          _streetController.text = bank['street'] ?? '';
-          _postalCodeController.text = bank['postalCode'] ?? '';
+          _savedMethod = saved.selectedMethod;
+          _selectedMethod = saved.selectedMethod;
+          _cliqAliasController.text = saved.cliqAlias;
+          _cliqNameController.text = saved.cliqHolderName;
+          _bankNameController.text = saved.bankName;
+          _bankAccountNameController.text = saved.accountName;
+          _swiftController.text = saved.swift;
+          _ibanController.text = saved.iban;
+          _countryController.text = saved.country;
+          _cityController.text = saved.city;
+          _streetController.text = saved.street;
+          _postalCodeController.text = saved.postalCode;
         });
-        }
       }
     } catch (e) {
       debugPrint("Error loading payout settings: $e");
@@ -185,45 +182,23 @@ class _PayoutSettingsPageState extends State<PayoutSettingsPage> {
     setState(() => _isLoading = true);
 
     try {
-      final Map<String, dynamic> payoutData = {
-        'selectedMethod': _selectedMethod,
-
-        // Smart wiping: Only save active method, wipe others
-        'cliq': _selectedMethod == 'cliq'
-            ? {
-                'alias': _cliqAliasController.text.trim(),
-                'holderName': _cliqNameController.text.trim(),
-              }
-            : null,
-        'bankTransfer': _selectedMethod == 'bankTransfer'
-            ? {
-                'bankName': _bankNameController.text.trim(),
-                'accountName': _bankAccountNameController.text.trim(),
-                'swift': _swiftController.text.trim(),
-                'iban': _ibanController.text.trim(),
-                'country': _countryController.text.trim(),
-                'city': _cityController.text.trim(),
-                'street': _streetController.text.trim(),
-                'postalCode': _postalCodeController.text.trim(),
-              }
-            : null,
-      };
-
-      final firestore = FirebaseFirestore.instance;
-      final batch = firestore.batch();
-
-      final userRef = firestore.collection('users').doc(currentUser!.uid);
-      final teacherRef = firestore.collection('teachers').doc(currentUser!.uid);
-
-      final updateData = {
-        'payoutSettings': payoutData,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      batch.set(userRef, updateData, SetOptions(merge: true));
-      batch.set(teacherRef, updateData, SetOptions(merge: true));
-
-      await batch.commit();
+      // Only the active method's details are stored (the other one is wiped).
+      await _payouts.save(
+        currentUser!.uid,
+        PayoutSettings(
+          selectedMethod: _selectedMethod,
+          cliqAlias: _cliqAliasController.text,
+          cliqHolderName: _cliqNameController.text,
+          bankName: _bankNameController.text,
+          accountName: _bankAccountNameController.text,
+          swift: _swiftController.text,
+          iban: _ibanController.text,
+          country: _countryController.text,
+          city: _cityController.text,
+          street: _streetController.text,
+          postalCode: _postalCodeController.text,
+        ),
+      );
 
       // Update local state to reflect the new "Saved" status
       setState(() {

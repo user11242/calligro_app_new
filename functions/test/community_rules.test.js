@@ -246,3 +246,34 @@ describe('reports and blocking', () => {
     await assertFails(updateDoc(doc(as('stranger'), 'users/fan'), { blockedUsers: [] }));
   });
 });
+
+describe('teacher payout details (bank / CliQ) are private', () => {
+  const payout = { selectedMethod: 'bankTransfer', bankTransfer: { iban: 'JO94CBJO0010000000000131000302' }, cliq: null };
+
+  beforeEach(() => env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users/teach/private/payout'), payout);
+  }));
+
+  it('only the teacher and admins can read them', async () => {
+    await assertSucceeds(getDoc(doc(as('teach'), 'users/teach/private/payout')));
+    await assertSucceeds(getDoc(doc(as('admin'), 'users/teach/private/payout')));
+    await assertFails(getDoc(doc(as('stranger'), 'users/teach/private/payout')));
+    await assertFails(getDoc(doc(guest(), 'users/teach/private/payout')));
+  });
+  it('only the teacher writes them', async () => {
+    await assertSucceeds(setDoc(doc(as('teach'), 'users/teach/private/payout'), payout));
+    await assertFails(setDoc(doc(as('stranger'), 'users/teach/private/payout'), payout));
+  });
+  it('can never be put on the public users / teachers documents (old app versions)', async () => {
+    await assertFails(setDoc(doc(as('teach'), 'users/teach'), { payoutSettings: payout }, { merge: true }));
+    await assertFails(setDoc(doc(as('teach'), 'teachers/teach'), { payoutSettings: payout }, { merge: true }));
+    await assertFails(setDoc(doc(as('admin'), 'users/teach'), { payoutSettings: payout }, { merge: true }));
+    await assertFails(setDoc(doc(as('newbie'), 'users/newbie'), { role: 'student', payoutSettings: payout }));
+  });
+  it('a teacher whose old document still has payoutSettings can keep editing other fields', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'users/teach'), { payoutSettings: payout }, { merge: true }));
+    await assertSucceeds(updateDoc(doc(as('teach'), 'users/teach'), { bio: 'Calligrapher' }));
+  });
+});
+
