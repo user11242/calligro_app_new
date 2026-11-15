@@ -1,6 +1,7 @@
   // lib/main.dart
 
-  import 'package:flutter/material.dart';
+  import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
+import 'package:flutter/material.dart';
   import 'package:flutter/foundation.dart';
   import 'dart:convert';
   import 'dart:developer' as developer;
@@ -34,7 +35,6 @@
   import 'package:calligro_app/features/student/student_dashboard.dart';
   import 'package:calligro_app/features/teacher/teacher_dashboard.dart';
   import 'package:calligro_app/features/teacher/pages/add_course/add_course_dashboard.dart';
-  import 'package:calligro_app/features/teacher/tabs/teacher_profile_tab.dart'; // Ensure this path is correct
   import 'package:calligro_app/features/student/pages/course_preview_page.dart';
   import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
   import 'package:calligro_app/features/community/presentation/pages/single_post_page.dart';
@@ -349,14 +349,7 @@ class CalligroApp extends StatelessWidget {
             // --- TEACHER FEATURES ---
             '/addCourse': (context) => const AddCourseDashboardPage(),
             // --- PROFILE ---
-            '/ProfilePage': (context) => const TeacherProfileTab(
-              userName: "User",
-              userEmail: "",
-              userProfileImage: "",
-              courseCount: "0",
-              studentCount: "0",
-              earnings: "0",
-            ),
+            '/ProfilePage': (context) => const MyProfileTab(),
             // --- COMMUNITY ---
             '/community': (context) => CommunityPage(
               onProfileTap: (userId, userRole) {

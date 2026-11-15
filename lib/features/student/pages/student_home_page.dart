@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -28,7 +29,6 @@ import '../../../core/widgets/rating_display.dart';
 import '../../../core/utils/course_utils.dart';
 import '../../teacher/pages/notifications/notifications_page.dart';
 import '../../../core/widgets/notification_bell_button.dart';
-import '../../teacher/pages/public_profile/public_teacher_profile_page.dart';
 import 'gallery_page.dart';
 import 'teachers_page.dart';
 import 'course_preview_page.dart';
@@ -1798,7 +1798,7 @@ class _StudentHomePageState extends State<StudentHomePage> {
             context,
             MaterialPageRoute(
               builder: (context) =>
-                  PublicTeacherProfilePage(userId: teacher['id'] ?? ''),
+                  PublicProfilePage(userId: teacher['id'] ?? ''),
             ),
           );
         }

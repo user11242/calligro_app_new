@@ -1,8 +1,9 @@
+import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
+import 'package:calligro_app/features/profile/presentation/profile_scope.dart';
 import 'package:calligro_app/features/community/presentation/community_scope.dart';
 import 'package:calligro_app/features/admin/widgets/admin_drawer.dart';
 import 'package:calligro_app/features/admin/data/services/admin_service.dart';
 import 'package:calligro_app/features/admin/tabs/admin_home_tab.dart';
-import 'package:calligro_app/features/admin/tabs/admin_profile_tab.dart';
 import 'package:calligro_app/features/admin/pages/admin_users.dart';
 import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
@@ -30,13 +31,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   /// Community screens use the same (injectable) Firestore/Auth as the dashboard.
   late final CommunityServices _communityServices =
       CommunityServices.firebase(firestore: widget.firestore, auth: widget.auth);
+  late final ProfileServices _profileServices =
+      ProfileServices.firebase(firestore: widget.firestore, auth: widget.auth);
 
   int _selectedIndex = 0;
   late final AdminService _adminService;
 
-  String _userName = "Admin";
-  String _userEmail = "admin@calligroacademy.com";
-  String _userProfileImage = "";
   bool _isLoading = true;
 
   final List<Widget> _pages = [];
@@ -53,11 +53,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     if (user != null) {
       final doc = await (widget.firestore ?? FirebaseFirestore.instance).collection('users').doc(user.uid).get();
       if (doc.exists && mounted) {
-        final data = doc.data() as Map<String, dynamic>;
         setState(() {
-          _userName = data['name'] ?? "Admin";
-          _userEmail = data['email'] ?? user.email ?? "";
-          _userProfileImage = data['photoUrl'] ?? "";
           _isLoading = false;
           _initializePages();
         });
@@ -80,13 +76,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       CommunityPage(
         onProfileTap: (uid, role) {},
       ),
-      AdminProfileTab(
-        userName: _userName,
-        userEmail: _userEmail,
-        userProfileImage: _userProfileImage,
-        auth: widget.auth,
-        firestore: widget.firestore,
-      ),
+      const MyProfileTab(),
     ]);
   }
 
@@ -124,7 +114,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ) : null,
       body: CommunityScope(
         services: _communityServices,
-        child: IndexedStack(index: _selectedIndex, children: _pages),
+        child: ProfileScope(
+          services: _profileServices,
+          child: IndexedStack(index: _selectedIndex, children: _pages),
+        ),
       ),
       bottomNavigationBar: BottomAppBar(
         color: AppColors.cardBackground,

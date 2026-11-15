@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,7 +14,6 @@ import '../../../../core/message/app_messenger.dart';
 // ✅ CORRECT IMPORTS
 import '../course_details/announcements_board_page.dart';
 import '../course_details/assignments_page.dart';
-import '../../../student/pages/public_profile/public_student_profile_page.dart';
 import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart';
 import 'package:calligro_app/core/services/translation_service.dart';
 import 'package:calligro_app/features/student/widgets/course_share_card.dart';
@@ -2516,7 +2516,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
                       context,
                       MaterialPageRoute(
                         builder: (context) =>
-                            PublicStudentProfilePage(userId: student['uid']),
+                            PublicProfilePage(userId: student['uid']),
                       ),
                     ),
                     borderRadius: BorderRadius.circular(16),

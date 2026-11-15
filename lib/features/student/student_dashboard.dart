@@ -1,3 +1,5 @@
+import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
+import 'package:calligro_app/features/profile/presentation/profile_scope.dart';
 import 'package:calligro_app/features/community/presentation/community_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
@@ -5,7 +7,6 @@ import 'package:calligro_app/features/student/pages/student_home_page.dart';
 import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/features/student/tabs/student_courses_tab.dart';
-import 'package:calligro_app/features/student/tabs/student_profile_tab.dart';
 import 'package:calligro_app/features/student/data/services/student_service.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -34,6 +35,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   /// Community screens use the same (injectable) Firestore/Auth as the dashboard.
   late final CommunityServices _communityServices =
       CommunityServices.firebase(firestore: widget.firestore, auth: widget.auth);
+  late final ProfileServices _profileServices =
+      ProfileServices.firebase(firestore: widget.firestore, auth: widget.auth);
 
   int _selectedIndex = 0;
   String? _initialCourseFilter;
@@ -94,10 +97,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       ),
 
       // 4. Profile Tab
-      StudentProfileTab(
-        auth: widget.auth,
-        firestore: widget.firestore,
-      ),
+      const MyProfileTab(),
     ];
 
     return Scaffold(
@@ -106,7 +106,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         children: [
           CommunityScope(
             services: _communityServices,
-            child: IndexedStack(index: _selectedIndex, children: pages),
+            child: ProfileScope(
+              services: _profileServices,
+              child: IndexedStack(index: _selectedIndex, children: pages),
+            ),
           ),
           Positioned(
             right: 16,

@@ -105,9 +105,9 @@ void main() {
       expectNone(outside, "community/widgets/", 'moved to community/presentation/widgets');
     });
 
-    test('only the admin service uses the community data layer (to delete posts like the author does)', () {
+    test('only the admin service and the profile composition root use the community data layer', () {
       expectNone(outside, 'features/community/data/', 'use community presentation widgets / CommunityScope',
-          allow: {'admin/data/services/admin_service.dart'});
+          allow: {'admin/data/services/admin_service.dart', 'profile/presentation/profile_scope.dart'});
     });
 
     test('nobody outside the community data layer writes posts, likes or comments', () {

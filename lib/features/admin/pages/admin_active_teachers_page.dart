@@ -1,9 +1,9 @@
+import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/colors.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/message/app_messenger.dart';
-import '../../teacher/pages/public_profile/public_teacher_profile_page.dart';
 import 'package:calligro_app/core/widgets/profile_avatar.dart';
 import 'package:calligro_app/core/utils/date_utils.dart';
 import 'package:intl/intl.dart';
@@ -156,7 +156,7 @@ class AdminActiveTeachersPage extends StatelessWidget {
               child: InkWell(
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => PublicTeacherProfilePage(userId: teacherId)),
+                  MaterialPageRoute(builder: (context) => PublicProfilePage(userId: teacherId)),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -359,7 +359,7 @@ class AdminActiveTeachersPage extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PublicTeacherProfilePage(userId: teacherId),
+            builder: (context) => PublicProfilePage(userId: teacherId),
           ),
         );
         break;

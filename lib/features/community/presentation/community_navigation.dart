@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 
-import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/core/utils/guest_guard.dart';
-import 'package:calligro_app/features/student/pages/public_profile/public_student_profile_page.dart';
-import 'package:calligro_app/features/teacher/pages/public_profile/public_teacher_profile_page.dart';
-import 'package:calligro_app/l10n/app_localizations.dart';
-
 import 'package:calligro_app/features/community/domain/models/community_models.dart';
+import 'package:calligro_app/features/profile/domain/profile_models.dart';
+import 'package:calligro_app/features/profile/presentation/profile_navigation.dart' as profile;
 
 /// Callback a dashboard passes so "my own profile" opens its own tab.
-typedef OwnProfileCallback = void Function(String userId, String userRole);
+typedef OwnProfileCallback = profile.OwnProfileCallback;
 
-/// Opening a profile from anywhere in the community (post author, liker,
-/// commenter, search result). One place instead of four copies.
+/// Opening a profile from the community (post author, liker, commenter,
+/// search result). The rules live in the profile feature.
 class CommunityNavigation {
   CommunityNavigation._();
 
@@ -22,32 +19,14 @@ class CommunityNavigation {
     required String userId,
     required String role,
     OwnProfileCallback? onOwnProfile,
-  }) {
-    // Guests may view teacher profiles only.
-    if (session.isGuest && role != 'teacher') {
-      GuestGuard.check(context, isGuest: true);
-      return;
-    }
-    if (userId == session.userId) {
-      onOwnProfile?.call(userId, role);
-      return;
-    }
-    final Widget? page = switch (role) {
-      'teacher' => PublicTeacherProfilePage(userId: userId, onDashboardProfileTap: onOwnProfile),
-      'student' || 'admin' => PublicStudentProfilePage(userId: userId, onDashboardProfileTap: onOwnProfile),
-      _ => null,
-    };
-    if (page == null) {
-      AppMessenger.showSnackBar(
+  }) =>
+      profile.ProfileNavigation.open(
         context,
-        title: AppLocalizations.of(context)!.info,
-        message: AppLocalizations.of(context)!.profileNotAvailable,
-        type: MessengerType.info,
+        viewer: session.isGuest ? ProfileViewer.guest : ProfileViewer(userId: session.userId, role: session.role),
+        userId: userId,
+        role: role,
+        onOwnProfile: onOwnProfile,
       );
-      return;
-    }
-    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => page));
-  }
 
   /// Shows the sign-in prompt for guests; true when the user may continue.
   static bool requireAccount(BuildContext context, CommunitySession session) =>

@@ -1,6 +1,8 @@
 // lib/features/teacher/pages/teacher_dashboard_page.dart
 //Done
 
+import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
+import 'package:calligro_app/features/profile/presentation/profile_scope.dart';
 import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
 import 'package:calligro_app/features/community/presentation/community_scope.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,7 +13,6 @@ import '../../l10n/app_localizations.dart';
 // Import the separated TeacherHomeTab
 import '../../features/teacher/tabs/teacher_home_tab.dart'; // <--- Corrected Import
 import '../../features/teacher/tabs/teacher_courses_tab.dart';
-import '../../features/teacher/tabs/teacher_profile_tab.dart'; // <--- Assuming this is a separate file
 import '../community/presentation/pages/community_page.dart';
 import 'pages/setup/teacher_setup_page.dart';
 import '../../core/message/app_messenger.dart';
@@ -36,15 +37,15 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
   /// Community screens use the same (injectable) Firestore/Auth as the dashboard.
   late final CommunityServices _communityServices =
       CommunityServices.firebase(firestore: widget.firestore, auth: widget.auth);
+  late final ProfileServices _profileServices =
+      ProfileServices.firebase(firestore: widget.firestore, auth: widget.auth);
 
   int _selectedIndex = 0;
 
   String _userName = "Teacher";
-  String _userEmail = "Loading...";
   String _userProfileImage =
       'https://via.placeholder.com/150/FFD700/FFFFFF?text=T';
   int _courseCount = 0;
-  String _studentCount = "0";
   String _earnings = "£0";
   bool _isLoading = true;
   bool _needsProfileSetup = false;
@@ -99,7 +100,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
       final DocumentSnapshot userDoc = results[0] as DocumentSnapshot;
       String fetchedName = "Teacher";
-      String fetchedEmail = "No Email";
       String fetchedPhotoUrl = "";
 
       if (userDoc.exists) {
@@ -107,7 +107,6 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
         if (data != null) {
           fetchedName = data['name'] ?? "Teacher";
-          fetchedEmail = data['email'] ?? "No Email";
           fetchedPhotoUrl = data['photoUrl'] ?? "";
         }
       }
@@ -115,18 +114,11 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       final QuerySnapshot coursesQuery = results[1] as QuerySnapshot;
       final int fetchedCourseCount = coursesQuery.size;
 
-      int totalStudents = 0;
       Map<String, DateTime> coursePayoutDates = {};
       final now = DateTime.now();
       
       for (var doc in coursesQuery.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        if (data['enrolledStudents'] is List) {
-          totalStudents += (data['enrolledStudents'] as List).length;
-        } else {
-          totalStudents += (data['studentsEnrolled'] as int? ?? 0);
-        }
-        
         // Calculate payout date for ledger math
         DateTime endDate;
         if (data['expiryDate'] != null && data['expiryDate'] is Timestamp) {
@@ -175,9 +167,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
 
       setState(() {
         _userName = fetchedName;
-        _userEmail = fetchedEmail;
         _courseCount = fetchedCourseCount;
-        _studentCount = totalStudents.toString();
         _earnings = "\$${totalEarnings.toStringAsFixed(2)}";
 
         if (fetchedPhotoUrl.isNotEmpty) {
@@ -243,16 +233,7 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       CommunityPage(
         onProfileTap: _handleCommunityProfileTap,
       ),
-      TeacherProfileTab(
-        userName: _userName,
-        userEmail: _userEmail,
-        userProfileImage: _userProfileImage,
-        courseCount: _courseCount.toString(),
-        studentCount: _studentCount,
-        earnings: _earnings,
-        auth: widget.auth,
-        firestore: widget.firestore,
-      ),
+      const MyProfileTab(),
     ];
   }
 
@@ -278,7 +259,10 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
         appBar: null,
         body: CommunityScope(
           services: _communityServices,
-          child: IndexedStack(index: _selectedIndex, children: _pages),
+          child: ProfileScope(
+            services: _profileServices,
+            child: IndexedStack(index: _selectedIndex, children: _pages),
+          ),
         ),
         bottomNavigationBar: BottomAppBar(
           color: AppColors.cardBackground,

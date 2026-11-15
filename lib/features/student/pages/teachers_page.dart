@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
@@ -5,7 +6,6 @@ import 'package:calligro_app/features/student/data/services/student_service.dart
 import 'package:calligro_app/core/widgets/profile_avatar.dart';
 import 'package:calligro_app/core/widgets/rating_display.dart';
 import 'package:calligro_app/core/utils/rating_utils.dart';
-import 'package:calligro_app/features/teacher/pages/public_profile/public_teacher_profile_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 
@@ -210,7 +210,7 @@ class _TeachersPageState extends State<TeachersPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PublicTeacherProfilePage(userId: teacher['id'] ?? ''),
+            builder: (context) => PublicProfilePage(userId: teacher['id'] ?? ''),
           ),
         );
       },
