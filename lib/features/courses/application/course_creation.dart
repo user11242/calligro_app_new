@@ -34,7 +34,6 @@ class CourseCreation {
     CourseDraft draft, {
     String generatedName = '',
     String meetLink = '',
-    String classroomPassword = '',
   }) async {
     if (_saving) return const CreateCourseResult(CreateCourseOutcome.busy);
     final uid = _uid();
@@ -49,7 +48,7 @@ class CourseCreation {
       if (!author.hasPayoutInfo) return const CreateCourseResult(CreateCourseOutcome.needsPayout);
       if (!author.hasCommissionRate) return const CreateCourseResult(CreateCourseOutcome.needsCommission);
       final id = await _authoring.create(draft, author,
-          generatedName: generatedName, meetLink: meetLink, classroomPassword: classroomPassword);
+          generatedName: generatedName, meetLink: meetLink);
       return CreateCourseResult(CreateCourseOutcome.created, courseId: id);
     } catch (e) {
       return CreateCourseResult(CreateCourseOutcome.failed, message: '$e');

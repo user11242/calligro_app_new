@@ -194,25 +194,6 @@ extension _ClassroomSections on _CourseDetailsPageState {
   }
 
   Future<void> _launchClassroom() async {
-    final l10n = AppLocalizations.of(context)!;
-
-    // 🚨 LEGACY DETECTOR: Check if this is an old external Google Meet link
-    if (calligroMeetLink != null &&
-        (calligroMeetLink!.contains("meet.google.com") ||
-            (calligroMeetLink!.contains("http") && !calligroMeetLink!.contains("calligro")))) {
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: isTeacher ? "Legacy Link Detected" : "Classroom Unavailable",
-          message: isTeacher
-              ? "This course is using an old Google Meet link. Please edit the course or regenerate the link to use 'Calligro Classroom'."
-              : "The teacher hasn't upgraded this classroom yet. Please contact them.",
-          type: MessengerType.info,
-        );
-      }
-      return;
-    }
-
     try {
       debugPrint("DEBUG: Classroom logic triggered for course: ${widget.courseId}");
 
@@ -262,8 +243,8 @@ extension _ClassroomSections on _CourseDetailsPageState {
 
       // ── STEP 1: Request camera & microphone permissions at runtime ──
       // On Android 6+, manifest declarations alone are NOT enough.
-      // Without this, the camera button in Jitsi will be silently disabled
-      // and no permission dialog will ever be shown to the user.
+      // Without this the camera / microphone stay off in the classroom and no
+      // permission dialog is ever shown.
       final cameraStatus = await Permission.camera.request();
       final micStatus = await Permission.microphone.request();
 

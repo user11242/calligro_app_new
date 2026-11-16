@@ -337,66 +337,6 @@ exports.getUserProviders = onCall(async (request) => {
 });
 
 // --------------------
-// HTTPS Function: Create Branded Classroom (Jitsi)
-// --------------------
-exports.createCalligroClassroom = onCall(async (request) => {
-  try {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Must be logged in.");
-    }
-
-    const { courseName, courseId } = request.data;
-    if (!courseName) {
-      throw new HttpsError("invalid-argument", "courseName is required.");
-    }
-
-    // Generate a cryptographically secure, random Room ID
-    const randomSuffix = crypto.randomBytes(8).toString("hex");
-
-    let sanitizedName = courseName.replace(/[^a-zA-Z0-9]/g, "").substring(0, 15);
-    if (!sanitizedName) {
-      sanitizedName = "LiveClass";
-    }
-
-    const roomId = `Calligro-${sanitizedName}-${randomSuffix}`;
-
-    // Generate a cryptographically secure password
-    const password = crypto.randomBytes(6).toString("hex");
-
-    console.log(`✅ Branded Jitsi Room Created: ${roomId} with Password: [REDACTED]`);
-
-    // 🔐 SECURITY FIX: If courseId is provided, write credentials to private subcollection
-    // so they are NOT publicly readable from the main course document
-    if (courseId) {
-      try {
-        await admin.firestore()
-          .collection("courses")
-          .doc(String(courseId))
-          .collection("private")
-          .doc("meetingConfig")
-          .set({
-            calligroMeetLink: roomId,
-            classroomPassword: password,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        console.log(`🔐 Meeting credentials stored in private subcollection for course ${courseId}`);
-      } catch (err) {
-        console.warn("⚠️ Could not write to private subcollection:", err.message);
-      }
-    }
-
-    return {
-      link: roomId,
-      id: roomId,
-      password: password,
-    };
-  } catch (error) {
-    console.error("Error in createCalligroClassroom:", error);
-    throw new HttpsError("internal", error.message || "Failed to create classroom.");
-  }
-});
-
-// --------------------
 // HTTPS Callable: Verify Purchase (Premium IAP Security)
 // --------------------
 // In-app purchases (Apple / Google Play) and free courses — logic and tests in purchases.js.
@@ -439,5 +379,3 @@ exports.verifyEmailCode = require("./email_codes.js").verifyEmailCode;
 // Withdrawal requests are created by the server from the real balance.
 exports.requestWithdrawal = require("./withdrawals.js").requestWithdrawal;
 
-// DEPRECATED: Google Meet functions removed to simplify UX and avoid restrictions.
-// Students now use the branded 'Calligro Classroom' powered by Jitsi.

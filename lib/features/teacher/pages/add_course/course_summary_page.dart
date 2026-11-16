@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/message/app_messenger.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:calligro_app/features/courses/domain/course_draft.dart';
 
 // -------------------------------------------------------------------------
 // ----------------- COURSE SUMMARY PAGE (UPDATED UI) ----------------------
@@ -64,15 +64,10 @@ class CourseSummaryPage extends StatefulWidget {
 }
 
 class _CourseSummaryPageState extends State<CourseSummaryPage> {
-  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
-  Map<String, String>? classroomData;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _triggerMeetGeneration();
-  }
+  /// The course's Calligro Meet classroom (LiveKit joins by course; there is
+  /// no external room or password to create).
+  Map<String, String>? classroomData = const {'link': CourseDraft.calligroClassroomLink};
+  bool _isLoading = false;
 
   void _showMessage(String title, String msg, MessengerType type) {
     if (!mounted) return;
@@ -155,54 +150,6 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
         return l10n.rayhani;
       default:
         return type;
-    }
-  }
-
-  Future<void> _triggerMeetGeneration() async {
-    if (classroomData != null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-    setState(() => _isLoading = true);
-
-    try {
-      final result = await _functions
-          .httpsCallable('createCalligroClassroom')
-          .call({'courseName': widget.courseName});
-
-      final data = Map<String, dynamic>.from(result.data as Map);
-
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          if (data['link'] != null) {
-            classroomData = {
-              'link': data['link'].toString(),
-              'id': data['id']?.toString() ?? '',
-              'password': data['password']?.toString() ?? '', // Capture password
-            };
-          } else {
-            classroomData = null;
-            _showMessage(
-              AppLocalizations.of(context)!.error,
-              AppLocalizations.of(context)!.failedToGenerateLink,
-              MessengerType.error,
-            );
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          classroomData = null;
-          _isLoading = false;
-        });
-        _showMessage(
-          AppLocalizations.of(context)!.error,
-          "${AppLocalizations.of(context)!.error}: $e",
-          MessengerType.error,
-        );
-      }
     }
   }
 
@@ -923,13 +870,7 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
                 ],
               ),
             )
-          else
-            TextButton.icon(
-              onPressed: _triggerMeetGeneration,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(l10n.retry),
-              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            ),
+
         ],
       ),
     );

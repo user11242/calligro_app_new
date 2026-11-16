@@ -1838,12 +1838,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get confirmDetails => 'تأكيد التفاصيل';
 
   @override
-  String get googleMeetIntegration => 'تكامل كاليجرو ميت';
-
-  @override
-  String get googleMeet => 'Calligro Meet';
-
-  @override
   String get calligroMeet => 'Calligro Meet';
 
   @override
@@ -2219,32 +2213,6 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get googleAccountAlertMessage =>
       'أنت مسجل باستخدام Google. يرجى استخدام زر تسجيل الدخول عبر Google للوصول إلى حسابك.';
-
-  @override
-  String get googleCalendarConnection => 'ربط تقويم جوجل';
-
-  @override
-  String get googleCalendarConnectionSubtitle =>
-      'إعداد لمرة واحدة لاستضافة الاجتماعات';
-
-  @override
-  String get googleCalendarNote =>
-      'قم بربط حساب جوجل الخاص بك لمرة واحدة للسماح لـ كاليجرو بإنشاء روابط جوجل ميت لدوراتك التدريبية. ستظل أنت المضيف لجميع الاجتماعات. يعمل هذا مع الحسابات المسجلة عبر البريد الإلكتروني أو جوجل.';
-
-  @override
-  String get connectCalendar => 'ربط التقويم';
-
-  @override
-  String get disconnectCalendar => 'إلغاء ربط التقويم';
-
-  @override
-  String get calendarConnected => 'تم ربط تقويم جوجل';
-
-  @override
-  String get calendarDisconnected => 'تم إلغاء ربط تقويم جوجل';
-
-  @override
-  String get failedToConnectCalendar => 'فشل ربط تقويم جوجل.';
 
   @override
   String get offlineAccessRequired =>

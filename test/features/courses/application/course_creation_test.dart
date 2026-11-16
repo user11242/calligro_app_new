@@ -28,11 +28,11 @@ void main() {
   });
 
   test('a ready teacher with a complete draft → one course, with its meeting settings', () async {
-    final r = await creation.create(good, generatedName: 'Naskh - Beginner', meetLink: 'room', classroomPassword: 'pw');
+    final r = await creation.create(good, generatedName: 'Naskh - Beginner', meetLink: 'calligro-meet');
     expect(r.outcome, CreateCourseOutcome.created);
     expect(r.courseId, 'new1');
     final saved = authoring.created.single;
-    expect([saved.author.id, saved.generatedName, saved.meetLink, saved.password], ['t1', 'Naskh - Beginner', 'room', 'pw']);
+    expect([saved.author.id, saved.generatedName, saved.meetLink], ['t1', 'Naskh - Beginner', 'calligro-meet']);
   });
 
   test('signed out → nothing written', () async {

@@ -83,7 +83,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   String courseDescription = '';
   String courseLevel = 'Beginner';
   String? calligroMeetLink;
-  String? classroomPassword; // Added to store password
   int initialStudentCount = 0;
   DateTime? startDate;
   DateTime? endDate;
@@ -177,9 +176,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         _enrolledStudents = _ids(widget.courseData['enrolledStudents']);
         courseName = _getLocalizedCourseName(context, widget.courseData);
         courseBanner = widget.courseData['courseBanner'];
-        calligroMeetLink =
-            widget.courseData['calligroMeetLink'] ??
-            widget.courseData['googleMeetLink'];
+        calligroMeetLink = widget.courseData['calligroMeetLink'];
         initialStudentCount = widget.courseData['studentsEnrolled'] ?? 0;
         requiredTools =
             widget.courseData['requiredTools'] as List<dynamic>? ?? [];
@@ -190,8 +187,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         selectedTime =
             (widget.courseData['startTime'] as Timestamp?)?.toDate() ??
             (widget.courseData['selectedTime'] as Timestamp?)?.toDate();
-        classroomPassword =
-            widget.courseData['classroomPassword']; // Sync from widget
         endTime = (widget.courseData['endTime'] as Timestamp?)?.toDate();
         selectedDays =
             (widget.courseData['selectedDays'] as List<dynamic>?)
@@ -230,10 +225,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
               data['selectedCategory'] ??
               data['levelColor'] ??
               AppLocalizations.of(context)!.beginner;
-          calligroMeetLink =
-              data['calligroMeetLink'] ??
-              data['googleMeetLink']; // Support both keys
-          classroomPassword = data['classroomPassword']; // Fetch password
+          calligroMeetLink = data['calligroMeetLink'];
           requiredTools = data['requiredTools'] as List<dynamic>? ?? [];
 
           // POPULATE ALL SCHEDULE FIELDS

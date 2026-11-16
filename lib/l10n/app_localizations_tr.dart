@@ -1843,12 +1843,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get confirmDetails => 'Detayları Onayla';
 
   @override
-  String get googleMeetIntegration => 'Calligro Meet Entegrasyonu';
-
-  @override
-  String get googleMeet => 'Calligro Meet';
-
-  @override
   String get calligroMeet => 'Calligro Meet';
 
   @override
@@ -2226,32 +2220,6 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get googleAccountAlertMessage =>
       'You are registered with Google. Please use the Google Sign-In button to access your account.';
-
-  @override
-  String get googleCalendarConnection => 'Google Takvim Bağlantısı';
-
-  @override
-  String get googleCalendarConnectionSubtitle =>
-      'Toplantı sahipliği için tek seferlik kurulum';
-
-  @override
-  String get googleCalendarNote =>
-      'Calligro\'nun kurslarınız için Google Meet bağlantıları oluşturmasına izin vermek için Google hesabınızı bir kez bağlayın. Tüm toplantıların sahibi siz kalacaksınız. Bu, hem E-posta hem de Google ile kayıtlı hesaplar için çalışır.';
-
-  @override
-  String get connectCalendar => 'Takvimi Bağla';
-
-  @override
-  String get disconnectCalendar => 'Takvim Bağlantısını Kes';
-
-  @override
-  String get calendarConnected => 'Google Calendar Connected';
-
-  @override
-  String get calendarDisconnected => 'Google Takvim Bağlantısı Kesildi';
-
-  @override
-  String get failedToConnectCalendar => 'Google Takvim bağlanamadı.';
 
   @override
   String get offlineAccessRequired =>

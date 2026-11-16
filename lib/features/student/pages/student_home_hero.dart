@@ -199,10 +199,6 @@ extension _HeroSections on _StudentHomePageState {
 
   Widget _buildSessionCountdownCard(Map<String, dynamic> course) {
     final banner = course['courseBanner'] ?? '';
-    final meetLink =
-        course['calligroMeetLink'] ??
-        course['googleMeetLink'] ??
-        ''; // Support both
     final l10n = AppLocalizations.of(context)!;
 
     // Local state for the button enable/disable
@@ -413,33 +409,6 @@ extension _HeroSections on _StudentHomePageState {
         .scaleXY(begin: 0.95, curve: Curves.easeOut);
   }
 
-  Future<void> _launchClass(String? url) async {
-    if (url == null || url.isEmpty) return;
-
-    String cleanUrl = url.trim();
-    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-      cleanUrl = 'https://$cleanUrl';
-    }
-
-    try {
-      final Uri uri = Uri.parse(cleanUrl);
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        if (!await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Could not launch meeting link")),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Could not launch meeting link: $e")),
-        );
-      }
-    }
-  }
 
   Widget _buildAmbientVideoLoop(AppLocalizations l10n) {
     return Container(

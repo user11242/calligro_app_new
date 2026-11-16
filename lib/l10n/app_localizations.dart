@@ -3460,18 +3460,6 @@ abstract class AppLocalizations {
   /// **'Confirm Details'**
   String get confirmDetails;
 
-  /// No description provided for @googleMeetIntegration.
-  ///
-  /// In en, this message translates to:
-  /// **'Calligro Meet Integration'**
-  String get googleMeetIntegration;
-
-  /// No description provided for @googleMeet.
-  ///
-  /// In en, this message translates to:
-  /// **'Calligro Meet'**
-  String get googleMeet;
-
   /// No description provided for @calligroMeet.
   ///
   /// In en, this message translates to:
@@ -4191,54 +4179,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You are registered with Google. Please use the Google Sign-In button to access your account.'**
   String get googleAccountAlertMessage;
-
-  /// No description provided for @googleCalendarConnection.
-  ///
-  /// In en, this message translates to:
-  /// **'Google Calendar Connection'**
-  String get googleCalendarConnection;
-
-  /// No description provided for @googleCalendarConnectionSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'One-time setup for hosting meetings'**
-  String get googleCalendarConnectionSubtitle;
-
-  /// No description provided for @googleCalendarNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect your Google account once to allow Calligro to generate Google Meet links for your courses. You will remain the host of all meetings. This works for both Email and Google registered accounts.'**
-  String get googleCalendarNote;
-
-  /// No description provided for @connectCalendar.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect Calendar'**
-  String get connectCalendar;
-
-  /// No description provided for @disconnectCalendar.
-  ///
-  /// In en, this message translates to:
-  /// **'Disconnect Calendar'**
-  String get disconnectCalendar;
-
-  /// No description provided for @calendarConnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Google Calendar Connected'**
-  String get calendarConnected;
-
-  /// No description provided for @calendarDisconnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Google Calendar Disconnected'**
-  String get calendarDisconnected;
-
-  /// No description provided for @failedToConnectCalendar.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to connect Google Calendar.'**
-  String get failedToConnectCalendar;
 
   /// No description provided for @offlineAccessRequired.
   ///

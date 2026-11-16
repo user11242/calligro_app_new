@@ -32,7 +32,6 @@ class FirestoreCourseAuthoring implements CourseAuthoring {
     CourseAuthor author, {
     String generatedName = '',
     String meetLink = '',
-    String classroomPassword = '',
   }) async {
     final course = _db.collection('courses').doc();
     final batch = _db.batch()
@@ -43,7 +42,6 @@ class FirestoreCourseAuthoring implements CourseAuthoring {
       )
       ..set(course.collection('private').doc('meetingConfig'), {
         'calligroMeetLink': meetLink,
-        'classroomPassword': classroomPassword,
         'createdAt': FieldValue.serverTimestamp(),
       });
     await batch.commit();

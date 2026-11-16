@@ -124,7 +124,7 @@ class FakeAuthoring implements CourseAuthoring {
   FakeAuthoring({this.repo});
   final FakeCourseRepository? repo;
   final authors = <String, CourseAuthor>{};
-  final created = <({CourseDraft draft, CourseAuthor author, String generatedName, String meetLink, String password})>[];
+  final created = <({CourseDraft draft, CourseAuthor author, String generatedName, String meetLink})>[];
   final authorReads = <String>[];
   Object? failCreate;
   Completer<void>? holdCreate;
@@ -137,10 +137,10 @@ class FakeAuthoring implements CourseAuthoring {
 
   @override
   Future<String> create(CourseDraft draft, CourseAuthor author,
-      {String generatedName = '', String meetLink = '', String classroomPassword = ''}) async {
+      {String generatedName = '', String meetLink = ''}) async {
     if (holdCreate != null) await holdCreate!.future;
     if (failCreate != null) throw failCreate!;
-    created.add((draft: draft, author: author, generatedName: generatedName, meetLink: meetLink, password: classroomPassword));
+    created.add((draft: draft, author: author, generatedName: generatedName, meetLink: meetLink));
     final id = 'new${created.length}';
     repo?.put(Course.fromMap(id, draft.toDocument(author, createdAt: DateTime(2026, 11, 15), generatedName: generatedName)));
     return id;

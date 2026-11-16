@@ -50,7 +50,7 @@ void main() {
   group('create', () {
     test('the course AND its private meeting settings, together', () async {
       final a = (await authoring.author('t1'))!;
-      final id = await authoring.create(draft, a, meetLink: 'calligro://room/x', classroomPassword: 'secret');
+      final id = await authoring.create(draft, a, meetLink: 'calligro-meet');
 
       final course = Course.fromMap(id, (await db.doc('courses/$id').get()).data()!);
       expect(course.courseName, 'Diwani Basics');
@@ -61,8 +61,8 @@ void main() {
       expect((await db.doc('courses/$id').get()).data()!.containsKey('classroomPassword'), isFalse);
 
       final meeting = (await db.doc('courses/$id/private/meetingConfig').get()).data()!;
-      expect(meeting['classroomPassword'], 'secret');
-      expect(meeting['calligroMeetLink'], 'calligro://room/x');
+      expect(meeting.containsKey('classroomPassword'), isFalse, reason: 'no classroom password any more');
+      expect(meeting['calligroMeetLink'], 'calligro-meet');
     });
 
     test('the new course appears in the teacher\'s own list, live', () async {

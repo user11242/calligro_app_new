@@ -15,9 +15,6 @@ import 'help_center_page.dart';
 import 'security_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:calligro_app/features/auth/data/services/google_auth_service.dart';
 
 class TeacherSettingsPage extends StatefulWidget {
   const TeacherSettingsPage({super.key});
@@ -27,35 +24,21 @@ class TeacherSettingsPage extends StatefulWidget {
 }
 
 class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
-  bool _isGoogleCalendarConnected = false;
-  bool _isLoadingConnection = true;
   bool _wantsSocialNotifications = true; // Default to true
 
   @override
   void initState() {
     super.initState();
-    _checkGoogleConnection();
+    _loadPreferences();
   }
 
-  Future<void> _checkGoogleConnection() async {
+  /// The notification preference.
+  Future<void> _loadPreferences() async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
 
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('private')
-          .doc('google_auth')
-          .get();
-
       if (mounted) {
-        setState(() {
-          _isGoogleCalendarConnected = doc.exists && doc.data()?['refreshToken'] != null;
-          
-          // Also fetch the notification preference from the main user document
-        });
-        
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
@@ -67,113 +50,12 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
            });
         }
         
-        if (mounted) {
-          setState(() {
-            _isLoadingConnection = false;
-          });
-        }
       }
     } catch (e) {
-      debugPrint("Error checking Google connection: $e");
-      if (mounted) {
-        setState(() => _isLoadingConnection = false);
-      }
+      debugPrint("Error loading preferences: $e");
     }
   }
 
-  Future<void> _connectGoogleCalendar() async {
-    try {
-      setState(() => _isLoadingConnection = true);
-
-      // Using GoogleAuthService to manage the instance and initialization
-      final googleAuthService = GoogleAuthService.instance;
-      await googleAuthService.initialize();
-      
-      final GoogleSignIn googleSignIn = googleAuthService.googleSignIn;
-
-      // 2. Clear previous session to ensure fresh consent
-      await googleSignIn.signOut();
-      
-      final scopes = [
-        'https://www.googleapis.com/auth/calendar.events',
-        'https://www.googleapis.com/auth/meetings.space.settings',
-      ];
-      final GoogleSignInAccount account = await googleSignIn.authenticate(
-        scopeHint: scopes,
-      );
-
-      // 3. Request Server Auth Code (google_sign_in ^7.0.0+)
-      final serverAuth = await account.authorizationClient.authorizeServer(scopes);
-      final String? authCode = serverAuth?.serverAuthCode;
-      
-      if (authCode == null) {
-        throw Exception(AppLocalizations.of(context)!.offlineAccessRequired);
-      }
-
-      // 3. Exchange code for Refresh Token via Cloud Function
-      // Note: If the backend lacks the secret, this might fail unless we find a way to get the token on client.
-      // For now, we'll try to get the tokens on client if possible, but standard plugin doesn't show it.
-      // Let's assume the backend exchange works if the secret is set, OR we use a fallback.
-      
-      final HttpsCallable callable = FirebaseFunctions.instanceFor(region: 'us-central1').httpsCallable('exchangeGoogleCode');
-      
-      // Since we don't have the secret, let's try a workaround: 
-      // If we can't get refreshToken on client, we MUST have it on backend.
-      // But wait, if I can't get it on client, I'll pass the authCode and hope the backend has the secret.
-      
-      await callable.call({
-        'code': authCode,
-        'refreshToken': "dummy_token_needs_server_exchange", // Backend will need to actually exchange it
-      });
-
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: AppLocalizations.of(context)!.success,
-          message: AppLocalizations.of(context)!.calendarConnected,
-          type: MessengerType.success,
-        );
-        _checkGoogleConnection();
-      }
-    } catch (e) {
-      debugPrint("Error connecting Google Calendar: $e");
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: AppLocalizations.of(context)!.error,
-          message: AppLocalizations.of(context)!.failedToConnectCalendar,
-          type: MessengerType.error,
-        );
-        setState(() => _isLoadingConnection = false);
-      }
-    }
-  }
-
-  Future<void> _disconnectGoogleCalendar() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('private')
-          .doc('google_auth')
-          .delete();
-
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: AppLocalizations.of(context)!.success,
-          message: AppLocalizations.of(context)!.calendarDisconnected,
-          type: MessengerType.success,
-        );
-        _checkGoogleConnection();
-      }
-    } catch (e) {
-      debugPrint("Error disconnecting Google Calendar: $e");
-    }
-  }
   // --- LOGOUT FUNCTION ---
   Future<void> _logout(BuildContext context) async {
     try {
@@ -433,9 +315,6 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
               ),
 
               const SizedBox(height: 12),
-
-              // 4. Google Calendar Connection
-
 
               const SizedBox(height: 24),
 
@@ -706,79 +585,4 @@ class _TeacherSettingsPageState extends State<TeacherSettingsPage> {
     );
   }
 
-  Widget _buildGoogleCalendarSetting() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12.0),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: Column(
-        children: [
-          ListTile(
-            contentPadding: const EdgeInsets.all(16.0),
-            leading: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _isGoogleCalendarConnected ? Colors.green.withOpacity(0.2) : AppColors.primary,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                _isGoogleCalendarConnected ? Icons.calendar_today : Icons.calendar_month_outlined,
-                color: _isGoogleCalendarConnected ? Colors.green : Colors.white,
-                size: 20,
-              ),
-            ),
-            title: Text(
-              AppLocalizations.of(context)!.googleCalendarConnection,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            subtitle: Text(
-              _isGoogleCalendarConnected 
-                  ? AppLocalizations.of(context)!.calendarConnected
-                  : AppLocalizations.of(context)!.googleCalendarConnectionSubtitle,
-              style: TextStyle(
-                color: _isGoogleCalendarConnected ? Colors.green : Colors.white.withOpacity(0.5),
-                fontSize: 12,
-              ),
-            ),
-            trailing: _isLoadingConnection 
-                ? const SizedBox(
-                    width: 20, 
-                    height: 20, 
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentGold),
-                  )
-                : (_isGoogleCalendarConnected 
-                    ? null 
-                    : TextButton(
-                        onPressed: _connectGoogleCalendar,
-                        child: Text(
-                          AppLocalizations.of(context)!.connectCalendar,
-                          style: const TextStyle(
-                            color: AppColors.accentGold,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-            child: Text(
-              AppLocalizations.of(context)!.googleCalendarNote,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.4),
-                fontSize: 11,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -32,4 +32,18 @@ void main() {
   test('classroom chat domain is pure', () {
     expect(File('lib/features/classroom/domain/course_chat_message.dart').readAsStringSync().contains('package:'), isFalse);
   });
+
+  test('no external meeting services: the classroom is Calligro Meet (LiveKit) only', () {
+    // Built at run time so this test file itself does not match.
+    final banned = RegExp(['jit', 'si'].join() + '|' + ['google', r'\s?meet'].join() + '|' + ['meet', r'\.google'].join(), caseSensitive: false);
+    final files = [
+      ...Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart') || f.path.endsWith('.arb')),
+      ...Directory('functions').listSync().whereType<File>().where((f) => f.path.endsWith('.js')),
+      File('pubspec.yaml'),
+    ];
+    for (final f in files) {
+      expect(banned.hasMatch(f.readAsStringSync()), isFalse, reason: f.path);
+    }
+    expect(File('pubspec.yaml').readAsStringSync().contains('googleapis'), isFalse);
+  });
 }

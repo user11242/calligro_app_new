@@ -68,6 +68,10 @@ class CourseDraft {
 
   static const defaultMaxStudents = 30;
 
+  /// Marks the course as having its Calligro Meet classroom (the Join buttons
+  /// check it). LiveKit joins by course id; nothing external is created.
+  static const calligroClassroomLink = 'calligro-meet';
+
   bool get hasCustomName => courseName.trim().isNotEmpty;
 
   List<DraftProblem> get problems => [
@@ -113,9 +117,8 @@ class CourseDraft {
 
   /// The public course document. [createdAt] is the server timestamp (data
   /// layer); [generatedName] is the localised automatic name used when the
-  /// teacher left the name empty. [meetLink] stays public (the course page's
-  /// Join button needs it; the room is hashed server-side); the classroom
-  /// password is NOT part of it (private/meetingConfig).
+  /// teacher left the name empty. [meetLink] stays public (the Join buttons
+  /// check it).
   Map<String, dynamic> toDocument(
     CourseAuthor author, {
     required Object createdAt,

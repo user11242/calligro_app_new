@@ -31,8 +31,6 @@ dependencies:
   shared_preferences: ^2.2.3
   http: ^1.2.1
   url_launcher: ^6.2.6
-  googleapis: ^15.0.0
-  googleapis_auth: ^2.0.0
   flutter_appauth: ^10.0.0
   intl: ^0.20.2
   in_app_purchase: ^3.3.0  # ✅ REQUIRED for App Store/Play Store digital goods

@@ -143,7 +143,6 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
       _draft(),
       generatedName: generatedName,
       meetLink: meetData['link'] ?? '',
-      classroomPassword: meetData['password'] ?? '',
     );
     _saving = false;
     if (!mounted) return;

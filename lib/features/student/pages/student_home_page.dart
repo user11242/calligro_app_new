@@ -13,14 +13,12 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:calligro_app/core/utils/guest_guard.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:calligro_app/core/utils/rating_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // ✅ IMPORTS
 import '../../student/widgets/student_drawer.dart';
 import '../../student/data/model/student_user_model.dart';
-import '../../student/data/services/student_service.dart';
 import '../../../core/widgets/profile_avatar.dart';
 import '../../../core/widgets/smart_image.dart';
 import '../../../core/widgets/rating_display.dart';

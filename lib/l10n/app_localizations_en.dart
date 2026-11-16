@@ -1842,12 +1842,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirmDetails => 'Confirm Details';
 
   @override
-  String get googleMeetIntegration => 'Calligro Meet Integration';
-
-  @override
-  String get googleMeet => 'Calligro Meet';
-
-  @override
   String get calligroMeet => 'Calligro Meet';
 
   @override
@@ -2224,32 +2218,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get googleAccountAlertMessage =>
       'You are registered with Google. Please use the Google Sign-In button to access your account.';
-
-  @override
-  String get googleCalendarConnection => 'Google Calendar Connection';
-
-  @override
-  String get googleCalendarConnectionSubtitle =>
-      'One-time setup for hosting meetings';
-
-  @override
-  String get googleCalendarNote =>
-      'Connect your Google account once to allow Calligro to generate Google Meet links for your courses. You will remain the host of all meetings. This works for both Email and Google registered accounts.';
-
-  @override
-  String get connectCalendar => 'Connect Calendar';
-
-  @override
-  String get disconnectCalendar => 'Disconnect Calendar';
-
-  @override
-  String get calendarConnected => 'Google Calendar Connected';
-
-  @override
-  String get calendarDisconnected => 'Google Calendar Disconnected';
-
-  @override
-  String get failedToConnectCalendar => 'Failed to connect Google Calendar.';
 
   @override
   String get offlineAccessRequired =>

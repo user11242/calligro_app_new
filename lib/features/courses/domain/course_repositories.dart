@@ -36,7 +36,6 @@ abstract interface class CourseAuthoring {
     CourseAuthor author, {
     String generatedName = '',
     String meetLink = '',
-    String classroomPassword = '',
   });
 }
 
