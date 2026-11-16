@@ -54,4 +54,33 @@ void main() {
   test('the start-up router uses the tested routing rule', () {
     expect(File('lib/screens/auth_wrapper.dart').readAsStringSync().contains('AuthRouting.destinationFor('), isTrue);
   });
+
+  test('auth screens reach Firebase only through AuthService / AuthScope', () {
+    final screens = [...dartIn('lib/features/auth/pages'), ...dartIn('lib/features/auth/widgets')];
+    for (final f in screens) {
+      final c = f.readAsStringSync();
+      for (final banned in [
+        'FirebaseFirestore.instance',
+        'FirebaseFunctions.instance',
+        'FirebaseMessaging.instance',
+        'FirebaseAuth.instance',
+        'AuthService()',
+      ]) {
+        expect(c.contains(banned), isFalse, reason: '${f.path} uses $banned');
+      }
+    }
+  });
+
+  test('ONE copy of the form rules (the screens had three that disagreed)', () {
+    for (final p in [
+      'lib/features/auth/widgets/register_form.dart',
+      'lib/features/auth/pages/google_register_wizard.dart',
+      'lib/features/auth/pages/forgot_password_page.dart',
+    ]) {
+      final c = File(p).readAsStringSync();
+      expect(c.contains('AuthFormRules.'), isTrue, reason: p);
+      expect(c.contains("(?=.*[A-Z])"), isFalse, reason: '$p has its own password regex');
+      expect(c.contains('@[a-zA-Z0-9]+'), isFalse, reason: '$p has its own email regex');
+    }
+  });
 }

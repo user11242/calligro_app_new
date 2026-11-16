@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/colors.dart';
@@ -20,7 +21,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-    _authService = widget.authService ?? AuthService();
+    _authService = widget.authService ?? AuthServices.instance.account;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
         context: context,

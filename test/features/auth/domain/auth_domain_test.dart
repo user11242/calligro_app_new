@@ -39,6 +39,17 @@ void main() {
     });
   });
 
+  test('splash first route (unchanged): only approved teachers / admins / students skip ahead', () {
+    expect(AuthRouting.splashRoute(null), '/');
+    expect(AuthRouting.splashRoute({'role': 'teacher', 'status': 'approved'}), '/teacherDashboard');
+    expect(AuthRouting.splashRoute({'role': 'teacher'}), '/teacherDashboard');
+    expect(AuthRouting.splashRoute({'role': 'teacher', 'status': 'pending'}), '/');
+    expect(AuthRouting.splashRoute({'role': 'admin'}), '/adminDashboard');
+    expect(AuthRouting.splashRoute({'role': 'student'}), '/studentDashboard');
+    expect(AuthRouting.splashRoute({}), '/studentDashboard', reason: 'missing role = student, as before');
+    expect(AuthRouting.splashRoute({'role': 'other'}), '/');
+  });
+
   group('email codes', () {
     test('server results', () {
       expect(EmailCodeCheck.fromServer('ok'), EmailCodeCheck.ok);

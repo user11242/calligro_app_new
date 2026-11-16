@@ -1,8 +1,7 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/theme/colors.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -45,8 +44,7 @@ class _TeacherRejectedPageState extends State<TeacherRejectedPage> {
 
     try {
       // 2. Call Cloud Function to delete own account
-      final callable = FirebaseFunctions.instance.httpsCallable('deleteOwnAccount');
-      await callable.call();
+      await AuthServices.instance.account.deleteOwnAccount();
       
       // 3. User is deleted from Auth, so StreamBuilder in AuthWrapper will revert to Onboarding
       // No need to navigate manually, but we can show a success msg if useful
@@ -161,7 +159,7 @@ class _TeacherRejectedPageState extends State<TeacherRejectedPage> {
               
               // Logout Option
               TextButton(
-                onPressed: () => FirebaseAuth.instance.signOut(),
+                onPressed: () => AuthServices.instance.account.signOut(), // also releases the push token
                 child: Text(
                   l10n.signOut,
                   style: TextStyle(color: Colors.white.withOpacity(0.4)),

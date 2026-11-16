@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/auth/domain/auth_destination.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -73,23 +74,7 @@ class _SplashScreenState extends State<SplashScreen> {
       final User? user = _auth.currentUser;
       if (user != null) {
         final doc = await _firestore.collection('users').doc(user.uid).get();
-        if (doc.exists) {
-          final data = doc.data() as Map<String, dynamic>;
-          final String role = data['role'] ?? 'student';
-          final String status = data['status'] ?? 'approved';
-          
-          if (role == 'teacher' && status == 'approved') {
-            _targetRoute = '/teacherDashboard';
-          } else if (role == 'admin') {
-            _targetRoute = '/adminDashboard';
-          } else if (role == 'student') {
-            _targetRoute = '/studentDashboard';
-          } else {
-            _targetRoute = '/';
-          }
-        } else {
-          _targetRoute = '/';
-        }
+        _targetRoute = AuthRouting.splashRoute(doc.data());
       } else {
         _targetRoute = '/';
       }

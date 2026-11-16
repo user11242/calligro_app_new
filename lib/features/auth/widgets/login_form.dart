@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
 import 'dart:io' show Platform;
 import 'package:calligro_app/l10n/app_localizations.dart';
 import '../pages/google_register_wizard.dart';
@@ -25,13 +26,11 @@ class _LoginFormState extends State<LoginForm> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   late final AuthService _authService;
-  late final FirebaseAuth _auth;
 
   @override
   void initState() {
     super.initState();
-    _authService = widget.authService ?? AuthService();
-    _auth = widget.auth ?? FirebaseAuth.instance;
+    _authService = widget.authService ?? AuthServices.instance.account;
   }
 
   bool isLoading = false;
@@ -73,7 +72,7 @@ class _LoginFormState extends State<LoginForm> {
       if (!mounted) return;
       setState(() => isLoading = false);
 
-      final currentUser = _auth.currentUser;
+      final currentUser = widget.auth?.currentUser ?? _authService.currentUser;
       if (currentUser != null) {
         await _authService.saveUserFcmToken(currentUser.uid);
       }
@@ -143,7 +142,7 @@ class _LoginFormState extends State<LoginForm> {
             );
 
             if (role != null && mounted) {
-              await _authService.saveUserFcmToken(FirebaseAuth.instance.currentUser!.uid);
+              await _authService.saveCurrentUserFcmToken();
               String route = "/";
               if (widget.returnTo != null && widget.returnTo != "/") {
                 route = widget.returnTo!;
@@ -166,7 +165,7 @@ class _LoginFormState extends State<LoginForm> {
           builder: (dialogContext) => const GoogleRegisterWizard(),
         );
       } else if (result == "student" || result == "teacher" || result == "admin") {
-        await _authService.saveUserFcmToken(FirebaseAuth.instance.currentUser!.uid);
+        await _authService.saveCurrentUserFcmToken();
         if (mounted) {
           String route = "/";
           if (widget.returnTo != null && widget.returnTo != "/") {
@@ -223,7 +222,7 @@ class _LoginFormState extends State<LoginForm> {
             );
 
             if (role != null && mounted) {
-              await _authService.saveUserFcmToken(FirebaseAuth.instance.currentUser!.uid);
+              await _authService.saveCurrentUserFcmToken();
               String route = "/";
               if (widget.returnTo != null && widget.returnTo != "/") {
                 route = widget.returnTo!;
@@ -246,7 +245,7 @@ class _LoginFormState extends State<LoginForm> {
           builder: (dialogContext) => const GoogleRegisterWizard(provider: 'apple'),
         );
       } else if (result == "student" || result == "teacher" || result == "admin") {
-        await _authService.saveUserFcmToken(FirebaseAuth.instance.currentUser!.uid);
+        await _authService.saveCurrentUserFcmToken();
         if (mounted) {
           String route = "/";
           if (widget.returnTo != null && widget.returnTo != "/") {

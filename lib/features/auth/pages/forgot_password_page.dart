@@ -1,3 +1,5 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
+import 'package:calligro_app/features/auth/domain/auth_form_rules.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,16 +29,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final emailController = TextEditingController();
   final newPasswordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
-  late final FirebaseAuth _auth;
-  late final FirebaseFirestore _firestore;
   late final AuthService _authService;
 
   @override
   void initState() {
     super.initState();
-    _auth = widget.auth ?? FirebaseAuth.instance;
-    _firestore = widget.firestore ?? FirebaseFirestore.instance;
-    _authService = widget.authService ?? AuthService();
+    // Injected Firebase (tests) builds its own facade; otherwise the app-wide one.
+    _authService = widget.authService ??
+        (widget.auth != null || widget.firestore != null
+            ? AuthService(auth: widget.auth, firestore: widget.firestore)
+            : AuthServices.instance.account);
   }
 
   bool isLoading = false;
@@ -72,8 +74,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   bool _isValidEmail(String email) {
-    final emailRegex = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
-    return emailRegex.hasMatch(email);
+    return AuthFormRules.email(email) == null;
   }
 
   void _showGoogleSignAlert(BuildContext context) {
@@ -189,14 +190,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => isLoading = true);
 
     try {
-      // Check if user exists in Firestore
-      final query = await _firestore
-          .collection("users")
-          .where("email", isEqualTo: email)
-          .limit(1)
-          .get();
+      // Find the account (as typed, then lower-case).
+      final userData = await _authService.findUserByEmail(email);
 
-      if (query.docs.isEmpty) {
+      if (userData == null) {
         _showMessage(
           context,
           l10n.error,
@@ -207,7 +204,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         return;
       }
 
-      final userData = query.docs.first.data();
       final status = userData["status"] ?? "pending";
 
       if (status != "approved" && status != "active") {
@@ -311,17 +307,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   void _validatePassword(String value) {
     final l10n = AppLocalizations.of(context)!;
     setState(() {
-      if (value.isEmpty) {
-        _passwordError = l10n.enterPassword;
-      } else if (value.length < 6) {
-        _passwordError = l10n.passwordTooShort;
-      } else if (!RegExp(
-        r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$',
-      ).hasMatch(value)) {
-        _passwordError = l10n.passwordComplexity;
-      } else {
-        _passwordError = null;
-      }
+      _passwordError = switch (AuthFormRules.password(value)) {
+        PasswordProblem.empty => l10n.enterPassword,
+        PasswordProblem.tooShort => l10n.passwordTooShort,
+        PasswordProblem.complexity => l10n.passwordComplexity,
+        null => null,
+      };
 
       if (confirmPasswordController.text.isNotEmpty) {
         _validateConfirmPassword(confirmPasswordController.text);

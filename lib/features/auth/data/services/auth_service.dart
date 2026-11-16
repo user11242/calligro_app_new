@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'email_auth_service.dart';
 import 'google_auth_service.dart';
 import 'apple_auth_service.dart';
@@ -367,6 +368,43 @@ class AuthService {
 
   Future<String> loginWithEmail(String email, String password) =>
       _emailAuth.login(email: email, password: password);
+
+  // ============ 👤 SESSION / PROFILE (screens use these, not Firebase) ============
+
+  User? get currentUser => _auth.currentUser;
+
+  /// users/{uid}, or null.
+  Future<Map<String, dynamic>?> loadUserProfile(String uid) async =>
+      (await _firestore.collection('users').doc(uid).get()).data();
+
+  /// The account registered with [email]: as typed first, then lower-case
+  /// (typing "Ali@x.com" for "ali@x.com" used to say "no account found").
+  Future<Map<String, dynamic>?> findUserByEmail(String email) async {
+    final typed = email.trim();
+    for (final candidate in {typed, typed.toLowerCase()}) {
+      final q = await _firestore.collection('users').where('email', isEqualTo: candidate).limit(1).get();
+      if (q.docs.isNotEmpty) return q.docs.first.data();
+    }
+    return null;
+  }
+
+  /// Asks for notification permission (the register form does it early).
+  Future<void> requestPushPermission() async {
+    try {
+      await FirebaseMessaging.instance.requestPermission();
+    } catch (e) {
+      debugPrint("Push permission request failed: $e");
+    }
+  }
+
+  /// Hard delete (rejected teachers): the server removes profile, reservations and sign-in.
+  Future<void> deleteOwnAccount() =>
+      FirebaseFunctions.instanceFor(region: 'us-central1').httpsCallable('deleteOwnAccount').call();
+
+  Future<void> saveCurrentUserFcmToken() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) await saveUserFcmToken(uid);
+  }
 
   Future<void> saveUserFcmToken(String uid) async {
     try {

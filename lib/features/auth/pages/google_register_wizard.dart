@@ -1,8 +1,9 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
+import 'package:calligro_app/features/auth/domain/auth_form_rules.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import '../../../core/theme/colors.dart';
 import 'package:calligro_app/features/auth/data/services/auth_service.dart';
@@ -31,8 +32,7 @@ class GoogleRegisterWizard extends StatefulWidget {
 }
 
 class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
-  final AuthService _authService = AuthService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final AuthService _authService = AuthServices.instance.account;
   final phoneController = TextEditingController();
   final portfolioController = TextEditingController();
   final _phoneUtil = lib_phone.PhoneNumberUtil();
@@ -52,21 +52,11 @@ class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
 
   void _validatePortfolio(String value) {
     final l10n = AppLocalizations.of(context)!;
-    if (value.isEmpty) {
-      setState(() => _portfolioError = l10n.enterPortfolio);
-      return;
-    }
-
-    final urlRegex = RegExp(
-      r'^(http|https):\/\/(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(/[a-zA-Z0-9-._~:/?#\[\]@!$&' "'" r'()*+,;=%]*)?$',
-      caseSensitive: false,
-    );
-
-    if (!urlRegex.hasMatch(value.trim())) {
-      setState(() => _portfolioError = l10n.invalidPortfolio);
-    } else {
-      setState(() => _portfolioError = null);
-    }
+    setState(() => _portfolioError = switch (AuthFormRules.portfolio(value)) {
+          PortfolioProblem.empty => l10n.enterPortfolio,
+          PortfolioProblem.format => l10n.invalidPortfolio,
+          null => null,
+        });
   }
 
   Future<void> _pastePortfolio() async {
@@ -116,7 +106,7 @@ class _GoogleRegisterWizardState extends State<GoogleRegisterWizard> {
   }
 
   Widget _buildStepContent() {
-    final currentUser = _auth.currentUser;
+    final currentUser = _authService.currentUser;
     if (selectedRole == "student") {
       switch (_step) {
         case 0:

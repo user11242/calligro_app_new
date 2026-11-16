@@ -1,8 +1,7 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import '../../../core/theme/colors.dart';
 import '../../auth/data/services/auth_service.dart';
@@ -13,7 +12,6 @@ class VerificationWizardPage extends StatefulWidget {
   final String role, email, password, phone, name, portfolio;
   final bool acceptedTerms;
   final String? language;
-  final String? fcmToken;
   final List<String>? spokenLanguages;
 
   const VerificationWizardPage({
@@ -26,7 +24,6 @@ class VerificationWizardPage extends StatefulWidget {
     required this.portfolio,
     required this.acceptedTerms,
     this.language,
-    this.fcmToken,
     this.spokenLanguages,
   });
 
@@ -35,7 +32,7 @@ class VerificationWizardPage extends StatefulWidget {
 }
 
 class _VerificationWizardPageState extends State<VerificationWizardPage> {
-  final AuthService _authService = AuthService();
+  final AuthService _authService = AuthServices.instance.account;
   GlobalKey<UniversalOtpStepState> _otpKey = GlobalKey<UniversalOtpStepState>();
 
   int _step = 0;
@@ -124,19 +121,9 @@ class _VerificationWizardPageState extends State<VerificationWizardPage> {
     setState(() => isLoading = false);
 
     if (error == null) {
-      // ✅ Save FCM Token immediately after successful registration
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        // If we already pre-fetched the token, save it directly
-        if (widget.fcmToken != null) {
-           await FirebaseFirestore.instance.collection("users").doc(currentUser.uid).update({
-             "fcmToken": widget.fcmToken,
-             "lastTokenUpdate": FieldValue.serverTimestamp(),
-           });
-        } else {
-           await _authService.saveUserFcmToken(currentUser.uid);
-        }
-      }
+      // ✅ Save this phone's push token (with the preferred language, like
+      // every other sign-in path — the pre-fetched shortcut skipped it).
+      await _authService.saveCurrentUserFcmToken();
 
       if (widget.role == 'teacher') {
         navigator.pop('SUCCESS_CLOSE_TEACHER');

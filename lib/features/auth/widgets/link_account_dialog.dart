@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/theme/colors.dart';
@@ -16,7 +17,7 @@ class LinkAccountDialog extends StatefulWidget {
 
 class _LinkAccountDialogState extends State<LinkAccountDialog> {
   final TextEditingController _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
+  final AuthService _authService = AuthServices.instance.account;
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;

@@ -1,8 +1,9 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
+import 'package:calligro_app/features/auth/domain/auth_form_rules.dart';
 import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:device_region/device_region.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
@@ -160,26 +161,17 @@ class _RegisterFormState extends State<RegisterForm> {
   bool _isEmailValid = false;
   bool _isPhoneValid = false;
   
-  String? _fcmToken;
 
   @override
   void initState() {
     super.initState();
-    _authService = widget.authService ?? AuthService();
+    _authService = widget.authService ?? AuthServices.instance.account;
     _getInitialCountryCode();
     _preFetchFcmToken();
   }
 
-  Future<void> _preFetchFcmToken() async {
-    try {
-      // Just request permission early so it's ready
-      await FirebaseMessaging.instance.requestPermission();
-      _fcmToken = await FirebaseMessaging.instance.getToken();
-      debugPrint("Pre-fetched FCM Token: $_fcmToken");
-    } catch (e) {
-      debugPrint("Error pre-fetching FCM Token: $e");
-    }
-  }
+  /// Asks for notification permission early (the token is saved after sign-up).
+  Future<void> _preFetchFcmToken() => _authService.requestPushPermission();
 
   @override
   void dispose() {
@@ -252,30 +244,15 @@ class _RegisterFormState extends State<RegisterForm> {
 
     final trimmedValue = value.trim();
 
-    if (trimmedValue.isEmpty) {
+    final nameProblem = AuthFormRules.name(trimmedValue);
+    if (nameProblem != null) {
       setState(() {
         _isCheckingName = false;
-        _nameError = l10n.enterFullName;
-      });
-      return;
-    }
-
-    // 1. Length Check (3-50)
-    if (trimmedValue.length < 3 || trimmedValue.length > 50) {
-      setState(() {
-        _isCheckingName = false;
-        _nameError = l10n.nameLengthError;
-      });
-      return;
-    }
-
-    // 2. Character Set Check (English, Arabic, Turkish letters and spaces)
-    // \p{L} matches any letter from any language
-    // \s matches whitespace
-    if (!RegExp(r'^(?=.*[\p{L}])[\p{L}\p{N}\s]+$', unicode: true).hasMatch(trimmedValue)) {
-      setState(() {
-        _isCheckingName = false;
-        _nameError = l10n.nameCharError;
+        _nameError = switch (nameProblem) {
+          NameProblem.empty => l10n.enterFullName,
+          NameProblem.length => l10n.nameLengthError,
+          NameProblem.characters => l10n.nameCharError,
+        };
       });
       return;
     }
@@ -307,18 +284,11 @@ class _RegisterFormState extends State<RegisterForm> {
       _isCheckingEmail = true;
     });
 
-    if (value.trim().isEmpty) {
+    final emailProblem = AuthFormRules.email(value);
+    if (emailProblem != null) {
       setState(() {
         _isCheckingEmail = false;
-        _emailError = l10n.enterEmail;
-      });
-      return;
-    }
-
-    if (!RegExp(r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+').hasMatch(value)) {
-      setState(() {
-        _isCheckingEmail = false;
-        _emailError = l10n.invalidEmail;
+        _emailError = emailProblem == EmailProblem.empty ? l10n.enterEmail : l10n.invalidEmail;
       });
       return;
     }
@@ -391,15 +361,12 @@ class _RegisterFormState extends State<RegisterForm> {
 
   void _validatePassword(String value) {
     final l10n = AppLocalizations.of(context)!;
-    if (value.isEmpty) {
-      setState(() => _passwordError = l10n.enterPassword);
-    } else if (value.length < 6) {
-      setState(() => _passwordError = l10n.passwordLength);
-    } else if (!RegExp(r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$').hasMatch(value)) {
-      setState(() => _passwordError = l10n.passwordComplexity);
-    } else {
-      setState(() => _passwordError = null);
-    }
+    setState(() => _passwordError = switch (AuthFormRules.password(value)) {
+          PasswordProblem.empty => l10n.enterPassword,
+          PasswordProblem.tooShort => l10n.passwordLength,
+          PasswordProblem.complexity => l10n.passwordComplexity,
+          null => null,
+        });
     if (confirmController.text.isNotEmpty) {
       _validateConfirmPassword(confirmController.text);
     }
@@ -424,23 +391,11 @@ class _RegisterFormState extends State<RegisterForm> {
 
   void _validatePortfolio(String value) {
     final l10n = AppLocalizations.of(context)!;
-    if (value.isEmpty) {
-      setState(() => _portfolioError = l10n.enterPortfolio);
-      return;
-    }
-    
-    // Improved regex for URL validation:
-    // Requires protocol (http/https), a domain with at least one dot, and a TLD.
-    final urlRegex = RegExp(
-      r'^(http|https):\/\/(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(/[a-zA-Z0-9-._~:/?#\[\]@!$&' "'" r'()*+,;=%]*)?$',
-      caseSensitive: false,
-    );
-
-    if (!urlRegex.hasMatch(value.trim())) {
-      setState(() => _portfolioError = l10n.invalidPortfolio);
-    } else {
-      setState(() => _portfolioError = null);
-    }
+    setState(() => _portfolioError = switch (AuthFormRules.portfolio(value)) {
+          PortfolioProblem.empty => l10n.enterPortfolio,
+          PortfolioProblem.format => l10n.invalidPortfolio,
+          null => null,
+        });
   }
 
   Future<void> _handleRegister() async {
@@ -529,7 +484,6 @@ class _RegisterFormState extends State<RegisterForm> {
         portfolio: portfolioController.text.trim(),
         acceptedTerms: _acceptedTerms,
         language: widget.initialLanguage,
-        fcmToken: _fcmToken,
         spokenLanguages: selectedLanguages,
       ),
     );

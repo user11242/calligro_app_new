@@ -3,7 +3,6 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
-import 'package:calligro_app/core/utils/video_asset_helper.dart';
 import '../features/student/student_dashboard.dart';
 import '../core/localization/locale_provider.dart';
 import '../core/theme/colors.dart';

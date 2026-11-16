@@ -24,4 +24,18 @@ class AuthRouting {
         return AuthDestination.studentDashboard;
     }
   }
+
+  /// The splash screen's first route (kept exactly as before): approved
+  /// teachers, admins and students go straight to their dashboard; everyone
+  /// else (pending/rejected teachers, unknown roles, no profile) goes to '/'
+  /// where AuthWrapper decides.
+  static String splashRoute(Map<String, dynamic>? user) {
+    if (user == null) return '/';
+    final role = user['role'] is String ? user['role'] as String : 'student';
+    final status = user['status'] is String ? user['status'] as String : 'approved';
+    if (role == 'teacher' && status == 'approved') return '/teacherDashboard';
+    if (role == 'admin') return '/adminDashboard';
+    if (role == 'student') return '/studentDashboard';
+    return '/';
+  }
 }

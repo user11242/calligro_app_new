@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
@@ -30,7 +31,7 @@ class UniversalOtpStep extends StatefulWidget {
 }
 
 class UniversalOtpStepState extends State<UniversalOtpStep> {
-  final AuthService _authService = AuthService();
+  final AuthService _authService = AuthServices.instance.account;
   late TextEditingController otpController;
 
   String? _verificationId;

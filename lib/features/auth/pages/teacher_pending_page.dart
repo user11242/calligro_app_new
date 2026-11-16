@@ -1,5 +1,5 @@
+import 'package:calligro_app/features/auth/presentation/auth_scope.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 // Note: If you don't use Lottie, you can replace the lottie asset with a standard Icon.
@@ -148,7 +148,7 @@ class _TeacherPendingPageState extends State<TeacherPendingPage>
     );
 
     if (shouldLogout == true) {
-      await FirebaseAuth.instance.signOut();
+      await AuthServices.instance.account.signOut(); // also releases the push token
     }
   }
 
