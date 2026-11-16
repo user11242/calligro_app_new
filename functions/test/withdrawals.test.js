@@ -36,6 +36,7 @@ beforeEach(async () => {
   await db.collection('transactions').add({ teacherId: 't1', courseId: 'ended', teacherShare: 40, status: 'completed' });
   await db.collection('transactions').add({ teacherId: 't1', courseId: 'running', teacherShare: 70, status: 'completed' });
   await db.collection('transactions').add({ teacherId: 't1', courseId: 'ended', teacherShare: 999, status: 'refunded' });
+  await db.collection('transactions').add({ teacherId: 't1', courseId: 'ended', teacherShare: 25, status: 'settled' });
 });
 
 describe('the server works out the balance with the app\'s rules', () => {
@@ -62,12 +63,12 @@ describe('the server works out the balance with the app\'s rules', () => {
 describe('requestWithdrawal', () => {
   it('creates ONE request for exactly the available money, with the same fields as before', async () => {
     const r = await createWithdrawal(db, 't1', { methodLabel: 'CliQ (Jordan only)', now: NOW });
-    expect(r).toEqual({ requestedAmount: 100, netAmount: 100, fee: 0 });
+    expect(r).toEqual({ requestedAmount: 125, netAmount: 125, fee: 0 }); // settled sales count
     const docs = (await db.collection('withdrawal_requests').get()).docs.map((d) => d.data());
     expect(docs).toHaveLength(1);
     expect(docs[0]).toMatchObject({
       teacherId: 't1', teacherName: 'Ustadh Ali', method: 'CliQ (Jordan only)', payoutMethod: 'CliQ (Jordan only)',
-      fee: 0, requestedAmount: 100, netAmount: 100, amount: 100, status: 'pending',
+      fee: 0, requestedAmount: 125, netAmount: 125, amount: 125, status: 'pending',
     });
   });
 
@@ -87,12 +88,12 @@ describe('requestWithdrawal', () => {
     await createWithdrawal(db, 't1', { now: NOW });
     const req = (await db.collection('withdrawal_requests').get()).docs[0];
     await req.ref.update({ status: 'rejected' });
-    expect((await createWithdrawal(db, 't1', { now: NOW })).requestedAmount).toBe(100);
+    expect((await createWithdrawal(db, 't1', { now: NOW })).requestedAmount).toBe(125);
   });
 
   it('Western Union keeps its 10 fee, counted in the full amount', async () => {
     await db.doc('users/t1/private/payout').set({ selectedMethod: 'western' });
-    expect(await createWithdrawal(db, 't1', { now: NOW })).toEqual({ requestedAmount: 100, netAmount: 90, fee: 10 });
+    expect(await createWithdrawal(db, 't1', { now: NOW })).toEqual({ requestedAmount: 125, netAmount: 115, fee: 10 });
     await expect(createWithdrawal(db, 't1', { now: NOW })).rejects.toThrow('No funds available');
   });
 

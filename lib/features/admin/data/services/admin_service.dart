@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/admin/domain/admin_rules.dart';
 import 'package:calligro_app/features/community/data/community_device_adapters.dart';
 import 'package:calligro_app/features/community/data/firestore_community_repository.dart';
 import 'package:calligro_app/features/community/domain/repositories/community_repositories.dart';
@@ -50,7 +51,8 @@ class AdminService {
   /// Fetches a merged stream of recent activities across the platform
   Stream<List<Map<String, dynamic>>> getRecentActivity() {
     final users = _firestore.collection('users').orderBy('createdAt', descending: true).limit(5).snapshots();
-    final posts = _firestore.collection('community_posts').orderBy('createdAt', descending: true).limit(5).snapshots();
+    // Posts store `timestamp` (ordering by createdAt dropped every post).
+    final posts = _firestore.collection('community_posts').orderBy('timestamp', descending: true).limit(5).snapshots();
     final courses = _firestore.collection('courses').orderBy('createdAt', descending: true).limit(5).snapshots();
 
     return Rx.combineLatest3(
@@ -80,7 +82,7 @@ class AdminService {
             'type': 'post',
             'title': 'newCommunityPost',
             'subtitle': d['content']?.toString().substring(0, d['content'].toString().length > 30 ? 30 : d['content'].toString().length) ?? 'No content',
-            'time': d['createdAt'],
+            'time': d['timestamp'] ?? d['createdAt'],
             'icon': Icons.campaign_outlined,
             'color': Colors.purple,
           });
@@ -184,30 +186,32 @@ class AdminService {
             .toList());
   }
 
-  /// Promotes a user to co-admin by email
+  /// Promotes a user to co-admin by email (as typed, then lower-case). Uses
+  /// the same path as "Change role", so no teacher/student entry is left behind.
   Future<void> promoteToAdminByEmail(String email) async {
-    final query = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .limit(1)
-        .get();
-
-    if (query.docs.isEmpty) {
+    final typed = email.trim();
+    QueryDocumentSnapshot<Map<String, dynamic>>? found;
+    for (final candidate in {typed, typed.toLowerCase()}) {
+      final query = await _firestore.collection('users').where('email', isEqualTo: candidate).limit(1).get();
+      if (query.docs.isNotEmpty) {
+        found = query.docs.first;
+        break;
+      }
+    }
+    if (found == null) {
       throw Exception("User not found with this email");
     }
-
-    await query.docs.first.reference.update({'role': 'admin'});
+    await changeUserRole(found.id, 'admin');
   }
 
-  /// Revokes admin status from a user
+  /// Revokes admin status (back to student, with a students entry — same path as "Change role").
   Future<void> revokeAdminStatus(String uid) async {
     // Safety check: Don't allow revoking self (optional, usually handled in UI)
     final currentUser = _auth.currentUser;
     if (currentUser?.uid == uid) {
       throw Exception("You cannot revoke your own admin status");
     }
-
-    await _firestore.collection('users').doc(uid).update({'role': 'student'});
+    await changeUserRole(uid, 'student');
   }
 
   /// Deletes a user document from Firestore AND Authentication
@@ -223,9 +227,6 @@ class AdminService {
       }
 
       final data = userDoc.data() ?? {};
-      final email = data['email'] as String? ?? '';
-      final name = data['name'] as String? ?? '';
-      final phone = data['phone'] as String?;
       final role = data['role'] as String? ?? 'student';
 
       // 2. Call Cloud Function to delete Auth Account
@@ -258,17 +259,10 @@ class AdminService {
         batch.delete(_firestore.collection('students').doc(uid));
       }
 
-      // C. Locked Identifiers
-      if (email.isNotEmpty) {
-        batch.delete(_firestore.collection('locked_emails').doc(email.trim().toLowerCase()));
-      }
-      if (name.isNotEmpty) {
-        batch.delete(_firestore.collection('locked_usernames').doc(name.trim().toLowerCase()));
-      }
-      if (phone != null && phone.isNotEmpty) {
-        final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
-        batch.delete(_firestore.collection('locked_phones').doc(cleanPhone));
-      }
+      // C. Released reservations (same keys as registration: AdminRules / AccountKeys)
+      AdminRules.reservationsOf(data).forEach((collection, key) {
+        batch.delete(_firestore.collection(collection).doc(key));
+      });
 
       await batch.commit();
       debugPrint("DEBUG: User deletion complete.");
@@ -308,44 +302,49 @@ class AdminService {
     debugPrint("----------------------------------------------------------------");
   }
 
-  /// Changes a user's role directly
+  /// Changes a user's role directly (AdminRules.changeRole decides the writes).
   Future<void> changeUserRole(String uid, String newRole) async {
     final userRef = _firestore.collection('users').doc(uid);
     final userDoc = await userRef.get();
-    
     if (!userDoc.exists) return;
-    
-    final userData = userDoc.data()!;
-    final oldRole = userData['role'] as String? ?? 'student';
-    
-    if (oldRole == newRole) return;
-
-    final batch = _firestore.batch();
-    
-    final updateData = <String, dynamic>{'role': newRole};
-    if (newRole == 'teacher') {
-      updateData['approved'] = true;
-      updateData['status'] = 'approved';
+    final plan = AdminRules.changeRole(userDoc.data()!, newRole);
+    if (plan.isNoChange) return;
+    final batch = _firestore.batch()..update(userRef, plan.userUpdate);
+    for (final c in plan.deleteCollections) {
+      batch.delete(_firestore.collection(c).doc(uid));
     }
-
-    batch.update(userRef, updateData);
-
-    // Prepare complete document for new collection
-    final newDocData = Map<String, dynamic>.from(userData);
-    newDocData.addAll(updateData);
-
-    if (newRole == 'teacher') {
-      batch.delete(_firestore.collection('students').doc(uid));
-      batch.set(_firestore.collection('teachers').doc(uid), newDocData);
-    } else if (newRole == 'student') {
-      batch.delete(_firestore.collection('teachers').doc(uid));
-      batch.set(_firestore.collection('students').doc(uid), newDocData);
-    } else if (newRole == 'admin') {
-      batch.delete(_firestore.collection('students').doc(uid));
-      batch.delete(_firestore.collection('teachers').doc(uid));
+    if (plan.setCollection != null) {
+      batch.set(_firestore.collection(plan.setCollection!).doc(uid), plan.setData);
     }
-
     await batch.commit();
+  }
+
+  // --- TEACHER STATUS (pages used to write these themselves) ---
+
+  /// Approves a teacher (also restores a suspended one).
+  Future<void> approveTeacher(String uid) async {
+    final batch = _firestore.batch()
+      ..update(_firestore.collection('users').doc(uid), AdminRules.approve)
+      ..update(_firestore.collection('teachers').doc(uid), AdminRules.approve);
+    await batch.commit();
+  }
+
+  /// Suspends a teacher: they see the pending screen, cannot create courses,
+  /// and appear in Pending Teachers where Approve restores them.
+  Future<void> suspendTeacher(String uid) async {
+    final change = AdminRules.suspend(FieldValue.serverTimestamp());
+    final batch = _firestore.batch()
+      ..update(_firestore.collection('users').doc(uid), change)
+      ..set(_firestore.collection('teachers').doc(uid), change, SetOptions(merge: true));
+    await batch.commit();
+  }
+
+  /// [percent] 0-100 (stored as 0-1 on users and teachers, as before).
+  Future<void> setCommissionRate(String uid, double percent) async {
+    if (!AdminRules.isValidCommissionPercent(percent)) throw ArgumentError('Commission must be 0-100');
+    final rate = percent / 100.0;
+    await _firestore.collection('users').doc(uid).update({'commissionRate': rate});
+    await _firestore.collection('teachers').doc(uid).set({'commissionRate': rate}, SetOptions(merge: true));
   }
 
   /// Sends a targeted notification to a specific user (push + in-app inbox)
@@ -382,16 +381,18 @@ class AdminService {
 
     final callable = _functions.httpsCallable('sendAdminDirectMessage');
 
-    final List<Future> tasks = [];
+    final List<Future<void>> tasks = [];
 
     // Send direct notifications via Cloud Function
     for (final uid in recipients) {
       tasks.add(
+        // One failed recipient must not fail the whole send (the old handler
+        // returned nothing where a result was expected, which threw).
         callable.call({
           'targetUserId': uid,
           'title': title,
           'body': body,
-        }).catchError((err) {
+        }).then<void>((_) {}, onError: (Object err) {
           debugPrint("Failed to deliver admin notification to user $uid: $err");
         }),
       );
@@ -410,7 +411,7 @@ class AdminService {
         'senderName': 'إدارة كاليجرو',
         'type': 'admin_announcement',
         'timestamp': FieldValue.serverTimestamp(),
-      }).catchError((err) {
+      }).then<void>((_) {}, onError: (Object err) {
         debugPrint("Failed to save course announcement: $err");
       }),
     );

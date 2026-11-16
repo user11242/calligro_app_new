@@ -44,6 +44,11 @@ class Balance {
 class EarningsRules {
   EarningsRules._();
 
+  /// Sales that count as earned. 'settled' = the store/gateway has paid
+  /// Calligro (the admin's "Yes, Received"); counting only 'completed' made
+  /// every settled sale vanish from the teacher's earnings.
+  static const earnedStatuses = ['completed', 'settled'];
+
   static const unlockDelay = Duration(days: 2);
 
   /// Earnings unlock 2 days after the course ENDS. (The code read a field no

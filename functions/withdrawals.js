@@ -13,6 +13,8 @@ const admin = require("firebase-admin");
 
 const DAY = 24 * 60 * 60 * 1000;
 const UNLOCK_DELAY = 2 * DAY;
+/** = EarningsRules.earnedStatuses ("settled" = the admin confirmed the store paid). */
+const EARNED_STATUSES = ["completed", "settled"];
 
 const ms = (v) => (v && typeof v.toMillis === "function" ? v.toMillis() : v instanceof Date ? v.getTime() : null);
 const num = (v) => (typeof v === "number" ? v : 0);
@@ -53,7 +55,7 @@ async function createWithdrawal(db, uid, { methodLabel, now = Date.now() } = {})
 
   return db.runTransaction(async (tx) => {
     const [salesSnap, coursesSnap, withdrawalsSnap] = await Promise.all([
-      tx.get(db.collection("transactions").where("teacherId", "==", uid).where("status", "==", "completed")),
+      tx.get(db.collection("transactions").where("teacherId", "==", uid).where("status", "in", EARNED_STATUSES)),
       tx.get(db.collection("courses").where("teacherId", "==", uid)),
       tx.get(db.collection("withdrawal_requests").where("teacherId", "==", uid)),
     ]);

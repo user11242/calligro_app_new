@@ -29,6 +29,9 @@ void main() {
     expect(server.contains('const UNLOCK_DELAY = 2 * DAY;'), isTrue);
     expect(server.contains('method === "western" ? 10 : 0'), isTrue);
     expect(server.contains('w.requestedAmount ?? w.amount ?? w.netAmount'), isTrue);
+    expect(server.contains('const EARNED_STATUSES = ["completed", "settled"];'), isTrue);
+    expect(domain.contains("static const earnedStatuses = ['completed', 'settled'];"), isTrue,
+        reason: 'settled sales count as earned in the app and on the server');
     expect(domain.contains("d['requestedAmount'] ?? d['amount'] ?? d['netAmount']"), isTrue);
   });
 

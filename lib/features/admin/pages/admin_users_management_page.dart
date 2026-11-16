@@ -510,7 +510,8 @@ class _AdminUsersManagementPageState extends State<AdminUsersManagementPage> {
 
     if (confirmed == true) {
       try {
-        await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+        // Full delete (sign-in, profile, role entry, reservations) — see AdminService.deleteUser.
+        await AdminService().deleteUser(userId);
 
         if (context.mounted) {
           AppMessenger.showSnackBar(

@@ -21,7 +21,7 @@ class FirestoreEarningsRepository implements EarningsRepository {
     final results = await Future.wait([
       db.collection('users').doc(teacherId).get(),
       db.collection('courses').where('teacherId', isEqualTo: teacherId).get(),
-      db.collection('transactions').where('teacherId', isEqualTo: teacherId).where('status', isEqualTo: 'completed').get(),
+      db.collection('transactions').where('teacherId', isEqualTo: teacherId).where('status', whereIn: EarningsRules.earnedStatuses).get(),
       db.collection('withdrawal_requests').where('teacherId', isEqualTo: teacherId).get(),
     ]);
     final user = (results[0] as DocumentSnapshot<Map<String, dynamic>>).data() ?? const {};

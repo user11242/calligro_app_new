@@ -1,3 +1,4 @@
+import 'package:calligro_app/features/admin/data/services/admin_service.dart';
 import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -465,17 +466,9 @@ class AdminActiveTeachersPage extends StatelessWidget {
 
         if (confirm != true) return;
 
-        final double rate = parsed / 100.0;
         try {
-          // Update users collection
-          await FirebaseFirestore.instance.collection('users').doc(teacherId).update({
-            'commissionRate': rate,
-          });
-
-          // Update teachers collection as requested by user
-          await FirebaseFirestore.instance.collection('teachers').doc(teacherId).set({
-            'commissionRate': rate,
-          }, SetOptions(merge: true));
+          // users + teachers, as before (AdminService.setCommissionRate).
+          await AdminService().setCommissionRate(teacherId, parsed);
 
           if (context.mounted) {
             AppMessenger.showSnackBar(
@@ -516,14 +509,9 @@ class AdminActiveTeachersPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     try {
-      final batch = FirebaseFirestore.instance.batch();
-      batch.update(FirebaseFirestore.instance.collection('users').doc(teacherId), {
-        'approved': false,
-      });
-      batch.update(FirebaseFirestore.instance.collection('teachers').doc(teacherId), {
-        'approved': false,
-      });
-      await batch.commit();
+      // Back to pending (the app routes by status; approved:false alone blocked
+      // nothing). Approve in Pending Teachers restores them.
+      await AdminService().suspendTeacher(teacherId);
 
       if (context.mounted) {
         AppMessenger.showSnackBar(
@@ -580,7 +568,9 @@ class AdminActiveTeachersPage extends StatelessWidget {
 
     if (confirmed == true) {
       try {
-        await FirebaseFirestore.instance.collection('users').doc(teacherId).delete();
+        // Full delete: sign-in, profile, teacher entry and reservations (only the
+        // profile used to go, leaving email/username/phone taken forever).
+        await AdminService().deleteUser(teacherId);
 
         if (context.mounted) {
           AppMessenger.showSnackBar(
