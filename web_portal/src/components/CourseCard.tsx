@@ -8,6 +8,7 @@ import { formatImageUrl } from "@/lib/utils";
 import { auth } from "@/lib/firebase";
 import { useTranslation } from "@/hooks/useTranslation";
 import { translateText } from "@/lib/translateText";
+import { FEE_MULTIPLIER, calculateWebPrice, formatPrice } from "@/lib/pricingConfig";
 
 interface CourseCardProps {
   course: any;
@@ -275,11 +276,11 @@ export default function CourseCard({ course }: CourseCardProps) {
                   </span>
                   <div className="flex items-baseline gap-2.5">
                     <span className="text-2xl md:text-3xl font-black font-outfit uppercase tracking-tight text-white group-hover:text-[#E8C468] transition-colors">
-                      ${((price / 2) * 1.08).toFixed(0)}
+                      ${formatPrice(calculateWebPrice(price))}
                     </span>
                     {price > 0 && (
                       <span className="text-[10px] md:text-xs font-bold text-white/30 line-through decoration-white/20">
-                        ${(price * 1.08).toFixed(0)}
+                        ${formatPrice(price * FEE_MULTIPLIER)}
                       </span>
                     )}
                   </div>

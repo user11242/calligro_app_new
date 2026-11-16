@@ -1,6 +1,7 @@
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { calculateNetTuition, calculateWebPrice } from "./pricingConfig";
 import type { WhopPayment } from "./whopWebhook";
+import { isCourseFull } from "./checkoutRules";
 
 type PaidWhop = Extract<WhopPayment, { kind: "paid" }>;
 
@@ -47,6 +48,9 @@ export async function recordWhopPurchase(db: Firestore, payment: PaidWhop): Prom
     const teacherCommission = round2(net * commissionRate);
     const academyNet = round2(net - teacherCommission);
     const alreadyEnrolled = Array.isArray(courseData.enrolledStudents) && courseData.enrolledStudents.includes(userId);
+    // Checkout refuses full courses; a payment can still land after the last seat filled
+    // (two buyers at once). They paid, so they are enrolled, and the order is flagged for the admin.
+    const overCapacity = !alreadyEnrolled && isCourseFull(courseData, userId);
 
     const studentData = student.data() || {};
     const courseName = courseData.courseName || courseData.courseTitle || "Calligro Course Enrollment";
@@ -84,6 +88,7 @@ export async function recordWhopPurchase(db: Firestore, payment: PaidWhop): Prom
       currency: payment.currency,
       status: "completed",
       paymentProvider: "whop",
+      overCapacity,
       environment: "live",
       timestamp: now,
       createdAt: now,
@@ -125,6 +130,7 @@ export async function recordWhopPurchase(db: Firestore, payment: PaidWhop): Prom
         { merge: true },
       );
     }
-    return { status: alreadyEnrolled ? ("already_enrolled" as const) : ("enrolled" as const) };
+    if (alreadyEnrolled) return { status: "already_enrolled" as const };
+    return overCapacity ? { status: "enrolled" as const, detail: "over_capacity" } : { status: "enrolled" as const };
   });
 }

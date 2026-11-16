@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest";
 process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 import * as admin from "firebase-admin";
 import { recordWhopPurchase } from "../src/lib/enrollment";
+import { parseWhopPayment } from "../src/lib/whopWebhook";
 
 const app = admin.initializeApp({ projectId: "demo-calligro-web" }, "whop-enrollment-test");
 const db = app.firestore();
@@ -84,5 +85,33 @@ describe("recordWhopPurchase", () => {
     expect(results.filter((r) => r.status === "enrolled")).toHaveLength(1);
     expect((await get("courses/c1"))!.enrolledCount).toBe(1);
     expect((await get("users/t1"))!.pendingBalance).toBe(30);
+  });
+
+  it("a payment that lands after the last seat filled (race): enrolled anyway (they paid), flagged for the admin", async () => {
+    await db.doc("courses/c1").set({ maxStudents: 1, enrolledStudents: ["other"], enrolledCount: 1 }, { merge: true });
+    const r = await recordWhopPurchase(db, paid());
+    expect(r).toEqual({ status: "enrolled", detail: "over_capacity" });
+    expect((await get("courses/c1"))!.enrolledStudents).toEqual(["other", "s1"]);
+    expect((await get("orders/pay_1"))!.overCapacity).toBe(true);
+  });
+
+  it("Whop's current webhook shape end to end: the real paid amount ($50.00 money object) is recorded", async () => {
+    const payment = parseWhopPayment({
+      type: "payment.succeeded", api_version: "v1", api_version_date: "2026-11-02",
+      data: { id: "pay_live", status: "paid", currency: "usd", total: { amount: "50.00", currency: "usd", decimals: 2 }, metadata: { courseId: "c1", userId: "s1", teacherId: "t1" } },
+    });
+    expect(payment.kind).toBe("paid");
+    expect((await recordWhopPurchase(db, payment as any)).status).toBe("enrolled");
+    expect((await get("orders/pay_live"))!.totalPaid).toBe(50);
+    expect((await get("transactions/pay_live"))!.teacherShare).toBe(30);
+  });
+
+  it("Whop's current webhook shape: an underpaid money object enrols nobody", async () => {
+    const payment = parseWhopPayment({
+      type: "payment.succeeded",
+      data: { id: "pay_low", status: "paid", total: { amount: "20.00", currency: "usd" }, metadata: { courseId: "c1", userId: "s1" } },
+    });
+    expect((await recordWhopPurchase(db, payment as any)).status).toBe("underpaid");
+    expect((await get("courses/c1"))!.enrolledStudents).toEqual([]);
   });
 });

@@ -16,7 +16,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "@/hooks/useTranslation";
+import { blockMessageKey } from "@/lib/checkoutRules";
 import { db as libDb, auth as libAuth } from "@/lib/firebase";
+import { ENABLE_8_PERCENT_FEE, FEE_RATE, calculateWebPrice } from "@/lib/pricingConfig";
 
 function CheckoutContent() {
   const { id } = useParams();
@@ -90,6 +92,13 @@ function CheckoutContent() {
       });
 
       const data = await res.json();
+      const blockedKey = blockMessageKey(data.code);
+      if (blockedKey) {
+        // Refused before payment (full, already enrolled, not open yet): say so plainly.
+        setError(t(blockedKey));
+        setJoining(false);
+        return;
+      }
       if (!res.ok || !data.purchaseUrl) {
         const errorMsg =
           typeof data.error === "object"
@@ -197,9 +206,8 @@ function CheckoutContent() {
   }
 
   const baseTuition = Number(course?.price || 0) / 2;
-  const serviceFee = baseTuition * 0.08;
-  const regularPrice = baseTuition * 1.08;
-  const finalPrice = regularPrice;
+  const serviceFee = baseTuition * FEE_RATE;
+  const finalPrice = calculateWebPrice(Number(course?.price || 0)); // exactly what Whop charges
 
   return (
     <main className="min-h-screen academy-bg pb-32">
@@ -250,12 +258,14 @@ function CheckoutContent() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm font-medium">
-                  <span className="text-white/60">{t("checkout.service_fee")}</span>
-                  <span className="text-white/90 font-outfit rtl:font-sans">
-                    ${serviceFee.toFixed(2)}
-                  </span>
-                </div>
+                {ENABLE_8_PERCENT_FEE && serviceFee > 0 && (
+                  <div className="flex justify-between items-center text-sm font-medium">
+                    <span className="text-white/60">{t("checkout.service_fee")}</span>
+                    <span className="text-white/90 font-outfit rtl:font-sans">
+                      ${serviceFee.toFixed(2)}
+                    </span>
+                  </div>
+                )}
 
                 {/* 50% Academy Grant Ribbon */}
                 <div className="pt-2">

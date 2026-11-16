@@ -64,14 +64,34 @@ export function parseWhopPayment(payload: any): WhopPayment {
   if (!paymentId) return { kind: "invalid", reason: "missing payment id" };
   if (!courseId || !userId) return { kind: "invalid", reason: "missing courseId / userId metadata" };
 
-  const rawAmount = payment.total ?? payment.final_amount ?? payment.amount ?? payment.usd_total ?? payment.subtotal;
-  const amount = rawAmount === undefined || rawAmount === null || rawAmount === "" ? null : Number(rawAmount);
+  const moneyFields = [payment.total, payment.final_amount, payment.amount, payment.usd_total, payment.subtotal];
+  let amount: number | null = null;
+  let moneyCurrency: string | undefined;
+  for (const field of moneyFields) {
+    amount = moneyAmount(field);
+    if (amount !== null) {
+      if (field && typeof field === "object") moneyCurrency = field.currency;
+      break;
+    }
+  }
   return {
     kind: "paid",
     paymentId,
     courseId,
     userId,
-    amount: amount !== null && Number.isFinite(amount) ? amount : null,
-    currency: String(payment.currency || "USD").toUpperCase(),
+    amount,
+    currency: String(payment.currency || moneyCurrency || "USD").toUpperCase(),
   };
+}
+
+/**
+ * A Whop amount in major units (dollars), or null when it is missing / unreadable.
+ * Current API versions send money objects `{ amount: "27.50", currency, decimals }`;
+ * older payloads sent plain numbers or numeric strings.
+ */
+export function moneyAmount(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "object") return moneyAmount((value as { amount?: unknown }).amount);
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }

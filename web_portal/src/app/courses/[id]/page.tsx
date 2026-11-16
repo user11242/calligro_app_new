@@ -15,8 +15,10 @@ import Link from "next/link";
 import { formatImageUrl } from "@/lib/utils";
 import { getFlagFromPhoneNumber } from "@/lib/countryUtils";
 import { useTranslation } from "@/hooks/useTranslation";
+import { blockMessageKey } from "@/lib/checkoutRules";
 import { translateText } from "@/lib/translateText";
 import AutoTranslatedText from "@/components/AutoTranslatedText";
+import { FEE_MULTIPLIER, calculateWebPrice, formatPrice } from "@/lib/pricingConfig";
 
 // --- ICON REGISTRY MATCHING APP ---
 const ICON_REGISTRY: Record<string, any> = {
@@ -196,6 +198,13 @@ export default function CourseDetailsPage() {
       });
 
       const data = await res.json();
+      const blockedKey = blockMessageKey(data.code);
+      if (blockedKey) {
+        // Refused before payment (full, already enrolled, not open yet): say so plainly.
+        setError(t(blockedKey));
+        setJoining(false);
+        return;
+      }
       if (!res.ok || !data.purchaseUrl) {
         const errorMsg =
           typeof data.error === "object"
@@ -387,11 +396,11 @@ export default function CourseDetailsPage() {
                     <div className="flex flex-col items-center">
                       <div className="flex items-center gap-4">
                         <span className="text-white/20 text-sm font-bold line-through">
-                          ${(Number(course.price) * 1.08).toFixed(0)}
+                          ${formatPrice(Number(course.price) * FEE_MULTIPLIER)}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-4xl font-black font-outfit text-primary tracking-tighter">
-                            ${((Number(course.price) / 2) * 1.08).toFixed(0)}
+                            ${formatPrice(calculateWebPrice(Number(course.price)))}
                           </span>
                           <span className="text-[9px] font-black text-black bg-primary px-2 py-1 rounded-full shadow-[0_0_15px_rgba(238,229,147,0.3)]">
                             -50%
@@ -610,7 +619,7 @@ export default function CourseDetailsPage() {
                     <div className="flex justify-between items-center text-sm font-medium mb-3">
                       <span className="text-white/60">{t("course.tuition_fee") || "Tuition"}</span>
                       <span className="text-white/40 line-through font-outfit rtl:font-sans">
-                        ${(Number(course.price || 0) * 1.08).toFixed(0)}
+                        ${formatPrice(Number(course.price || 0) * FEE_MULTIPLIER)}
                       </span>
                     </div>
 
@@ -628,7 +637,7 @@ export default function CourseDetailsPage() {
                       </span>
                       <div className="flex items-center gap-3">
                         <h2 className="text-5xl md:text-6xl font-black font-outfit rtl:font-sans gold-text tracking-tighter drop-shadow-[0_0_30px_rgba(238,229,147,0.25)]">
-                          ${((Number(course.price || 0) / 2) * 1.08).toFixed(2)}
+                          ${calculateWebPrice(Number(course.price || 0)).toFixed(2)}
                         </h2>
                       </div>
                       <span className="text-[11px] font-bold uppercase tracking-wider text-primary mt-1">

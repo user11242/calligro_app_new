@@ -61,6 +61,29 @@ describe("parseWhopPayment", () => {
     expect(p({ type: "payment.succeeded", data: { metadata: { courseId: "c", userId: "u" } } }).kind).toBe("invalid");
     expect(p({ type: "payment.succeeded", data: { id: "x", metadata: { userId: "u" } } }).kind).toBe("invalid");
   });
+  // Whop's current payload (API 2026-09-02 and later): money is { amount: "27.50", currency, decimals }.
+  // THE BUG: Number({...}) is NaN, so the amount was lost and the underpaid check never ran.
+  const current = (data: object) =>
+    p({ type: "payment.succeeded", api_version: "v1", api_version_date: "2026-11-02", data: { id: "pay_9", status: "paid", currency: "usd", metadata: { courseId: "c1", userId: "s1" }, ...data } });
+  it("reads Whop's money objects (decimal strings)", () => {
+    expect(current({ total: { amount: "27.50", currency: "usd", decimals: 2, display_decimals: 2 } })).toMatchObject({ kind: "paid", amount: 27.5, currency: "USD" });
+  });
+  it("prefers total, then falls back to usd_total / subtotal", () => {
+    expect(current({ total: null, usd_total: { amount: "12.00", currency: "usd" } })).toMatchObject({ amount: 12 });
+    expect(current({ subtotal: { amount: "9.99", currency: "usd" } })).toMatchObject({ amount: 9.99 });
+  });
+  it("still reads older payloads with plain numbers or numeric strings", () => {
+    expect(current({ total: 25 })).toMatchObject({ amount: 25 });
+    expect(current({ final_amount: "30.00" })).toMatchObject({ amount: 30 });
+  });
+  it("an unreadable amount is 'unknown' (null), never NaN or 0", () => {
+    expect(current({ total: { amount: "abc" } })).toMatchObject({ amount: null });
+    expect(current({})).toMatchObject({ amount: null });
+  });
+  it("takes the currency from the money object when the payment has none", () => {
+    const r = p({ type: "payment.succeeded", data: { id: "x", status: "paid", total: { amount: "5.00", currency: "eur" }, metadata: { courseId: "c", userId: "u" } } });
+    expect(r).toMatchObject({ amount: 5, currency: "EUR" });
+  });
   it("finds the metadata wherever Whop puts it", () => {
     const r = p({ type: "payment.succeeded", data: { id: "x", checkout_configuration: { metadata: { course_id: " c9 ", user_id: "u9" } } } });
     expect(r).toMatchObject({ kind: "paid", courseId: "c9", userId: "u9" });

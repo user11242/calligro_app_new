@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { CheckCircle2, PlayCircle, Sparkles, ArrowRight, User } from "lucide-react";
+import { CheckCircle2, PlayCircle, Sparkles, ArrowRight, User, Loader2, Clock } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "@/hooks/useTranslation";
 import { motion } from "framer-motion";
@@ -16,6 +16,9 @@ export default function SuccessPage() {
   const { id } = useParams();
   const [course, setCourse] = useState<any>(null);
   const [teacher, setTeacher] = useState<any>(null);
+  // Whop redirects here as soon as the card is charged; the enrolment is made by the
+  // signed webhook a moment later. Show success only once the student is really in the course.
+  const [phase, setPhase] = useState<"confirming" | "enrolled" | "delayed" | "signed_out">("confirming");
   const { locale } = useTranslation();
 
   // Hardcoded Translations
@@ -26,7 +29,13 @@ export default function SuccessPage() {
       button: "Start Learning!",
       selected: "Selected Course",
       lessons: "LESSONS",
-      by: "by"
+      by: "by",
+      confirmingTitle: "Confirming your enrolment…",
+      confirmingSubtitle: "Your payment went through. We are adding you to the course — this usually takes a few seconds.",
+      delayedTitle: "Almost there",
+      delayedSubtitle: "Your payment was received, but your enrolment is taking longer than usual. It will appear in your courses shortly. If it does not, contact us with your Whop receipt — you will not be charged twice.",
+      signedOut: "Sign in with the account you paid with to see your course.",
+      signInButton: "Sign in"
     },
     ar: {
       title: "تم التسجيل بنجاح!",
@@ -34,7 +43,13 @@ export default function SuccessPage() {
       button: "ابدأ التعلم الآن!",
       selected: "الدورة المختارة",
       lessons: "درس",
-      by: "بواسطة"
+      by: "بواسطة",
+      confirmingTitle: "جارٍ تأكيد تسجيلك…",
+      confirmingSubtitle: "تمت عملية الدفع. نقوم الآن بإضافتك إلى الدورة — يستغرق ذلك عادةً بضع ثوانٍ.",
+      delayedTitle: "اقتربنا",
+      delayedSubtitle: "تم استلام دفعتك، لكن التسجيل يستغرق وقتاً أطول من المعتاد. ستظهر الدورة في دوراتك قريباً. إن لم تظهر، تواصل معنا مع إيصال Whop — لن يتم خصم المبلغ مرتين.",
+      signedOut: "سجّل الدخول بالحساب الذي دفعت به لرؤية دورتك.",
+      signInButton: "تسجيل الدخول"
     },
     tr: {
       title: "Kayıt Başarıyla Tamamlandı!",
@@ -42,7 +57,13 @@ export default function SuccessPage() {
       button: "Öğrenmeye Başla!",
       selected: "Seçilen Kurs",
       lessons: "DERS",
-      by: "tarafından"
+      by: "tarafından",
+      confirmingTitle: "Kaydınız onaylanıyor…",
+      confirmingSubtitle: "Ödemeniz alındı. Sizi kursa ekliyoruz — bu genellikle birkaç saniye sürer.",
+      delayedTitle: "Neredeyse tamam",
+      delayedSubtitle: "Ödemeniz alındı ancak kaydınız normalden uzun sürüyor. Kurs kısa süre içinde kurslarınızda görünecek. Görünmezse Whop makbuzunuzla bize ulaşın — iki kez ücret alınmaz.",
+      signedOut: "Kursunuzu görmek için ödeme yaptığınız hesapla giriş yapın.",
+      signInButton: "Giriş yap"
     }
   };
 
@@ -68,6 +89,44 @@ export default function SuccessPage() {
     };
     fetchCourseAndTeacher();
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let stopCourse: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stopAuth = auth.onAuthStateChanged((user) => {
+      stopCourse?.();
+      if (timer) clearTimeout(timer);
+      if (!user) {
+        setPhase("signed_out");
+        return;
+      }
+      setPhase("confirming");
+      timer = setTimeout(() => setPhase((p) => (p === "confirming" ? "delayed" : p)), 90_000);
+      stopCourse = onSnapshot(doc(db, "courses", id as string), (snap) => {
+        const enrolled = snap.data()?.enrolledStudents;
+        if (Array.isArray(enrolled) && enrolled.includes(user.uid)) {
+          if (timer) clearTimeout(timer);
+          setPhase("enrolled");
+        }
+      });
+    });
+    return () => {
+      stopAuth();
+      stopCourse?.();
+      if (timer) clearTimeout(timer);
+    };
+  }, [id]);
+
+  const isEnrolled = phase === "enrolled";
+  const title = isEnrolled ? l.title : phase === "delayed" ? l.delayedTitle : l.confirmingTitle;
+  const subtitle = isEnrolled
+    ? l.subtitle
+    : phase === "delayed"
+      ? l.delayedSubtitle
+      : phase === "signed_out"
+        ? l.signedOut
+        : l.confirmingSubtitle;
 
   return (
     <main className="min-h-screen bg-transparent font-sans text-white relative overflow-hidden flex flex-col">
@@ -95,9 +154,15 @@ export default function SuccessPage() {
           >
             <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping opacity-50"></div>
             <div className="relative w-full h-full bg-gradient-to-b from-green-400/20 to-green-600/10 rounded-full flex items-center justify-center border border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
-               <CheckCircle2 className="w-12 h-12 text-green-400" />
+               {isEnrolled ? (
+                 <CheckCircle2 className="w-12 h-12 text-green-400" />
+               ) : phase === "delayed" ? (
+                 <Clock className="w-12 h-12 text-amber-300" />
+               ) : (
+                 <Loader2 className="w-12 h-12 text-green-300 animate-spin" />
+               )}
             </div>
-            <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-green-300 animate-pulse" />
+            {isEnrolled && <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-green-300 animate-pulse" />}
           </motion.div>
 
           <motion.h1 
@@ -106,7 +171,7 @@ export default function SuccessPage() {
             transition={{ delay: 0.3 }}
             className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70"
           >
-             {l.title}
+             {title}
           </motion.h1>
           
           <motion.p 
@@ -115,7 +180,7 @@ export default function SuccessPage() {
             transition={{ delay: 0.4 }}
             className="text-white/50 text-lg mb-10 font-light"
           >
-             {l.subtitle}
+             {subtitle}
           </motion.p>
 
           {course && (
@@ -170,19 +235,21 @@ export default function SuccessPage() {
             </motion.div>
           )}
 
+          {(isEnrolled || phase === "signed_out") && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
             <Link 
-              href={`/courses/${id}`}
+              href={isEnrolled ? `/courses/${id}` : `/login?redirect=/courses/${id}/success`}
               className="w-full py-5 bg-gradient-to-r from-[#eeb107] to-[#d69f05] hover:from-[#f5c63d] hover:to-[#eeb107] text-black font-bold uppercase tracking-[2px] text-[13px] rounded-2xl transition-all flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(238,177,7,0.2)] hover:shadow-[0_10px_40px_rgba(238,177,7,0.4)]"
             >
-               {l.button}
+               {isEnrolled ? l.button : l.signInButton}
                <ArrowRight className="w-4 h-4 rtl:rotate-180" />
             </Link>
           </motion.div>
+          )}
 
         </motion.div>
       </section>

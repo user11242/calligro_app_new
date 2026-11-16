@@ -11,6 +11,7 @@ import { Star, ArrowRight, Play, Layout, Users, Sparkles, Search, BookOpen, Cloc
 import { formatImageUrl } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 import AutoTranslatedText from "@/components/AutoTranslatedText";
+import { calculateWebPrice, formatPrice } from "@/lib/pricingConfig";
 
 // Safe date formatter for Firebase Timestamps or strings
 const formatCourseDate = (dateVal: any, locale: string) => {
@@ -773,7 +774,7 @@ export default function Home() {
                         {course.price != null && course.price > 0 && (
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-[#E8C468]">
-                              ${((Number(course.price) / 2) * 1.08).toFixed(0)}
+                              ${formatPrice(calculateWebPrice(Number(course.price)))}
                             </span>
                             <span className="text-xs text-white/40 line-through">
                               ${course.price}

@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await recordWhopPurchase(adminDb, payment);
+    if (result.detail === "over_capacity") {
+      console.warn(`Whop Webhook: payment ${payment.paymentId} enrolled user ${payment.userId} in FULL course ${payment.courseId} (paid as the last seat filled). Admin: review.`);
+    }
     if (result.status === "underpaid" || result.status === "course_not_found") {
       // Retrying would not help; log loudly so an admin can follow up with the student.
       console.error(`Whop Webhook: payment ${payment.paymentId} NOT enrolled: ${result.status} ${result.detail || ""}`);

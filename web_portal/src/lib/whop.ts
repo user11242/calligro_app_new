@@ -27,8 +27,10 @@ export async function createWhopCheckout(params: CreateCheckoutParams) {
     .slice(0, 28)
     .trim();
 
+  // Api-Version-Date 2026-11-02: checkout configurations take `account_id` (renamed from
+  // company_id in 2026-07-18) and an inline `variant`; Whop copies `metadata` onto the payment.
   const payload = {
-    company_id: companyId,
+    account_id: companyId,
     variant: {
       title: sanitizedTitle,
       billing_type: "one_time",

@@ -4,7 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import { ArrowUpRight, Plus, Calendar, Clock, TrendingUp as TrendingUpIcon, Loader2, Search, ChevronDown, Landmark, BadgeDollarSign, ReceiptText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { financeService, Transaction, Expense } from "@/lib/financeService";
-import { FEE_RATE } from "@/lib/pricingConfig";
+import { ENABLE_8_PERCENT_FEE, FEE_RATE } from "@/lib/pricingConfig";
+
+// While the 8% fee switch is off, no label mentions it and the buffer columns are hidden.
+const NO_FEE_LABELS = {
+  en: { salesWithFee: "Sales", netRevenue: "Net Revenue", plSubtitle: "Gross → Fees → Teacher Cut → Academy Profit", netRevCol: "Net Rev" },
+  ar: { salesWithFee: "مبيعات", netRevenue: "الإيراد الصافي", plSubtitle: "الإجمالي ← الرسوم ← حصة المعلم ← ربح الأكاديمية", netRevCol: "الصافي" },
+};
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 const translations = {
@@ -237,7 +243,7 @@ export default function AdminFinance() {
   const [setlGross,   setSetlGross]   = useState("");
   const [setlBankFee, setSetlBankFee] = useState("");
 
-  const t = translations[lang];
+  const t = ENABLE_8_PERCENT_FEE ? translations[lang] : { ...translations[lang], ...NO_FEE_LABELS[lang] };
 
   useEffect(() => {
     const unsubTxs  = financeService.getTransactions(setTransactions);
@@ -379,7 +385,7 @@ export default function AdminFinance() {
         <div className="bg-white p-6 rounded-[28px] border border-gray-100 shadow-sm">
           <p className="text-gray-400 text-[9px] font-black uppercase tracking-widest mb-1">{t.netRevenue}</p>
           <h3 className="text-2xl font-black tracking-tight">${totalNetRevenue.toFixed(2)}</h3>
-          <p className="text-gray-300 text-[9px] mt-2 font-bold">{t.grossDiv108}</p>
+          {ENABLE_8_PERCENT_FEE && <p className="text-gray-300 text-[9px] mt-2 font-bold">{t.grossDiv108}</p>}
         </div>
         <div className="bg-white p-6 rounded-[28px] border border-gray-100 shadow-sm">
           <p className="text-orange-400 text-[9px] font-black uppercase tracking-widest mb-1">{t.lsProcessing}</p>
@@ -425,13 +431,13 @@ export default function AdminFinance() {
                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-orange-400 text-right">{t.lsFeeCol}</th>
                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-orange-300 text-right">{t.exchangeCol}</th>
                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-amber-500 text-right">{t.teacherCutCol}</th>
-                <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-blue-300 text-right">{t.bufferTotalCol}</th>
-                <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-blue-500 text-right">{t.bufferSurplusCol}</th>
+                {ENABLE_8_PERCENT_FEE && <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-blue-300 text-right">{t.bufferTotalCol}</th>}
+                {ENABLE_8_PERCENT_FEE && <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-blue-500 text-right">{t.bufferSurplusCol}</th>}
                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-green-600 text-right">{t.academyProfitCol}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {plRows.length === 0 && <tr><td colSpan={8} className="px-6 py-10 text-center text-sm text-gray-400 font-bold">{t.noTransactions}</td></tr>}
+              {plRows.length === 0 && <tr><td colSpan={ENABLE_8_PERCENT_FEE ? 8 : 6} className="px-6 py-10 text-center text-sm text-gray-400 font-bold">{t.noTransactions}</td></tr>}
               {plRows.map((row: any, i: number) => (
                 <tr key={i} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-5 font-black text-sm text-gray-900">{row.label} <span className="text-[9px] text-gray-300 font-bold mx-1">({row.salesCount} {t.sales})</span></td>
@@ -440,10 +446,12 @@ export default function AdminFinance() {
                   <td className="px-6 py-5 text-right font-mono text-orange-500">${row.lsProcessing.toFixed(2)}</td>
                   <td className="px-6 py-5 text-right font-mono text-orange-400">${row.lsExchange.toFixed(2)}</td>
                   <td className="px-6 py-5 text-right font-mono font-bold text-amber-600">${row.teacherShare.toFixed(2)}</td>
-                  <td className="px-6 py-5 text-right font-mono text-blue-300">${row.bufferTotal.toFixed(2)}</td>
+                  {ENABLE_8_PERCENT_FEE && <td className="px-6 py-5 text-right font-mono text-blue-300">${row.bufferTotal.toFixed(2)}</td>}
+                  {ENABLE_8_PERCENT_FEE && (
                   <td className={`px-6 py-5 text-right font-mono font-bold ${row.bufferSurplus >= 0 ? 'text-blue-500' : 'text-red-500'}`}>
                     {row.bufferSurplus < 0 ? '-' : ''}${Math.abs(row.bufferSurplus).toFixed(2)}
                   </td>
+                  )}
                   <td className="px-6 py-5 text-right font-mono font-black text-green-600">${row.academyProfit.toFixed(2)}</td>
                 </tr>
               ))}
