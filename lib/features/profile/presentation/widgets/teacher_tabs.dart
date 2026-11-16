@@ -6,7 +6,7 @@ import 'package:calligro_app/core/utils/course_utils.dart';
 import 'package:calligro_app/core/widgets/auto_translated_text.dart';
 import 'package:calligro_app/core/widgets/profile_avatar.dart';
 import 'package:calligro_app/features/courses/presentation/pages/course_preview_page.dart';
-import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
+import 'package:calligro_app/features/classroom/presentation/pages/course_details_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 
 import '../../application/profile_controllers.dart';

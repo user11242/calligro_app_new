@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:calligro_app/core/theme/colors.dart';
-import 'package:calligro_app/features/admin/pages/admin_settings.dart';
-import 'package:calligro_app/features/student/pages/settings/student_settings_page.dart';
-import 'package:calligro_app/features/teacher/pages/settings/teacher_settings.dart';
+import 'package:calligro_app/features/admin/presentation/pages/admin_settings.dart';
+import 'package:calligro_app/features/student/presentation/pages/settings/student_settings_page.dart';
+import 'package:calligro_app/features/teacher/presentation/pages/settings/teacher_settings.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 
 import '../../application/profile_controllers.dart';

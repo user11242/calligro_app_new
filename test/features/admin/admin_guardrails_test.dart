@@ -8,7 +8,7 @@ void main() {
       Directory(dir).listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'));
 
   test('admin pages write nothing themselves (approve, commission, suspend, delete go through AdminService)', () {
-    for (final f in [...dartIn('lib/features/admin/pages'), ...dartIn('lib/features/admin/tabs')]) {
+    for (final f in [...dartIn('lib/features/admin/presentation/pages'), ...dartIn('lib/features/admin/presentation/tabs')]) {
       final c = f.readAsStringSync().replaceAll(RegExp(r'\s+'), '');
       expect(RegExp(r"FirebaseFirestore\.instance\.collection\('users'\)\.doc\([a-zA-Z]+\)\.(delete|update)\(").hasMatch(c), isFalse,
           reason: f.path);
@@ -18,7 +18,7 @@ void main() {
   });
 
   test('one role-change path; reservations released with the registration keys', () {
-    final s = File('lib/features/admin/data/services/admin_service.dart').readAsStringSync();
+    final s = File('lib/features/admin/data/admin_service.dart').readAsStringSync();
     expect(s.contains('AdminRules.changeRole('), isTrue);
     expect(s.contains("await changeUserRole(found.id, 'admin');"), isTrue);
     expect(s.contains("await changeUserRole(uid, 'student');"), isTrue);

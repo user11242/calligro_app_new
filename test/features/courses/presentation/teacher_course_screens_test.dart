@@ -1,7 +1,7 @@
 import 'package:calligro_app/features/courses/application/course_purchases.dart';
 import 'package:calligro_app/features/courses/domain/course_draft.dart';
 import 'package:calligro_app/features/courses/presentation/course_scope.dart';
-import 'package:calligro_app/features/teacher/tabs/teacher_courses_tab.dart';
+import 'package:calligro_app/features/courses/presentation/pages/teacher_courses_tab.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';

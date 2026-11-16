@@ -41,7 +41,7 @@ void main() {
   });
 
   test('the home page asks CourseRatings, not Firestore', () {
-    final home = File('lib/features/student/pages/student_home_page.dart').readAsStringSync();
+    final home = File('lib/features/student/presentation/pages/student_home_page.dart').readAsStringSync();
     expect(home.contains("collection('reviews')"), isFalse);
     expect(home.contains('RatingScope.of(context).courseToRate()'), isTrue);
   });

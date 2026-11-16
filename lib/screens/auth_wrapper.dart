@@ -5,13 +5,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 // ✅ IMPORT YOUR ONBOARDING SCREEN
 import 'package:calligro_app/screens/on_boarding_page.dart'; // Check your file name!
-import 'package:calligro_app/features/student/student_dashboard.dart';
+import 'package:calligro_app/features/student/presentation/student_dashboard.dart';
 import 'package:calligro_app/features/auth/pages/teacher_pending_page.dart';
 import 'package:calligro_app/features/auth/pages/teacher_rejected_page.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:calligro_app/features/teacher/teacher_dashboard.dart';
-import 'package:calligro_app/features/admin/admin_dashboard.dart';
+import 'package:calligro_app/features/teacher/presentation/teacher_dashboard.dart';
+import 'package:calligro_app/features/admin/presentation/admin_dashboard.dart';
 
 class AuthWrapper extends StatefulWidget {
   final FirebaseAuth? auth;

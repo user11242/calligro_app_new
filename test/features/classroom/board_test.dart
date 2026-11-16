@@ -5,7 +5,7 @@ import 'package:calligro_app/features/classroom/data/firestore_board_repository.
 import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
 import 'package:calligro_app/features/classroom/domain/course_board.dart';
 import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
-import 'package:calligro_app/features/teacher/pages/course_details/announcements_board_page.dart';
+import 'package:calligro_app/features/classroom/presentation/pages/announcements_board_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';

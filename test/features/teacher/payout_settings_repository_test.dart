@@ -1,4 +1,4 @@
-import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
+import 'package:calligro_app/features/teacher_money/data/payout_settings_repository.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 

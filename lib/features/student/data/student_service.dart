@@ -1,0 +1,100 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'student_user_model.dart';
+
+class StudentService {
+  final FirebaseAuth? _authMock;
+  final FirebaseFirestore? _firestoreMock;
+
+  StudentService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+      : _authMock = auth,
+        _firestoreMock = firestore;
+
+  FirebaseAuth get _auth => _authMock ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => _firestoreMock ?? FirebaseFirestore.instance;
+
+  Future<StudentUserModel> getCurrentStudent() async {
+    final user = _auth.currentUser;
+
+    // 1. If no user, return Guest Model
+    if (user == null) {
+      return StudentUserModel.guest();
+    }
+
+    try {
+      // 2. Fetch User Data from Firestore
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (doc.exists) {
+        return StudentUserModel.fromMap(
+          doc.data() as Map<String, dynamic>,
+          user.uid,
+        );
+      }
+    } catch (e) {
+      debugPrint("Error fetching student service: $e");
+    }
+
+    // 3. Fallback if logged in but no data found
+    return StudentUserModel(
+      uid: user.uid,
+      name: "Student",
+      email: user.email ?? "",
+      photoUrl: "",
+      isGuest: false,
+    );
+  }
+
+  // --- NEW: Stream of Student Data for Real-Time Updates ---
+  Stream<StudentUserModel> getStudentStream() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return Stream.value(StudentUserModel.guest());
+    }
+
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .map((doc) {
+          if (doc.exists) {
+            return StudentUserModel.fromMap(
+              doc.data() as Map<String, dynamic>,
+              user.uid,
+            );
+          }
+          return StudentUserModel(
+            uid: user.uid,
+            name: "Student",
+            email: user.email ?? "",
+            photoUrl: "",
+            isGuest: false,
+          );
+        }).handleError((e) {
+          debugPrint("StudentService Stream Error: $e");
+          return StudentUserModel.guest();
+        });
+  }
+
+  // --- NEW: Stream of Teachers ---
+  Stream<List<Map<String, dynamic>>> getTeachersStream() {
+    try {
+      return _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'teacher')
+          .limit(50)
+          .snapshots()
+          .map((snapshot) => snapshot.docs
+              .map((doc) => {...doc.data(), 'id': doc.id})
+              .toList())
+          .handleError((error) {
+            debugPrint("Error fetching teachers: $error");
+            return <Map<String, dynamic>>[];
+          });
+    } catch (e) {
+      debugPrint("Exception in getTeachersStream: $e");
+      return Stream.value([]);
+    }
+  }
+}

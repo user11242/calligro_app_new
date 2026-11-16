@@ -2,7 +2,7 @@ import 'package:calligro_app/features/classroom/application/classroom_assignment
 import 'package:calligro_app/features/classroom/application/classroom_materials.dart';
 import 'package:calligro_app/features/classroom/domain/course_materials.dart';
 import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
-import 'package:calligro_app/features/teacher/pages/course_details/course_materials_page.dart';
+import 'package:calligro_app/features/classroom/presentation/pages/course_materials_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

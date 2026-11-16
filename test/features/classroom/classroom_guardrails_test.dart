@@ -34,7 +34,7 @@ void main() {
       'recordings_page.dart',
       'announcements_board_page.dart',
     ]) {
-      final c = File('lib/features/teacher/pages/course_details/$name').readAsStringSync();
+      final c = File('lib/features/classroom/presentation/pages/$name').readAsStringSync();
       for (final banned in ['FirebaseFirestore', 'FirebaseStorage', 'FirebaseAuth.instance']) {
         expect(c.contains(banned), isFalse, reason: '$name uses $banned');
       }
@@ -48,7 +48,7 @@ void main() {
   });
 
   test('the course page decides teacher controls from the role in THIS course', () {
-    final c = File('lib/features/teacher/pages/course_details/course_details_page.dart').readAsStringSync();
+    final c = File('lib/features/classroom/presentation/pages/course_details_page.dart').readAsStringSync();
     expect(c.contains("return userRole == 'teacher';"), isFalse, reason: 'every teacher got teacher controls on every course');
     expect(c.contains('ClassroomAccess.roleOf('), isTrue);
     expect(c.contains("collection('notifications')"), isFalse, reason: 'reschedule notices go through ClassroomBoard (one batch)');

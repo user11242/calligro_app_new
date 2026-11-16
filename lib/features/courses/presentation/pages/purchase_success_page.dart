@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
-import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
+import 'package:calligro_app/features/classroom/presentation/pages/course_details_page.dart';
 
 class PurchaseSuccessPage extends StatelessWidget {
   final String courseId;

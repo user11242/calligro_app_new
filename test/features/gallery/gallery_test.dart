@@ -26,7 +26,7 @@ void main() {
       'lib/features/gallery/widgets/gallery_image.dart',
       'lib/features/gallery/widgets/artwork_viewer.dart',
       'lib/features/gallery/pages/artist_gallery_page.dart',
-      'lib/features/student/pages/gallery_page.dart',
+      'lib/features/gallery/pages/gallery_page.dart',
     ]) {
       final c = File(p).readAsStringSync();
       expect(c.contains('FirebaseStorage') || c.contains('FirebaseFirestore') || c.contains('GalleryService()'), isFalse, reason: p);

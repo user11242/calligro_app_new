@@ -138,7 +138,8 @@ void main() {
 
     test('the courses tests run in CI', () {
       final ci = Directory('.github/workflows').listSync().whereType<File>().map((f) => f.readAsStringSync()).join();
-      expect(ci.contains('test/features/courses/'), isTrue);
+      final wholeSuite = RegExp(r'run: flutter test\s*$', multiLine: true).hasMatch(ci);
+      expect(wholeSuite || ci.contains('test/features/courses/'), isTrue);
     });
 
     test('pass 2: courses are created ONLY through CourseCreation / FirestoreCourseAuthoring', () {
@@ -148,21 +149,21 @@ void main() {
         expect(content.contains(".collection('courses').add("), isFalse, reason: '${file.path} creates a course itself');
         expect(content.contains(".collection('courses').doc().set("), isFalse, reason: '${file.path} creates a course itself');
       }
-      for (final file in dartIn('lib/features/teacher/pages/add_course')) {
+      for (final file in dartIn('lib/features/courses/presentation/create')) {
         final content = file.readAsStringSync();
         expect(content.contains('FirebaseFirestore'), isFalse, reason: '${file.path} talks to Firestore directly');
       }
-      expect(File('lib/features/teacher/pages/add_course/courseFirebaseServices.dart').existsSync(), isFalse);
+      expect(File('lib/features/courses/presentation/create/courseFirebaseServices.dart').existsSync(), isFalse);
     });
 
     test('pass 2: teacher list and student home read courses from the repository', () {
       for (final path in [
-        'lib/features/teacher/tabs/teacher_courses_tab.dart',
-        'lib/features/student/data/services/student_service.dart',
+        'lib/features/courses/presentation/pages/teacher_courses_tab.dart',
+        'lib/features/student/data/student_service.dart',
       ]) {
         expect(File(path).readAsStringSync().contains("collection('courses')"), isFalse, reason: path);
       }
-      final home = File('lib/features/student/pages/student_home_page.dart').readAsStringSync();
+      final home = File('lib/features/student/presentation/pages/student_home_page.dart').readAsStringSync();
       expect(home.contains('watchEnrolled('), isTrue);
       expect(home.contains('isVisibleInCatalog('), isTrue, reason: 'same visibility rule as the catalogue');
     });

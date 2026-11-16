@@ -41,9 +41,9 @@ void main() {
     expect(main.contains('Duration(milliseconds: 800)'), isFalse);
     expect(main.contains('defaultTargetPlatform == TargetPlatform.android'), isTrue);
     for (final dash in [
-      'lib/features/student/student_dashboard.dart',
-      'lib/features/teacher/teacher_dashboard.dart',
-      'lib/features/admin/admin_dashboard.dart',
+      'lib/features/student/presentation/student_dashboard.dart',
+      'lib/features/teacher/presentation/teacher_dashboard.dart',
+      'lib/features/admin/presentation/admin_dashboard.dart',
     ]) {
       expect(File(dash).readAsStringSync().contains('NotificationTapHandler('), isTrue, reason: dash);
     }

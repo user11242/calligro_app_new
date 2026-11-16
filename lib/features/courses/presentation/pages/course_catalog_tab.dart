@@ -10,7 +10,7 @@ import '../../application/course_controllers.dart';
 import '../../domain/course_models.dart';
 import '../../domain/course_policy.dart';
 import '../course_scope.dart';
-import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
+import 'package:calligro_app/features/classroom/presentation/pages/course_details_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart'; // Added Import
 import 'package:calligro_app/core/widgets/auto_translated_text.dart';

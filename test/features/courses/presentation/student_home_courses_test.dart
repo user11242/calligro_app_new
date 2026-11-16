@@ -4,9 +4,9 @@ import 'package:calligro_app/features/courses/application/course_purchases.dart'
 import 'package:calligro_app/features/courses/domain/course_models.dart';
 import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
-import 'package:calligro_app/features/student/data/model/student_user_model.dart';
-import 'package:calligro_app/features/student/data/services/student_service.dart';
-import 'package:calligro_app/features/student/pages/student_home_page.dart';
+import 'package:calligro_app/features/student/data/student_user_model.dart';
+import 'package:calligro_app/features/student/data/student_service.dart';
+import 'package:calligro_app/features/student/presentation/pages/student_home_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';

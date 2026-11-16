@@ -21,17 +21,10 @@ jobs:
       - name: Install Flutter Dependencies
         run: flutter pub get
         
-      - name: Run Flutter Math & Logic Tests
-        run: flutter test test/utils/
-        
-      - name: Run Flutter UI Widget Tests
-        run: flutter test test/ui/
-
-      - name: Run Calligro Meet Tests (protocol, security, policies, backend contract, join flow)
-        run: flutter test test/features/meet/
-
-      - name: Run Community Tests (policy, data layer, controllers, real screens, guard rails)
-        run: flutter test test/architecture_guardrails_test.dart test/features/gallery/ test/features/auth/ test/features/teacher_money/ test/features/admin/ test/features/courses/ test/features/classroom/ test/features/rating/ test/features/notifications/ test/core/ test/features/community/ test/features/profile/ test/features/teacher/ test/services/admin_service_test.dart
+      # test/ mirrors lib/ (test/features/<feature>/<layer>, test/core, test/screens),
+      # plus the architecture guard-rails. See ARCHITECTURE.md.
+      - name: Run all app tests (domain, application, data, screens, guard-rails)
+        run: flutter test
 
   calligro_meet_backend_tests:
     name: Calligro Meet Cloud Functions Tests (LiveKit)

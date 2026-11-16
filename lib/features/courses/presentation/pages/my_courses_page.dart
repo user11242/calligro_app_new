@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/utils/course_utils.dart';
-import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
+import 'package:calligro_app/features/classroom/presentation/pages/course_details_page.dart';
 
 import '../../application/course_controllers.dart';
 import '../../domain/course_models.dart' show Course;

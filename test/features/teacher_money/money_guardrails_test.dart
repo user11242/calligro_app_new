@@ -11,11 +11,11 @@ void main() {
   });
 
   test('the finance page and dashboard use EarningsRules / the money service, not their own formula', () {
-    final finance = File('lib/features/teacher/pages/finance/teacher_finance_page.dart').readAsStringSync();
+    final finance = File('lib/features/teacher_money/presentation/teacher_finance_page.dart').readAsStringSync();
     expect(finance.contains('MoneyScope.of(context).summary()'), isTrue);
     expect(finance.contains("collection('withdrawal_requests').add("), isFalse, reason: 'the server creates requests');
     expect(finance.contains("collection('transactions')"), isFalse);
-    final dash = File('lib/features/teacher/teacher_dashboard.dart').readAsStringSync();
+    final dash = File('lib/features/teacher/presentation/teacher_dashboard.dart').readAsStringSync();
     expect(dash.contains('EarningsRules.balance('), isTrue);
     expect(dash.contains("totalWithdrawn +="), isFalse);
   });

@@ -107,7 +107,7 @@ void main() {
 
     test('only the admin service and the profile composition root use the community data layer', () {
       expectNone(outside, 'features/community/data/', 'use community presentation widgets / CommunityScope',
-          allow: {'admin/data/services/admin_service.dart', 'profile/presentation/profile_scope.dart'});
+          allow: {'admin/data/admin_service.dart', 'profile/presentation/profile_scope.dart'});
     });
 
     test('nobody outside the community data layer writes posts, likes or comments', () {

@@ -12,9 +12,9 @@ import 'package:calligro_app/core/widgets/auto_translated_text.dart';
 import 'package:calligro_app/core/widgets/profile_avatar.dart';
 import 'package:calligro_app/core/widgets/smart_image.dart';
 
-import 'package:calligro_app/features/student/widgets/course_share_card.dart';
+import 'package:calligro_app/features/courses/presentation/widgets/course_share_card.dart';
 import 'package:calligro_app/core/utils/share_utils.dart';
-import 'package:calligro_app/features/teacher/pages/course_details/course_details_page.dart';
+import 'package:calligro_app/features/classroom/presentation/pages/course_details_page.dart';
 
 import '../../application/course_controllers.dart';
 import '../../application/course_purchases.dart';

@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
+import 'package:calligro_app/features/teacher_money/data/payout_settings_repository.dart';
 
 import '../domain/course_draft.dart';
 import '../domain/course_repositories.dart';

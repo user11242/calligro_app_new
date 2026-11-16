@@ -32,18 +32,18 @@ import 'package:flutter/material.dart';
   import 'package:calligro_app/features/auth/pages/forgot_password_page.dart';
   import 'package:calligro_app/screens/auth_wrapper.dart';
   import 'package:calligro_app/screens/on_boarding_page.dart';
-  import 'package:calligro_app/features/student/student_dashboard.dart';
-  import 'package:calligro_app/features/teacher/teacher_dashboard.dart';
-  import 'package:calligro_app/features/teacher/pages/add_course/add_course_dashboard.dart';
+  import 'package:calligro_app/features/student/presentation/student_dashboard.dart';
+  import 'package:calligro_app/features/teacher/presentation/teacher_dashboard.dart';
+  import 'package:calligro_app/features/courses/presentation/create/add_course_dashboard.dart';
   import 'package:calligro_app/features/courses/presentation/pages/course_preview_page.dart';
   import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
   import 'package:calligro_app/features/community/presentation/pages/single_post_page.dart';
   import 'package:calligro_app/features/classroom/presentation/chat/course_chat_page.dart';
 
   // --- ADMIN IMPORTS ---
-  import 'package:calligro_app/features/admin/admin_dashboard.dart';
-  import 'package:calligro_app/features/admin/pages/admin_users.dart';
-  import 'package:calligro_app/features/admin/pages/admin_pending_teachers.dart';
+  import 'package:calligro_app/features/admin/presentation/admin_dashboard.dart';
+  import 'package:calligro_app/features/admin/presentation/pages/admin_users.dart';
+  import 'package:calligro_app/features/admin/presentation/pages/admin_pending_teachers.dart';
   import 'package:calligro_app/core/services/deep_link_service.dart';
   import 'package:calligro_app/core/services/security_service.dart';
   import 'package:calligro_app/features/courses/presentation/course_scope.dart';
