@@ -1,7 +1,7 @@
-import 'package:calligro_app/features/teacher/data/payout_settings_repository.dart';
+import 'package:calligro_app/features/teacher_money/application/teacher_earnings.dart';
+import 'package:calligro_app/features/teacher_money/presentation/money_scope.dart';
+import 'package:calligro_app/features/teacher_money/domain/earnings.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../core/message/app_messenger.dart';
@@ -18,122 +18,37 @@ class TeacherFinancePage extends StatefulWidget {
 }
 
 class _TeacherFinancePageState extends State<TeacherFinancePage> {
-  final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   bool _isLoading = true;
   double _pendingBalance = 0.0;
   double _availableBalance = 0.0;
   double _totalEarnings = 0.0;
-  double _totalWithdrawn = 0.0;
   String? _selectedMethod;
-  String _teacherName = 'Teacher';
   double? _commissionRate;
 
   @override
   void initState() {
     super.initState();
-    _fetchBalances();
+    // After the first frame: the balance comes from the MoneyScope.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fetchBalances();
+    });
   }
 
+  EarningsSummary? _summary;
+
+  /// One balance calculation (EarningsRules) — money unlocks 2 days after the
+  /// course ENDS, and withdrawals count their full amount.
   Future<void> _fetchBalances() async {
     try {
-      // 1. Fetch User Settings & Commission Rate First
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUserId)
-          .get();
-
-      String? selectedMethod;
-      String teacherName = 'Teacher';
-      double? commissionRate;
-
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        teacherName = userData['name'] ?? 'Teacher';
-
-        if (userData.containsKey('commissionRate')) {
-          commissionRate = (userData['commissionRate'] as num).toDouble();
-        }
-
-      }
-      // Payout details are private (users/{uid}/private/payout).
-      selectedMethod = (await PayoutSettingsRepository().load(_currentUserId))?.selectedMethod;
-
-      // 2. Fetch Courses to map end dates
-      final coursesQuery = await FirebaseFirestore.instance
-          .collection('courses')
-          .where('teacherId', isEqualTo: _currentUserId)
-          .get();
-
-      Map<String, DateTime> coursePayoutDates = {};
-      final now = DateTime.now();
-      for (var doc in coursesQuery.docs) {
-        final data = doc.data();
-        DateTime endDate;
-        if (data['expiryDate'] != null && data['expiryDate'] is Timestamp) {
-          endDate = (data['expiryDate'] as Timestamp).toDate().toLocal();
-        } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
-          endDate = (data['createdAt'] as Timestamp).toDate().toLocal().add(const Duration(days: 30));
-        } else {
-          endDate = now;
-        }
-        // Money unlocks exactly 2 days after course end
-        coursePayoutDates[doc.id] = endDate.add(const Duration(days: 2));
-      }
-
-      // 3. Fetch Transactions and Calculate Earnings
-      final txQuery = await FirebaseFirestore.instance
-          .collection('transactions')
-          .where('teacherId', isEqualTo: _currentUserId)
-          .where('status', isEqualTo: 'completed')
-          .get();
-
-      double pending = 0.0;
-      double available = 0.0;
-      double total = 0.0;
-
-      for (var doc in txQuery.docs) {
-        final data = doc.data();
-        final double teacherShare = (data['teacherShare'] ?? 0.0).toDouble();
-        final String courseId = data['courseId'] ?? '';
-
-        total += teacherShare;
-
-        DateTime? payoutDate = coursePayoutDates[courseId];
-
-        if (payoutDate == null || now.isBefore(payoutDate)) {
-          pending += teacherShare;
-        } else {
-          available += teacherShare;
-        }
-      }
-
-      // 4. Fetch Withdrawals
-      final withdrawalsQuery = await FirebaseFirestore.instance
-          .collection('withdrawal_requests')
-          .where('teacherId', isEqualTo: _currentUserId)
-          .get();
-          
-      double totalWithdrawn = 0.0;
-      for (var doc in withdrawalsQuery.docs) {
-        final data = doc.data();
-        if (data['status'] != 'rejected') {
-          totalWithdrawn += (data['amount'] ?? data['netAmount'] ?? data['requestedAmount'] ?? 0.0).toDouble();
-        }
-      }
-      
-      // Subtract withdrawn from available
-      available -= totalWithdrawn;
-      if (available < 0) available = 0;
-
+      final summary = await MoneyScope.of(context).summary();
       if (mounted) {
         setState(() {
-          _pendingBalance = pending;
-          _availableBalance = available;
-          _totalEarnings = total;
-          _totalWithdrawn = totalWithdrawn;
-          _selectedMethod = selectedMethod;
-          _teacherName = teacherName;
-          _commissionRate = commissionRate; // Store for UI
+          _summary = summary;
+          _pendingBalance = summary.balance.pending;
+          _availableBalance = summary.balance.available;
+          _totalEarnings = summary.balance.total;
+          _selectedMethod = summary.data.payoutMethod;
+          _commissionRate = summary.data.commissionRate; // Store for UI
           _isLoading = false;
         });
       }
@@ -454,7 +369,7 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
       return _buildNoPayoutMethodState(l10n);
     }
 
-    final double fee = _selectedMethod == 'western' ? 10.0 : 0.0;
+    final double fee = WithdrawalRules.fee(_selectedMethod);
     final bool canWithdraw = _availableBalance > 0;
     final String methodName = _selectedMethod == 'cliq'
         ? l10n.cliqJordanOnly
@@ -910,32 +825,22 @@ class _TeacherFinancePageState extends State<TeacherFinancePage> {
     Navigator.pop(context); // Close dialog
     setState(() => _isLoading = true);
 
+    // The SERVER creates the request from the real balance (it used to be
+    // written here with whatever amount the phone had).
+    final result = _summary == null
+        ? const WithdrawResult(WithdrawOutcome.failed)
+        : await MoneyScope.of(context).withdraw(_summary!, methodLabel: method);
     try {
-      await FirebaseFirestore.instance.collection('withdrawal_requests').add({
-        'teacherId': _currentUserId,
-        'teacherName': _teacherName,
-        'method': method,
-        'payoutMethod': method, // Redundancy for AdminPayoutsPage
-        'fee': fee,
-        'requestedAmount': _availableBalance,
-        'netAmount': amount,
-        'amount': amount, // Redundancy for AdminPayoutsPage
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
+      if (result.outcome != WithdrawOutcome.requested) throw Exception(result.message ?? l10n.noFundsAvailable);
       if (mounted) {
-        setState(() {
-          _availableBalance = 0; // Reset for mock
-          _isLoading = false;
-        });
-
+        setState(() => _isLoading = false);
         AppMessenger.showSnackBar(
           context,
           title: l10n.requestSent,
           message: l10n.requestSentDesc,
           type: MessengerType.success,
         );
+        _fetchBalances(); // the real balance after the request
       }
     } catch (e) {
       if (mounted) {

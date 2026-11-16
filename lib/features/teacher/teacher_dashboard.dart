@@ -1,6 +1,8 @@
 // lib/features/teacher/pages/teacher_dashboard_page.dart
 //Done
 
+import 'package:calligro_app/features/teacher_money/data/firestore_earnings_repository.dart';
+import 'package:calligro_app/features/teacher_money/domain/earnings.dart';
 import 'package:calligro_app/features/notifications/presentation/app_notification_navigator.dart';
 import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
 import 'package:calligro_app/features/profile/presentation/profile_scope.dart';
@@ -81,22 +83,9 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
           .where('teacherId', isEqualTo: user.uid)
           .get();
 
-      Future<QuerySnapshot> txQueryFuture = db
-          .collection('transactions')
-          .where('teacherId', isEqualTo: user.uid)
-          .where('status', isEqualTo: 'completed')
-          .get();
-
-      Future<QuerySnapshot> withdrawalsQueryFuture = db
-          .collection('withdrawal_requests')
-          .where('teacherId', isEqualTo: user.uid)
-          .get();
-
       final List<dynamic> results = await Future.wait([
         userDocFuture,
         coursesQueryFuture,
-        txQueryFuture,
-        withdrawalsQueryFuture,
       ]);
 
       if (!mounted) return;
@@ -117,52 +106,15 @@ class _TeacherDashboardPageState extends State<TeacherDashboardPage> {
       final QuerySnapshot coursesQuery = results[1] as QuerySnapshot;
       final int fetchedCourseCount = coursesQuery.size;
 
-      Map<String, DateTime> coursePayoutDates = {};
-      final now = DateTime.now();
-      
-      for (var doc in coursesQuery.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        // Calculate payout date for ledger math
-        DateTime endDate;
-        if (data['expiryDate'] != null && data['expiryDate'] is Timestamp) {
-          endDate = (data['expiryDate'] as Timestamp).toDate().toLocal();
-        } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
-          endDate = (data['createdAt'] as Timestamp).toDate().toLocal().add(const Duration(days: 30));
-        } else {
-          endDate = now;
-        }
-        coursePayoutDates[doc.id] = endDate.add(const Duration(days: 2));
-      }
-
-      final QuerySnapshot txQuery = results[2] as QuerySnapshot;
-      final QuerySnapshot wQuery = results[3] as QuerySnapshot;
-
-      // Calculate exact available balance and total earnings
-      double availableBalance = 0.0;
-      double totalEarnings = 0.0;
-      for (var doc in txQuery.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final double share = (data['teacherShare'] ?? 0.0).toDouble();
-        final String courseId = data['courseId'] ?? '';
-        
-        totalEarnings += share;
-        
-        DateTime? payoutDate = coursePayoutDates[courseId];
-        if (payoutDate != null && !now.isBefore(payoutDate)) {
-          availableBalance += share;
-        }
-      }
-      
-      double totalWithdrawn = 0.0;
-      for (var doc in wQuery.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        if (data['status'] != 'rejected') {
-          totalWithdrawn += (data['amount'] ?? data['netAmount'] ?? data['requestedAmount'] ?? 0.0).toDouble();
-        }
-      }
-      
-      availableBalance -= totalWithdrawn;
-      if (availableBalance < 0) availableBalance = 0;
+      // Total earnings from the ONE money calculation (EarningsRules); the
+      // copy that lived here also had the unlock-date and fee bugs.
+      final money = await FirestoreEarningsRepository(firestore: db).load(user.uid);
+      final totalEarnings = EarningsRules.balance(
+        sales: money.sales,
+        courses: money.courses,
+        withdrawals: money.withdrawals,
+        now: DateTime.now(),
+      ).total;
 
       // Payout details are private (users/{uid}/private/payout).
       final hasPayoutInfo = await PayoutSettingsRepository(firestore: db).hasPayoutInfo(userDoc.id);

@@ -436,6 +436,8 @@ exports.claimPushToken = require("./notification_tokens.js").claimPushToken;
 // Email codes created, sent and checked on the server (the app no longer holds the Brevo key).
 exports.sendEmailCode = require("./email_codes.js").sendEmailCode;
 exports.verifyEmailCode = require("./email_codes.js").verifyEmailCode;
+// Withdrawal requests are created by the server from the real balance.
+exports.requestWithdrawal = require("./withdrawals.js").requestWithdrawal;
 
 // DEPRECATED: Google Meet functions removed to simplify UX and avoid restrictions.
 // Students now use the branded 'Calligro Classroom' powered by Jitsi.

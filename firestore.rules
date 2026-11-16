@@ -473,7 +473,9 @@ service cloud.firestore {
     // =========================================================
     match /withdrawal_requests/{requestId} {
       allow read: if isSignedIn() && (resource.data.teacherId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      // Created only by the server from the real balance (functions/withdrawals.js
+      // requestWithdrawal): the app used to write any amount it liked.
+      allow create: if false;
       allow update, delete: if isAdmin();
     }
 
