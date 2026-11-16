@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:calligro_app/features/course_chat/models/course_chat_message.dart';
-import 'package:calligro_app/features/course_chat/services/course_chat_service.dart';
+import 'package:calligro_app/features/classroom/domain/course_chat_message.dart';
+import 'package:calligro_app/features/classroom/data/course_chat_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';

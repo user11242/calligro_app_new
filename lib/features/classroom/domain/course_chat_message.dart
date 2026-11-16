@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 /// Immutable domain model representing a single message in a course group chat.
 class CourseChatMessage {
   final String id;
@@ -31,17 +29,18 @@ class CourseChatMessage {
   /// True when this message includes an attached image URL.
   bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
 
-  /// Creates a [CourseChatMessage] from a Firestore [DocumentSnapshot].
-  factory CourseChatMessage.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? const {};
-    return CourseChatMessage.fromMap(doc.id, data);
-  }
 
   /// Creates a [CourseChatMessage] from a document ID and raw field map.
   factory CourseChatMessage.fromMap(String id, Map<String, dynamic> data) {
-    final rawCreatedAt = data['createdAt'];
-    final DateTime? parsedDate =
-        rawCreatedAt is Timestamp ? rawCreatedAt.toDate() : null;
+    DateTime? parsedDate;
+    try {
+      final dynamic raw = data['createdAt'];
+      if (raw is DateTime) {
+        parsedDate = raw;
+      } else if (raw != null) {
+        parsedDate = raw.toDate() as DateTime; // Firestore Timestamp
+      }
+    } catch (_) {}
 
     final rawName = data['senderName']?.toString().trim();
     final rawPhoto = data['senderPhotoUrl']?.toString().trim();
@@ -59,18 +58,21 @@ class CourseChatMessage {
       createdAt: parsedDate,
     );
   }
-
-  /// Serializes this message into a Firestore-compatible map.
-  Map<String, dynamic> toMap() {
-    return {
-      'senderId': senderId,
-      'senderName': senderName,
-      'senderPhotoUrl': senderPhotoUrl,
-      'senderRole': senderRole,
-      'text': text,
-      'imageUrl': imageUrl,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
-    };
-  }
 }
 
+/// Who may remove a chat message: its sender, the course's teacher, an admin
+/// (firestore.rules agree).
+class ChatPolicy {
+  ChatPolicy._();
+
+  static bool canDelete(CourseChatMessage message, String? uid, {required bool isTeacher, required bool isAdmin}) =>
+      (uid != null && message.senderId == uid) || isTeacher || isAdmin;
+
+  /// The badge a new message carries (rules refuse a false one): the course's
+  /// teacher → teacher; an admin → admin; everyone else → student.
+  static String senderRole({required String uid, required String profileRole, String? courseTeacherId}) {
+    if (courseTeacherId != null && uid == courseTeacherId) return 'teacher';
+    if (profileRole == 'admin') return 'admin';
+    return 'student';
+  }
+}

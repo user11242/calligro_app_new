@@ -3,11 +3,10 @@ import 'dart:io';
 import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/core/widgets/smart_image.dart';
-import 'package:calligro_app/features/course_chat/models/course_chat_message.dart';
-import 'package:calligro_app/features/course_chat/services/course_chat_service.dart';
-import 'package:calligro_app/features/course_chat/widgets/chat_message_bubble.dart';
+import 'package:calligro_app/features/classroom/domain/course_chat_message.dart';
+import 'package:calligro_app/features/classroom/data/course_chat_service.dart';
+import 'package:calligro_app/features/classroom/presentation/chat/chat_message_bubble.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -48,8 +47,7 @@ class _CourseChatPageState extends State<CourseChatPage> {
   File? _selectedImage;
   bool _isSending = false;
 
-  String? get _uid =>
-      widget.currentUserId ?? FirebaseAuth.instance.currentUser?.uid;
+  String? get _uid => widget.currentUserId ?? _chatService.currentUid;
 
   @override
   void initState() {
@@ -148,7 +146,7 @@ class _CourseChatPageState extends State<CourseChatPage> {
   void _showMessageActions(CourseChatMessage message) {
     final l10n = AppLocalizations.of(context)!;
     final isMine = message.senderId == _uid;
-    final canDelete = isMine || widget.isTeacher || widget.isAdmin;
+    final canDelete = ChatPolicy.canDelete(message, _uid, isTeacher: widget.isTeacher, isAdmin: widget.isAdmin);
 
     showModalBottomSheet<void>(
       context: context,

@@ -1,5 +1,5 @@
+import 'package:calligro_app/features/gallery/presentation/gallery_scope.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/core/widgets/smart_image.dart';
 
@@ -67,14 +67,8 @@ class _GalleryImageState extends State<GalleryImage> {
     if (_hasAttemptedResolution) return;
 
     try {
-      // Clean URL for refFromURL
-      String cleanUrl = widget.imageUrl;
-      if (cleanUrl.contains('?')) {
-        cleanUrl = cleanUrl.split('?').first;
-      }
-
-      final ref = FirebaseStorage.instance.refFromURL(cleanUrl);
-      final url = await ref.getDownloadURL();
+      // One shared resolver + cache for every gallery image (GalleryScope).
+      final url = await GalleryScope.of(context).urls.resolve(widget.imageUrl);
       
       _resolvedCache[widget.imageUrl] = url;
       

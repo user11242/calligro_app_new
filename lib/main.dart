@@ -38,7 +38,7 @@ import 'package:flutter/material.dart';
   import 'package:calligro_app/features/courses/presentation/pages/course_preview_page.dart';
   import 'package:calligro_app/features/community/presentation/pages/community_page.dart';
   import 'package:calligro_app/features/community/presentation/pages/single_post_page.dart';
-  import 'package:calligro_app/features/course_chat/pages/course_chat_page.dart';
+  import 'package:calligro_app/features/classroom/presentation/chat/course_chat_page.dart';
 
   // --- ADMIN IMPORTS ---
   import 'package:calligro_app/features/admin/admin_dashboard.dart';

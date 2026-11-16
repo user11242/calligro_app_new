@@ -1,10 +1,11 @@
+import 'package:calligro_app/features/gallery/presentation/gallery_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../gallery/models/gallery_artist.dart';
-import '../../gallery/services/gallery_service.dart';
+import 'package:calligro_app/features/gallery/domain/gallery_models.dart';
+import 'package:calligro_app/features/gallery/presentation/localized_artist.dart';
 import '../../gallery/pages/artist_bio_page.dart';
 import '../../gallery/pages/artist_gallery_page.dart';
 import 'lineage_tree_page.dart';
@@ -18,7 +19,7 @@ class GalleryPage extends StatefulWidget {
 }
 
 class _GalleryPageState extends State<GalleryPage> {
-  final GalleryService _galleryService = GalleryService();
+  final GalleryRepository _galleryService = GalleryServices.instance.gallery;
   String _searchQuery = "";
 
   @override

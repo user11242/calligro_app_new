@@ -1,7 +1,9 @@
+import 'package:calligro_app/features/gallery/data/gallery_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:calligro_app/features/gallery/models/gallery_artist.dart';
+import 'package:calligro_app/features/gallery/domain/gallery_models.dart';
+import 'package:calligro_app/features/gallery/presentation/localized_artist.dart';
 
 void main() {
   group('Layer 1: GalleryArtist Tests (Coverage)', () {
@@ -27,7 +29,7 @@ void main() {
       final snapshot = await docRef.get();
 
       // 3. Test the conversion
-      final artist = GalleryArtist.fromFirestore(snapshot);
+      final artist = GalleryService.artist(snapshot);
 
       expect(artist.id, 'artist_123');
       expect(artist.name, 'Ali Ghalib');
@@ -46,7 +48,7 @@ void main() {
       // Empty document
       await docRef.set({});
       final snapshot = await docRef.get();
-      final artist = GalleryArtist.fromFirestore(snapshot);
+      final artist = GalleryService.artist(snapshot);
 
       expect(artist.id, 'artist_456');
       expect(artist.name, ''); // Default fallback
@@ -56,23 +58,6 @@ void main() {
       expect(artist.deathDate, isNull);
       expect(artist.lifeDetails, isNull);
       expect(artist.createdAt, isNull);
-    });
-
-    test('toMap() converts GalleryArtist back to Firebase map', () {
-      final artist = GalleryArtist(
-        id: 'artist_789',
-        name: 'Abbas Al-Baghdadi',
-        bio: 'Legendary Calligrapher',
-        createdAt: now,
-      );
-
-      final map = artist.toMap();
-
-      expect(map['id'], 'artist_789');
-      expect(map['name'], 'Abbas Al-Baghdadi');
-      expect(map['bio'], 'Legendary Calligrapher');
-      expect(map['createdAt'], isA<Timestamp>());
-      expect((map['createdAt'] as Timestamp).toDate(), now);
     });
   });
 }

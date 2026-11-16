@@ -89,11 +89,11 @@ import 'package:calligro_app/features/auth/widgets/google_register_widgets/step_
 import 'package:calligro_app/features/meet/application/connection_quality_monitor.dart';
 import 'package:calligro_app/features/meet/presentation/pages/calligro_pre_join_page.dart';
 import 'package:calligro_app/features/meet/presentation/pages/calligro_meet_page.dart';
-import 'package:calligro_app/features/gallery/models/gallery_artist.dart';
-import 'package:calligro_app/features/gallery/models/gallery_artwork.dart';
+import 'package:calligro_app/features/gallery/domain/gallery_models.dart';
+import 'package:calligro_app/features/gallery/presentation/localized_artist.dart';
 import 'package:calligro_app/features/gallery/pages/artist_gallery_page.dart';
 import 'package:calligro_app/features/gallery/pages/artist_bio_page.dart';
-import 'package:calligro_app/features/gallery/services/gallery_service.dart';
+import 'package:calligro_app/features/gallery/data/gallery_service.dart';
 import 'package:calligro_app/features/gallery/widgets/artwork_viewer.dart';
 import 'package:calligro_app/features/gallery/widgets/gallery_image.dart';
 import 'package:calligro_app/features/student/models/lineage_node.dart';
@@ -189,7 +189,7 @@ import 'package:calligro_app/features/teacher/pages/finance/teacher_finance_page
 import 'package:calligro_app/features/teacher/pages/finance/transaction_history_page.dart';
 import 'package:calligro_app/features/teacher/pages/finance/teacher_sales_history_page.dart';
 import 'package:calligro_app/features/notifications/presentation/notifications_page.dart';
-import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart';
+import 'package:calligro_app/features/meet/presentation/livekit_meet_service.dart';
 import 'package:calligro_app/firebase_options.dart';
 import 'package:calligro_app/screens/on_boarding_page.dart';
 import 'package:calligro_app/screens/auth_wrapper.dart';

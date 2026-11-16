@@ -1,5 +1,5 @@
-import 'package:calligro_app/features/course_chat/pages/course_chat_page.dart';
-import 'package:calligro_app/features/course_chat/services/course_chat_service.dart';
+import 'package:calligro_app/features/classroom/presentation/chat/course_chat_page.dart';
+import 'package:calligro_app/features/classroom/data/course_chat_service.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';

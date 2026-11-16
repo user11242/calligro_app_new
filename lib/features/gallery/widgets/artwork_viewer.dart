@@ -1,10 +1,10 @@
+import 'package:calligro_app/features/gallery/presentation/gallery_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:calligro_app/core/theme/colors.dart';
-import '../models/gallery_artwork.dart';
+import 'package:calligro_app/features/gallery/domain/gallery_models.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:calligro_app/core/services/security_service.dart';
 
 class ArtworkViewer extends StatefulWidget {
@@ -59,13 +59,8 @@ class _ArtworkViewerState extends State<ArtworkViewer> {
     if (_hasAttemptedResolution) return;
 
     try {
-      String cleanUrl = widget.artwork.highResUrl;
-      if (cleanUrl.contains('?')) {
-        cleanUrl = cleanUrl.split('?').first;
-      }
-
-      final ref = FirebaseStorage.instance.refFromURL(cleanUrl);
-      final url = await ref.getDownloadURL();
+      // One shared resolver + cache for every gallery image (GalleryScope).
+      final url = await GalleryScope.of(context).urls.resolve(widget.artwork.highResUrl);
       
       _resolvedCache[widget.artwork.highResUrl] = url;
       

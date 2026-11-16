@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
-import '../models/gallery_artist.dart';
+import 'package:calligro_app/features/gallery/domain/gallery_models.dart';
+import 'package:calligro_app/features/gallery/presentation/localized_artist.dart';
 import 'artist_gallery_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:ui';

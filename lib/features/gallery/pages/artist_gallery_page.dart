@@ -1,9 +1,9 @@
+import 'package:calligro_app/features/gallery/presentation/gallery_scope.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
-import '../models/gallery_artist.dart';
-import '../models/gallery_artwork.dart';
-import '../services/gallery_service.dart';
+import 'package:calligro_app/features/gallery/domain/gallery_models.dart';
+import 'package:calligro_app/features/gallery/presentation/localized_artist.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../widgets/artwork_viewer.dart';
 import '../widgets/gallery_image.dart';
@@ -18,7 +18,7 @@ class ArtistGalleryPage extends StatefulWidget {
 }
 
 class _ArtistGalleryPageState extends State<ArtistGalleryPage> {
-  final GalleryService _galleryService = GalleryService();
+  final GalleryRepository _galleryService = GalleryServices.instance.gallery;
 
   @override
   Widget build(BuildContext context) {

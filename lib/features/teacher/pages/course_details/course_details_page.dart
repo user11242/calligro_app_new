@@ -17,22 +17,26 @@ import '../../../../core/message/app_messenger.dart';
 // ✅ CORRECT IMPORTS
 import '../course_details/announcements_board_page.dart';
 import '../course_details/assignments_page.dart';
-import 'package:calligro_app/features/teacher/services/livekit_meet_service.dart';
+import 'package:calligro_app/features/meet/presentation/livekit_meet_service.dart';
 import 'package:calligro_app/core/services/translation_service.dart';
 import 'package:calligro_app/features/student/widgets/course_share_card.dart';
 import 'package:calligro_app/core/utils/share_utils.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:calligro_app/core/widgets/meet_debug_console_sheet.dart';
-import 'package:calligro_app/core/services/meet_debug_service.dart';
 
 
 import 'package:calligro_app/features/teacher/pages/course_details/recordings_page.dart';
 
-import 'package:calligro_app/features/teacher/pages/course_details/video_player_page.dart';
 import 'package:calligro_app/features/admin/data/services/admin_service.dart';
 import 'package:calligro_app/features/teacher/pages/course_details/course_materials_page.dart';
-import 'package:calligro_app/features/course_chat/pages/course_chat_page.dart';
-import 'package:calligro_app/features/course_chat/widgets/course_details_floating_bar.dart';
+import 'package:calligro_app/features/classroom/presentation/chat/course_chat_page.dart';
+import 'package:calligro_app/features/classroom/presentation/chat/course_details_floating_bar.dart';
+
+part 'course_details_overview.dart';
+part 'course_details_schedule.dart';
+part 'course_details_classroom.dart';
+part 'course_details_students.dart';
+part 'course_details_header.dart';
+part 'course_details_texts.dart';
 
 class CourseDetailsPage extends StatefulWidget {
   final String courseId;
@@ -302,235 +306,246 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     });
   }
 
-  Future<void> _launchClassroom() async {
-    final l10n = AppLocalizations.of(context)!;
+  Future<void> _checkTranslationAvailability() async {
+    // Collect things that might need translation
+    bool needsTranslation = false;
 
-    // 🚨 LEGACY DETECTOR: Check if this is an old external Google Meet link
-    if (calligroMeetLink != null &&
-        (calligroMeetLink!.contains("meet.google.com") ||
-            (calligroMeetLink!.contains("http") && !calligroMeetLink!.contains("calligro")))) {
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: isTeacher ? "Legacy Link Detected" : "Classroom Unavailable",
-          message: isTeacher
-              ? "This course is using an old Google Meet link. Please edit the course or regenerate the link to use 'Calligro Classroom'."
-              : "The teacher hasn't upgraded this classroom yet. Please contact them.",
-          type: MessengerType.info,
-        );
-      }
-      return;
+    // 1. Description
+    if (_translatedDescription == null) {
+      final standardLocalized = _localizeDescription(courseDescription);
+      if (standardLocalized == courseDescription) needsTranslation = true;
     }
+
+    // 2. Name (if it's not a standard template)
+    if (_translatedName == null && courseName.isNotEmpty) {
+      needsTranslation = true;
+    }
+
+    // 3. Tools (if any are not in our lookup)
+    if (_translatedTools == null && requiredTools.isNotEmpty) {
+      for (var tool in requiredTools) {
+        String name = tool is Map ? (tool['name'] ?? '') : tool.toString();
+        if (_localizeContent(name) == name) {
+          needsTranslation = true;
+          break;
+        }
+      }
+    }
+
+    // 4. Curriculum
+    if (_translatedCurriculum == null && curriculumSteps.isNotEmpty) {
+      for (var step in curriculumSteps) {
+        if (_localizeContent(step) == step) {
+          needsTranslation = true;
+          break;
+        }
+      }
+    }
+
+    if (needsTranslation) {
+      _translateAllContent();
+    }
+  }
+
+  Future<void> _translateAllContent() async {
+    if (_isTranslating) return;
+    setState(() => _isTranslating = true);
 
     try {
-      debugPrint("DEBUG: Classroom logic triggered for course: ${widget.courseId}");
+      final currentLocale = Localizations.localeOf(context).languageCode;
+      final targetLang = _translationService.getLanguage(currentLocale);
+      if (targetLang == null) return;
 
-      /* 🚫 SMART GATING DISABLED AT USER REQUEST (For testing and ad-hoc sessions)
-      if (!isTeacher) {
-        // Smart Gating Logic for Students
-        final now = DateTime.now();
-        
-        // 1. Get Effective Start Time (Rescheduled or Original)
-        DateTime effectiveStart;
-        if (_rescheduledData != null && _rescheduledData!['newStartTime'] != null) {
-          effectiveStart = (_rescheduledData!['newStartTime'] as Timestamp).toDate();
-        } else if (selectedTime != null) {
-          effectiveStart = DateTime(now.year, now.month, now.day, selectedTime!.hour, selectedTime!.minute);
-        } else {
-          effectiveStart = now; 
-        }
-
-        // 2. Define Buffers
-        final earlyBuffer = effectiveStart.subtract(const Duration(minutes: 10));
-        final gracePeriodEnd = effectiveStart.add(const Duration(minutes: 120)); // Increased for flexibility
-
-        // Day Check
-        if (selectedDays.isNotEmpty) {
-          final todayName = DateFormat('EEEE').format(now);
-          if (!selectedDays.contains(todayName)) {
-            _showMessage(
-              l10n.tooEarly, 
-              "There is no session scheduled for today. Please check the schedule tab.",
-              MessengerType.info,
-            );
-            return;
-          }
-        }
-
-        if (now.isBefore(earlyBuffer)) {
-          _showMessage(l10n.tooEarly, "The classroom will open 10 minutes before the session starts.", MessengerType.info);
-          return;
-        }
-        
-        if (now.isAfter(gracePeriodEnd)) {
-          _showMessage(l10n.classEnded, "The live session for today has concluded or the grace period has expired.", MessengerType.info);
-          return;
-        }
-      }
-      */
-
-      // ── STEP 1: Request camera & microphone permissions at runtime ──
-      // On Android 6+, manifest declarations alone are NOT enough.
-      // Without this, the camera button in Jitsi will be silently disabled
-      // and no permission dialog will ever be shown to the user.
-      final cameraStatus = await Permission.camera.request();
-      final micStatus = await Permission.microphone.request();
-
-      if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
-        // User clicked "Don't ask again" — guide them to settings
-        if (mounted) {
-          AppMessenger.showSnackBar(
-            context,
-            title: "Permissions Required",
-            message:
-                "Camera and microphone access are required for the classroom. Please enable them in your device settings.",
-            type: MessengerType.error,
-          );
-        }
-        await openAppSettings();
-        return;
-      }
-
-      if (cameraStatus.isDenied || micStatus.isDenied) {
-        if (mounted) {
-          AppMessenger.showSnackBar(
-            context,
-            title: "Permissions Denied",
-            message:
-                "Camera and microphone access are needed to join the classroom.",
-            type: MessengerType.error,
-          );
-        }
-        return;
-      }
-      // ─────────────────────────────────────────────────────────────────
-
-      final user = FirebaseAuth.instance.currentUser;
-      String userName = user?.displayName ?? "User";
-      String userEmail = user?.email ?? "";
-      String userAvatar = user?.photoURL ?? "";
-
-      // Fetch the true full name and photo URL from Firestore
-      if (user != null) {
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-          if (userDoc.exists) {
-            final data = userDoc.data();
-            if (data != null) {
-              if (data['fullName'] != null &&
-                  data['fullName'].toString().isNotEmpty) {
-                userName = data['fullName'];
-              } else if (data['name'] != null &&
-                  data['name'].toString().isNotEmpty) {
-                userName = data['name'];
-              }
-              if (data['photoUrl'] != null &&
-                  data['photoUrl'].toString().isNotEmpty) {
-                userAvatar = data['photoUrl'];
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint("Failed to fetch user doc for classroom: $e");
-        }
-      }
-
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        AppMessenger.showSnackBar(
-          context,
-          title: l10n.startingClassroom,
-          message: l10n.pleaseWaitConnecting,
-          type: MessengerType.info,
+      // Helper to translate single string
+      Future<String?> translate(String text) async {
+        if (text.isEmpty) return null;
+        return await _translationService.translate(
+          text: text,
+          target: currentLocale,
         );
       }
 
+      // Translate Name
+      String? newName = await translate(courseName);
+
+      // Translate Description
+      String? newDesc;
+      if (_localizeDescription(courseDescription) == courseDescription) {
+        newDesc = await translate(courseDescription);
+      }
+
+      // Translate Tools
+      List<dynamic>? newTools;
+      if (requiredTools.isNotEmpty) {
+        List<dynamic> trans = [];
+        for (var tool in requiredTools) {
+          String name = tool is Map ? (tool['name'] ?? '') : tool.toString();
+          if (_localizeContent(name) == name) {
+            String? tName = await translate(name);
+            if (tName != null) {
+              trans.add(tool is Map ? {...tool, 'name': tName} : tName);
+              continue;
+            }
+          }
+          trans.add(tool);
+        }
+        newTools = trans;
+      }
+
+      // Translate Curriculum
+      List<String>? newCurr;
+      if (curriculumSteps.isNotEmpty) {
+        List<String> trans = [];
+        for (var step in curriculumSteps) {
+          if (_localizeContent(step) == step) {
+            String? tStep = await translate(step);
+            if (tStep != null) {
+              trans.add(tStep);
+              continue;
+            }
+          }
+          trans.add(step);
+        }
+        newCurr = trans;
+      }
+
+      if (mounted) {
+        setState(() {
+          if (newName != null) _translatedName = newName;
+          if (newDesc != null) _translatedDescription = newDesc;
+          if (newTools != null) _translatedTools = newTools;
+          if (newCurr != null) _translatedCurriculum = newCurr;
+          _isTranslating = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isTranslating = false);
+      }
+    }
+  }
+
+  void _listenToOverrides() {
+    FirebaseFirestore.instance
+        .collection('courses')
+        .doc(widget.courseId)
+        .snapshots()
+        .listen((snapshot) {
+          if (snapshot.exists && mounted) {
+            final data = snapshot.data() as Map<String, dynamic>;
+
+            // Auto-expire reschedule if it was for a previous day
+            var rescheduleData = data['rescheduledSession'];
+            if (rescheduleData != null &&
+                rescheduleData['originalDate'] != null) {
+              final originalDate = (rescheduleData['originalDate'] as Timestamp)
+                  .toDate();
+              final now = DateTime.now();
+              if (originalDate.year != now.year ||
+                  originalDate.month != now.month ||
+                  originalDate.day != now.day) {
+                rescheduleData = null; // Ignore it, it's expired
+              }
+            }
+
+            setState(() {
+              _rescheduledData = rescheduleData;
+            });
+          }
+        });
+  }
+
+  Future<void> _showRescheduleDialog() async {
+    TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(selectedTime ?? DateTime.now()),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.accentGold,
+              onPrimary: Colors.black,
+              surface: AppColors.primary,
+              onSurface: Colors.white,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.accentGold,
+              ),
+            ),
+            dialogTheme: DialogThemeData(backgroundColor: AppColors.primary),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      final now = DateTime.now();
+      final newStartTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        picked.hour,
+        picked.minute,
+      );
+      // Assume 1 hour session for simplicity in this mockup or pick end time too
+      final newEndTime = newStartTime.add(const Duration(hours: 1));
+
+      setState(() => _isSavingReschedule = true);
       try {
-        // 🛡️ SECURITY FIX: Check for duplicate session using heartbeat (students only)
-        if (!isTeacher) {
-          try {
-            final presenceSnap = await FirebaseFirestore.instance
-                .collection('courses')
-                .doc(widget.courseId)
-                .collection('meetingPresence')
-                .doc(user?.uid)
-                .get()
-                .timeout(const Duration(seconds: 4));
-
-            if (presenceSnap.exists) {
-              final data = presenceSnap.data();
-              if (data != null && data.containsKey('lastHeartbeat')) {
-                final lastBeat = (data['lastHeartbeat'] as Timestamp?)?.toDate();
-                if (lastBeat != null &&
-                    DateTime.now().difference(lastBeat).inSeconds < 35) {
-                  if (mounted) {
-                    AppMessenger.showSnackBar(
-                      context,
-                      title: "Session Active",
-                      message:
-                          "Your account is already active in this meeting from another device. Please wait 30 seconds if you just disconnected.",
-                      type: MessengerType.error,
-                    );
-                  }
-                  return; // Block entry
-                }
-              }
-            }
-          } catch (presenceErr) {
-            debugPrint("Presence check skipped due to network/timeout: $presenceErr");
-          }
-        }
-
-        await LiveKitMeetService().joinMeeting(
-          context: context,
-          courseId: widget.courseId,
-          isTeacher: isTeacher,
-        )
-            .timeout(
-              const Duration(seconds: 30),
-              onTimeout: () {
-                throw Exception(
-                  "Connecting to the classroom timed out. Please check your internet connection.",
-                );
-              },
+        // The server tells the students (once).
+        final result = await ClassroomScope.of(context).board.reschedule(
+              widget.courseId,
+              _role,
+              SessionChange(originalDate: now, newStart: newStartTime, newEnd: newEndTime),
             );
+        if (!result.ok) throw Exception(result.message ?? result.outcome.name);
+        if (!mounted) return;
+
+        _showMessage(
+          AppLocalizations.of(context)!.success,
+          AppLocalizations.of(context)!.sessionRescheduledSuccess,
+          MessengerType.success,
+        );
       } catch (e) {
-        if (mounted) {
-          AppMessenger.showSnackBar(
-            context,
-            title: "Launch Error",
-            message: "Could not launch classroom: $e",
-            type: MessengerType.error,
-          );
-        }
-      }
-    } catch (outerErr) {
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: "Launch Error",
-          message: "Could not launch classroom: $outerErr",
-          type: MessengerType.error,
+        _showMessage(
+          AppLocalizations.of(context)!.error,
+          "${AppLocalizations.of(context)!.error}: $e",
+          MessengerType.error,
         );
       }
+      setState(() => _isSavingReschedule = false);
     }
   }
 
-  Color _getLevelColor(String level) {
-    switch (level) {
-      case 'Beginner':
-        return Colors.tealAccent;
-      case 'Intermediate':
-        return Colors.orangeAccent;
-      case 'Advanced':
-        return Colors.purpleAccent;
-      default:
-        return Colors.blueAccent;
+  Future<void> _cancelReschedule() async {
+    setState(() => _isSavingReschedule = true);
+    try {
+      final result = await ClassroomScope.of(context).board.cancelReschedule(widget.courseId, _role);
+      if (!result.ok) throw Exception(result.message ?? result.outcome.name);
+      _showMessage(
+        AppLocalizations.of(context)!.success,
+        AppLocalizations.of(context)!.sessionBackToNormal,
+        MessengerType.info,
+      );
+    } catch (e) {
+      _showMessage(
+        AppLocalizations.of(context)!.error,
+        "${AppLocalizations.of(context)!.error}: $e",
+        MessengerType.error,
+      );
     }
+    setState(() => _isSavingReschedule = false);
   }
+
+  void _showMessage(String title, String msg, MessengerType type) {
+    if (!mounted) return;
+    AppMessenger.showSnackBar(context, title: title, message: msg, type: type);
+  }
+
+  final AdminService _adminService = AdminService();
+
 
   @override
   Widget build(BuildContext context) {
@@ -757,2204 +772,6 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     );
   }
 
-  Widget _buildOverviewTab() {
-    final l10n = AppLocalizations.of(context)!;
-    List<Widget> children = [
-      _buildSectionTitle(l10n.description, Icons.menu_book),
-      const SizedBox(height: 12),
-      Text(
-        _translatedDescription ?? _localizeDescription(courseDescription),
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 15,
-          height: 1.6,
-        ),
-      ),
-      if (_isTranslating)
-        Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.accentGold,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                AppLocalizations.of(
-                  context,
-                )!.translating, // Silent translation in progress
-                style: const TextStyle(
-                  color: AppColors.accentGold,
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-          ),
-        ),
-      const SizedBox(height: 32),
-    ];
-
-    // --- TOOLS SECTION ---
-    if (requiredTools.isNotEmpty) {
-      children.add(_buildSectionTitle(l10n.toolsRequirements, Icons.brush));
-      children.add(const SizedBox(height: 16));
-      children.add(
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: (_translatedTools ?? requiredTools).map((tool) {
-            String name = '';
-            String iconKey = '';
-            if (tool is Map) {
-              name = tool['name'] ?? '';
-              iconKey = tool['icon'] ?? 'generic';
-            } else {
-              name = tool.toString();
-              iconKey = 'generic';
-            }
-            return _buildToolChip(name, iconKey);
-          }).toList(),
-        ),
-      );
-      children.add(const SizedBox(height: 32));
-    }
-
-    children.addAll([
-      _buildSectionTitle(
-        l10n.localeName == 'ar' ? 'نتائج التعلم' : 'Learning Outcomes',
-        Icons.map,
-      ),
-      const SizedBox(height: 16),
-      _buildCurriculumTimeline(),
-    ]);
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
-    );
-  }
-
-  Widget _buildScheduleTab() {
-    final String locale = Localizations.localeOf(context).toString();
-    final DateFormat dateFormatter = DateFormat.yMMMd(locale);
-    final DateFormat timeFormatter = DateFormat.jm(locale);
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.03),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
-                    width: 1.5,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildInfoColumn(
-                          AppLocalizations.of(context)!.startDate,
-                          startDate,
-                          dateFormatter,
-                          Icons.calendar_month_rounded,
-                        ),
-                        Container(
-                          height: 50,
-                          width: 1.5,
-                          color: Colors.white12,
-                        ),
-                        _buildInfoColumn(
-                          AppLocalizations.of(context)!.endDate,
-                          endDate,
-                          dateFormatter,
-                          Icons.event_available_rounded,
-                        ),
-                      ],
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24.0),
-                      child: Divider(color: Colors.white10, thickness: 1.5),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildInfoColumn(
-                          AppLocalizations.of(context)!.startTime,
-                          selectedTime,
-                          timeFormatter,
-                          Icons.access_time_filled_rounded,
-                        ),
-                        Container(
-                          height: 50,
-                          width: 1.5,
-                          color: Colors.white12,
-                        ),
-                        _buildInfoColumn(
-                          AppLocalizations.of(context)!.endTime,
-                          endTime,
-                          timeFormatter,
-                          Icons.update_rounded,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          if (selectedDays.isNotEmpty) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  AppLocalizations.of(context)!.sessionBreakdown,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentGold.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.accentGold.withOpacity(0.3),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    AppLocalizations.of(
-                      context,
-                    )!.totalClasses(totalSessions).toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 10,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Column(
-              children: sessionDates.entries.map((entry) {
-                if (entry.value.isEmpty) return const SizedBox.shrink();
-                final dayName = entry.key;
-                final dates = entry.value;
-                final isExpanded = expandedDay == dayName;
-
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: isExpanded
-                        ? AppColors.accentGold.withOpacity(0.05)
-                        : Colors.white.withOpacity(0.03),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isExpanded
-                          ? AppColors.accentGold.withOpacity(0.3)
-                          : Colors.white10,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        onTap: () => _toggleDayExpansion(dayName),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.black26,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.calendar_today,
-                            size: 18,
-                            color: isExpanded
-                                ? AppColors.accentGold
-                                : Colors.white54,
-                          ),
-                        ),
-                        title: Text(
-                          _getLocalizedDay(context, dayName),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        trailing: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: isExpanded
-                                ? AppColors.accentGold.withOpacity(0.1)
-                                : Colors.transparent,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isExpanded
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            color: isExpanded
-                                ? AppColors.accentGold
-                                : Colors.white30,
-                          ),
-                        ),
-                      ),
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        child: isExpanded
-                            ? Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  0,
-                                  16,
-                                  16,
-                                ),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: dates
-                                        .map(
-                                          (date) => Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 14,
-                                              vertical: 8,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withOpacity(
-                                                0.05,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              border: Border.all(
-                                                color: Colors.white.withOpacity(
-                                                  0.1,
-                                                ),
-                                              ),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(
-                                                  Icons.calendar_today_rounded,
-                                                  size: 12,
-                                                  color: AppColors.accentGold,
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  dateFormatter.format(date),
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _getLocalizedDay(BuildContext context, String day) {
-    final l10n = AppLocalizations.of(context)!;
-    switch (day) {
-      case 'Sunday':
-        return l10n.sunday;
-      case 'Monday':
-        return l10n.monday;
-      case 'Tuesday':
-        return l10n.tuesday;
-      case 'Wednesday':
-        return l10n.wednesday;
-      case 'Thursday':
-        return l10n.thursday;
-      case 'Friday':
-        return l10n.friday;
-      case 'Saturday':
-        return l10n.saturday;
-      default:
-        return day;
-    }
-  }
-
-  Widget _buildGlassHeader(Color levelColor) {
-    return Positioned(
-      bottom: 20,
-      left: 20,
-      right: 20,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.1),
-                width: 1.5,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: levelColor.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: levelColor.withOpacity(0.3),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        CourseUtils.getLocalizedLevel(
-                          context,
-                          courseLevel,
-                        ).toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                    if (ageCategory != null && ageCategory!.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          CourseUtils.getLocalizedAge(
-                            context,
-                            ageCategory,
-                          ).toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _translatedName ?? courseName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    height: 1.2,
-                    fontFamily: 'Urbanist',
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _localizeContent(String text) {
-    final l10n = AppLocalizations.of(context)!;
-
-    // 1. Normalize input (trim spaces)
-    final trimmedText = text.trim();
-
-    // 2. Define the lookup map (Reverse Mapping)
-    // Key: Standard text in AR/EN/TR => Value: Localized string getter
-    final Map<String, String> lookup = {
-      // --- TOOLS ---
-      // Bamboo Pen
-      'Bamboo Pen': l10n.bambooPen,
-      'Kamış Kalem': l10n.bambooPen,
-      'قلم قصب (بامبو)': l10n.bambooPen,
-      // Metal Nib
-      'Metal Nib': l10n.metalNib,
-      'Metal Uç': l10n.metalNib,
-      'قلم معدني (Slater)': l10n.metalNib,
-      'قلم معدني': l10n.metalNib,
-      // Likka
-      'Likka (Silk)': l10n.likkaSilk,
-      'Lika (İpek)': l10n.likkaSilk,
-      'ليقة (حرير)': l10n.likkaSilk,
-      // Glossy Paper
-      'Glossy Paper': l10n.glossyPaper,
-      'Kuşe Kağıt': l10n.glossyPaper,
-      'ورق مقهر (Lined/Glossy)': l10n.glossyPaper,
-      'ورق مقهر': l10n.glossyPaper,
-      // Ink
-      'Ink': l10n.ink,
-      'Mürekkep': l10n.ink,
-      'حبر (Ecoline/Schmincke)': l10n.ink,
-      'حبر': l10n.ink,
-      // Ballpoint
-      'Ballpoint Pen': l10n.ballpointPen,
-      'Tükenmez Kalem': l10n.ballpointPen,
-      'قلم جاف': l10n.ballpointPen,
-      // Gel Pen
-      'Gel Pen (0.5mm)': l10n.gelPen,
-      'Jel Kalem (0.5mm)': l10n.gelPen,
-      'قلم جل (0.5mm)': l10n.gelPen,
-      // Notebook
-      'Lined Notebook': l10n.linedNotebook,
-      'Çizgili Defter': l10n.linedNotebook,
-      'دفتر مسطر': l10n.linedNotebook,
-      // Pencil/Eraser
-      'Pencil & Eraser': l10n.pencilEraser,
-      'Kurşun Kalem ve Silgi': l10n.pencilEraser,
-      'قلم رصاص وممحاة': l10n.pencilEraser,
-      // Correction Tape
-      'Correction Tape': l10n.correctionTape,
-      'Daksil': l10n.correctionTape,
-      'مصحح (Correction Tape)': l10n.correctionTape,
-
-      // --- CURRICULUM MODULES (Beginner Calligraphy) ---
-      'Intro to Tools': l10n.introToTools,
-      'Araçlara Giriş': l10n.introToTools,
-      'مقدمة عن الأدوات': l10n.introToTools,
-      'Holding the Pen': l10n.holdingThePen,
-      'Kalem Tutuşu': l10n.holdingThePen,
-      'طريقة مسك القلم': l10n.holdingThePen,
-      'Dots (Nuqta)': l10n.dotsNuqta,
-      'Noktalar (Mizan)': l10n.dotsNuqta,
-      'النقط والميزان': l10n.dotsNuqta,
-      'Letter Alif': l10n.letterAlif,
-      'Elif Harfi': l10n.letterAlif,
-      'حرف الألف': l10n.letterAlif,
-      'Letters Ba-Ra': l10n.lettersBaRa,
-      'Be-Ra Harfleri': l10n.lettersBaRa,
-      'حروف الباء - الراء': l10n.lettersBaRa,
-
-      // --- CURRICULUM MODULES (Intermediate Calligraphy) ---
-      'Review Basics': l10n.reviewBasics,
-      'Temellerin Gözden Geçirilmesi': l10n.reviewBasics,
-      'مراجعة الأساسيات': l10n.reviewBasics,
-      'Complex Connections': l10n.complexConnections,
-      'Karmaşık Bağlantılar': l10n.complexConnections,
-      'اتصالات الحروف المركبة': l10n.complexConnections,
-      'Sentence Structure': l10n.sentenceStructure,
-      'Cümle Yapısı': l10n.sentenceStructure,
-      'tarkib (تركيب الجمل)': l10n.sentenceStructure,
-      'تركيب الجمل': l10n.sentenceStructure,
-      'Ink Control': l10n.inkControl,
-      'Mürekkep Kontrolü': l10n.inkControl,
-      'التحكم بالحبر': l10n.inkControl,
-
-      // --- CURRICULUM MODULES (Advanced Calligraphy) ---
-      'Composition Rules': l10n.compositionRules,
-      'Kompozisyon Kuralları': l10n.compositionRules,
-      'قواعد التكوين': l10n.compositionRules,
-      'Jali (Large Scale)': l10n.jaliLargeScale,
-      'Celi (Büyük Ölçekli)': l10n.jaliLargeScale,
-      'الكتابة الجلية (Jali)': l10n.jaliLargeScale,
-      'Gold Leaf': l10n.goldLeaf,
-      'Altın Varak': l10n.goldLeaf,
-      'التذهيب (Gold Leaf)': l10n.goldLeaf,
-      'Masterpiece Creation': l10n.masterpieceCreation,
-      'Eser Oluşturma': l10n.masterpieceCreation,
-      'إنجاز اللوحة النهائية': l10n.masterpieceCreation,
-
-      // --- CURRICULUM MODULES (Beginner Handwriting) ---
-      'Hand Posture': l10n.handPosture,
-      'El Duruşu': l10n.handPosture,
-      'وضعية اليد والجلوس': l10n.handPosture,
-      'Paper Position': l10n.paperPosition,
-      'Kağıt Pozisyonu': l10n.paperPosition,
-      'وضعية الورقة': l10n.paperPosition,
-      'Basic Shapes': l10n.basicShapes,
-      'Temel Şekiller': l10n.basicShapes,
-      'الأشكال الأساسية': l10n.basicShapes,
-      'Lowercase a-m': l10n.lowercaseAM,
-      'Küçük Harfler a-m': l10n.lowercaseAM,
-      'الحروف الصغيرة a-m': l10n.lowercaseAM,
-      'Lowercase n-z': l10n.lowercaseNZ,
-      'Küçük Harfler n-z': l10n.lowercaseNZ,
-      'الحروف الصغيرة n-z': l10n.lowercaseNZ,
-
-      // --- CURRICULUM MODULES (Intermediate Handwriting) ---
-      'Connecting Letters': l10n.connectingLetters,
-      'Harf Bağlantıları': l10n.connectingLetters,
-      'وصل الحروف': l10n.connectingLetters,
-      'Word Spacing': l10n.wordSpacing,
-      'Kelime Boşlukları': l10n.wordSpacing,
-      'المسافات بين الكلمات': l10n.wordSpacing,
-      'Line Consistency': l10n.lineConsistency,
-      'Satır Tutarlılığı': l10n.lineConsistency,
-      'الاستقامة على السطر': l10n.lineConsistency,
-      'Speed Writing': l10n.speedWriting,
-      'Hızlı Yazma': l10n.speedWriting,
-      'الكتابة السريعة': l10n.speedWriting,
-
-      // --- CURRICULUM MODULES (Advanced Handwriting) ---
-      'Cursive Style': l10n.cursiveStyle,
-      'Bitişik El Yazısı Stili': l10n.cursiveStyle,
-      'الكتابة المتصلة (Cursive)': l10n.cursiveStyle,
-      'Signature Design': l10n.signatureDesign,
-      'İmza Tasarımı': l10n.signatureDesign,
-      'تصميم التوقيع': l10n.signatureDesign,
-      'Fountain Pen Basics': l10n.fountainPenBasics,
-      'Dolma Kalem Temelleri': l10n.fountainPenBasics,
-      'أساسيات قلم الحبر السائل': l10n.fountainPenBasics,
-      'Business Handwriting': l10n.businessHandwriting,
-      'İş El Yazısı': l10n.businessHandwriting,
-      'الكتابة الرسمية للأعمال': l10n.businessHandwriting,
-
-      // --- LEGACY / THULUTH DEFAULTS ---
-      'Intro to Thuluth': l10n.introToThuluth,
-      'Sülüs\'e Giriş': l10n.introToThuluth,
-      'مقدمة في خط الثلث': l10n.introToThuluth,
-      'Letter Alif & Baa': l10n.letterAlifBaa,
-      'Elif ve Ba Harfleri': l10n.letterAlifBaa,
-      'حرف الألف والباء': l10n.letterAlifBaa,
-      'Joint Letters': l10n.jointLetters,
-      'Bitişik Harfler': l10n.jointLetters,
-      'الحروف المتصلة': l10n.jointLetters,
-      'Sentences': l10n.sentences,
-      'Cümleler': l10n.sentences,
-      'كتابة الجمل': l10n.sentences,
-      'Final Project': l10n.finalProject,
-      'Final Projesi': l10n.finalProject,
-      'المشروع النهائي': l10n.finalProject,
-    };
-
-    return lookup[trimmedText] ?? text;
-  }
-
-  String _localizeDescription(String text) {
-    if (text.isEmpty) return text;
-    final l10n = AppLocalizations.of(context)!;
-    final t = text.trim();
-
-    // writingType logic from widget.courseData
-    final wType = (widget.courseData['writingType'] as String? ?? "").trim();
-    final cStyle = (widget.courseData['calligraphyStyle'] as String? ?? "")
-        .trim();
-
-    // Standard Description Substring Checks
-    // We check for unique phrases from the Standard Descriptions in AR/EN/TR
-    bool contains(List<String> fragments) {
-      for (final f in fragments) {
-        if (t.contains(f)) return true;
-      }
-      return false;
-    }
-
-    // --- NORMAL PEN WRITING ---
-    if ([
-      "Normal Pen Writing",
-      "Normal Kalem Yazısı",
-      "الكتابة بالقلم العادي",
-    ].contains(wType)) {
-      // Beginner Normal
-      if (contains([
-        "Transform your handwriting",
-        "El yazınızı sıfırdan",
-        "حول خط يدك من الصفر",
-      ])) {
-        return l10n.beginnerDescriptionNormal;
-      }
-      // Intermediate Normal
-      if (contains([
-        "Unlock the next level",
-        "sonraki seviyenin kilidini",
-        "افتح المستوى التالي",
-      ])) {
-        return l10n.intermediateDescriptionNormal;
-      }
-      // Advanced Normal
-      if (contains([
-        "Master the finest details",
-        "en ince detaylarında",
-        "أتقن أدق تفاصيل",
-      ])) {
-        return l10n.advancedDescriptionNormal;
-      }
-    }
-    // --- CALLIGRAPHY ---
-    else {
-      // Reuse logic from _getLocalizedCourseName (simplified)
-      String localizedStyle = cStyle;
-      if (['Thuluth', 'Sülüs', 'الثلث'].contains(cStyle)) {
-        localizedStyle = l10n.thuluth;
-      } else if (['Naskh', 'Nesih', 'النسخ'].contains(cStyle)) {
-        localizedStyle = l10n.naskh;
-      } else if (['Diwani', 'Divani', 'الديواني'].contains(cStyle)) {
-        localizedStyle = l10n.diwani;
-      } else if (['Kufi', 'Kufic', 'الكوفي', 'كوفي'].contains(cStyle)) {
-        localizedStyle = l10n.kufi;
-      } else if ([
-        'Ruq\'ah',
-        'Ruqah',
-        'Rika',
-        'الرقعة',
-        'رقعة',
-      ].contains(cStyle)) {
-        localizedStyle = l10n.ruqah;
-      } else if (['Jali Thuluth', 'Celi Sülüs', 'ثلث جلي'].contains(cStyle)) {
-        localizedStyle = l10n.jaliThuluth;
-      } else if ([
-        'Jali Diwani',
-        'Celi Divani',
-        'ديواني جلي',
-      ].contains(cStyle)) {
-        localizedStyle = l10n.jaliDiwani;
-      } else if ([
-        'Persian (Ta\'liq)',
-        'Nestalik (Farsça)',
-        'نستعليق (فارسي)',
-      ].contains(cStyle)) {
-        localizedStyle = l10n.persianTaliq;
-      } else if (['Ijaza', 'İcazet', 'إجازة'].contains(cStyle)) {
-        localizedStyle = l10n.ijaza;
-      } else if (['Muhaqqaq', 'Muhakkak', 'محقق'].contains(cStyle)) {
-        localizedStyle = l10n.muhaqqaq;
-      } else if (['Rayhani', 'Reyhani', 'ريحاني'].contains(cStyle)) {
-        localizedStyle = l10n.rayhani;
-      } else {
-        localizedStyle = l10n.arabicCalligraphy;
-      }
-
-      // Beginner Calligraphy
-      if (contains([
-        "Embark on your journey",
-        "yolculuğunuza başlayın",
-        "ابدأ رحلتك في خط",
-      ])) {
-        return l10n.beginnerDescriptionCalligraphy(localizedStyle);
-      }
-      // Intermediate Calligraphy
-      if (contains([
-        "Expand your artistic capabilities",
-        "yeteneklerinizi genişletin",
-        "وسع قدراتك الفنية",
-      ])) {
-        return l10n.intermediateDescriptionCalligraphy(localizedStyle);
-      }
-      // Advanced Calligraphy
-      if (contains([
-        "Attain the highest level",
-        "seviyesine ulaşın",
-        "أعلى مستويات المهارة",
-      ])) {
-        return l10n.advancedDescriptionCalligraphy(localizedStyle);
-      }
-    }
-
-    return text; // Return original if no standard template detected
-  }
-
-  Future<void> _checkTranslationAvailability() async {
-    // Collect things that might need translation
-    bool needsTranslation = false;
-
-    // 1. Description
-    if (_translatedDescription == null) {
-      final standardLocalized = _localizeDescription(courseDescription);
-      if (standardLocalized == courseDescription) needsTranslation = true;
-    }
-
-    // 2. Name (if it's not a standard template)
-    if (_translatedName == null && courseName.isNotEmpty) {
-      needsTranslation = true;
-    }
-
-    // 3. Tools (if any are not in our lookup)
-    if (_translatedTools == null && requiredTools.isNotEmpty) {
-      for (var tool in requiredTools) {
-        String name = tool is Map ? (tool['name'] ?? '') : tool.toString();
-        if (_localizeContent(name) == name) {
-          needsTranslation = true;
-          break;
-        }
-      }
-    }
-
-    // 4. Curriculum
-    if (_translatedCurriculum == null && curriculumSteps.isNotEmpty) {
-      for (var step in curriculumSteps) {
-        if (_localizeContent(step) == step) {
-          needsTranslation = true;
-          break;
-        }
-      }
-    }
-
-    if (needsTranslation) {
-      _translateAllContent();
-    }
-  }
-
-  Future<void> _translateAllContent() async {
-    if (_isTranslating) return;
-    setState(() => _isTranslating = true);
-
-    try {
-      final currentLocale = Localizations.localeOf(context).languageCode;
-      final targetLang = _translationService.getLanguage(currentLocale);
-      if (targetLang == null) return;
-
-      // Helper to translate single string
-      Future<String?> translate(String text) async {
-        if (text.isEmpty) return null;
-        return await _translationService.translate(
-          text: text,
-          target: currentLocale,
-        );
-      }
-
-      // Translate Name
-      String? newName = await translate(courseName);
-
-      // Translate Description
-      String? newDesc;
-      if (_localizeDescription(courseDescription) == courseDescription) {
-        newDesc = await translate(courseDescription);
-      }
-
-      // Translate Tools
-      List<dynamic>? newTools;
-      if (requiredTools.isNotEmpty) {
-        List<dynamic> trans = [];
-        for (var tool in requiredTools) {
-          String name = tool is Map ? (tool['name'] ?? '') : tool.toString();
-          if (_localizeContent(name) == name) {
-            String? tName = await translate(name);
-            if (tName != null) {
-              trans.add(tool is Map ? {...tool, 'name': tName} : tName);
-              continue;
-            }
-          }
-          trans.add(tool);
-        }
-        newTools = trans;
-      }
-
-      // Translate Curriculum
-      List<String>? newCurr;
-      if (curriculumSteps.isNotEmpty) {
-        List<String> trans = [];
-        for (var step in curriculumSteps) {
-          if (_localizeContent(step) == step) {
-            String? tStep = await translate(step);
-            if (tStep != null) {
-              trans.add(tStep);
-              continue;
-            }
-          }
-          trans.add(step);
-        }
-        newCurr = trans;
-      }
-
-      if (mounted) {
-        setState(() {
-          if (newName != null) _translatedName = newName;
-          if (newDesc != null) _translatedDescription = newDesc;
-          if (newTools != null) _translatedTools = newTools;
-          if (newCurr != null) _translatedCurriculum = newCurr;
-          _isTranslating = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isTranslating = false);
-      }
-    }
-  }
-
-  Widget _buildClassroomTab() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDynamicSchedulingCard(),
-          const SizedBox(height: 32),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isTeacher) ...[
-                Expanded(
-                  child: _buildActionCard(
-                    title: AppLocalizations.of(context)!.announcements,
-                    subtitle: AppLocalizations.of(context)!.classBoard,
-                    icon: Icons.campaign_rounded,
-                    color: Colors.orangeAccent,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AnnouncementsBoardPage(
-                          courseId: widget.courseId,
-                          courseName: courseName,
-                          isTeacher: isTeacher,
-                          role: _role,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-              ],
-              Expanded(
-                child: _buildActionCard(
-                  title: isTeacher
-                      ? AppLocalizations.of(context)!.assignments
-                      : AppLocalizations.of(context)!.myAssignments,
-                  subtitle: isTeacher
-                      ? AppLocalizations.of(context)!.submissions
-                      : AppLocalizations.of(context)!.submitYourWork,
-                  icon: Icons.folder_special_rounded,
-                  color: Colors.blueAccent,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AssignmentsPage(
-                        courseId: widget.courseId,
-                        role: _role,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (!isTeacher) ...[
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildActionCard(
-                    title: AppLocalizations.of(context)!.classRecordings,
-                    subtitle: AppLocalizations.of(context)!.rewatchPastSessions,
-                    icon: Icons.video_library_rounded,
-                    color: Colors.purpleAccent,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RecordingsPage(courseId: widget.courseId, role: _role),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ],
-          ),
-          if (userRole == 'admin') ...[
-            const SizedBox(height: 16),
-            _buildActionCard(
-              title: Localizations.localeOf(context).languageCode == 'ar'
-                  ? 'إرسال إشعار للدورة'
-                  : 'Send Course Notification',
-              subtitle: Localizations.localeOf(context).languageCode == 'ar'
-                  ? 'إرسال تنبيه فوري لجميع الطلاب والمعلم'
-                  : 'Send instant notification to all students and the teacher',
-              icon: Icons.campaign_rounded,
-              color: Colors.amber,
-              onTap: _showAdminNotificationDialog,
-            ),
-          ],
-          if (isTeacher) ...[
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildActionCard(
-                    title: AppLocalizations.of(context)!.classRecordings,
-                    subtitle: AppLocalizations.of(context)!.rewatchPastSessions,
-                    icon: Icons.video_library_rounded,
-                    color: Colors.purpleAccent,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RecordingsPage(courseId: widget.courseId, role: _role),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildActionCard(
-                    title: Localizations.localeOf(context).languageCode == 'ar'
-                        ? 'ملحقات ومراجع'
-                        : 'Course Materials',
-                    subtitle: Localizations.localeOf(context).languageCode == 'ar'
-                        ? 'ملفات PDF وصور'
-                        : 'PDFs & Templates',
-                    icon: Icons.auto_stories_rounded,
-                    color: Colors.tealAccent,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CourseMaterialsPage(
-                            courseId: widget.courseId,
-                            courseName: courseName,
-                            isTeacher: isTeacher,
-                            isAdmin: userRole == 'admin',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 40),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)!.viewAndManageStudents,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildEnrolledStudentsList(),
-          ] else ...[
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildActionCard(
-                    title: Localizations.localeOf(context).languageCode == 'ar'
-                        ? 'ملحقات ومراجع'
-                        : 'Course Materials',
-                    subtitle: Localizations.localeOf(context).languageCode == 'ar'
-                        ? 'ملفات PDF وصور'
-                        : 'PDFs & Templates',
-                    icon: Icons.auto_stories_rounded,
-                    color: Colors.tealAccent,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CourseMaterialsPage(
-                            courseId: widget.courseId,
-                            courseName: courseName,
-                            isTeacher: isTeacher,
-                            isAdmin: userRole == 'admin',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Spacer(),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  void _openCourseChat() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CourseChatPage(
-          courseId: widget.courseId,
-          courseName: courseName,
-          courseTeacherId:
-              courseTeacherId ?? widget.courseData['teacherId']?.toString(),
-          isTeacher: isTeacher,
-          isAdmin: userRole == 'admin',
-        ),
-      ),
-    );
-  }
-
-  void _listenToOverrides() {
-    FirebaseFirestore.instance
-        .collection('courses')
-        .doc(widget.courseId)
-        .snapshots()
-        .listen((snapshot) {
-          if (snapshot.exists && mounted) {
-            final data = snapshot.data() as Map<String, dynamic>;
-
-            // Auto-expire reschedule if it was for a previous day
-            var rescheduleData = data['rescheduledSession'];
-            if (rescheduleData != null &&
-                rescheduleData['originalDate'] != null) {
-              final originalDate = (rescheduleData['originalDate'] as Timestamp)
-                  .toDate();
-              final now = DateTime.now();
-              if (originalDate.year != now.year ||
-                  originalDate.month != now.month ||
-                  originalDate.day != now.day) {
-                rescheduleData = null; // Ignore it, it's expired
-              }
-            }
-
-            setState(() {
-              _rescheduledData = rescheduleData;
-            });
-          }
-        });
-  }
-
-  bool _isSessionToday() {
-    if (selectedDays.isEmpty) return false;
-
-    // Check if the course is currently active
-    if (startDate == null || endDate == null) return false;
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final startDay = DateTime(
-      startDate!.year,
-      startDate!.month,
-      startDate!.day,
-    );
-    final endDay = DateTime(endDate!.year, endDate!.month, endDate!.day);
-
-    if (today.isBefore(startDay)) return false; // Course hasn't started yet
-    if (today.isAfter(endDay)) return false; // Course has already ended
-
-    final todayName = DateFormat('EEEE').format(now);
-    return selectedDays.contains(todayName);
-  }
-
-  Widget _buildDynamicSchedulingCard() {
-    final hasReschedule = _rescheduledData != null;
-    final bool isSessionToday = _isSessionToday();
-
-    if (!isTeacher && !hasReschedule) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: hasReschedule
-            ? Colors.orangeAccent.withOpacity(0.1)
-            : Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: hasReschedule
-              ? Colors.orangeAccent.withOpacity(0.3)
-              : Colors.white.withOpacity(0.1),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.schedule_send_rounded,
-                color: hasReschedule ? Colors.orangeAccent : Colors.white60,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                hasReschedule
-                    ? AppLocalizations.of(context)!.sessionRescheduled
-                    : AppLocalizations.of(context)!.todaysSchedule,
-                style: TextStyle(
-                  color: hasReschedule ? Colors.orangeAccent : Colors.white60,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (hasReschedule) ...[
-            Text(
-              AppLocalizations.of(context)!.teacherMovedSession,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "${AppLocalizations.of(context)!.newTime} ${DateFormat.jm(Localizations.localeOf(context).toString()).format((_rescheduledData!['newStartTime'] as Timestamp).toDate())}",
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-          ] else
-            Text(
-              AppLocalizations.of(context)!.sessionOnTime,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-          if (isTeacher) ...[
-            if (!isSessionToday && !hasReschedule) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orangeAccent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.orangeAccent.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: Colors.orangeAccent,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        AppLocalizations.of(
-                          context,
-                        )!.cannotRescheduleNotMeetingDay,
-                        style: const TextStyle(
-                          color: Colors.orangeAccent,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: (isSessionToday || hasReschedule)
-                    ? _showRescheduleDialog
-                    : null,
-                icon: Icon(
-                  hasReschedule ? Icons.edit_calendar : Icons.more_time,
-                  size: 18,
-                ),
-                label: _isSavingReschedule
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black,
-                        ),
-                      )
-                    : Text(
-                        hasReschedule
-                            ? AppLocalizations.of(context)!.updateReschedule
-                            : AppLocalizations.of(context)!.rescheduleToday,
-                      ),
-                style: ElevatedButton.styleFrom(
-                  disabledBackgroundColor: Colors.white.withOpacity(0.05),
-                  disabledForegroundColor: Colors.white30,
-                  backgroundColor: hasReschedule
-                      ? Colors.orangeAccent
-                      : AppColors.accentGold,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-            if (hasReschedule)
-              TextButton(
-                onPressed: _cancelReschedule,
-                child: Text(
-                  AppLocalizations.of(context)!.cancelReschedule,
-                  style: const TextStyle(color: Colors.redAccent),
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showRescheduleDialog() async {
-    TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(selectedTime ?? DateTime.now()),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.accentGold,
-              onPrimary: Colors.black,
-              surface: AppColors.primary,
-              onSurface: Colors.white,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.accentGold,
-              ),
-            ),
-            dialogTheme: DialogThemeData(backgroundColor: AppColors.primary),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      final now = DateTime.now();
-      final newStartTime = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        picked.hour,
-        picked.minute,
-      );
-      // Assume 1 hour session for simplicity in this mockup or pick end time too
-      final newEndTime = newStartTime.add(const Duration(hours: 1));
-
-      setState(() => _isSavingReschedule = true);
-      try {
-        // The server tells the students (once).
-        final result = await ClassroomScope.of(context).board.reschedule(
-              widget.courseId,
-              _role,
-              SessionChange(originalDate: now, newStart: newStartTime, newEnd: newEndTime),
-            );
-        if (!result.ok) throw Exception(result.message ?? result.outcome.name);
-        if (!mounted) return;
-
-        _showMessage(
-          AppLocalizations.of(context)!.success,
-          AppLocalizations.of(context)!.sessionRescheduledSuccess,
-          MessengerType.success,
-        );
-      } catch (e) {
-        _showMessage(
-          AppLocalizations.of(context)!.error,
-          "${AppLocalizations.of(context)!.error}: $e",
-          MessengerType.error,
-        );
-      }
-      setState(() => _isSavingReschedule = false);
-    }
-  }
-
-  Future<void> _cancelReschedule() async {
-    setState(() => _isSavingReschedule = true);
-    try {
-      final result = await ClassroomScope.of(context).board.cancelReschedule(widget.courseId, _role);
-      if (!result.ok) throw Exception(result.message ?? result.outcome.name);
-      _showMessage(
-        AppLocalizations.of(context)!.success,
-        AppLocalizations.of(context)!.sessionBackToNormal,
-        MessengerType.info,
-      );
-    } catch (e) {
-      _showMessage(
-        AppLocalizations.of(context)!.error,
-        "${AppLocalizations.of(context)!.error}: $e",
-        MessengerType.error,
-      );
-    }
-    setState(() => _isSavingReschedule = false);
-  }
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.accentGold, size: 22),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildToolChip(String label, String iconKey) {
-    final Map<String, IconData> iconRegistry = {
-      'brush': Icons.brush,
-      'pen': Icons.create,
-      'paper': Icons.article,
-      'ink': Icons.water_drop,
-      'generic': Icons.check_circle_outline,
-      'star': Icons.star,
-      'build': Icons.build,
-      'palette': Icons.palette,
-      'hand': Icons.front_hand,
-      'book': Icons.book,
-      'school': Icons.assignment_ind,
-    };
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.accentGold.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  iconRegistry[iconKey] ?? Icons.check_circle_outline,
-                  color: AppColors.accentGold,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                _localizeContent(label),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Urbanist',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCurriculumTimeline() {
-    final modules =
-        _translatedCurriculum ??
-        (curriculumSteps.isNotEmpty
-            ? curriculumSteps
-            : [
-                AppLocalizations.of(context)!.introToThuluth,
-                AppLocalizations.of(context)!.letterAlifBaa,
-                AppLocalizations.of(context)!.jointLetters,
-                AppLocalizations.of(context)!.sentences,
-                AppLocalizations.of(context)!.finalProject,
-              ]);
-    return Column(
-      children: List.generate(modules.length, (index) {
-        final isLast = index == modules.length - 1;
-        return IntrinsicHeight(
-          child: Row(
-            children: [
-              Column(
-                children: [
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: AppColors.accentGold,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accentGold.withOpacity(0.4),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isLast)
-                    Expanded(
-                      child: Container(
-                        width: 2,
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              AppColors.accentGold.withOpacity(0.5),
-                              Colors.white10,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.03),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(
-                            context,
-                          )!.module(index + 1).toUpperCase(),
-                          style: const TextStyle(
-                            color: AppColors.accentGold,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _localizeContent(modules[index]),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Urbanist',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildActionCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(
-        minHeight: 150,
-      ), // Changed from fixed height to minHeight and slightly increased
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: color.withOpacity(0.3), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          splashColor: color.withOpacity(0.1),
-          highlightColor: Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 20,
-            ), // Reduced horizontal padding slightly
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize:
-                  MainAxisSize.min, // Allow column to be as small as possible
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10), // Reduced from 12
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 24, // Reduced from 28
-                  ),
-                ),
-                const SizedBox(
-                  height: 20,
-                ), // Explicit spacing instead of Spacer
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 18, // Reduced from 20
-                    letterSpacing: -0.5,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoColumn(
-    String label,
-    DateTime? date,
-    DateFormat formatter,
-    IconData icon,
-  ) {
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.white38, size: 18),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            date != null
-                ? formatter.format(date)
-                : AppLocalizations.of(context)!.notAvailableShort,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnrolledStudentsList() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) return const SizedBox();
-        if (!snapshot.hasData) return const SizedBox();
-        final courseData = snapshot.data!.data() as Map<String, dynamic>?;
-        if (courseData == null) return const SizedBox();
-        final dynamic studentsRaw = courseData['enrolledStudents'];
-        final List<String> enrolledStudentIds = (studentsRaw is List)
-            ? List<String>.from(studentsRaw.whereType<String>())
-            : [];
-
-        if (enrolledStudentIds.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(24),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.person_outline, color: Colors.white24, size: 32),
-                SizedBox(height: 8),
-                Text(
-                  AppLocalizations.of(context)!.noStudentsEnrolledYet,
-                  style: const TextStyle(color: Colors.white54),
-                ),
-              ],
-            ),
-          );
-        }
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchStudentDetails(enrolledStudentIds),
-          builder: (context, studentDetailsSnapshot) {
-            if (!studentDetailsSnapshot.hasData) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.accentGold),
-              );
-            }
-            final students = studentDetailsSnapshot.data!;
-            return ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: students.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final student = students[index];
-                return Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: InkWell(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            PublicProfilePage(userId: student['uid']),
-                      ),
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Hero(
-                            tag: 'student_pic_${student['uid']}',
-                            child: Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.accentGold.withOpacity(0.3),
-                                  width: 2,
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(25),
-                                child:
-                                    (student['profilePic'] != null &&
-                                        student['profilePic']
-                                            .toString()
-                                            .isNotEmpty)
-                                    ? SmartImage(
-                                        imageUrl: student['profilePic'],
-                                        fit: BoxFit.cover,
-                                        placeholder: Container(
-                                          color: AppColors.accentGold
-                                              .withOpacity(0.1),
-                                          child: const Center(
-                                            child: SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: AppColors.accentGold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        errorWidget: _buildDefaultAvatar(
-                                          student['name'],
-                                        ),
-                                      )
-                                    : _buildDefaultAvatar(student['name']),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        student['name'] ?? 'Unknown',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  student['email'] ?? 'No Email',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                if (student['createdAt'] != null) ...[
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.calendar_today_outlined,
-                                        size: 10,
-                                        color: AppColors.accentGold.withOpacity(
-                                          0.6,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "${AppLocalizations.of(context)!.studentSince} ${DateFormat.yMMMM(Localizations.localeOf(context).toString()).format(student['createdAt'])}",
-                                        style: TextStyle(
-                                          color: AppColors.accentGold
-                                              .withOpacity(0.6),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 14,
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildDefaultAvatar(String? name) {
-    return Container(
-      color: AppColors.accentGold,
-      child: Center(
-        child: Text(
-          (name ?? 'U')[0].toUpperCase(),
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchStudentDetails(
-    List<String> studentIds,
-  ) async {
-    if (studentIds.isEmpty) return [];
-    const int batchSize = 10;
-    List<Future<QuerySnapshot>> futures = [];
-    for (int i = 0; i < studentIds.length; i += batchSize) {
-      final List<String> batch = studentIds.sublist(
-        i,
-        (i + batchSize > studentIds.length) ? studentIds.length : i + batchSize,
-      );
-      futures.add(
-        FirebaseFirestore.instance
-            .collection('users')
-            .where(FieldPath.documentId, whereIn: batch)
-            .get(),
-      );
-    }
-    final l10n = AppLocalizations.of(context)!;
-    List<QuerySnapshot> snapshots = await Future.wait(futures);
-    List<Map<String, dynamic>> students = [];
-    for (var snapshot in snapshots) {
-      for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        students.add({
-          'uid': doc.id,
-          'name': data['fullName'] ?? data['name'] ?? l10n.unknownStudent,
-          'email': data['email'] ?? l10n.noEmail,
-          'profilePic': data['photoUrl'] ?? data['profilePic'],
-          'createdAt': (data['createdAt'] is Timestamp)
-              ? (data['createdAt'] as Timestamp).toDate()
-              : null,
-        });
-      }
-    }
-    return students;
-  }
-
-  void _showMessage(String title, String msg, MessengerType type) {
-    if (!mounted) return;
-    AppMessenger.showSnackBar(context, title: title, message: msg, type: type);
-  }
-
-  final AdminService _adminService = AdminService();
-
-  void _showAdminNotificationDialog() async {
-    // Fetch latest course document to get accurate enrolledStudents and teacherId
-    DocumentSnapshot<Map<String, dynamic>>? courseDoc;
-    try {
-      courseDoc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
-    } catch (_) {}
-
-    final data = courseDoc?.data() ?? widget.courseData;
-    final String cName = data['courseName'] ?? data['courseTitle'] ?? courseName;
-    final String tName = data['teacherName'] ?? widget.courseData['teacherName'] ?? 'Instructor';
-    final String tId = data['teacherId'] ?? widget.courseData['teacherId'] ?? '';
-    final dynamic studentsRaw = data['enrolledStudents'];
-    final List<String> studentIds = (studentsRaw is List)
-        ? studentsRaw.map((e) => e.toString()).toList()
-        : <String>[];
-    final int enrolledCount = studentIds.length;
-    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
-
-    if (!mounted) return;
-
-    final TextEditingController msgController = TextEditingController();
-    bool isSending = false;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return Dialog(
-            backgroundColor: const Color(0xFF1E1E1E),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.campaign_rounded, color: Colors.amber, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          isArabic ? "إرسال إشعار للدورة" : "Send Course Notification",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Course Info Card
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.04),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          cName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            const Icon(Icons.person_outline_rounded, color: Colors.white70, size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              isArabic ? "المعلم: $tName" : "Teacher: $tName",
-                              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.cyan.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                isArabic ? "$enrolledCount طالب + المعلم" : "$enrolledCount students + teacher",
-                                style: const TextStyle(
-                                  color: Colors.cyanAccent,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Live Preview Box
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber.withOpacity(0.2)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.preview_rounded, size: 14, color: Colors.amber),
-                            const SizedBox(width: 6),
-                            Text(
-                              isArabic ? "شكل الإشعار كما سيصل للهواتف:" : "Notification Preview:",
-                              style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          "📢 إشعار إداري: $cName",
-                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          msgController.text.trim().isEmpty
-                              ? (isArabic
-                                  ? "بخصوص دورتكم مع أ. $tName: [نص رسالتك هنا...]"
-                                  : "Regarding your course with $tName: [Your message here...]")
-                              : (isArabic
-                                  ? "بخصوص دورتكم مع أ. $tName: ${msgController.text.trim()}"
-                                  : "Regarding your course with $tName: ${msgController.text.trim()}"),
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 11,
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Message Input Field
-                  Text(
-                    isArabic ? "نص الرسالة:" : "Message Body:",
-                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: msgController,
-                    maxLines: 4,
-                    minLines: 3,
-                    onChanged: (_) => setDialogState(() {}),
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: isArabic
-                          ? "مثال: نود تذكيركم بمراجعة قسم الواجبات قبل بداية الحصة القادمة..."
-                          : "Type your message here...",
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 12),
-                      filled: true,
-                      fillColor: Colors.black.withOpacity(0.3),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.amber, width: 1.5),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Actions
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: isSending ? null : () => Navigator.pop(dialogCtx),
-                        child: Text(
-                          isArabic ? "إلغاء" : "Cancel",
-                          style: TextStyle(color: Colors.white.withOpacity(0.6)),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: isSending || msgController.text.trim().isEmpty
-                            ? null
-                            : () async {
-                                final text = msgController.text.trim();
-                                if (text.isEmpty) return;
-
-                                setDialogState(() => isSending = true);
-
-                                try {
-                                  final count = await _adminService.sendCourseNotification(
-                                    courseId: widget.courseId,
-                                    courseName: cName,
-                                    teacherName: tName,
-                                    teacherId: tId,
-                                    studentIds: studentIds,
-                                    message: text,
-                                  );
-
-                                  if (mounted) {
-                                    Navigator.pop(dialogCtx);
-                                    _showMessage(
-                                      isArabic ? "تم الإرسال" : "Sent",
-                                      isArabic
-                                          ? "تم إرسال الإشعار بنجاح إلى $count مستلم (الطلاب والمعلم)"
-                                          : "Notification sent successfully to $count recipients",
-                                      MessengerType.success,
-                                    );
-                                  }
-                                } catch (e) {
-                                  setDialogState(() => isSending = false);
-                                  if (mounted) {
-                                    _showMessage(
-                                      isArabic ? "خطأ" : "Error",
-                                      "$e",
-                                      MessengerType.error,
-                                    );
-                                  }
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.amber,
-                          disabledBackgroundColor: Colors.amber.withOpacity(0.3),
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: isSending
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-                              )
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.send_rounded, size: 16, color: Colors.black),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    isArabic ? "إرسال الإشعار" : "Send Notification",
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }
 
 // --- ✅ UPDATED DELEGATE TO FIX GEOMETRY ERROR ---

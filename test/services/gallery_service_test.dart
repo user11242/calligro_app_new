@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:calligro_app/features/gallery/services/gallery_service.dart';
+import 'package:calligro_app/features/gallery/data/gallery_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {

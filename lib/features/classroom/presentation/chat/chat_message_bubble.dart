@@ -1,6 +1,6 @@
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/core/widgets/smart_image.dart';
-import 'package:calligro_app/features/course_chat/models/course_chat_message.dart';
+import 'package:calligro_app/features/classroom/domain/course_chat_message.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

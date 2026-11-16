@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:calligro_app/features/course_chat/models/course_chat_message.dart';
+import 'package:calligro_app/features/classroom/domain/course_chat_message.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -20,6 +20,9 @@ class CourseChatService {
         _auth = auth ?? FirebaseAuth.instance,
         _storage = storage ?? FirebaseStorage.instance;
 
+  /// The signed-in user (screens ask here, not FirebaseAuth).
+  String? get currentUid => _auth.currentUser?.uid;
+
   CollectionReference<Map<String, dynamic>> _messagesRef(String courseId) {
     return _firestore.collection('courses').doc(courseId).collection('messages');
   }
@@ -33,7 +36,7 @@ class CourseChatService {
         .orderBy('createdAt', descending: true)
         .limit(limit)
         .snapshots()
-        .map((snap) => snap.docs.map(CourseChatMessage.fromFirestore).toList());
+        .map((snap) => [for (final d in snap.docs) CourseChatMessage.fromMap(d.id, d.data())]);
   }
 
   /// Sends a text and/or image message into [courseId]'s group chat.
@@ -150,15 +153,8 @@ class CourseChatService {
     required String uid,
     required String profileRole,
     String? courseTeacherId,
-  }) {
-    if (courseTeacherId != null && uid == courseTeacherId) {
-      return 'teacher';
-    }
-    if (profileRole == 'admin') {
-      return 'admin';
-    }
-    return 'student';
-  }
+  }) =>
+      ChatPolicy.senderRole(uid: uid, profileRole: profileRole, courseTeacherId: courseTeacherId);
 
   Future<String> _uploadChatImage(
     String courseId,

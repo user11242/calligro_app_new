@@ -1,7 +1,8 @@
+import 'package:calligro_app/features/gallery/data/gallery_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:calligro_app/features/gallery/models/gallery_artwork.dart';
+import 'package:calligro_app/features/gallery/domain/gallery_models.dart';
 
 void main() {
   group('Layer 1: GalleryArtwork Tests (Coverage)', () {
@@ -21,7 +22,7 @@ void main() {
       });
 
       final snapshot = await docRef.get();
-      final artwork = GalleryArtwork.fromFirestore(snapshot);
+      final artwork = GalleryService.artwork(snapshot);
 
       expect(artwork.id, 'art_123');
       expect(artwork.artistId, 'artist_456');
@@ -37,7 +38,7 @@ void main() {
       
       await docRef.set({}); // Empty
       final snapshot = await docRef.get();
-      final artwork = GalleryArtwork.fromFirestore(snapshot);
+      final artwork = GalleryService.artwork(snapshot);
 
       expect(artwork.id, 'art_empty');
       expect(artwork.artistId, '');
@@ -45,27 +46,6 @@ void main() {
       expect(artwork.highResUrl, '');
       expect(artwork.title, '');
       expect(artwork.createdAt, isNull);
-    });
-
-    test('toMap() converts GalleryArtwork back to Firebase map', () {
-      final artwork = GalleryArtwork(
-        id: 'art_789',
-        artistId: 'artist_999',
-        thumbnailUrl: 'thumb.jpg',
-        highResUrl: 'high.jpg',
-        title: 'Masterpiece',
-        createdAt: now,
-      );
-
-      final map = artwork.toMap();
-
-      expect(map['id'], 'art_789');
-      expect(map['artistId'], 'artist_999');
-      expect(map['thumbnailUrl'], 'thumb.jpg');
-      expect(map['highResUrl'], 'high.jpg');
-      expect(map['title'], 'Masterpiece');
-      expect(map['createdAt'], isA<Timestamp>());
-      expect((map['createdAt'] as Timestamp).toDate(), now);
     });
   });
 }

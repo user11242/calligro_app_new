@@ -1,4 +1,4 @@
-import 'package:calligro_app/features/course_chat/widgets/course_details_floating_bar.dart';
+import 'package:calligro_app/features/classroom/presentation/chat/course_details_floating_bar.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
