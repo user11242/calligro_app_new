@@ -3880,4 +3880,51 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get meetGridView => 'Izgara görünümü';
+
+  @override
+  String get meetShowWork => 'Öğrenci çalışmasını göster';
+
+  @override
+  String get meetShowWorkChooseAssignment => 'Bir ödev seçin';
+
+  @override
+  String get meetShowWorkChooseStudent => 'Bir öğrencinin çalışmasını seçin';
+
+  @override
+  String get meetShowWorkNoAssignments => 'Bu kursta henüz ödev yok';
+
+  @override
+  String get meetShowWorkNoFiles =>
+      'Bu ödev için henüz dosya yükleyen öğrenci yok';
+
+  @override
+  String get meetShowWorkUnsupported =>
+      'Derste yalnızca resimler ve PDF dosyaları gösterilebilir';
+
+  @override
+  String get meetSharedWorkLoading => 'Çalışma açılıyor…';
+
+  @override
+  String get meetSharedWorkError => 'Bu dosya açılamadı';
+
+  @override
+  String get meetStopShowing => 'Göstermeyi durdur';
+
+  @override
+  String get meetDrawPen => 'Çiz';
+
+  @override
+  String get meetDrawMove => 'Taşı ve yakınlaştır';
+
+  @override
+  String get meetDrawUndo => 'Geri al';
+
+  @override
+  String get meetDrawClear => 'Sayfayı temizle';
+
+  @override
+  String get meetPreviousPage => 'Önceki sayfa';
+
+  @override
+  String get meetNextPage => 'Sonraki sayfa';
 }

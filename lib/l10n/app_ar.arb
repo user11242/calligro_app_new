@@ -1301,5 +1301,20 @@
   "meetTeacherLeaveOrEnd": "هل ترغب في مغادرة الحصة مؤقتاً، أم إنهاء الحصة لجميع الطلاب؟",
   "meetLeaveOnly": "مغادرة فقط",
   "meetSpeakerView": "عرض المتحدث",
-  "meetGridView": "عرض الشبكة"
+  "meetGridView": "عرض الشبكة",
+  "meetShowWork": "عرض عمل طالب",
+  "meetShowWorkChooseAssignment": "اختر واجباً",
+  "meetShowWorkChooseStudent": "اختر عمل طالب",
+  "meetShowWorkNoAssignments": "لا توجد واجبات في هذه الدورة بعد",
+  "meetShowWorkNoFiles": "لم يرفع أي طالب ملفاً لهذا الواجب بعد",
+  "meetShowWorkUnsupported": "يمكن عرض الصور وملفات PDF فقط أثناء الحصة",
+  "meetSharedWorkLoading": "جارٍ فتح العمل…",
+  "meetSharedWorkError": "تعذّر فتح هذا الملف",
+  "meetStopShowing": "إيقاف العرض",
+  "meetDrawPen": "رسم",
+  "meetDrawMove": "تحريك وتكبير",
+  "meetDrawUndo": "تراجع",
+  "meetDrawClear": "مسح الصفحة",
+  "meetPreviousPage": "الصفحة السابقة",
+  "meetNextPage": "الصفحة التالية"
 }

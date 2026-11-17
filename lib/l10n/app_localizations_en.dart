@@ -3875,4 +3875,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meetGridView => 'Grid view';
+
+  @override
+  String get meetShowWork => 'Show student work';
+
+  @override
+  String get meetShowWorkChooseAssignment => 'Choose an assignment';
+
+  @override
+  String get meetShowWorkChooseStudent => 'Choose a student\'s work';
+
+  @override
+  String get meetShowWorkNoAssignments => 'No assignments in this course yet';
+
+  @override
+  String get meetShowWorkNoFiles =>
+      'No student has uploaded a file for this assignment yet';
+
+  @override
+  String get meetShowWorkUnsupported =>
+      'Only images and PDF files can be shown in class';
+
+  @override
+  String get meetSharedWorkLoading => 'Opening the work…';
+
+  @override
+  String get meetSharedWorkError => 'This file could not be opened';
+
+  @override
+  String get meetStopShowing => 'Stop showing';
+
+  @override
+  String get meetDrawPen => 'Draw';
+
+  @override
+  String get meetDrawMove => 'Move and zoom';
+
+  @override
+  String get meetDrawUndo => 'Undo';
+
+  @override
+  String get meetDrawClear => 'Clear page';
+
+  @override
+  String get meetPreviousPage => 'Previous page';
+
+  @override
+  String get meetNextPage => 'Next page';
 }

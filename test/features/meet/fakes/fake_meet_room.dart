@@ -126,6 +126,16 @@ class FakeMeetRoom implements MeetRoom {
   @override
   Future<void> switchCamera(MeetCameraPosition position) async => cameraPositions.add(position);
 
+  /// Camera zoom levels the app asked for, in order.
+  final cameraZooms = <double>[];
+  Object? zoomError;
+
+  @override
+  Future<void> setCameraZoom(double zoom) async {
+    if (zoomError != null) throw zoomError!;
+    cameraZooms.add(zoom);
+  }
+
   @override
   Future<void> publish(Map<String, dynamic> message) async => published.add(message);
 

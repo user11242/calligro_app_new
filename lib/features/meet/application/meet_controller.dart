@@ -9,6 +9,7 @@ import '../domain/meet_participant.dart';
 import '../domain/meet_policies.dart';
 import '../domain/meet_protocol.dart';
 import '../domain/meet_room.dart';
+import '../domain/shared_work.dart';
 import 'recording_controller.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,6 +108,8 @@ class MeetController extends ChangeNotifier {
   final Duration _endMeetingSignalDelay;
   final Duration _leaveDelay;
   final void Function(String) _log;
+  final DateTime Function() _clock;
+  final String Function() _newId;
   late final RecordingController _recording;
 
   String _token;
@@ -127,6 +130,8 @@ class MeetController extends ChangeNotifier {
     Duration endMeetingSignalDelay = const Duration(milliseconds: 500),
     Duration leaveDelay = const Duration(seconds: 2),
     void Function(String message)? log,
+    DateTime Function()? clock,
+    String Function()? newId,
   })  : _room = room,
         _backend = backend,
         _token = token,
@@ -138,7 +143,9 @@ class MeetController extends ChangeNotifier {
         _connectGrace = connectGrace,
         _endMeetingSignalDelay = endMeetingSignalDelay,
         _leaveDelay = leaveDelay,
-        _log = log ?? ((_) {}) {
+        _log = log ?? ((_) {}),
+        _clock = clock ?? DateTime.now,
+        _newId = newId ?? _defaultId {
     _recording = RecordingController(backend, isTeacher: isTeacher, log: _log);
     _subscription = _room.events.listen(_onRoomEvent);
   }
@@ -204,6 +211,144 @@ class MeetController extends ChangeNotifier {
   }
 
   int get gridColumns => StageLayoutPolicy.gridColumns(_participants.length);
+
+  // ── Shared student work (the teacher shows a submission to the class) ──
+  SharedWork? _sharedWork;
+
+  /// The student work on everyone's screen, or null.
+  SharedWork? get sharedWork => _sharedWork;
+
+  static const _strokeSendInterval = Duration(milliseconds: 50);
+  static const _viewSendInterval = Duration(milliseconds: 100);
+  final Map<String, int> _strokeSent = {};
+  final Map<String, DateTime> _strokeLastSend = {};
+  DateTime? _viewLastSend;
+  bool _viewPending = false;
+
+  /// Teacher: put one submission on everyone's screen (replaces what is shown).
+  void showWork({required String url, required SharedWorkKind kind, required String studentName, required String assignmentTitle}) {
+    if (!isTeacher || !SharedWorkMessage.isAllowedUrl(url)) return;
+    _strokeSent.clear();
+    _strokeLastSend.clear();
+    _teacherSend(SharedWorkProtocol.show(
+        shareId: _newId(), url: url, kind: kind, studentName: studentName, assignmentTitle: assignmentTitle));
+  }
+
+  /// Teacher: show another PDF page (also resets the zoom).
+  void setPage(int page) {
+    final w = _sharedWork;
+    if (!isTeacher || w == null || w.kind != SharedWorkKind.pdf || page < 0) return;
+    _teacherSend(SharedWorkProtocol.page(w.shareId, page));
+  }
+
+  /// Teacher: zoom / pan changed. Sent at most every 100 ms; [endViewChange] sends the final one.
+  void setView(SharedView view) {
+    final w = _sharedWork;
+    if (!isTeacher || w == null) return;
+    final v = view.clamped();
+    _sharedWork = w.copyWith(view: v);
+    final last = _viewLastSend;
+    if (last == null || _clock().difference(last) >= _viewSendInterval) {
+      _publishView();
+    } else {
+      _viewPending = true;
+    }
+    _notify();
+  }
+
+  void endViewChange() {
+    if (isTeacher && _viewPending) _publishView();
+  }
+
+  void _publishView() {
+    final w = _sharedWork;
+    if (w == null) return;
+    _viewPending = false;
+    _viewLastSend = _clock();
+    _room.publish(SharedWorkProtocol.view(w.shareId, w.view));
+  }
+
+  /// Teacher: a new pen line starts at [at]. Returns its id.
+  String startStroke({required int color, required double width, required SharedPoint at}) {
+    final w = _sharedWork;
+    if (!isTeacher || w == null) return '';
+    final id = _newId();
+    _sharedWork = w.copyWith(strokes: [
+      ...w.strokes,
+      SharedStroke(id: id, page: w.page, color: color, width: width, points: [at]),
+    ]);
+    _strokeSent[id] = 0;
+    _strokeLastSend[id] = _clock();
+    _notify();
+    return id;
+  }
+
+  /// Teacher: the pen moved. Shown at once here; sent to the class in small pieces.
+  void extendStroke(String id, SharedPoint to) {
+    final w = _sharedWork;
+    if (!isTeacher || w == null || !_strokeSent.containsKey(id)) return;
+    _sharedWork = w.copyWith(strokes: [
+      for (final s in w.strokes) s.id == id ? s.withPoints([...s.points, to]) : s,
+    ]);
+    if (_clock().difference(_strokeLastSend[id]!) >= _strokeSendInterval) _flushStroke(id);
+    _notify();
+  }
+
+  /// Teacher: the pen lifted; sends whatever is still pending.
+  void endStroke(String id) {
+    if (!isTeacher || !_strokeSent.containsKey(id)) return;
+    _flushStroke(id);
+    _strokeSent.remove(id);
+    _strokeLastSend.remove(id);
+  }
+
+  void _flushStroke(String id) {
+    final w = _sharedWork;
+    final stroke = w?.strokes.where((s) => s.id == id).firstOrNull;
+    final from = _strokeSent[id];
+    if (w == null || stroke == null || from == null || from >= stroke.points.length) return;
+    _room.publish(SharedWorkProtocol.stroke(w.shareId, stroke.withPoints(stroke.points.sublist(from)), from: from));
+    _strokeSent[id] = stroke.points.length;
+    _strokeLastSend[id] = _clock();
+  }
+
+  /// Teacher: remove the last line on this page.
+  void undoStroke() {
+    final w = _sharedWork;
+    final last = w?.strokesOnPage.lastOrNull;
+    if (!isTeacher || w == null || last == null) return;
+    _strokeSent.remove(last.id);
+    _strokeLastSend.remove(last.id);
+    _teacherSend(SharedWorkProtocol.undo(w.shareId, last.id));
+  }
+
+  /// Teacher: remove every line on this page.
+  void clearPage() {
+    final w = _sharedWork;
+    if (!isTeacher || w == null) return;
+    _teacherSend(SharedWorkProtocol.clear(w.shareId, w.page));
+  }
+
+  /// Teacher: close it for everyone.
+  void stopSharing() {
+    final w = _sharedWork;
+    if (!isTeacher || w == null) return;
+    _strokeSent.clear();
+    _strokeLastSend.clear();
+    _teacherSend(SharedWorkProtocol.stop(w.shareId));
+  }
+
+  /// Applies a message here exactly as every student's app will, then sends it.
+  void _teacherSend(Map<String, dynamic> message) {
+    final parsed = SharedWorkMessage.parse(message);
+    if (parsed == null) return;
+    _sharedWork = SharedWorkReducer.apply(_sharedWork, parsed);
+    _room.publish(message);
+    _notify();
+  }
+
+  static int _idCounter = 0;
+  static String _defaultId() => '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}${(_idCounter++).toRadixString(36)}';
 
   // ── Joining ────────────────────────────────────────────────────────────
   Future<void> join() async {
@@ -298,14 +443,37 @@ class MeetController extends ChangeNotifier {
 
   Future<void> toggleCamera() async {
     await _room.setCameraEnabled(!_room.isCameraEnabled, position: _cameraPosition);
+    _cameraZoom = CameraZoomPolicy.min; // a fresh camera starts unzoomed
     _refreshParticipants();
   }
 
   Future<void> flipCamera() async {
     _cameraPosition = _cameraPosition == MeetCameraPosition.front ? MeetCameraPosition.back : MeetCameraPosition.front;
+    _cameraZoom = CameraZoomPolicy.min; // the other camera starts unzoomed
     _notify();
     await _room.switchCamera(_cameraPosition);
   }
+
+  // ── Teacher camera zoom ────────────────────────────────────────────────
+  double _cameraZoom = CameraZoomPolicy.min;
+
+  /// The teacher's camera zoom (1 = none). Students see the close-up.
+  double get cameraZoom => _cameraZoom;
+
+  bool get canZoomCamera => isTeacher && _room.isCameraEnabled;
+
+  /// Teacher: zoom the camera to [zoom] (1x-10x; pinches use CameraZoomPolicy.afterPinch).
+  void setCameraZoom(double zoom) {
+    if (!canZoomCamera) return;
+    final z = CameraZoomPolicy.clamp(zoom);
+    if ((z - _cameraZoom).abs() < 0.01) return;
+    _cameraZoom = z;
+    _notify();
+    _room.setCameraZoom(z).catchError((Object e) => _log('Camera zoom not available: $e'));
+  }
+
+  /// Teacher: the zoom button (1x → 2x → 3x → 5x → 10x → 1x).
+  void nextCameraZoom() => setCameraZoom(CameraZoomPolicy.nextPreset(_cameraZoom));
 
   Future<void> toggleHand() async {
     final raise = !_isHandRaised;
@@ -406,6 +574,7 @@ class MeetController extends ChangeNotifier {
     )) {
       _log('App resumed: restoring the camera');
       await _room.setCameraEnabled(true, position: _cameraPosition);
+      _cameraZoom = CameraZoomPolicy.min;
     }
     _cameraDisabledOnPause = false;
   }
@@ -423,6 +592,13 @@ class MeetController extends ChangeNotifier {
       case ParticipantJoined():
         _emit(const PlaySoundEffect(MeetSound.join));
         _refreshParticipants();
+        // Data messages are not stored: someone joining late gets the shared work from the teacher.
+        final w = _sharedWork;
+        if (isTeacher && w != null) {
+          for (final m in SharedWorkProtocol.snapshot(w)) {
+            _room.publish(m);
+          }
+        }
       case ParticipantLeft():
         _emit(const PlaySoundEffect(MeetSound.leave));
         _refreshParticipants();
@@ -494,6 +670,9 @@ class MeetController extends ChangeNotifier {
       case KickedByTeacher():
         _emit(const MeetNoticeEffect(MeetNotice.kicked));
         _endFor(LeaveMeetingEffect(_leaveDelay));
+      case SharedWorkUpdate(:final message):
+        _sharedWork = SharedWorkReducer.apply(_sharedWork, message);
+        _notify();
     }
   }
 

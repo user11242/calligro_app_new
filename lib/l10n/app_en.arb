@@ -1552,5 +1552,20 @@
   "meetTeacherLeaveOrEnd": "Do you want to leave the class for now, or end it for all students?",
   "meetLeaveOnly": "Leave only",
   "meetSpeakerView": "Speaker view",
-  "meetGridView": "Grid view"
+  "meetGridView": "Grid view",
+  "meetShowWork": "Show student work",
+  "meetShowWorkChooseAssignment": "Choose an assignment",
+  "meetShowWorkChooseStudent": "Choose a student's work",
+  "meetShowWorkNoAssignments": "No assignments in this course yet",
+  "meetShowWorkNoFiles": "No student has uploaded a file for this assignment yet",
+  "meetShowWorkUnsupported": "Only images and PDF files can be shown in class",
+  "meetSharedWorkLoading": "Opening the work…",
+  "meetSharedWorkError": "This file could not be opened",
+  "meetStopShowing": "Stop showing",
+  "meetDrawPen": "Draw",
+  "meetDrawMove": "Move and zoom",
+  "meetDrawUndo": "Undo",
+  "meetDrawClear": "Clear page",
+  "meetPreviousPage": "Previous page",
+  "meetNextPage": "Next page"
 }

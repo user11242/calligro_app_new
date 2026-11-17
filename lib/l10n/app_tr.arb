@@ -1202,5 +1202,20 @@
   "meetTeacherLeaveOrEnd": "Dersten şimdilik ayrılmak mı, yoksa dersi tüm öğrenciler için bitirmek mi istiyorsunuz?",
   "meetLeaveOnly": "Sadece ayrıl",
   "meetSpeakerView": "Konuşmacı görünümü",
-  "meetGridView": "Izgara görünümü"
+  "meetGridView": "Izgara görünümü",
+  "meetShowWork": "Öğrenci çalışmasını göster",
+  "meetShowWorkChooseAssignment": "Bir ödev seçin",
+  "meetShowWorkChooseStudent": "Bir öğrencinin çalışmasını seçin",
+  "meetShowWorkNoAssignments": "Bu kursta henüz ödev yok",
+  "meetShowWorkNoFiles": "Bu ödev için henüz dosya yükleyen öğrenci yok",
+  "meetShowWorkUnsupported": "Derste yalnızca resimler ve PDF dosyaları gösterilebilir",
+  "meetSharedWorkLoading": "Çalışma açılıyor…",
+  "meetSharedWorkError": "Bu dosya açılamadı",
+  "meetStopShowing": "Göstermeyi durdur",
+  "meetDrawPen": "Çiz",
+  "meetDrawMove": "Taşı ve yakınlaştır",
+  "meetDrawUndo": "Geri al",
+  "meetDrawClear": "Sayfayı temizle",
+  "meetPreviousPage": "Önceki sayfa",
+  "meetNextPage": "Sonraki sayfa"
 }

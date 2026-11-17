@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:calligro_app/features/meet/domain/meet_message_handler.dart';
 import 'package:calligro_app/features/meet/domain/meet_protocol.dart';
+import 'package:calligro_app/features/meet/domain/shared_work.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Tests the REAL decision logic behind every incoming data message in
@@ -205,6 +206,36 @@ void main() {
         );
         expect(action, expected, reason: '$message');
       });
+    });
+  });
+
+  group('showing a student\'s work to the class (teacher only)', () {
+    final show = SharedWorkProtocol.show(
+      shareId: 'sh1',
+      url: 'https://firebasestorage.googleapis.com/v0/b/x/o/a.jpg?alt=media&token=t',
+      kind: SharedWorkKind.image,
+      studentName: 'Sara',
+      assignmentTitle: 'Alif',
+    );
+    final stop = SharedWorkProtocol.stop('sh1');
+
+    trusted.forEach((who, sender) {
+      test('$who can show, draw and stop', () {
+        expect(send(studentHandler(), show, sender), isA<SharedWorkUpdate>().having((a) => a.message, 'message', isA<ShowWork>()));
+        expect(send(studentHandler(), stop, sender), isA<SharedWorkUpdate>().having((a) => a.message, 'message', isA<StopWork>()));
+      });
+    });
+
+    untrusted.forEach((who, sender) {
+      test('$who cannot put anything on everyone\'s screen', () {
+        expect(send(studentHandler(), show, sender), ignored(IgnoreReason.unauthorizedSender));
+        expect(send(studentHandler(), stop, sender), ignored(IgnoreReason.unauthorizedSender));
+      });
+    });
+
+    test('a teacher message with a bad link or junk is dropped', () {
+      expect(send(studentHandler(), {...show, 'url': 'https://evil.example.com/a.jpg'}, teacherMobile), ignored(IgnoreReason.malformed));
+      expect(send(studentHandler(), {'type': MeetProtocol.workStroke, 'shareId': 'sh1'}, teacherMobile), ignored(IgnoreReason.malformed));
     });
   });
 }

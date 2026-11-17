@@ -39,6 +39,34 @@ class MeetControlButton extends StatelessWidget {
   }
 }
 
+/// Teacher camera zoom: shows the level ("2.5×"); a tap steps 1× → 2× → 3× → 5× → 10× → 1×.
+class _ZoomButton extends StatelessWidget {
+  final double zoom;
+  final VoidCallback onTap;
+  const _ZoomButton({required this.zoom, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final zoomed = zoom > 1.01;
+    final label = '${zoom == zoom.roundToDouble() ? zoom.toInt() : zoom.toStringAsFixed(1)}×';
+    return GestureDetector(
+      key: const Key('camera-zoom'),
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: zoomed ? _gold : Colors.white24, shape: BoxShape.circle),
+        child: Text(
+          label,
+          key: const Key('camera-zoom-label'),
+          style: TextStyle(color: zoomed ? Colors.black : Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+        ),
+      ),
+    );
+  }
+}
+
 /// Small waving-hand animation used in the "teacher ended the class" notice.
 class WavingIcon extends StatefulWidget {
   final IconData icon;
@@ -240,12 +268,16 @@ class MeetControlBar extends StatelessWidget {
   final VoidCallback onInteraction;
   final VoidCallback onOpenParticipants;
 
+  /// Teacher: show a student's work to the class (null hides the button).
+  final VoidCallback? onShowWork;
+
   const MeetControlBar({
     super.key,
     required this.controller,
     required this.visible,
     required this.onInteraction,
     required this.onOpenParticipants,
+    this.onShowWork,
   });
 
   void Function() _tap(void Function() action) => () {
@@ -288,6 +320,10 @@ class MeetControlBar extends StatelessWidget {
                 const SizedBox(width: 14),
                 MeetControlButton(key: const Key('flip-camera'), icon: Icons.flip_camera_ios, onTap: _tap(c.flipCamera)),
               ],
+              if (c.canZoomCamera) ...[
+                const SizedBox(width: 14),
+                _ZoomButton(zoom: c.cameraZoom, onTap: _tap(c.nextCameraZoom)),
+              ],
               const SizedBox(width: 14),
               if (c.isAudioOnly) ...[
                 MeetControlButton(
@@ -296,6 +332,16 @@ class MeetControlBar extends StatelessWidget {
                   color: _gold,
                   iconColor: Colors.black,
                   onTap: _tap(() => c.setAudioOnly(false)),
+                ),
+                const SizedBox(width: 14),
+              ],
+              if (c.isTeacher && onShowWork != null) ...[
+                MeetControlButton(
+                  key: const Key('show-work'),
+                  icon: Icons.co_present,
+                  color: c.sharedWork != null ? _gold : null,
+                  iconColor: c.sharedWork != null ? Colors.black : Colors.white,
+                  onTap: _tap(onShowWork!),
                 ),
                 const SizedBox(width: 14),
               ],

@@ -121,6 +121,10 @@ abstract interface class MeetRoom {
   Future<void> setCameraEnabled(bool enabled, {MeetCameraPosition position = MeetCameraPosition.front});
   Future<void> switchCamera(MeetCameraPosition position);
 
+  /// Zooms our own camera (1 = no zoom). The phone stops at its camera's own limit.
+  /// Throws where the device cannot zoom (e.g. desktop).
+  Future<void> setCameraZoom(double zoom);
+
   /// Sends a reliable data message to everyone in the room.
   Future<void> publish(Map<String, dynamic> message);
 

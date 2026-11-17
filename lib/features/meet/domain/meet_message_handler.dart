@@ -1,4 +1,5 @@
 import 'meet_protocol.dart';
+import 'shared_work.dart';
 
 /// What the meet page must do in response to one incoming data message.
 ///
@@ -72,6 +73,12 @@ class KickedByTeacher extends MeetAction {
   const KickedByTeacher();
 }
 
+/// The teacher changed the shared student work (show, page, zoom, drawing, stop).
+class SharedWorkUpdate extends MeetAction {
+  final SharedWorkMessage message;
+  const SharedWorkUpdate(this.message);
+}
+
 /// Pure decision logic for incoming Calligro Meet data messages.
 class MeetMessageHandler {
   /// Our own LiveKit identity (null while the room is not connected yet).
@@ -118,6 +125,13 @@ class MeetMessageHandler {
       final target = msg['targetId'];
       if (target is! String || target.isEmpty) return const IgnoreMessage(IgnoreReason.missingTarget);
       return HandForceLowered(target, isSelf: target == localIdentity);
+    }
+
+    // ── Shared student work: only the course teacher puts things on everyone's screen ──
+    if (MeetProtocol.sharedWorkTypes.contains(type)) {
+      if (!fromModerator()) return const IgnoreMessage(IgnoreReason.unauthorizedSender);
+      final parsed = SharedWorkMessage.parse(msg);
+      return parsed == null ? const IgnoreMessage(IgnoreReason.malformed) : SharedWorkUpdate(parsed);
     }
 
     if (type == MeetProtocol.endMeetingForAll) {

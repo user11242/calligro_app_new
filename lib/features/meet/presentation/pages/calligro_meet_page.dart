@@ -9,12 +9,17 @@ import '../../application/meet_controller.dart';
 import '../../data/livekit_meet_room.dart';
 import '../../data/meet_backend.dart';
 import '../../data/meet_platform.dart';
+import '../../domain/meet_policies.dart';
 import '../../domain/meet_room.dart';
+import '../../domain/shared_work.dart';
+import '../../data/shared_work_pages.dart';
+import 'package:calligro_app/features/classroom/presentation/pages/share_submission_sheet.dart';
 import '../widgets/meet_controls.dart';
 import '../widgets/meet_dialogs.dart';
 import '../widgets/meet_overlays.dart';
 import '../widgets/meet_stage.dart';
 import '../widgets/participants_sheet.dart';
+import '../widgets/shared_work_stage.dart';
 
 const _gold = Color(0xFFEBB937);
 
@@ -36,6 +41,10 @@ class CalligroMeetPage extends StatefulWidget {
   final MeetPlatform? platform;
   final Duration connectGrace;
 
+  /// Test seams for "show a student's work": the picker and the file loader.
+  final Future<SubmissionToShare?> Function(BuildContext context, String courseId)? pickSubmission;
+  final SharedWorkPageLoader? loadSharedWorkPages;
+
   const CalligroMeetPage({
     super.key,
     required this.token,
@@ -51,6 +60,8 @@ class CalligroMeetPage extends StatefulWidget {
     @visibleForTesting this.backend,
     @visibleForTesting this.platform,
     @visibleForTesting this.connectGrace = const Duration(milliseconds: 800),
+    @visibleForTesting this.pickSubmission,
+    @visibleForTesting this.loadSharedWorkPages,
   });
 
   @override
@@ -66,6 +77,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   bool _showControls = true;
   bool _isGridView = false;
   bool _closing = false;
+  double _zoomAtPinchStart = 1;
   Timer? _controlsTimer;
   Timer? _clock;
   Duration _elapsed = Duration.zero;
@@ -238,6 +250,20 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     }
   }
 
+  // ── Showing a student's work (teacher) ─────────────────────────────────
+  Future<void> _onShowWork() async {
+    final pick = widget.pickSubmission ?? (ctx, courseId) => showShareSubmissionSheet(ctx, courseId: courseId);
+    final chosen = await pick(context, widget.courseId);
+    if (chosen == null || !mounted) return;
+    final kind = SharedWorkKind.fromFile(fileName: chosen.fileName, url: chosen.url);
+    if (kind == null) {
+      _pill(const Icon(Icons.info_outline, color: Colors.white, size: 18), AppLocalizations.of(context)!.meetShowWorkUnsupported,
+          background: const Color(0xFF1E2028).withValues(alpha: 0.95), foreground: Colors.white, seconds: 4);
+      return;
+    }
+    _controller.showWork(url: chosen.url, kind: kind, studentName: chosen.studentName, assignmentTitle: chosen.assignmentTitle);
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -255,23 +281,45 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                 debugConsole: phase == MeetPhase.failed ? const MeetDebugConsole() : null,
               );
             }
+            final zoom = _controller.canZoomCamera;
             final tapLayer = Positioned.fill(
               child: GestureDetector(
                 key: const Key('tap-layer'),
                 behavior: HitTestBehavior.translucent,
                 onTap: _toggleControls,
+                // Teacher with the camera on: pinch zooms the camera; pinches add up (CameraZoomPolicy).
+                onScaleStart: zoom ? (_) => _zoomAtPinchStart = _controller.cameraZoom : null,
+                onScaleUpdate: zoom
+                    ? (d) {
+                        if (d.pointerCount < 2) return;
+                        _controller.setCameraZoom(
+                            CameraZoomPolicy.afterPinch(start: _zoomAtPinchStart, pinchScale: d.scale));
+                      }
+                    : null,
                 child: const SizedBox.expand(),
               ),
             );
             final grid = _isGridView && _controller.stage != null;
+            // The teacher is showing a student's work: it takes the whole stage (it handles its own taps).
+            final sharing = _controller.sharedWork != null;
             return Stack(
               fit: StackFit.expand,
               children: [
-                // Speaker view: the tap layer sits ABOVE the native video views (they swallow taps).
-                // Grid view: tiles must stay tappable (tap → speaker view), so it sits BELOW them.
-                if (grid) tapLayer,
-                Positioned.fill(child: _buildStage(context)),
-                if (!grid) tapLayer,
+                if (sharing)
+                  Positioned.fill(
+                    child: SharedWorkStage(
+                      controller: _controller,
+                      onTap: _toggleControls,
+                      loadPages: widget.loadSharedWorkPages ?? loadSharedWorkPages,
+                    ),
+                  )
+                else ...[
+                  // Speaker view: the tap layer sits ABOVE the native video views (they swallow taps).
+                  // Grid view: tiles must stay tappable (tap → speaker view), so it sits BELOW them.
+                  if (grid) tapLayer,
+                  Positioned.fill(child: _buildStage(context)),
+                  if (!grid) tapLayer,
+                ],
                 MeetTopBar(
                   controller: _controller,
                   elapsed: _elapsed,
@@ -286,6 +334,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                   visible: _showControls,
                   onInteraction: _startControlsTimer,
                   onOpenParticipants: () => showParticipantsSheet(context, _controller),
+                  onShowWork: widget.isTeacher ? _onShowWork : null,
                 ),
                 if (phase == MeetPhase.reconnecting || phase == MeetPhase.disconnected)
                   MeetReconnectOverlay(

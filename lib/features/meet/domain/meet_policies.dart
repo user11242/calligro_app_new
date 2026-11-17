@@ -151,3 +151,23 @@ class StageLayoutPolicy {
   /// Grid columns for the landscape gallery view.
   static int gridColumns(int tileCount) => tileCount <= 2 ? 2 : (tileCount <= 6 ? 3 : 4);
 }
+
+/// The teacher's camera zoom (students see the close-up).
+///
+/// Pinches ADD UP: each one continues from the current zoom (LiveKit's built-in
+/// pinch set the zoom to one pinch's spread and restarted from 1x every time).
+/// The phone may stop earlier than [max]: it never zooms past its own camera's limit.
+class CameraZoomPolicy {
+  CameraZoomPolicy._();
+
+  static const double min = 1;
+  static const double max = 10;
+  static const presets = <double>[1, 2, 3, 5, 10];
+
+  static double clamp(double zoom) => zoom.isFinite ? zoom.clamp(min, max).toDouble() : min;
+
+  static double afterPinch({required double start, required double pinchScale}) => clamp(start * pinchScale);
+
+  /// The next button step above [current]; after the last one, back to 1x.
+  static double nextPreset(double current) => presets.firstWhere((p) => p > current + 0.01, orElse: () => min);
+}

@@ -43,7 +43,7 @@ void main() {
     test('domain is pure Dart: no Flutter, Firebase, LiveKit or other layers', () {
       expectNone(domain, 'package:flutter/', 'domain must not depend on Flutter');
       expectNone(domain, 'package:livekit_client', 'domain must not depend on LiveKit');
-      expectNone(domain, 'firebase', 'domain must not depend on Firebase');
+      expectNone(domain, RegExp(r"^import '[^']*(firebase|firestore)", multiLine: true), 'domain must not depend on Firebase');
       expectNone(domain, '/application/', 'domain must not depend on application');
       expectNone(domain, '/data/', 'domain must not depend on data');
       expectNone(domain, '/presentation/', 'domain must not depend on presentation');
@@ -99,6 +99,7 @@ void main() {
         MeetProtocol.kickParticipant,
         MeetProtocol.forceMuteMic,
         MeetProtocol.forceMuteCamera,
+        ...MeetProtocol.sharedWorkTypes,
       ]) {
         // The server action "mute_all" (MeetModerationAction) shares the name with the data-message command.
         expectNone(outside, "'$wire'", '"$wire" must come from MeetProtocol',

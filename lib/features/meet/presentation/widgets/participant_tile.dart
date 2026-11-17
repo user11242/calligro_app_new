@@ -17,7 +17,10 @@ class MeetVideoView extends StatelessWidget {
   Widget build(BuildContext context) {
     final handle = video.handle;
     if (handle is VideoTrack) {
-      return VideoTrackRenderer(handle, fit: cover ? VideoViewFit.cover : VideoViewFit.contain);
+      final renderer = VideoTrackRenderer(handle, fit: cover ? VideoViewFit.cover : VideoViewFit.contain);
+      // Our own camera: LiveKit's built-in pinch zoom is switched off (it restarted from 1x
+      // on every pinch); the meet page zooms through MeetController.setCameraZoom instead.
+      return video.isLocalCamera ? IgnorePointer(child: renderer) : renderer;
     }
     return const ColoredBox(key: Key('meet-video'), color: Colors.black);
   }

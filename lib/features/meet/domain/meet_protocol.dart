@@ -21,6 +21,16 @@ class MeetProtocol {
   static const forceMuteMic = 'force_mute_mic';
   static const forceMuteCamera = 'force_mute_camera';
 
+  // `type` messages: the teacher shows a student's work to the class (shared_work.dart)
+  static const workShow = 'work_show';
+  static const workPage = 'work_page';
+  static const workView = 'work_view';
+  static const workStroke = 'work_stroke';
+  static const workUndo = 'work_undo';
+  static const workClear = 'work_clear';
+  static const workStop = 'work_stop';
+  static const sharedWorkTypes = {workShow, workPage, workView, workStroke, workUndo, workClear, workStop};
+
   // ── Outgoing message builders ─────────────────────────────────────────
   static Map<String, dynamic> raiseHandMessage(String name) => {'cmd': raiseHand, 'name': name};
   static Map<String, dynamic> lowerHandMessage(String name) => {'cmd': lowerHand, 'name': name};

@@ -3866,4 +3866,50 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get meetGridView => 'عرض الشبكة';
+
+  @override
+  String get meetShowWork => 'عرض عمل طالب';
+
+  @override
+  String get meetShowWorkChooseAssignment => 'اختر واجباً';
+
+  @override
+  String get meetShowWorkChooseStudent => 'اختر عمل طالب';
+
+  @override
+  String get meetShowWorkNoAssignments => 'لا توجد واجبات في هذه الدورة بعد';
+
+  @override
+  String get meetShowWorkNoFiles => 'لم يرفع أي طالب ملفاً لهذا الواجب بعد';
+
+  @override
+  String get meetShowWorkUnsupported =>
+      'يمكن عرض الصور وملفات PDF فقط أثناء الحصة';
+
+  @override
+  String get meetSharedWorkLoading => 'جارٍ فتح العمل…';
+
+  @override
+  String get meetSharedWorkError => 'تعذّر فتح هذا الملف';
+
+  @override
+  String get meetStopShowing => 'إيقاف العرض';
+
+  @override
+  String get meetDrawPen => 'رسم';
+
+  @override
+  String get meetDrawMove => 'تحريك وتكبير';
+
+  @override
+  String get meetDrawUndo => 'تراجع';
+
+  @override
+  String get meetDrawClear => 'مسح الصفحة';
+
+  @override
+  String get meetPreviousPage => 'الصفحة السابقة';
+
+  @override
+  String get meetNextPage => 'الصفحة التالية';
 }

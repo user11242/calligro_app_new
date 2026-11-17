@@ -7251,6 +7251,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Grid view'**
   String get meetGridView;
+
+  /// No description provided for @meetShowWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Show student work'**
+  String get meetShowWork;
+
+  /// No description provided for @meetShowWorkChooseAssignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an assignment'**
+  String get meetShowWorkChooseAssignment;
+
+  /// No description provided for @meetShowWorkChooseStudent.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a student\'s work'**
+  String get meetShowWorkChooseStudent;
+
+  /// No description provided for @meetShowWorkNoAssignments.
+  ///
+  /// In en, this message translates to:
+  /// **'No assignments in this course yet'**
+  String get meetShowWorkNoAssignments;
+
+  /// No description provided for @meetShowWorkNoFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'No student has uploaded a file for this assignment yet'**
+  String get meetShowWorkNoFiles;
+
+  /// No description provided for @meetShowWorkUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Only images and PDF files can be shown in class'**
+  String get meetShowWorkUnsupported;
+
+  /// No description provided for @meetSharedWorkLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening the work…'**
+  String get meetSharedWorkLoading;
+
+  /// No description provided for @meetSharedWorkError.
+  ///
+  /// In en, this message translates to:
+  /// **'This file could not be opened'**
+  String get meetSharedWorkError;
+
+  /// No description provided for @meetStopShowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop showing'**
+  String get meetStopShowing;
+
+  /// No description provided for @meetDrawPen.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw'**
+  String get meetDrawPen;
+
+  /// No description provided for @meetDrawMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move and zoom'**
+  String get meetDrawMove;
+
+  /// No description provided for @meetDrawUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get meetDrawUndo;
+
+  /// No description provided for @meetDrawClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear page'**
+  String get meetDrawClear;
+
+  /// No description provided for @meetPreviousPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous page'**
+  String get meetPreviousPage;
+
+  /// No description provided for @meetNextPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Next page'**
+  String get meetNextPage;
 }
 
 class _AppLocalizationsDelegate

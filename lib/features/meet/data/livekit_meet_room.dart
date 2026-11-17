@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc show Helper;
 import 'package:livekit_client/livekit_client.dart';
 
 import '../domain/meet_participant.dart';
@@ -102,7 +103,7 @@ class LiveKitMeetRoom implements MeetRoom {
           isCameraEnabled: p.isCameraEnabled(),
           connectionQuality: _quality(p.connectionQuality),
           video: pub?.track is VideoTrack
-              ? MeetVideo(pub!.track!, isScreenShare: isScreen, isMuted: pub.muted)
+              ? MeetVideo(pub!.track!, isScreenShare: isScreen, isMuted: pub.muted, isLocalCamera: isLocal && !isScreen)
               : null,
         );
     yield tile(camera);
@@ -219,6 +220,14 @@ class LiveKitMeetRoom implements MeetRoom {
     if (track is LocalVideoTrack) {
       await track.restartTrack(_capture(position));
     }
+  }
+
+  @override
+  Future<void> setCameraZoom(double zoom) async {
+    final track = _local?.videoTrackPublications
+        .firstWhereOrNull((pub) => pub.track is LocalVideoTrack && pub.source == TrackSource.camera)
+        ?.track;
+    if (track is LocalVideoTrack) await rtc.Helper.setZoom(track.mediaStreamTrack, zoom);
   }
 
   @override

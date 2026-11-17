@@ -36,6 +36,8 @@ dependencies:
   in_app_purchase: ^3.3.0  # ✅ REQUIRED for App Store/Play Store digital goods
   in_app_purchase_android: ^0.5.3  # consume tier purchases only after the server enrols
   livekit_client: 2.10.0
+  # Same version livekit_client pins; used directly only for the teacher camera zoom.
+  flutter_webrtc: 1.6.0
   crypto: ^3.0.3
   collection: ^1.18.0
   

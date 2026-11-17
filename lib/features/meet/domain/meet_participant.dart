@@ -7,7 +7,10 @@ class MeetVideo {
   final Object handle;
   final bool isScreenShare;
   final bool isMuted;
-  const MeetVideo(this.handle, {this.isScreenShare = false, this.isMuted = false});
+
+  /// Our own camera (its pinch gestures are the teacher's camera zoom, handled by the meet page).
+  final bool isLocalCamera;
+  const MeetVideo(this.handle, {this.isScreenShare = false, this.isMuted = false, this.isLocalCamera = false});
 }
 
 /// One tile on the stage: a participant's camera, or their screen share.
