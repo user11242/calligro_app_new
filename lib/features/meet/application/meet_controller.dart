@@ -472,6 +472,14 @@ class MeetController extends ChangeNotifier {
     _room.setCameraZoom(z).catchError((Object e) => _log('Camera zoom not available: $e'));
   }
 
+  /// Teacher: focus the camera on a spot of its picture ([x], [y]: fractions 0..1).
+  void focusCamera(double x, double y) {
+    if (!canZoomCamera) return;
+    _room
+        .setCameraFocus(x.clamp(0.0, 1.0).toDouble(), y.clamp(0.0, 1.0).toDouble())
+        .catchError((Object e) => _log('Camera focus not available: $e'));
+  }
+
   /// Teacher: the zoom button (1x → 2x → 3x → 5x → 10x → 1x).
   void nextCameraZoom() => setCameraZoom(CameraZoomPolicy.nextPreset(_cameraZoom));
 

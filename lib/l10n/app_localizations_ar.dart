@@ -3855,11 +3855,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get meetAudioOnlyOff => 'تم إلغاء وضع الصوت فقط';
 
   @override
-  String get meetTeacherLeaveOrEnd =>
-      'هل ترغب في مغادرة الحصة مؤقتاً، أم إنهاء الحصة لجميع الطلاب؟';
-
-  @override
-  String get meetLeaveOnly => 'مغادرة فقط';
+  String get meetTeacherEndConfirm =>
+      'مغادرتك ستُنهي الحصة لجميع الطلاب. هل تريد إنهاءها الآن؟';
 
   @override
   String get meetSpeakerView => 'عرض المتحدث';
@@ -3912,4 +3909,87 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get meetNextPage => 'الصفحة التالية';
+
+  @override
+  String get nextClass => 'الحصة القادمة';
+
+  @override
+  String get rescheduledTag => 'تم تغيير الموعد';
+
+  @override
+  String get firstClassTag => 'الحصة الأولى';
+
+  @override
+  String get lastClassTag => 'الحصة الأخيرة';
+
+  @override
+  String get rescheduleNextClass => 'تغيير موعد الحصة القادمة';
+
+  @override
+  String get rescheduleChangeAgain => 'تعديل الموعد الجديد';
+
+  @override
+  String get rescheduleBackToUsual => 'إعادة الحصة إلى موعدها المعتاد';
+
+  @override
+  String get noUpcomingClasses => 'لا توجد حصص قادمة';
+
+  @override
+  String movedFromTime(String time) {
+    return 'نُقلت من $time';
+  }
+
+  @override
+  String get rescheduleDay => 'اليوم';
+
+  @override
+  String get rescheduleStarts => 'تبدأ';
+
+  @override
+  String get rescheduleEnds => 'تنتهي';
+
+  @override
+  String get rescheduleNoteHint => 'ملاحظة للطلاب (اختياري)';
+
+  @override
+  String get rescheduleConfirm => 'نقل الحصة';
+
+  @override
+  String rescheduleWindow(String from, String to) {
+    return 'يمكنك نقلها إلى أي وقت من $from حتى نهاية $to.';
+  }
+
+  @override
+  String get rescheduleStartDateMoves =>
+      'هذه هي الحصة الأولى: سيتغير تاريخ بدء الدورة معها.';
+
+  @override
+  String get rescheduleEndDateMoves =>
+      'هذه هي الحصة الأخيرة: إذا نُقلت لموعد لاحق سيتغير تاريخ انتهاء الدورة معها.';
+
+  @override
+  String get rescheduleErrNoNext => 'لا توجد حصة قادمة لنقلها.';
+
+  @override
+  String get rescheduleErrEndBeforeStart => 'يجب أن تنتهي الحصة بعد أن تبدأ.';
+
+  @override
+  String get rescheduleErrTooLong => 'لا يمكن أن تزيد مدة الحصة عن 6 ساعات.';
+
+  @override
+  String get rescheduleErrMidnight => 'يجب أن تبدأ الحصة وتنتهي في نفس اليوم.';
+
+  @override
+  String get rescheduleErrBefore =>
+      'اختر وقتاً بعد الآن، وليس في يوم الحصة السابقة.';
+
+  @override
+  String get rescheduleErrAfter => 'اختر يوماً قبل الحصة التالية.';
+
+  @override
+  String get rescheduleErrAfterLast =>
+      'يمكن نقل الحصة الأخيرة حتى 7 أيام بعد انتهاء الدورة.';
+
+  @override
+  String get classBackOnSchedule => 'عادت الحصة إلى موعدها المعتاد.';
 }

@@ -18,6 +18,7 @@ import '../widgets/meet_controls.dart';
 import '../widgets/meet_dialogs.dart';
 import '../widgets/meet_overlays.dart';
 import '../widgets/meet_stage.dart';
+import '../widgets/participant_tile.dart';
 import '../widgets/participants_sheet.dart';
 import '../widgets/shared_work_stage.dart';
 
@@ -78,6 +79,8 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   bool _isGridView = false;
   bool _closing = false;
   double _zoomAtPinchStart = 1;
+  Offset? _focusRingAt;
+  Timer? _focusRingTimer;
   Timer? _controlsTimer;
   Timer? _clock;
   Duration _elapsed = Duration.zero;
@@ -121,6 +124,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
   @override
   void dispose() {
     _controlsTimer?.cancel();
+    _focusRingTimer?.cancel();
     _clock?.cancel();
     _effects.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -135,6 +139,23 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     _controlsTimer = Timer(const Duration(seconds: 4), () {
       if (mounted && _showControls) setState(() => _showControls = false);
     });
+  }
+
+  /// A tap on the stage: on the teacher's own camera → focus there; anywhere else → show / hide controls.
+  void _onStageTap(TapUpDetails d) {
+    if (_controller.canZoomCamera) {
+      final hit = meetVideoAt(d.globalPosition, View.of(context).viewId);
+      if (hit != null && hit.tag == MeetVideoTag.localCamera) {
+        _controller.focusCamera(hit.fraction.dx, hit.fraction.dy);
+        _focusRingTimer?.cancel();
+        setState(() => _focusRingAt = d.localPosition);
+        _focusRingTimer = Timer(const Duration(milliseconds: 900), () {
+          if (mounted) setState(() => _focusRingAt = null);
+        });
+        return;
+      }
+    }
+    _toggleControls();
   }
 
   void _toggleControls() {
@@ -238,9 +259,6 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     switch (choice) {
       case TeacherLeaveChoice.cancel:
         return;
-      case TeacherLeaveChoice.leave:
-        await _controller.leave(); // stops the recording, the class continues
-        _close();
       case TeacherLeaveChoice.endForAll:
         if (!mounted) return;
         showBlockingProgress(context); // the server needs a few seconds
@@ -286,7 +304,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
               child: GestureDetector(
                 key: const Key('tap-layer'),
                 behavior: HitTestBehavior.translucent,
-                onTap: _toggleControls,
+                onTapUp: _onStageTap,
                 // Teacher with the camera on: pinch zooms the camera; pinches add up (CameraZoomPolicy).
                 onScaleStart: zoom ? (_) => _zoomAtPinchStart = _controller.cameraZoom : null,
                 onScaleUpdate: zoom
@@ -336,6 +354,19 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                   onOpenParticipants: () => showParticipantsSheet(context, _controller),
                   onShowWork: widget.isTeacher ? _onShowWork : null,
                 ),
+                if (_focusRingAt != null && !sharing)
+                  Positioned(
+                    left: _focusRingAt!.dx - 36,
+                    top: _focusRingAt!.dy - 36,
+                    child: IgnorePointer(
+                      child: Container(
+                        key: const Key('camera-focus-ring'),
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(border: Border.all(color: _gold, width: 2)),
+                      ),
+                    ),
+                  ),
                 if (phase == MeetPhase.reconnecting || phase == MeetPhase.disconnected)
                   MeetReconnectOverlay(
                     reconnecting: phase == MeetPhase.reconnecting,

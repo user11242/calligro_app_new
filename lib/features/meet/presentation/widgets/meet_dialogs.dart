@@ -6,9 +6,9 @@ const _dialogBg = Color(0xFF13151A);
 const _titleStyle = TextStyle(color: Colors.white, fontWeight: FontWeight.bold);
 const _bodyStyle = TextStyle(color: Colors.white70);
 
-enum TeacherLeaveChoice { cancel, leave, endForAll }
+enum TeacherLeaveChoice { cancel, endForAll }
 
-/// Teacher: leave for now, or end the class for everyone?
+/// Teacher: leaving ends the class for everyone (there is no "leave only").
 Future<TeacherLeaveChoice> showTeacherLeaveDialog(BuildContext context) async {
   final l10n = AppLocalizations.of(context)!;
   final choice = await showDialog<TeacherLeaveChoice>(
@@ -17,17 +17,12 @@ Future<TeacherLeaveChoice> showTeacherLeaveDialog(BuildContext context) async {
       backgroundColor: _dialogBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(l10n.leaveClass, style: _titleStyle),
-      content: Text(l10n.meetTeacherLeaveOrEnd, style: _bodyStyle),
+      content: Text(l10n.meetTeacherEndConfirm, style: _bodyStyle),
       actions: [
         TextButton(
+          key: const Key('dialog-cancel'),
           onPressed: () => Navigator.of(ctx).pop(TeacherLeaveChoice.cancel),
           child: Text(l10n.cancel, style: const TextStyle(color: Colors.white54)),
-        ),
-        OutlinedButton(
-          key: const Key('dialog-leave-only'),
-          onPressed: () => Navigator.of(ctx).pop(TeacherLeaveChoice.leave),
-          style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white24)),
-          child: Text(l10n.meetLeaveOnly),
         ),
         ElevatedButton(
           key: const Key('dialog-end-for-all'),

@@ -125,6 +125,32 @@ void main() {
     });
   });
 
+  group('teacher tap-to-focus', () {
+    test('focuses the real camera on the tapped spot (kept inside the picture)', () async {
+      final c = await joined();
+      c.focusCamera(0.25, 0.75);
+      c.focusCamera(-1, 3);
+      await pumpEventQueue();
+      expect(room.cameraFocusPoints, [(0.25, 0.75), (0.0, 1.0)]);
+    });
+    test('students, or no camera: nothing happens', () async {
+      final student = await joined(teacher: false);
+      student.focusCamera(0.5, 0.5);
+      room = FakeMeetRoom();
+      final noCamera = await joined(camera: false);
+      noCamera.focusCamera(0.5, 0.5);
+      await pumpEventQueue();
+      expect(room.cameraFocusPoints, isEmpty);
+    });
+    test('a phone that cannot focus does not break the class', () async {
+      final c = await joined();
+      room.zoomError = Exception('not supported');
+      c.focusCamera(0.5, 0.5);
+      await pumpEventQueue();
+      expect(c.phase, MeetPhase.connected);
+    });
+  });
+
   test('MeetCameraPosition still flips (sanity)', () async {
     final c = await joined();
     await c.flipCamera();

@@ -283,15 +283,19 @@ void main() {
       await tearDownPage(tester);
     });
 
-    testWidgets('"Leave only" stops the recording but does NOT end the class', (tester) async {
+    testWidgets('the teacher\'s leave button only offers "End for all" (no "Leave only") or Cancel', (tester) async {
       await openMeet(tester, isTeacher: true, mic: true, camera: true);
       await tester.tap(find.byKey(const Key('leave')));
       await pumpFor(tester);
-      await tester.tap(find.byKey(const Key('dialog-leave-only')));
+      expect(find.byKey(const Key('dialog-leave-only')), findsNothing);
+      expect(find.byKey(const Key('dialog-end-for-all')), findsOneWidget);
+
+      // Cancel: nothing happens, the class goes on.
+      await tester.tap(find.byKey(const Key('dialog-cancel')));
       await pumpFor(tester);
-      expect(onMeetPage(), isFalse);
+      expect(onMeetPage(), isTrue);
+      expect(actions(), isEmpty);
       await tearDownPage(tester);
-      expect(actions(), ['stop_recording'], reason: 'one stop, no end_room, no second stop on dispose');
     });
 
     testWidgets('"End for all" ends the room on the server and closes', (tester) async {

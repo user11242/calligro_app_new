@@ -253,11 +253,15 @@ class _SharedWorkStageState extends State<SharedWorkStage> {
           ),
         );
 
+    // Inside the safe area: in landscape the iPhone's Dynamic Island / notch sits on a side
+    // edge (either one, depending on how the phone is turned), and it hid these buttons.
     return PositionedDirectional(
       end: 10,
       top: 0,
       bottom: 0,
-      child: Center(
+      child: SafeArea(
+        key: const Key('shared-work-toolbar-safe-area'),
+        child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
           decoration: BoxDecoration(
@@ -305,6 +309,7 @@ class _SharedWorkStageState extends State<SharedWorkStage> {
             ]),
           ),
         ),
+      ),
       ),
     );
   }

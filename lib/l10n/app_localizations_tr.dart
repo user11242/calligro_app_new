@@ -3869,11 +3869,8 @@ class AppLocalizationsTr extends AppLocalizations {
   String get meetAudioOnlyOff => 'Video tekrar açık';
 
   @override
-  String get meetTeacherLeaveOrEnd =>
-      'Dersten şimdilik ayrılmak mı, yoksa dersi tüm öğrenciler için bitirmek mi istiyorsunuz?';
-
-  @override
-  String get meetLeaveOnly => 'Sadece ayrıl';
+  String get meetTeacherEndConfirm =>
+      'Ayrılmanız dersi tüm öğrenciler için bitirir. Şimdi bitirilsin mi?';
 
   @override
   String get meetSpeakerView => 'Konuşmacı görünümü';
@@ -3927,4 +3924,87 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get meetNextPage => 'Sonraki sayfa';
+
+  @override
+  String get nextClass => 'Sonraki ders';
+
+  @override
+  String get rescheduledTag => 'Yeniden planlandı';
+
+  @override
+  String get firstClassTag => 'İlk ders';
+
+  @override
+  String get lastClassTag => 'Son ders';
+
+  @override
+  String get rescheduleNextClass => 'Sonraki dersi yeniden planla';
+
+  @override
+  String get rescheduleChangeAgain => 'Yeni saati değiştir';
+
+  @override
+  String get rescheduleBackToUsual => 'Her zamanki saatine döndür';
+
+  @override
+  String get noUpcomingClasses => 'Yaklaşan ders yok';
+
+  @override
+  String movedFromTime(String time) {
+    return '$time saatinden taşındı';
+  }
+
+  @override
+  String get rescheduleDay => 'Gün';
+
+  @override
+  String get rescheduleStarts => 'Başlangıç';
+
+  @override
+  String get rescheduleEnds => 'Bitiş';
+
+  @override
+  String get rescheduleNoteHint => 'Öğrencilere not (isteğe bağlı)';
+
+  @override
+  String get rescheduleConfirm => 'Dersi taşı';
+
+  @override
+  String rescheduleWindow(String from, String to) {
+    return '$from ile $to günü sonuna kadar herhangi bir zamana taşıyabilirsiniz.';
+  }
+
+  @override
+  String get rescheduleStartDateMoves =>
+      'Bu ilk ders: kursun başlangıç tarihi de onunla birlikte değişecek.';
+
+  @override
+  String get rescheduleEndDateMoves =>
+      'Bu son ders: daha sonraya taşınırsa kursun bitiş tarihi de değişecek.';
+
+  @override
+  String get rescheduleErrNoNext => 'Taşınacak yaklaşan ders yok.';
+
+  @override
+  String get rescheduleErrEndBeforeStart => 'Ders başladıktan sonra bitmeli.';
+
+  @override
+  String get rescheduleErrTooLong => 'Bir ders en fazla 6 saat sürebilir.';
+
+  @override
+  String get rescheduleErrMidnight => 'Ders aynı gün başlayıp bitmeli.';
+
+  @override
+  String get rescheduleErrBefore =>
+      'Şu andan sonra ve önceki dersin gününden farklı bir zaman seçin.';
+
+  @override
+  String get rescheduleErrAfter => 'Bir sonraki dersten önceki bir gün seçin.';
+
+  @override
+  String get rescheduleErrAfterLast =>
+      'Son ders, kurs bitiminden en fazla 7 gün sonrasına taşınabilir.';
+
+  @override
+  String get classBackOnSchedule => 'Ders her zamanki saatine döndü.';
 }

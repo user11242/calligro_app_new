@@ -3864,11 +3864,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meetAudioOnlyOff => 'Video is back on';
 
   @override
-  String get meetTeacherLeaveOrEnd =>
-      'Do you want to leave the class for now, or end it for all students?';
-
-  @override
-  String get meetLeaveOnly => 'Leave only';
+  String get meetTeacherEndConfirm =>
+      'Leaving ends the class for all students. End it now?';
 
   @override
   String get meetSpeakerView => 'Speaker view';
@@ -3922,4 +3919,89 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get meetNextPage => 'Next page';
+
+  @override
+  String get nextClass => 'Next class';
+
+  @override
+  String get rescheduledTag => 'Rescheduled';
+
+  @override
+  String get firstClassTag => 'First class';
+
+  @override
+  String get lastClassTag => 'Last class';
+
+  @override
+  String get rescheduleNextClass => 'Reschedule next class';
+
+  @override
+  String get rescheduleChangeAgain => 'Change the new time';
+
+  @override
+  String get rescheduleBackToUsual => 'Back to the usual time';
+
+  @override
+  String get noUpcomingClasses => 'No upcoming classes';
+
+  @override
+  String movedFromTime(String time) {
+    return 'Moved from $time';
+  }
+
+  @override
+  String get rescheduleDay => 'Day';
+
+  @override
+  String get rescheduleStarts => 'Starts';
+
+  @override
+  String get rescheduleEnds => 'Ends';
+
+  @override
+  String get rescheduleNoteHint => 'Note to students (optional)';
+
+  @override
+  String get rescheduleConfirm => 'Move the class';
+
+  @override
+  String rescheduleWindow(String from, String to) {
+    return 'You can move it to any time from $from until the end of $to.';
+  }
+
+  @override
+  String get rescheduleStartDateMoves =>
+      'This is the first class: the course start date will move with it.';
+
+  @override
+  String get rescheduleEndDateMoves =>
+      'This is the last class: if it moves later, the course end date moves with it.';
+
+  @override
+  String get rescheduleErrNoNext => 'There is no upcoming class to move.';
+
+  @override
+  String get rescheduleErrEndBeforeStart =>
+      'The class must end after it starts.';
+
+  @override
+  String get rescheduleErrTooLong => 'A class can last at most 6 hours.';
+
+  @override
+  String get rescheduleErrMidnight =>
+      'The class must start and end on the same day.';
+
+  @override
+  String get rescheduleErrBefore =>
+      'Choose a time after now, and not on the day of the previous class.';
+
+  @override
+  String get rescheduleErrAfter => 'Choose a day before the following class.';
+
+  @override
+  String get rescheduleErrAfterLast =>
+      'The last class can move up to 7 days after the course ends.';
+
+  @override
+  String get classBackOnSchedule => 'The class is back at its usual time.';
 }

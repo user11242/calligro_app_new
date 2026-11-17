@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' show Point;
 
 import 'package:collection/collection.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc show Helper;
@@ -222,12 +223,28 @@ class LiveKitMeetRoom implements MeetRoom {
     }
   }
 
-  @override
-  Future<void> setCameraZoom(double zoom) async {
+  LocalVideoTrack? get _localCamera {
     final track = _local?.videoTrackPublications
         .firstWhereOrNull((pub) => pub.track is LocalVideoTrack && pub.source == TrackSource.camera)
         ?.track;
-    if (track is LocalVideoTrack) await rtc.Helper.setZoom(track.mediaStreamTrack, zoom);
+    return track is LocalVideoTrack ? track : null;
+  }
+
+  @override
+  Future<void> setCameraZoom(double zoom) async {
+    final track = _localCamera;
+    if (track != null) await rtc.Helper.setZoom(track.mediaStreamTrack, zoom);
+  }
+
+  @override
+  Future<void> setCameraFocus(double x, double y) async {
+    final track = _localCamera;
+    if (track == null) return;
+    // The same calls LiveKit's built-in tap-to-focus made.
+    await Future.wait([
+      rtc.Helper.setFocusPoint(track.mediaStreamTrack, Point(x, y)),
+      rtc.Helper.setExposurePoint(track.mediaStreamTrack, Point(x, y)),
+    ]);
   }
 
   @override

@@ -125,6 +125,10 @@ abstract interface class MeetRoom {
   /// Throws where the device cannot zoom (e.g. desktop).
   Future<void> setCameraZoom(double zoom);
 
+  /// Focuses (and meters exposure for) our own camera on a spot of its picture:
+  /// [x], [y] are fractions 0..1. Throws where the device cannot.
+  Future<void> setCameraFocus(double x, double y);
+
   /// Sends a reliable data message to everyone in the room.
   Future<void> publish(Map<String, dynamic> message);
 

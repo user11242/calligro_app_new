@@ -7228,17 +7228,11 @@ abstract class AppLocalizations {
   /// **'Video is back on'**
   String get meetAudioOnlyOff;
 
-  /// No description provided for @meetTeacherLeaveOrEnd.
+  /// No description provided for @meetTeacherEndConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Do you want to leave the class for now, or end it for all students?'**
-  String get meetTeacherLeaveOrEnd;
-
-  /// No description provided for @meetLeaveOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Leave only'**
-  String get meetLeaveOnly;
+  /// **'Leaving ends the class for all students. End it now?'**
+  String get meetTeacherEndConfirm;
 
   /// No description provided for @meetSpeakerView.
   ///
@@ -7341,6 +7335,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next page'**
   String get meetNextPage;
+
+  /// No description provided for @nextClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Next class'**
+  String get nextClass;
+
+  /// No description provided for @rescheduledTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Rescheduled'**
+  String get rescheduledTag;
+
+  /// No description provided for @firstClassTag.
+  ///
+  /// In en, this message translates to:
+  /// **'First class'**
+  String get firstClassTag;
+
+  /// No description provided for @lastClassTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Last class'**
+  String get lastClassTag;
+
+  /// No description provided for @rescheduleNextClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Reschedule next class'**
+  String get rescheduleNextClass;
+
+  /// No description provided for @rescheduleChangeAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Change the new time'**
+  String get rescheduleChangeAgain;
+
+  /// No description provided for @rescheduleBackToUsual.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the usual time'**
+  String get rescheduleBackToUsual;
+
+  /// No description provided for @noUpcomingClasses.
+  ///
+  /// In en, this message translates to:
+  /// **'No upcoming classes'**
+  String get noUpcomingClasses;
+
+  /// No description provided for @movedFromTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved from {time}'**
+  String movedFromTime(String time);
+
+  /// No description provided for @rescheduleDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get rescheduleDay;
+
+  /// No description provided for @rescheduleStarts.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts'**
+  String get rescheduleStarts;
+
+  /// No description provided for @rescheduleEnds.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get rescheduleEnds;
+
+  /// No description provided for @rescheduleNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Note to students (optional)'**
+  String get rescheduleNoteHint;
+
+  /// No description provided for @rescheduleConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the class'**
+  String get rescheduleConfirm;
+
+  /// No description provided for @rescheduleWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'You can move it to any time from {from} until the end of {to}.'**
+  String rescheduleWindow(String from, String to);
+
+  /// No description provided for @rescheduleStartDateMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the first class: the course start date will move with it.'**
+  String get rescheduleStartDateMoves;
+
+  /// No description provided for @rescheduleEndDateMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the last class: if it moves later, the course end date moves with it.'**
+  String get rescheduleEndDateMoves;
+
+  /// No description provided for @rescheduleErrNoNext.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no upcoming class to move.'**
+  String get rescheduleErrNoNext;
+
+  /// No description provided for @rescheduleErrEndBeforeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'The class must end after it starts.'**
+  String get rescheduleErrEndBeforeStart;
+
+  /// No description provided for @rescheduleErrTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'A class can last at most 6 hours.'**
+  String get rescheduleErrTooLong;
+
+  /// No description provided for @rescheduleErrMidnight.
+  ///
+  /// In en, this message translates to:
+  /// **'The class must start and end on the same day.'**
+  String get rescheduleErrMidnight;
+
+  /// No description provided for @rescheduleErrBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a time after now, and not on the day of the previous class.'**
+  String get rescheduleErrBefore;
+
+  /// No description provided for @rescheduleErrAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a day before the following class.'**
+  String get rescheduleErrAfter;
+
+  /// No description provided for @rescheduleErrAfterLast.
+  ///
+  /// In en, this message translates to:
+  /// **'The last class can move up to 7 days after the course ends.'**
+  String get rescheduleErrAfterLast;
+
+  /// No description provided for @classBackOnSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'The class is back at its usual time.'**
+  String get classBackOnSchedule;
 }
 
 class _AppLocalizationsDelegate

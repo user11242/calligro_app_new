@@ -88,7 +88,7 @@ class FakeMeetRoom implements MeetRoom {
             isLocal: true,
             isMicrophoneEnabled: _mic,
             isCameraEnabled: _camera,
-            video: _camera ? MeetVideo('local-camera') : null,
+            video: _camera ? const MeetVideo('local-camera', isLocalCamera: true) : null,
           ),
         ...remotes,
       ];
@@ -125,6 +125,15 @@ class FakeMeetRoom implements MeetRoom {
 
   @override
   Future<void> switchCamera(MeetCameraPosition position) async => cameraPositions.add(position);
+
+  /// Camera focus points the app asked for (fractions of the picture), in order.
+  final cameraFocusPoints = <(double, double)>[];
+
+  @override
+  Future<void> setCameraFocus(double x, double y) async {
+    if (zoomError != null) throw zoomError!;
+    cameraFocusPoints.add((x, y));
+  }
 
   /// Camera zoom levels the app asked for, in order.
   final cameraZooms = <double>[];

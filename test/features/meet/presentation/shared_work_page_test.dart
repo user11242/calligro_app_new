@@ -94,6 +94,23 @@ void main() {
     expect(find.byKey(const Key('shared-work-stop')), findsOneWidget);
   });
 
+  testWidgets('teacher: the tools stay clear of the Dynamic Island (landscape, island on the right)', (tester) async {
+    // iPhone in landscape: the island takes ~59 pt of the right edge (FakeViewPadding is in physical pixels).
+    final ratio = tester.view.devicePixelRatio;
+    tester.view.padding = FakeViewPadding(right: 59 * ratio);
+    tester.view.viewPadding = FakeViewPadding(right: 59 * ratio);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
+    await openMeet(tester, isTeacher: true);
+    await tester.tap(find.byKey(const Key('show-work')));
+    await pumpFor(tester);
+
+    final screenWidth = tester.getSize(find.byType(Scaffold).first).width;
+    for (final key in ['shared-work-pen', 'shared-work-move', 'shared-work-undo', 'shared-work-clear', 'shared-work-stop']) {
+      expect(tester.getRect(find.byKey(Key(key))).right, lessThanOrEqualTo(screenWidth - 59), reason: key);
+    }
+  });
+
   testWidgets('teacher: draws a line with one finger → it is sent to the class', (tester) async {
     await openMeet(tester, isTeacher: true);
     await tester.tap(find.byKey(const Key('show-work')));

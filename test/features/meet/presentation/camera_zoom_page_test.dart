@@ -1,4 +1,5 @@
 import 'package:calligro_app/features/meet/data/meet_backend.dart';
+import 'package:calligro_app/features/meet/domain/meet_participant.dart';
 import 'package:calligro_app/features/meet/presentation/pages/calligro_meet_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -104,5 +105,49 @@ void main() {
   testWidgets('teacher with the camera off: no zoom button', (tester) async {
     await open(tester, camera: false);
     expect(find.byKey(const Key('camera-zoom')), findsNothing);
+  });
+
+  group('teacher tap-to-focus', () {
+    bool controlsVisible(WidgetTester tester) =>
+        tester.widget<IgnorePointer>(find.ancestor(of: find.byKey(const Key('toggle-mic')), matching: find.byType(IgnorePointer)).first).ignoring == false;
+
+    testWidgets('tapping their own camera picture focuses there, shows the focus box, and keeps the controls', (tester) async {
+      await open(tester); // alone: their own camera is full screen
+      final before = controlsVisible(tester);
+      final area = tester.getRect(find.byKey(const Key('stage-focus')));
+      await tester.tapAt(area.topLeft + Offset(area.width * 0.25, area.height * 0.5));
+      await tester.pump();
+      expect(room.cameraFocusPoints, hasLength(1));
+      expect(room.cameraFocusPoints.single.$1, closeTo(0.25, 0.02));
+      expect(room.cameraFocusPoints.single.$2, closeTo(0.5, 0.02));
+      expect(find.byKey(const Key('camera-focus-ring')), findsOneWidget);
+      expect(controlsVisible(tester), before);
+      await pumpFor(tester, const Duration(seconds: 2));
+      expect(find.byKey(const Key('camera-focus-ring')), findsNothing);
+    });
+
+    testWidgets('tapping a student\'s video still shows / hides the controls (no focus)', (tester) async {
+      await open(tester);
+      room.addRemote(const MeetParticipant(
+          identity: 's2', name: 'Student Two', metadata: '{"role":"participant","teacherId":"T1"}', isCameraEnabled: true,
+          video: MeetVideo('remote-camera')));
+      await pumpFor(tester);
+      final focusTile = find.byKey(const Key('stage-focus'));
+      final pip = find.byKey(const Key('stage-pip'));
+      // Whichever tile shows the student: tap it.
+      final studentTile = find.descendant(of: focusTile, matching: find.text('Student Two')).evaluate().isNotEmpty ? focusTile : pip;
+      final before = controlsVisible(tester);
+      await tester.tapAt(tester.getCenter(studentTile));
+      await tester.pump();
+      expect(room.cameraFocusPoints, isEmpty);
+      expect(controlsVisible(tester), !before);
+    });
+
+    testWidgets('students: a tap never focuses anything', (tester) async {
+      await open(tester, teacher: false);
+      await tester.tapAt(tester.getCenter(find.byKey(const Key('stage-focus'))));
+      await tester.pump();
+      expect(room.cameraFocusPoints, isEmpty);
+    });
   });
 }
