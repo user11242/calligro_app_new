@@ -1,17 +1,21 @@
 import '../domain/classroom_models.dart';
 import '../domain/classroom_repositories.dart';
 import '../domain/course_board.dart';
+import 'package:calligro_app/features/courses/domain/course_schedule.dart';
 import 'classroom_assignments.dart' show ClassroomOutcome, ClassroomResult;
 
-/// The course's teacher (or an admin) posts announcements and moves today's
-/// session; students are notified in the same write.
+/// The course's teacher (or an admin) posts announcements and moves the NEXT
+/// class; the server checks the move again, moves the course dates when the
+/// first / last class moves, and notifies the students once.
 class ClassroomBoard {
-  ClassroomBoard({required BoardRepository repository, required String Function() currentUid})
+  ClassroomBoard({required BoardRepository repository, required String Function() currentUid, DateTime Function()? clock})
       : _repo = repository,
-        _uid = currentUid;
+        _uid = currentUid,
+        _now = clock ?? DateTime.now;
 
   final BoardRepository _repo;
   final String Function() _uid;
+  final DateTime Function() _now;
   bool _busy = false;
 
   BoardRepository get repository => _repo;
@@ -23,9 +27,16 @@ class ClassroomBoard {
         return const ClassroomResult(ClassroomOutcome.done);
       });
 
-  Future<ClassroomResult> reschedule(String courseId, CourseRole role, SessionChange change) => _run(role, () async {
-        if (!change.isValid) return const ClassroomResult(ClassroomOutcome.invalid);
-        await _repo.reschedule(courseId, change);
+  /// Moves the next class of [schedule] (checked here first, for a clear answer).
+  Future<ClassroomResult> reschedule(String courseId, CourseRole role, CourseSchedule schedule, SessionChange change) =>
+      _run(role, () async {
+        final plan = schedule.planMove(now: _now(), newStart: change.newStart, newEnd: change.newEnd);
+        if (!plan.ok) return ClassroomResult(ClassroomOutcome.invalid, rescheduleError: plan.error);
+        try {
+          await _repo.reschedule(courseId, SessionChange(newStart: change.newStart, newEnd: change.newEnd, note: change.note.trim()));
+        } on RescheduleRefused catch (e) {
+          return ClassroomResult(ClassroomOutcome.invalid, rescheduleError: e.reason);
+        }
         return const ClassroomResult(ClassroomOutcome.done);
       });
 

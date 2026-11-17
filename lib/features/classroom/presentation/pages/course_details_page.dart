@@ -1,6 +1,8 @@
 import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
-import 'package:calligro_app/features/classroom/domain/course_board.dart';
 import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
+import 'package:calligro_app/features/classroom/presentation/widgets/next_session_card.dart';
+import 'package:calligro_app/features/classroom/presentation/widgets/reschedule_sheet.dart';
+import 'package:calligro_app/features/courses/domain/course_schedule.dart';
 import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -101,7 +103,8 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   final GlobalKey _shareKey = GlobalKey();
 
   // Dynamic Scheduling State
-  Map<String, dynamic>? _rescheduledData;
+  /// Every class of this course, moves included (the one schedule rule).
+  CourseSchedule? _schedule;
   bool _isSavingReschedule = false;
 
   // Translation State
@@ -425,89 +428,33 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         .listen((snapshot) {
           if (snapshot.exists && mounted) {
             final data = snapshot.data() as Map<String, dynamic>;
-
-            // Auto-expire reschedule if it was for a previous day
-            var rescheduleData = data['rescheduledSession'];
-            if (rescheduleData != null &&
-                rescheduleData['originalDate'] != null) {
-              final originalDate = (rescheduleData['originalDate'] as Timestamp)
-                  .toDate();
-              final now = DateTime.now();
-              if (originalDate.year != now.year ||
-                  originalDate.month != now.month ||
-                  originalDate.day != now.day) {
-                rescheduleData = null; // Ignore it, it's expired
-              }
-            }
-
+            // Moves (of any class, not only today's) are applied by the schedule rule.
             setState(() {
-              _rescheduledData = rescheduleData;
+              _schedule = CourseSchedule.fromMap(data, fallbackOffset: DateTime.now().timeZoneOffset);
             });
           }
         });
   }
 
+  /// Teacher: move the NEXT class (the server checks it again, moves the course
+  /// dates for the first / last class, and notifies the students once).
   Future<void> _showRescheduleDialog() async {
-    TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(selectedTime ?? DateTime.now()),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.accentGold,
-              onPrimary: Colors.black,
-              surface: AppColors.primary,
-              onSurface: Colors.white,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.accentGold,
-              ),
-            ),
-            dialogTheme: DialogThemeData(backgroundColor: AppColors.primary),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      final now = DateTime.now();
-      final newStartTime = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        picked.hour,
-        picked.minute,
-      );
-      // Assume 1 hour session for simplicity in this mockup or pick end time too
-      final newEndTime = newStartTime.add(const Duration(hours: 1));
-
-      setState(() => _isSavingReschedule = true);
-      try {
-        // The server tells the students (once).
-        final result = await ClassroomScope.of(context).board.reschedule(
-              widget.courseId,
-              _role,
-              SessionChange(originalDate: now, newStart: newStartTime, newEnd: newEndTime),
-            );
-        if (!result.ok) throw Exception(result.message ?? result.outcome.name);
-        if (!mounted) return;
-
-        _showMessage(
-          AppLocalizations.of(context)!.success,
-          AppLocalizations.of(context)!.sessionRescheduledSuccess,
-          MessengerType.success,
-        );
-      } catch (e) {
-        _showMessage(
-          AppLocalizations.of(context)!.error,
-          "${AppLocalizations.of(context)!.error}: $e",
-          MessengerType.error,
-        );
-      }
-      setState(() => _isSavingReschedule = false);
+    final schedule = _schedule;
+    if (schedule == null) return;
+    final change = await showRescheduleSheet(context, schedule: schedule, now: DateTime.now());
+    if (change == null || !mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _isSavingReschedule = true);
+    final result = await ClassroomScope.of(context).board.reschedule(widget.courseId, _role, schedule, change);
+    if (!mounted) return;
+    setState(() => _isSavingReschedule = false);
+    if (result.ok) {
+      _showMessage(l10n.success, l10n.sessionRescheduledSuccess, MessengerType.success);
+    } else if (result.rescheduleError != null) {
+      final isLast = schedule.rescheduleWindow(DateTime.now())?.isLast ?? false;
+      _showMessage(l10n.error, rescheduleErrorText(l10n, result.rescheduleError!, isLast: isLast), MessengerType.error);
+    } else {
+      _showMessage(l10n.error, '${l10n.error}: ${result.message ?? result.outcome.name}', MessengerType.error);
     }
   }
 
@@ -518,7 +465,7 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
       if (!result.ok) throw Exception(result.message ?? result.outcome.name);
       _showMessage(
         AppLocalizations.of(context)!.success,
-        AppLocalizations.of(context)!.sessionBackToNormal,
+        AppLocalizations.of(context)!.classBackOnSchedule,
         MessengerType.info,
       );
     } catch (e) {

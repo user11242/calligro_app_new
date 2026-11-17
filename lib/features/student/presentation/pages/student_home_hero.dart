@@ -32,88 +32,11 @@ extension _HeroSections on _StudentHomePageState {
           return endDate.isAfter(now);
         }).toList();
 
-        // --- NEW: Calculate Next Session Helper ---
+        // Next class (moves included) from the one schedule rule; "now" while one is live.
         DateTime? getNextSession(Map<String, dynamic> course) {
-          final startTimeData = course['startTime'];
-          final selectedDays = List<String>.from(course['selectedDays'] ?? []);
-
-          if (startTimeData == null || selectedDays.isEmpty) return null;
-
-          DateTime startTime;
-          if (startTimeData is Timestamp) {
-            startTime = startTimeData.toDate().toLocal();
-          } else if (startTimeData is DateTime) {
-            startTime = startTimeData.toLocal();
-          } else {
-            return null;
-          }
-
-          // Check if course hasn't started yet
-          final startDateData = course['startDate'];
-          DateTime? startDate;
-          if (startDateData is Timestamp) {
-            startDate = startDateData.toDate().toLocal();
-          } else if (startDateData is DateTime) {
-            startDate = startDateData.toLocal();
-          }
-
-          if (startDate != null && startDate.isAfter(now)) {
-            return startDate;
-          }
-
-          final dayFormat = DateFormat('EEEE', 'en_US');
-
-          for (int i = -1; i < 7; i++) {
-            final checkDate = now.add(Duration(days: i));
-            final dayName = dayFormat.format(checkDate);
-
-            if (selectedDays.contains(dayName)) {
-              final localStartTime = startTime.toLocal();
-              final sessionTime = DateTime(
-                checkDate.year,
-                checkDate.month,
-                checkDate.day,
-                localStartTime.hour,
-                localStartTime.minute,
-              );
-
-              Duration sessionDuration = const Duration(minutes: 90);
-              if (course['endTime'] != null) {
-                DateTime? endDateTime;
-                if (course['endTime'] is Timestamp) {
-                  endDateTime = (course['endTime'] as Timestamp).toDate();
-                } else if (course['endTime'] is DateTime)
-                  endDateTime = course['endTime'];
-
-                DateTime? originalStartDateTime;
-                if (course['startTime'] is Timestamp) {
-                  originalStartDateTime = (course['startTime'] as Timestamp)
-                      .toDate();
-                } else if (course['startTime'] is DateTime)
-                  originalStartDateTime = course['startTime'];
-
-                if (endDateTime != null && originalStartDateTime != null) {
-                  sessionDuration = endDateTime.difference(
-                    originalStartDateTime,
-                  );
-                  if (sessionDuration.inMinutes <= 0)
-                    sessionDuration = const Duration(minutes: 90);
-                }
-              }
-
-              final sessionEndTime = sessionTime.add(sessionDuration);
-
-              // If it's live right now, treat it as the most urgent (next session is essentially 'now')
-              if (now.isAfter(sessionTime) && now.isBefore(sessionEndTime)) {
-                return now;
-              }
-
-              if (sessionTime.isAfter(now)) {
-                return sessionTime;
-              }
-            }
-          }
-          return null;
+          final schedule = CourseSchedule.fromMap(course, fallbackOffset: now.timeZoneOffset);
+          if (schedule.live(now) != null) return now;
+          return schedule.next(now)?.start.toLocal();
         }
 
         // --- NEW: Sort courses by closeness to next session ---
@@ -200,6 +123,9 @@ extension _HeroSections on _StudentHomePageState {
   Widget _buildSessionCountdownCard(Map<String, dynamic> course) {
     final banner = course['courseBanner'] ?? '';
     final l10n = AppLocalizations.of(context)!;
+    // The next class, moves included: a moved one gets the tag and its new day/time.
+    final nextClass = CourseSchedule.fromMap(course, fallbackOffset: DateTime.now().timeZoneOffset).next(DateTime.now());
+    final moved = nextClass != null && nextClass.isRescheduled;
 
     // Local state for the button enable/disable
     final ValueNotifier<bool> isButtonEnabled = ValueNotifier<bool>(false);
@@ -254,13 +180,24 @@ extension _HeroSections on _StudentHomePageState {
                         ),
                       ),
                     ),
-                    const Icon(
-                      Icons.auto_awesome,
-                      color: AppColors.accentGold,
-                      size: 20,
-                    ),
+                    if (moved)
+                      const RescheduledTag(compact: true)
+                    else
+                      const Icon(
+                        Icons.auto_awesome,
+                        color: AppColors.accentGold,
+                        size: 20,
+                      ),
                   ],
                 ),
+                if (moved) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    formatSessionTime(context, nextClass.start, nextClass.end),
+                    key: const Key('hero-moved-time'),
+                    style: const TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 AutoTranslatedText(
                   CourseUtils.getLocalizedCourseName(context, course),

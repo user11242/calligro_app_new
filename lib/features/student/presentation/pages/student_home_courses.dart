@@ -195,6 +195,14 @@ extension _CourseSections on _StudentHomePageState {
                     if (course['selectedDays'] != null &&
                         (course['selectedDays'] as List).isNotEmpty)
                       _buildScheduleBadge(course),
+                    // The next class was moved: say so on the card too.
+                    if (CourseSchedule.fromMap(course, fallbackOffset: DateTime.now().timeZoneOffset)
+                            .next(DateTime.now())
+                            ?.isRescheduled ??
+                        false) ...[
+                      const SizedBox(height: 6),
+                      const RescheduledTag(compact: true),
+                    ],
                   ],
                 ),
               ),

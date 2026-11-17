@@ -290,177 +290,18 @@ extension _ScheduleSections on _CourseDetailsPageState {
     }
   }
 
+  /// "Next class": when it is (moves included, with the old time and the note),
+  /// and for the teacher: move it (only the next class) or put it back.
   Widget _buildDynamicSchedulingCard() {
-    final hasReschedule = _rescheduledData != null;
-    final bool isSessionToday = _isSessionToday();
-
-    if (!isTeacher && !hasReschedule) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: hasReschedule
-            ? Colors.orangeAccent.withOpacity(0.1)
-            : Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: hasReschedule
-              ? Colors.orangeAccent.withOpacity(0.3)
-              : Colors.white.withOpacity(0.1),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.schedule_send_rounded,
-                color: hasReschedule ? Colors.orangeAccent : Colors.white60,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                hasReschedule
-                    ? AppLocalizations.of(context)!.sessionRescheduled
-                    : AppLocalizations.of(context)!.todaysSchedule,
-                style: TextStyle(
-                  color: hasReschedule ? Colors.orangeAccent : Colors.white60,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (hasReschedule) ...[
-            Text(
-              AppLocalizations.of(context)!.teacherMovedSession,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "${AppLocalizations.of(context)!.newTime} ${DateFormat.jm(Localizations.localeOf(context).toString()).format((_rescheduledData!['newStartTime'] as Timestamp).toDate())}",
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-          ] else
-            Text(
-              AppLocalizations.of(context)!.sessionOnTime,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-          if (isTeacher) ...[
-            if (!isSessionToday && !hasReschedule) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orangeAccent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.orangeAccent.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: Colors.orangeAccent,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        AppLocalizations.of(
-                          context,
-                        )!.cannotRescheduleNotMeetingDay,
-                        style: const TextStyle(
-                          color: Colors.orangeAccent,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: (isSessionToday || hasReschedule)
-                    ? _showRescheduleDialog
-                    : null,
-                icon: Icon(
-                  hasReschedule ? Icons.edit_calendar : Icons.more_time,
-                  size: 18,
-                ),
-                label: _isSavingReschedule
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black,
-                        ),
-                      )
-                    : Text(
-                        hasReschedule
-                            ? AppLocalizations.of(context)!.updateReschedule
-                            : AppLocalizations.of(context)!.rescheduleToday,
-                      ),
-                style: ElevatedButton.styleFrom(
-                  disabledBackgroundColor: Colors.white.withOpacity(0.05),
-                  disabledForegroundColor: Colors.white30,
-                  backgroundColor: hasReschedule
-                      ? Colors.orangeAccent
-                      : AppColors.accentGold,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-            if (hasReschedule)
-              TextButton(
-                onPressed: _cancelReschedule,
-                child: Text(
-                  AppLocalizations.of(context)!.cancelReschedule,
-                  style: const TextStyle(color: Colors.redAccent),
-                ),
-              ),
-          ],
-        ],
-      ),
+    final schedule = _schedule;
+    if (schedule == null) return const SizedBox.shrink();
+    return NextSessionCard(
+      schedule: schedule,
+      isTeacher: isTeacher,
+      busy: _isSavingReschedule,
+      now: DateTime.now(),
+      onReschedule: _showRescheduleDialog,
+      onBackToUsual: _cancelReschedule,
     );
-  }
-
-  bool _isSessionToday() {
-    if (selectedDays.isEmpty) return false;
-
-    // Check if the course is currently active
-    if (startDate == null || endDate == null) return false;
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final startDay = DateTime(
-      startDate!.year,
-      startDate!.month,
-      startDate!.day,
-    );
-    final endDay = DateTime(endDate!.year, endDate!.month, endDate!.day);
-
-    if (today.isBefore(startDay)) return false; // Course hasn't started yet
-    if (today.isAfter(endDay)) return false; // Course has already ended
-
-    final todayName = DateFormat('EEEE').format(now);
-    return selectedDays.contains(todayName);
   }
 }

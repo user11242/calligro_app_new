@@ -1,4 +1,5 @@
 import 'package:calligro_app/core/theme/colors.dart';
+import 'package:calligro_app/features/classroom/presentation/widgets/next_session_card.dart' show MovedClassBanner;
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/widgets/smart_image.dart';
@@ -541,6 +542,8 @@ class _StyledCourseCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                        // The next class was moved: tag + new time (only then).
+                        MovedClassBanner(course: courseData),
                         const SizedBox(height: 24),
                         
                         // Progress Section

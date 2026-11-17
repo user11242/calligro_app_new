@@ -34,159 +34,19 @@ class _CountdownTimerState extends State<_CountdownTimer> {
     super.dispose();
   }
 
+  /// Time to the next class (zero while one is live), moved classes included,
+  /// from the one schedule rule. (This used to keep its own copy, which ignored
+  /// reschedules and kept counting after the course had ended.)
   void _calculateRemaining() {
-    try {
-      final startTimeData = widget.course['startTime'];
-      final startDateData = widget.course['startDate'];
-      final selectedDays = List<String>.from(
-        widget.course['selectedDays'] ?? [],
-      );
-
-      // Fallback: If data is missing, we keep it disabled
-      if (startTimeData == null || selectedDays.isEmpty) {
-        if (mounted) {
-          setState(() => _remaining = const Duration(hours: 99));
-          widget.onTimerUpdate?.call(const Duration(hours: 99));
-        }
-        return;
-      }
-
-      DateTime startTime;
-      if (startTimeData is Timestamp) {
-        startTime = startTimeData.toDate().toLocal();
-      } else if (startTimeData is DateTime) {
-        startTime = startTimeData.toLocal();
-      } else {
-        if (mounted) {
-          setState(() => _remaining = const Duration(hours: 99));
-          widget.onTimerUpdate?.call(const Duration(hours: 99));
-        }
-        return;
-      }
-
-      DateTime? startDate;
-      if (startDateData is Timestamp) {
-        startDate = startDateData.toDate().toLocal();
-      } else if (startDateData is DateTime) {
-        startDate = startDateData.toLocal();
-      }
-
-      final now = DateTime.now();
-
-      DateTime? nextSession;
-      bool isCurrentlyLive = false;
-
-      final dayFormat = DateFormat('EEEE', 'en_US');
-
-      for (int i = -1; i <= 30; i++) {
-        final checkDate = DateTime(now.year, now.month, now.day + i);
-
-        if (startDate != null) {
-          final startDay = DateTime(
-            startDate.year,
-            startDate.month,
-            startDate.day,
-          );
-          final checkDay = DateTime(
-            checkDate.year,
-            checkDate.month,
-            checkDate.day,
-          );
-          if (checkDay.isBefore(startDay)) continue;
-        }
-
-        final dayName = dayFormat.format(checkDate);
-
-        if (selectedDays.contains(dayName)) {
-          final localStartTime = startTime.toLocal();
-          final sessionTime = DateTime(
-            checkDate.year,
-            checkDate.month,
-            checkDate.day,
-            localStartTime.hour,
-            localStartTime.minute,
-          );
-
-          Duration sessionDuration = const Duration(minutes: 90);
-          if (widget.course['endTime'] != null) {
-            DateTime? endDateTime;
-            if (widget.course['endTime'] is Timestamp) {
-              endDateTime = (widget.course['endTime'] as Timestamp)
-                  .toDate()
-                  .toLocal();
-            } else if (widget.course['endTime'] is DateTime) {
-              endDateTime = widget.course['endTime'].toLocal();
-            }
-
-            DateTime? originalStartDateTime;
-            if (widget.course['startTime'] is Timestamp) {
-              originalStartDateTime = (widget.course['startTime'] as Timestamp)
-                  .toDate()
-                  .toLocal();
-            } else if (widget.course['startTime'] is DateTime) {
-              originalStartDateTime = widget.course['startTime'].toLocal();
-            }
-
-            if (endDateTime != null && originalStartDateTime != null) {
-              final dummyStart = DateTime(
-                2000,
-                1,
-                1,
-                originalStartDateTime.hour,
-                originalStartDateTime.minute,
-              );
-              final dummyEnd = DateTime(
-                2000,
-                1,
-                1,
-                endDateTime.hour,
-                endDateTime.minute,
-              );
-              var diff = dummyEnd.difference(dummyStart);
-              if (diff.isNegative) diff = diff + const Duration(days: 1);
-
-              sessionDuration = diff;
-              if (sessionDuration.inMinutes <= 0 ||
-                  sessionDuration.inHours > 6) {
-                sessionDuration = const Duration(minutes: 90);
-              }
-            }
-          }
-
-          final sessionEndTime = sessionTime.add(sessionDuration);
-
-          if (now.isAfter(sessionTime) && now.isBefore(sessionEndTime)) {
-            isCurrentlyLive = true;
-            break;
-          }
-
-          if (sessionTime.isAfter(now)) {
-            nextSession = sessionTime;
-            break;
-          }
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          if (isCurrentlyLive) {
-            _remaining = Duration.zero;
-          } else if (nextSession != null) {
-            _remaining = nextSession.difference(now);
-          } else {
-            _remaining = const Duration(hours: 99);
-          }
-        });
-        widget.onTimerUpdate?.call(
-          isCurrentlyLive ? Duration.zero : _remaining,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _remaining = const Duration(hours: 99));
-        widget.onTimerUpdate?.call(const Duration(hours: 99));
-      }
-    }
+    final schedule = CourseSchedule.fromMap(widget.course, fallbackOffset: DateTime.now().timeZoneOffset);
+    final now = DateTime.now();
+    final next = schedule.next(now);
+    final remaining = schedule.live(now) != null
+        ? Duration.zero
+        : (next == null ? const Duration(hours: 99) : next.start.difference(now));
+    if (!mounted) return;
+    setState(() => _remaining = remaining);
+    widget.onTimerUpdate?.call(remaining);
   }
 
   @override

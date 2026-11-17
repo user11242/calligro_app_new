@@ -202,15 +202,9 @@ extension _ClassroomSections on _CourseDetailsPageState {
         // Smart Gating Logic for Students
         final now = DateTime.now();
         
-        // 1. Get Effective Start Time (Rescheduled or Original)
-        DateTime effectiveStart;
-        if (_rescheduledData != null && _rescheduledData!['newStartTime'] != null) {
-          effectiveStart = (_rescheduledData!['newStartTime'] as Timestamp).toDate();
-        } else if (selectedTime != null) {
-          effectiveStart = DateTime(now.year, now.month, now.day, selectedTime!.hour, selectedTime!.minute);
-        } else {
-          effectiveStart = now; 
-        }
+        // 1. Effective start: the class going on or the next one, moves included (the schedule rule).
+        final current = _schedule?.live(now) ?? _schedule?.next(now);
+        final DateTime effectiveStart = current?.start.toLocal() ?? now;
 
         // 2. Define Buffers
         final earlyBuffer = effectiveStart.subtract(const Duration(minutes: 10));

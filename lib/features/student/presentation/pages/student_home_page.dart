@@ -29,6 +29,8 @@ import 'teachers_page.dart';
 import 'package:calligro_app/features/courses/presentation/pages/course_preview_page.dart';
 import 'package:calligro_app/features/courses/domain/course_models.dart' show Course;
 import 'package:calligro_app/features/courses/domain/course_policy.dart';
+import 'package:calligro_app/features/courses/domain/course_schedule.dart';
+import 'package:calligro_app/features/classroom/presentation/widgets/next_session_card.dart' show RescheduledTag, formatSessionTime;
 import 'package:calligro_app/features/courses/presentation/course_scope.dart';
 import 'package:calligro_app/core/utils/shared_latest_stream.dart';
 import '../../../classroom/presentation/pages/course_details_page.dart';

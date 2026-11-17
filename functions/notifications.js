@@ -2,6 +2,7 @@ const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const { rescheduleNotice, noticeParams } = require("./reschedule_notice.js");
 const { deliverOnce } = require("./notification_delivery");
 
 const brevoApiKey = defineSecret("BREVO_API_KEY");
@@ -38,6 +39,10 @@ function getLocalizedText(lang, key, params = {}) {
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "Session Rescheduled ⏰",
             session_rescheduled_body: "The session for '{courseName}' has been moved.",
+            session_moved_body: "{courseName}: the class on {oldTime} is moved to {newTime}.",
+            session_moved_note_body: "{courseName}: the class on {oldTime} is moved to {newTime}. Note: {note}",
+            session_back_title: "Class back on schedule 🗓️",
+            session_back_body: "{courseName}: the class is back at its usual time, {oldTime}.",
             new_assignment_title: "New Assignment 📝",
             new_assignment_body: "A new assignment '{assignmentTitle}' has been added to '{courseName}' by {teacherName}.",
             new_course_chat_title: "💬 {courseName}",
@@ -71,6 +76,10 @@ function getLocalizedText(lang, key, params = {}) {
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "إعادة جدولة الجلسة ⏰",
             session_rescheduled_body: "تم تغيير موعد جلسة '{courseName}'.",
+            session_moved_body: "{courseName}: تم نقل حصة {oldTime} إلى {newTime}.",
+            session_moved_note_body: "{courseName}: تم نقل حصة {oldTime} إلى {newTime}. ملاحظة: {note}",
+            session_back_title: "عودة الحصة إلى موعدها 🗓️",
+            session_back_body: "{courseName}: عادت الحصة إلى موعدها المعتاد، {oldTime}.",
             new_assignment_title: "واجب جديد 📝",
             new_assignment_body: "تمت إضافة واجب جديد '{assignmentTitle}' إلى '{courseName}' بواسطة {teacherName}.",
             new_course_chat_title: "💬 {courseName}",
@@ -104,6 +113,10 @@ function getLocalizedText(lang, key, params = {}) {
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "Oturum Yeniden Planlandı ⏰",
             session_rescheduled_body: "'{courseName}' kursunun oturum saati değiştirildi.",
+            session_moved_body: "{courseName}: {oldTime} dersi {newTime} zamanına alındı.",
+            session_moved_note_body: "{courseName}: {oldTime} dersi {newTime} zamanına alındı. Not: {note}",
+            session_back_title: "Ders her zamanki saatine döndü 🗓️",
+            session_back_body: "{courseName}: ders her zamanki saatinde, {oldTime}.",
             new_assignment_title: "Yeni Ödev 📝",
             new_assignment_body: "{teacherName} tarafından '{courseName}' kursuna yeni bir ödev '{assignmentTitle}' eklendi.",
             new_course_chat_title: "💬 {courseName}",
@@ -189,7 +202,8 @@ function getLocalizedText(lang, key, params = {}) {
 // Helper: Send Notification — once per event per user (see notification_delivery.js).
 // [key] must be unique for the event (event.id): a retried trigger finds the
 // inbox item already there and sends nothing.
-async function sendNotification({ receiverId, key, type, titleKey, bodyKey, params = {}, payload = {} }) {
+/** [paramsFor]: per-receiver params (their language / time zone), instead of the same [params] for all. */
+async function sendNotification({ receiverId, key, type, titleKey, bodyKey, params = {}, paramsFor, payload = {} }) {
     try {
         const result = await deliverOnce({
             db: admin.firestore(),
@@ -199,10 +213,10 @@ async function sendNotification({ receiverId, key, type, titleKey, bodyKey, para
             key: key || `${type}_${receiverId}_${Date.now()}`,
             type,
             payload,
-            render: (lang) => ({
-                title: getLocalizedText(lang, titleKey, params),
-                body: getLocalizedText(lang, bodyKey, params),
-            }),
+            render: (lang, user) => {
+                const p = paramsFor ? paramsFor(user) : params;
+                return { title: getLocalizedText(lang, titleKey, p), body: getLocalizedText(lang, bodyKey, p) };
+            },
         });
         console.log(`[Notification] ${type} → ${receiverId}: ${result}`);
     } catch (err) {
@@ -372,42 +386,35 @@ exports.notifyStudentsOnAssignment = onDocumentCreated("courses/{courseId}/assig
 // Trigger 1.6: Session Reschedule (Notifies Enrolled Students)
 // ------------------------------------------------------------------------
 exports.notifyStudentsOnReschedule = onDocumentUpdated("courses/{courseId}", async (event) => {
-    const beforeData = event.data.before.data();
-    const afterData = event.data.after.data();
+    const beforeData = event.data.before.data() || {};
+    const afterData = event.data.after.data() || {};
 
-    // Check if rescheduledSession was added or updated
-    const beforeReschedule = beforeData.rescheduledSession || null;
-    const afterReschedule = afterData.rescheduledSession || null;
-
-    // If there's no reschedule now, or it didn't change, ignore
-    if (!afterReschedule) return null;
-    if (beforeReschedule && beforeReschedule.newStartTime && afterReschedule.newStartTime && 
-        beforeReschedule.newStartTime.isEqual(afterReschedule.newStartTime)) {
-        return null;
-    }
+    // Moved (with old → new day/time and the teacher's note), or undone. Each
+    // student reads the times in their own language and time zone.
+    const notice = rescheduleNotice(beforeData.rescheduledSession || null, afterData.rescheduledSession || null);
+    if (!notice) return null;
 
     const enrolledStudents = afterData.enrolledStudents || [];
     if (enrolledStudents.length === 0) return null;
 
     const courseName = afterData.courseName || afterData.courseTitle || "Course";
+    const titleKey = notice.kind === "back" ? "session_back_title" : "session_rescheduled_title";
+    const bodyKey = notice.kind === "back" ? "session_back_body" : (notice.note ? "session_moved_note_body" : "session_moved_body");
 
-    // Send push to all enrolled students
-    const promises = enrolledStudents.map(studentId => 
+    await Promise.all(enrolledStudents.map((studentId) =>
         sendNotification({
-        key: event.id,
+            key: event.id,
             receiverId: studentId,
             type: "reschedule",
-            titleKey: "session_rescheduled_title",
-            bodyKey: "session_rescheduled_body",
-            params: { courseName },
+            titleKey,
+            bodyKey,
+            paramsFor: (user) => noticeParams(notice, user, courseName),
             payload: {
                 route: '/courseDetails',
                 courseId: event.params.courseId
             }
         })
-    );
-
-    await Promise.all(promises);
+    ));
     return null;
 });
 

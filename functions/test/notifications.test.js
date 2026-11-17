@@ -128,16 +128,32 @@ describe('Domain 5: Notifications & Cloud Triggers (Cloud Functions)', () => {
     expect(admin.mockSend).toHaveBeenCalled();
   });
 
-  it('notifyStudentsOnReschedule works', async () => {
+  it('notifyStudentsOnReschedule: a moved class is announced to the students', async () => {
+    const move = {
+      originalDate: new Date('2030-11-30T15:00:00Z'), originalStartTime: new Date('2030-11-30T15:00:00Z'),
+      newStartTime: new Date('2030-12-01T16:00:00Z'), newEndTime: new Date('2030-12-01T17:30:00Z'), utcOffsetMinutes: 180,
+    };
     const event = {
+      id: 'evt-reschedule-1',
       params: { courseId: 'c1' },
       data: {
-        before: { data: () => ({ rescheduledSession: { newStartTime: { isEqual: () => false } } }) },
-        after: { data: () => ({ rescheduledSession: { newStartTime: { isEqual: () => false } }, enrolledStudents: ['s1'], title: 'Course' }) }
+        before: { data: () => ({}) },
+        after: { data: () => ({ rescheduledSession: move, enrolledStudents: ['s1'], courseName: 'Course' }) }
       }
     };
     await notifications.notifyStudentsOnReschedule(event);
     expect(admin.mockSend).toHaveBeenCalled();
+  });
+
+  it('notifyStudentsOnReschedule: nothing about the class changed → nothing sent', async () => {
+    const move = { originalStartTime: new Date('2030-11-30T15:00:00Z'), newStartTime: new Date('2030-12-01T16:00:00Z'), newEndTime: new Date('2030-12-01T17:30:00Z') };
+    admin.mockSend.mockClear();
+    await notifications.notifyStudentsOnReschedule({
+      id: 'evt-reschedule-2',
+      params: { courseId: 'c1' },
+      data: { before: { data: () => ({ rescheduledSession: move }) }, after: { data: () => ({ rescheduledSession: move, enrolledStudents: ['s1'] }) } },
+    });
+    expect(admin.mockSend).not.toHaveBeenCalled();
   });
 
   it('notifyAuthorOnComment works', async () => {

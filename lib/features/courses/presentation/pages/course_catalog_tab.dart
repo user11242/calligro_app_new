@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:calligro_app/features/classroom/presentation/widgets/next_session_card.dart' show MovedClassBanner;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
@@ -641,6 +642,9 @@ class _StudentCoursesTabState extends State<StudentCoursesTab> with AutomaticKee
                           ],
                         ),
                       ),
+
+                      // The next class was moved: tag + new time (only then).
+                      MovedClassBanner(course: data),
 
                       // ── COUNTDOWN BANNER ──
                       if (daysRemaining != null) ...[

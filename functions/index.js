@@ -379,3 +379,6 @@ exports.verifyEmailCode = require("./email_codes.js").verifyEmailCode;
 // Withdrawal requests are created by the server from the real balance.
 exports.requestWithdrawal = require("./withdrawals.js").requestWithdrawal;
 
+exports.rescheduleNextSession = require("./schedule.js").rescheduleNextSession;
+exports.cancelNextSessionReschedule = require("./schedule.js").cancelNextSessionReschedule;
+

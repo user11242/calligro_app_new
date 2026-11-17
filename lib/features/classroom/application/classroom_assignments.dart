@@ -1,4 +1,5 @@
 import '../domain/classroom_models.dart';
+import 'package:calligro_app/features/courses/domain/course_schedule.dart' show RescheduleError;
 import '../domain/classroom_repositories.dart';
 
 enum ClassroomOutcome { done, notAllowed, invalid, closed, empty, busy, failed }
@@ -8,7 +9,10 @@ class ClassroomResult {
   final String? id;
   final String? message;
   final List<AssignmentProblem> problems;
-  const ClassroomResult(this.outcome, {this.id, this.message, this.problems = const []});
+
+  /// Why moving a class was refused (by the rule here or by the server).
+  final RescheduleError? rescheduleError;
+  const ClassroomResult(this.outcome, {this.id, this.message, this.problems = const [], this.rescheduleError});
   bool get ok => outcome == ClassroomOutcome.done;
 }
 

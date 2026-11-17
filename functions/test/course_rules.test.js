@@ -125,6 +125,27 @@ describe('the course document the app writes', () => {
     assertFails(setDoc(doc(as('teach2'), 'courses/c1/private/meetingConfig'), { classroomPassword: 'hijack' })));
 });
 
+// TEMPORARY OLD-APP BRIDGE (remove after the forced update, see docs/KNOWN_ISSUES.md):
+// the store app (1.0.24) stamps new courses with the phone's clock, not the server's.
+describe('store app 1.0.24 can still create courses (temporary bridge)', () => {
+  const now = (offsetMs = 0) => Timestamp.fromDate(new Date(Date.now() + offsetMs));
+  it('the phone-clock createdAt of right now is accepted', () =>
+    assertSucceeds(setDoc(doc(as('teach'), 'courses/old1'), appCourse({ createdAt: now(), price: 50.0, iapProductId: 'com.yazan.calligro.tier_50' }))));
+  it('a phone clock a few minutes off either way is accepted', async () => {
+    await assertSucceeds(setDoc(doc(as('teach'), 'courses/old2'), appCourse({ createdAt: now(-4 * 60 * 1000) })));
+    await assertSucceeds(setDoc(doc(as('teach'), 'courses/old3'), appCourse({ createdAt: now(4 * 60 * 1000) })));
+  });
+  it('a backdated or future-dated course is still refused', async () => {
+    await assertFails(setDoc(doc(as('teach'), 'courses/old4'), appCourse({ createdAt: now(-60 * 60 * 1000) })));
+    await assertFails(setDoc(doc(as('teach'), 'courses/old5'), appCourse({ createdAt: now(60 * 60 * 1000) })));
+    await assertFails(setDoc(doc(as('teach'), 'courses/old6'), appCourse({ createdAt: 'yesterday' })));
+  });
+  it('everything else stays locked (students pre-filled, wrong teacher)', async () => {
+    await assertFails(setDoc(doc(as('teach'), 'courses/old7'), appCourse({ createdAt: now(), enrolledStudents: ['student'], enrolledCount: 1 })));
+    await assertFails(setDoc(doc(as('teach2'), 'courses/old8'), appCourse({ createdAt: now() })));
+  });
+});
+
 describe('changing an existing course', () => {
   it('the owner can reschedule a session and cancel it', async () => {
     await assertSucceeds(updateDoc(doc(as('teach'), 'courses/c1'), { rescheduledSession: { newStartTime: Timestamp.now() } }));
@@ -156,6 +177,22 @@ describe('changing an existing course', () => {
     await assertFails(deleteDoc(doc(as('teach'), 'courses/c1')));
     await assertSucceeds(deleteDoc(doc(as('teach'), 'courses/empty')));
     await assertSucceeds(deleteDoc(doc(as('admin'), 'courses/c1')));
+  });
+});
+
+describe('moved classes are written by the server only', () => {
+  it('the teacher cannot write the move list, the original range, the time zone or the dates', async () => {
+    const db = as('teach');
+    for (const field of [
+      { sessionMoves: [{ originalStart: Timestamp.now(), newStart: Timestamp.now(), newEnd: Timestamp.now() }] },
+      { scheduleStartDate: Timestamp.now() },
+      { scheduleEndDate: Timestamp.now() },
+      { scheduleUtcOffsetMinutes: 180 },
+      { startDate: Timestamp.now() },
+      { endDate: Timestamp.fromDate(new Date('2020-01-01')) }, // would unlock payouts early
+    ]) {
+      await assertFails(updateDoc(doc(db, 'courses/c1'), field));
+    }
   });
 });
 

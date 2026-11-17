@@ -28,7 +28,7 @@ function stringData(obj = {}) {
  * @param {string} o.receiverId
  * @param {string} o.key        unique per event (event.id) — the inbox item's id
  * @param {string} o.type
- * @param {(lang: string) => {title: string, body: string}} o.render
+ * @param {(lang: string, user: object) => {title: string, body: string}} o.render  (user: the receiver's profile)
  * @param {object} [o.payload]  route + ids
  * @returns {Promise<'sent'|'inbox-only'|'duplicate'|'no-user'>}
  */
@@ -37,7 +37,7 @@ async function deliverOnce({ db, messaging, receiverId, key, type, render, paylo
   const userDoc = await db.collection("users").doc(receiverId).get();
   if (!userDoc.exists) return "no-user";
   const user = userDoc.data();
-  const { title, body } = render(user.preferredLanguage || "en");
+  const { title, body } = render(user.preferredLanguage || "en", user);
   const data = stringData(payload);
 
   try {

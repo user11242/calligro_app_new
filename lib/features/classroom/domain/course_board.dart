@@ -1,6 +1,10 @@
 /// Teacher announcements and session changes (pure Dart).
 library;
 
+import 'package:calligro_app/features/courses/domain/course_schedule.dart' show RescheduleError;
+
+export 'package:calligro_app/features/courses/domain/course_schedule.dart' show RescheduleError;
+
 class Announcement {
   final String id;
   final String message;
@@ -27,15 +31,24 @@ class Announcement {
   }
 }
 
-/// Today's session moved to another time. Students are notified by the server
-/// (functions/notifications.js notifyStudentsOnReschedule) — the app used to
-/// write its own notice too, so every student got two.
+/// The NEXT class moved to [newStart]–[newEnd], with an optional [note] to the
+/// students. Checked by CourseSchedule.planMove here and again by the server
+/// (functions/schedule.js), which also moves the course dates and notifies the
+/// students once (functions/notifications.js).
 class SessionChange {
-  final DateTime originalDate;
   final DateTime newStart;
   final DateTime newEnd;
+  final String note;
 
-  const SessionChange({required this.originalDate, required this.newStart, required this.newEnd});
+  const SessionChange({required this.newStart, required this.newEnd, this.note = ''});
 
   bool get isValid => newEnd.isAfter(newStart);
+}
+
+/// The server refused the move, for [reason].
+class RescheduleRefused implements Exception {
+  final RescheduleError reason;
+  const RescheduleRefused(this.reason);
+  @override
+  String toString() => 'RescheduleRefused(${reason.name})';
 }

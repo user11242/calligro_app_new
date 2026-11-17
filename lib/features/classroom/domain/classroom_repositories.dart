@@ -72,8 +72,11 @@ abstract interface class BoardRepository {
   Stream<List<Announcement>> watchAnnouncements(String courseId);
   Future<void> postAnnouncement(String courseId, {required String message, required String senderName});
 
-  /// Sets rescheduledSession; the server notifies the students (once).
+  /// Asks the server to move the next class (it checks the rule, moves the course
+  /// dates when needed and notifies the students once). Throws [RescheduleRefused].
   Future<void> reschedule(String courseId, SessionChange change);
+
+  /// Asks the server to put the next class back at its usual time.
   Future<void> cancelReschedule(String courseId);
   Future<String> displayName(String uid);
 }

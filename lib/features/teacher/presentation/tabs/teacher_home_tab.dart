@@ -17,6 +17,8 @@ import '../../../gallery/pages/gallery_page.dart';
 import '../../../classroom/presentation/pages/course_details_page.dart';
 import 'package:calligro_app/core/widgets/auto_translated_text.dart';
 import 'package:calligro_app/core/widgets/notification_bell_button.dart';
+import 'package:calligro_app/features/courses/domain/course_schedule.dart';
+import '../../../classroom/presentation/widgets/next_session_card.dart' show RescheduledTag;
 
 // --- HELPER WIDGETS ---
 
@@ -304,82 +306,17 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                         (data['studentsEnrolled'] as int? ?? 0);
                   }
 
-                  DateTime? finalClassTime;
-                  DateTime? timeOnly = (data['selectedTime'] is Timestamp)
-                      ? (data['selectedTime'] as Timestamp).toDate().toLocal()
-                      : null;
-                  final selectedDays = List<String>.from(data['selectedDays'] ?? []);
-
-                  if (timeOnly != null && selectedDays.isNotEmpty) {
-                    final dayFormat = DateFormat('EEEE', 'en_US');
-                    for (int i = -1; i <= 30; i++) {
-                      final checkDate = DateTime(now.year, now.month, now.day + i);
-                      
-                      DateTime? startDate = (data['startDate'] is Timestamp)
-                          ? (data['startDate'] as Timestamp).toDate().toLocal()
-                          : null;
-                      
-                      if (startDate != null) {
-                         final startDay = DateTime(startDate.year, startDate.month, startDate.day);
-                         final checkDay = DateTime(checkDate.year, checkDate.month, checkDate.day);
-                         if (checkDay.isBefore(startDay)) continue;
-                      }
-
-                      if (selectedDays.contains(dayFormat.format(checkDate))) {
-                        final sessionTime = DateTime(
-                          checkDate.year,
-                          checkDate.month,
-                          checkDate.day,
-                          timeOnly.hour,
-                          timeOnly.minute,
-                        );
-                        
-                        // We use a hardcoded 90 minutes for the teacher "is live" check 
-                        // to keep it simple and consistent with the student defaults.
-                        final sessionEndTime = sessionTime.add(const Duration(minutes: 90));
-
-                        if (now.isAfter(sessionTime) && now.isBefore(sessionEndTime)) {
-                           finalClassTime = sessionTime;
-                           break;
-                        }
-                        if (sessionTime.isAfter(now)) {
-                           finalClassTime = sessionTime;
-                           break;
-                        }
-                      }
-                    }
-                  } else {
-                    // Fallback to startDate if selectedDays is missing
-                    DateTime? startDate = (data['startDate'] is Timestamp)
-                        ? (data['startDate'] as Timestamp).toDate().toLocal()
-                        : null;
-                    if (startDate != null && timeOnly != null) {
-                      finalClassTime = DateTime(
-                        startDate.year,
-                        startDate.month,
-                        startDate.day,
-                        timeOnly.hour,
-                        timeOnly.minute,
-                      );
-                    } else {
-                      finalClassTime = startDate ?? timeOnly;
-                    }
-
-                    if (finalClassTime != null) {
-                      while (finalClassTime!.isBefore(now.subtract(const Duration(minutes: 90)))) {
-                        finalClassTime = finalClassTime.add(const Duration(days: 7));
-                      }
-                    }
-                  }
-
-                  if (finalClassTime != null) {
-                    if (endDate == null || finalClassTime.isBefore(endDate.add(const Duration(days: 1)))) {
-                      scheduleList.add({
-                        'data': data,
-                        'time': finalClassTime,
-                        'id': doc.id,
-                      });
-                    }
+                  // The class going on now, or the next one — moves included (the one schedule rule).
+                  final schedule = CourseSchedule.fromMap(data, fallbackOffset: now.timeZoneOffset);
+                  final nextClass = schedule.live(now) ?? schedule.next(now);
+                  if (nextClass != null) {
+                    scheduleList.add({
+                      'data': data,
+                      'time': nextClass.start.toLocal(),
+                      'end': nextClass.end.toLocal(),
+                      'rescheduled': nextClass.isRescheduled,
+                      'id': doc.id,
+                    });
                   }
                 }
               }
@@ -473,15 +410,10 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                         itemCount: scheduleList.length,
                         itemBuilder: (context, index) {
                           final course = scheduleList[index];
+                          // "Join now": from 30 minutes before the class until it really ends.
                           final bool courseIsLive =
-                              (course['time'] as DateTime)
-                                      .difference(now)
-                                      .inMinutes >
-                                  -90 &&
-                              (course['time'] as DateTime)
-                                      .difference(now)
-                                      .inMinutes <
-                                  30;
+                              now.isBefore(course['end'] as DateTime) &&
+                                  (course['time'] as DateTime).difference(now).inMinutes < 30;
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(
@@ -494,6 +426,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                               course['time'],
                               courseIsLive,
                               shouldAnimate,
+                              rescheduled: course['rescheduled'] == true,
                             ),
                           );
                         },
@@ -655,8 +588,9 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
     Map<String, dynamic> data,
     DateTime time,
     bool isLive,
-    bool shouldAnimateEntrance,
-  ) {
+    bool shouldAnimateEntrance, {
+    bool rescheduled = false,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -879,6 +813,10 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (rescheduled) ...[
+                          const RescheduledTag(compact: true),
+                          const SizedBox(height: 10),
+                        ],
                         AutoTranslatedText(CourseUtils.getLocalizedCourseName(context, data),
                           textAlign: TextAlign.center,
                           style: const TextStyle(

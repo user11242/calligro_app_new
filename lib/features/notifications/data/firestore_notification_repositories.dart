@@ -44,12 +44,21 @@ class FirestorePushTokenStore implements PushTokenStore {
   FirebaseFirestore get _db => _injected ?? FirebaseFirestore.instance;
 
   @override
-  Future<void> save(String uid, String token, {required String language}) =>
-      _db.collection('users').doc(uid).set({
-        'fcmToken': token,
-        'preferredLanguage': language,
-        'lastTokenUpdate': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+  Future<void> save(String uid, String token, {required String language, Duration? utcOffset}) async {
+    final ref = _db.collection('users').doc(uid);
+    await ref.set({
+      'fcmToken': token,
+      'preferredLanguage': language,
+      'lastTokenUpdate': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    // The phone's time zone, so class-time notifications (a moved class) show THEIR local time.
+    // Separate update: a brand-new profile may only be created with the three fields above.
+    try {
+      await ref.update({'utcOffsetMinutes': (utcOffset ?? DateTime.now().timeZoneOffset).inMinutes});
+    } catch (_) {
+      // No profile yet: the notification falls back to the course's time zone (labelled).
+    }
+  }
 
   @override
   Future<void> clear(String uid, String token) async {

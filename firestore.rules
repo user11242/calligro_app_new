@@ -215,7 +215,17 @@ service cloud.firestore {
           d.price is number && d.price >= 0 &&
           (!('iapProductId' in d) || d.iapProductId == 'com.yazan.calligro.tier_' + string(int(d.price))) &&
           (!('maxStudents' in d) || (d.maxStudents is int && d.maxStudents >= 1)) &&
-          (!('createdAt' in d) || d.createdAt == request.time);
+          (!('createdAt' in d) || d.createdAt == request.time || oldAppCreatedAtOk(d.createdAt));
+      }
+
+      // TEMPORARY OLD-APP BRIDGE — remove after the forced update (docs/KNOWN_ISSUES.md).
+      // The store app (1.0.24) stamps new courses with the phone's clock; accept that
+      // only within 10 minutes of the server's time (no backdating, no future dates).
+      // To remove: delete this function and its use above (back to == request.time only).
+      function oldAppCreatedAtOk(t) {
+        return t is timestamp &&
+          t > request.time - duration.value(10, 'm') &&
+          t < request.time + duration.value(10, 'm');
       }
 
       // The owner may only reschedule a session, or carry their own new

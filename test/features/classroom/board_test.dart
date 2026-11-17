@@ -5,6 +5,7 @@ import 'package:calligro_app/features/classroom/data/firestore_board_repository.
 import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
 import 'package:calligro_app/features/classroom/domain/course_board.dart';
 import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
+import 'package:calligro_app/features/courses/domain/course_schedule.dart';
 import 'package:calligro_app/features/classroom/presentation/pages/announcements_board_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,37 +18,86 @@ import 'fakes/fake_classroom.dart';
 void main() {
   late FakeFirebaseFirestore db;
   late ClassroomBoard board;
+  late List<(String, Map<String, dynamic>)> calls;
+  Object? serverError;
 
-  final change = SessionChange(
-    originalDate: DateTime(2026, 12, 2),
-    newStart: DateTime(2026, 12, 2, 19),
-    newEnd: DateTime(2026, 12, 2, 20),
+  // Mon & Wed 18:00-19:30 (UTC+3), 30 Nov – 16 Dec 2026 (test/fixtures/schedule_cases.json).
+  final schedule = CourseSchedule(
+    weekdays: const {1, 3},
+    startDate: DateTime.parse('2026-11-29T21:00:00Z'),
+    endDate: DateTime.parse('2026-12-15T21:00:00Z'),
+    startTime: DateTime.parse('2026-11-20T15:00:00Z'),
+    endTime: DateTime.parse('2026-11-20T16:30:00Z'),
+    utcOffset: const Duration(hours: 3),
   );
+  final now = DateTime.parse('2026-12-03T09:00:00Z');
+  final ok = SessionChange(
+      newStart: DateTime.parse('2026-12-07T17:00:00Z'), newEnd: DateTime.parse('2026-12-07T18:00:00Z'), note: '  Bring ink  ');
 
   setUp(() async {
     db = FakeFirebaseFirestore();
-    board = ClassroomBoard(repository: FirestoreBoardRepository(firestore: db), currentUid: () => 't1');
+    calls = [];
+    serverError = null;
+    board = ClassroomBoard(
+      repository: FirestoreBoardRepository(
+        firestore: db,
+        call: (name, data) async {
+          calls.add((name, data));
+          if (serverError != null) throw serverError!;
+          return null;
+        },
+      ),
+      currentUid: () => 't1',
+      clock: () => now,
+    );
     await db.doc('users/t1').set({'name': 'Ustadh Ali'});
     await db.doc('courses/c1').set({'teacherId': 't1', 'enrolledStudents': ['s1', 's2']});
   });
 
-  test('moving the session sets it; the app writes NO notices (the server sends one — it used to be two)', () async {
-    expect((await board.reschedule('c1', CourseRole.owner, change)).ok, isTrue);
-    final session = (await db.doc('courses/c1').get()).data()!['rescheduledSession'] as Map;
-    expect((session['newStartTime'] as Timestamp).toDate(), DateTime(2026, 12, 2, 19));
+  test('moving the next class goes to the SERVER (which checks it, changes dates and notifies once)', () async {
+    expect((await board.reschedule('c1', CourseRole.owner, schedule, ok)).ok, isTrue);
+    expect(calls.single.$1, 'rescheduleNextSession');
+    expect(calls.single.$2, {
+      'courseId': 'c1',
+      'newStart': DateTime.parse('2026-12-07T17:00:00Z').millisecondsSinceEpoch,
+      'newEnd': DateTime.parse('2026-12-07T18:00:00Z').millisecondsSinceEpoch,
+      'note': 'Bring ink',
+      'utcOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+    });
+    // The app writes nothing itself (no notices, no course fields).
+    expect((await db.doc('courses/c1').get()).data()!.containsKey('rescheduledSession'), isFalse);
     for (final s in ['s1', 's2']) {
       expect((await db.collection('users/$s/notifications').get()).docs, isEmpty);
     }
-    expect((await board.cancelReschedule('c1', CourseRole.owner)).ok, isTrue);
-    expect((await db.doc('courses/c1').get()).data()!.containsKey('rescheduledSession'), isFalse);
   });
 
-  test('students cannot move sessions or post; an end before the start is refused', () async {
-    expect((await board.reschedule('c1', CourseRole.student, change)).outcome, ClassroomOutcome.notAllowed);
+  test('a move the rule refuses never reaches the server, and says why', () async {
+    final onFollowingDay = SessionChange(
+        newStart: DateTime.parse('2026-12-09T09:00:00Z'), newEnd: DateTime.parse('2026-12-09T10:00:00Z'));
+    final r = await board.reschedule('c1', CourseRole.owner, schedule, onFollowingDay);
+    expect(r.outcome, ClassroomOutcome.invalid);
+    expect(r.rescheduleError, RescheduleError.afterWindow);
+    expect(calls, isEmpty);
+  });
+
+  test('the server refusing (e.g. the class just started) comes back as the same reason', () async {
+    serverError = const RescheduleRefused(RescheduleError.noNextSession);
+    final r = await board.reschedule('c1', CourseRole.owner, schedule, ok);
+    expect(r.outcome, ClassroomOutcome.invalid);
+    expect(r.rescheduleError, RescheduleError.noNextSession);
+  });
+
+  test('undo goes to the server too', () async {
+    expect((await board.cancelReschedule('c1', CourseRole.owner)).ok, isTrue);
+    expect(calls.single.$1, 'cancelNextSessionReschedule');
+    expect(calls.single.$2, {'courseId': 'c1'});
+  });
+
+  test('students cannot move classes or post', () async {
+    expect((await board.reschedule('c1', CourseRole.student, schedule, ok)).outcome, ClassroomOutcome.notAllowed);
+    expect((await board.cancelReschedule('c1', CourseRole.student)).outcome, ClassroomOutcome.notAllowed);
     expect((await board.post('c1', CourseRole.visitor, 'x')).outcome, ClassroomOutcome.notAllowed);
-    final backwards = SessionChange(originalDate: change.originalDate, newStart: change.newEnd, newEnd: change.newStart);
-    expect((await board.reschedule('c1', CourseRole.owner, backwards)).outcome, ClassroomOutcome.invalid);
-    expect((await db.collection('users/s1/notifications').get()).docs, isEmpty);
+    expect(calls, isEmpty);
   });
 
   test('announcements are posted under the teacher\'s profile name, newest first', () async {

@@ -40,4 +40,10 @@ void main() {
     expect((await db.doc('users/u1').get()).data()!.containsKey('fcmToken'), isFalse);
     expect((await db.doc('users/u1').get()).data()!['preferredLanguage'], 'ar');
   });
+
+  test('token store: also saves the phone\'s time zone (moved-class notifications show local time)', () async {
+    final store = FirestorePushTokenStore(firestore: db);
+    await store.save('u2', 'tok-2', language: 'en', utcOffset: const Duration(hours: 3));
+    expect((await db.doc('users/u2').get()).data()!['utcOffsetMinutes'], 180);
+  });
 }
