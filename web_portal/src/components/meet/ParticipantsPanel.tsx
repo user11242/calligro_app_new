@@ -5,6 +5,7 @@ import { useParticipants, useDataChannel } from "@livekit/components-react";
 import { Users, Mic, MicOff, Video, VideoOff, UserCheck, UserMinus, Loader2, Hand } from "lucide-react";
 import { motion } from "framer-motion";
 import { RaisedHandsContext } from "./CalligroMeetLayout";
+import { moderateOnServer } from "./moderation";
 interface ParticipantsPanelProps {
   isTeacher: boolean;
   courseId: string;
@@ -33,9 +34,16 @@ export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsP
         payload.cmd = "kick_student"; // For web compat
       }
 
+      // Data message = friendly notice on the student's screen.
       send(encoder.encode(JSON.stringify(payload)), { reliable: true });
+      // Server call = actual enforcement (mute on the SFU / remove + block from rejoining).
+      setPendingAction(`${identity}:${action}`);
+      await moderateOnServer(courseId, action, identity);
     } catch (err) {
       console.error("Moderation error:", err);
+      alert("Moderation action failed. Please try again.");
+    } finally {
+      setPendingAction(null);
     }
   };
 

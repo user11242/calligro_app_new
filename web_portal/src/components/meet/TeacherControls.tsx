@@ -5,9 +5,12 @@ import { useDataChannel, useLocalParticipant } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { Mic, MicOff, Video, VideoOff, Monitor, MonitorOff } from "lucide-react";
 import { motion } from "framer-motion";
+import { moderateOnServer } from "./moderation";
 
-export default function TeacherControls() {
-  const { send } = useDataChannel("classroom-events");
+export default function TeacherControls({ courseId }: { courseId: string }) {
+  // Default (unnamed) channel: that is what the web layout and the Flutter app listen on.
+  // (Previously "classroom-events", which no client listened to, so mute-all never arrived.)
+  const { send } = useDataChannel();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
@@ -15,6 +18,12 @@ export default function TeacherControls() {
     const encoder = new TextEncoder();
     const data = encoder.encode(JSON.stringify({ cmd: "mute_all" }));
     send(data, { reliable: true });
+    // Enforce on the server so modified clients cannot ignore it
+    try {
+      await moderateOnServer(courseId, "mute_all");
+    } catch (err) {
+      console.error("Server mute-all failed:", err);
+    }
   };
 
   const toggleScreenShare = async () => {

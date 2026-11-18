@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { db, auth } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ArrowLeft, Download } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import Link from "next/link";
@@ -10,10 +10,14 @@ import { formatImageUrl } from "@/lib/utils";
 
 export default function CertificatePage() {
   const { id } = useParams();
+  const searchParams = useSearchParams();
+  const targetStudentId = searchParams?.get("studentId") || null;
+
   const [course, setCourse] = useState<any>(null);
   const [teacher, setTeacher] = useState<any>(null);
   const [studentName, setStudentName] = useState<string>("");
   const [certificateId, setCertificateId] = useState<string | null>(null);
+  const [isTeacherViewer, setIsTeacherViewer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const { t, locale } = useTranslation();
@@ -43,7 +47,8 @@ export default function CertificatePage() {
       });
       
       pdf.addImage(imgData, "PNG", 0, 0, 297, 210);
-      pdf.save("Calligro_Certificate.pdf");
+      const safeName = (studentName || "Student").replace(/\s+/g, "_");
+      pdf.save(`Calligro_Certificate_${safeName}.pdf`);
     } catch (error) {
       console.error("Error generating certificate PDF:", error);
     } finally {
@@ -59,7 +64,6 @@ export default function CertificatePage() {
         return;
       }
       try {
-        setStudentName(user.displayName || user.email?.split('@')[0] || "Student");
         const docRef = doc(db, "courses", id as string);
         const docSnap = await getDoc(docRef);
         let courseData: any = null;
@@ -75,17 +79,47 @@ export default function CertificatePage() {
           }
         }
 
+        const isTeacher = Boolean(courseData && courseData.teacherId === user.uid);
+        setIsTeacherViewer(isTeacher);
+
+        // Determine which student's certificate is being viewed
+        const effectiveStudentId = (isTeacher && targetStudentId) ? targetStudentId : user.uid;
+
+        if (effectiveStudentId !== user.uid) {
+          // Teacher viewing student's certificate: fetch student's profile name
+          const sRef = doc(db, "users", effectiveStudentId);
+          const sSnap = await getDoc(sRef);
+          if (sSnap.exists()) {
+            const sData = sSnap.data();
+            setStudentName(sData.name || sData.displayName || sData.email?.split('@')[0] || "Student");
+          } else {
+            setStudentName("Student");
+          }
+        } else {
+          setStudentName(user.displayName || user.email?.split('@')[0] || "Student");
+        }
+
         // Fetch verification ID
         const certsRef = collection(db, "certificates");
-        const q = query(certsRef, where("studentId", "==", user.uid), where("courseId", "==", id));
+        const q = query(certsRef, where("studentId", "==", effectiveStudentId), where("courseId", "==", id));
         const certSnap = await getDocs(q);
         if (!certSnap.empty) {
           setCertificateId(certSnap.docs[0].id);
         } else {
-          // Lazy-generate certificate ID for existing enrolled students (acts as a just-in-time backfill)
+          // Lazy-generate certificate ID for existing enrolled students
+          let finalStudentName = user.displayName || user.email?.split('@')[0] || "Student";
+          if (effectiveStudentId !== user.uid) {
+            const sRef = doc(db, "users", effectiveStudentId);
+            const sSnap = await getDoc(sRef);
+            if (sSnap.exists()) {
+              const sData = sSnap.data();
+              finalStudentName = sData.name || sData.displayName || sData.email?.split('@')[0] || "Student";
+            }
+          }
+
           const newCertRef = await addDoc(collection(db, "certificates"), {
-            studentId: user.uid,
-            studentName: user.displayName || user.email?.split('@')[0] || "Student",
+            studentId: effectiveStudentId,
+            studentName: finalStudentName,
             courseId: id,
             courseName: courseData?.courseName || courseData?.courseTitle || courseData?.title || "Untitled Course",
             teacherId: courseData?.teacherId || "",
@@ -100,7 +134,7 @@ export default function CertificatePage() {
       }
     });
     return () => unsubscribe();
-  }, [id, router]);
+  }, [id, router, targetStudentId]);
 
   if (loading) return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center">
@@ -170,9 +204,9 @@ export default function CertificatePage() {
       
       {/* Actions (Hidden on Print) */}
       <div className="w-full max-w-[1123px] flex justify-between items-center mb-8 px-4 print:hidden">
-        <Link href={`/courses/${id}`} className="text-white/70 hover:text-white flex items-center gap-2 transition-colors">
+        <Link href={isTeacherViewer ? `/teacher/courses/${id}` : `/courses/${id}`} className="text-white/70 hover:text-white flex items-center gap-2 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          <span>{t("course.back")}</span>
+          <span>{isTeacherViewer ? "Back to Course Studio" : t("course.back")}</span>
         </Link>
         <button 
           onClick={handleDownload} 

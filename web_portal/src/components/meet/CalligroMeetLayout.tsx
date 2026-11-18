@@ -27,6 +27,7 @@ import Whiteboard from "./Whiteboard";
 import CalligraphyBoard from "./CalligraphyBoard";
 import ProtractorOverlay from "./ProtractorOverlay";
 import LocalRecorderWrapper from "./LocalRecorderWrapper";
+import { isFromModerator } from "./moderation";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -258,6 +259,10 @@ export default function CalligroMeetLayout({
         setToastMessage(t("meet.teacher_ended"));
         setIsEnding(true);
         setTimeout(() => onLeave(), 2000);
+      } else if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+        setToastMessage("You have been removed from the class.");
+        setIsEnding(true);
+        setTimeout(() => onLeave(), 2000);
       }
     };
 
@@ -278,6 +283,21 @@ export default function CalligroMeetLayout({
       const data = JSON.parse(new TextDecoder().decode(message.payload));
       
       const senderIdentity = message.from?.identity;
+      // 🔐 Teacher-only commands are ignored unless the sender is a verified moderator.
+      const fromModerator = isFromModerator(message.from);
+      const teacherOnly =
+        data.cmd === "force_lower_hand" ||
+        data.cmd === "mute_all" ||
+        data.cmd === "mute_student" || data.type === "force_mute_mic" ||
+        data.cmd === "disable_camera" || data.type === "force_mute_camera" ||
+        data.cmd === "kick_student" || data.type === "kick_participant" ||
+        data.type === "end_meeting_for_all" ||
+        data.cmd === "toggle_whiteboard" || data.cmd === "set_whiteboard_mode" ||
+        data.type === "PROTRACTOR_STATE";
+      if (teacherOnly && !fromModerator) {
+        console.warn("Ignoring teacher-only command from non-moderator:", senderIdentity, data.cmd || data.type);
+        return;
+      }
 
       if (data.type === "RAISE_HAND" || data.cmd === "raise_hand") {
         setToastMessage(`${data.name} raised their hand! ✋`);
@@ -316,7 +336,8 @@ export default function CalligroMeetLayout({
           (data.identity === localParticipant.identity || data.targetId === localParticipant.identity)) {
         localParticipant.setCameraEnabled(false);
       }
-      if (data.cmd === "kick_student" && data.identity === localParticipant.identity) {
+      if ((data.cmd === "kick_student" || data.type === "kick_participant") &&
+          (data.identity === localParticipant.identity || data.targetId === localParticipant.identity)) {
         setToastMessage("You have been removed from the class.");
         setIsEnding(true);
         setTimeout(() => onLeave(), 2000);
@@ -581,7 +602,7 @@ export default function CalligroMeetLayout({
             transition={{ type: "spring", stiffness: 300, damping: 25, delay: 0.3 }}
             className={`absolute bottom-8 left-1/2 -translate-x-1/2 bg-[#1A1C23]/80 backdrop-blur-3xl border border-white/10 p-2.5 rounded-full flex items-center gap-2 shadow-[0_20px_60px_rgba(0,0,0,0.6)] ${isWhiteboardActive ? "z-[70]" : "z-30"}`}
           >
-            {isTeacher ? <TeacherControls /> : <StudentControls />}
+            {isTeacher ? <TeacherControls courseId={courseId} /> : <StudentControls />}
             
             <div className="w-px h-8 bg-white/10 mx-1" />
             

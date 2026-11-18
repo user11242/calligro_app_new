@@ -2,35 +2,16 @@
 
 import React, { useState } from "react";
 import { useLocalParticipant, useDataChannel, useRoomContext } from "@livekit/components-react";
-import { Track, RoomEvent } from "livekit-client";
-import { Mic, MicOff, Video, VideoOff, Hand, Monitor, MonitorOff } from "lucide-react";
+import { RoomEvent, type RemoteParticipant } from "livekit-client";
+import { Mic, MicOff, Video, VideoOff, Hand } from "lucide-react";
 import { motion } from "framer-motion";
+import { isFromModerator } from "./moderation";
 
 export default function StudentControls() {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const room = useRoomContext();
   const { send } = useDataChannel();
   const [isHandRaised, setIsHandRaised] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-
-  const toggleScreenShare = async () => {
-    try {
-      if (isScreenSharing) {
-        await localParticipant.setScreenShareEnabled(false);
-        setIsScreenSharing(false);
-      } else {
-        await localParticipant.setScreenShareEnabled(true, {
-          audio: true,
-          contentHint: "detail",
-        });
-        setIsScreenSharing(true);
-      }
-    } catch (err) {
-      console.error("Screen share error:", err);
-      setIsScreenSharing(false);
-    }
-  };
-
   const handleRaiseHand = async () => {
     const newState = !isHandRaised;
     setIsHandRaised(newState);
@@ -44,10 +25,11 @@ export default function StudentControls() {
   
   // Listen for teacher force-lowering our hand
   React.useEffect(() => {
-    const handleDataReceived = (payload: Uint8Array) => {
+    const handleDataReceived = (payload: Uint8Array, participant?: RemoteParticipant) => {
       try {
         const data = JSON.parse(new TextDecoder().decode(payload));
-        if (data.cmd === "force_lower_hand" && data.targetId === localParticipant.identity) {
+        if (data.cmd === "force_lower_hand" && data.targetId === localParticipant.identity
+            && isFromModerator(participant)) {
           setIsHandRaised(false);
           const encoder = new TextEncoder();
           const pData = encoder.encode(JSON.stringify({ 
@@ -85,14 +67,7 @@ export default function StudentControls() {
       >
         {isCameraEnabled ? <Video style={{ width: '1.25rem', height: '1.25rem' }} /> : <VideoOff style={{ width: '1.25rem', height: '1.25rem' }} />}
       </button>
-      {/* Custom screen share button that requests audio too */}
-      <button
-        onClick={toggleScreenShare}
-        className={`lk-toggle-btn ${isScreenSharing ? 'lk-toggle-btn-active' : ''}`}
-        title={isScreenSharing ? "Stop Sharing" : "Share Screen (with Audio)"}
-      >
-        {isScreenSharing ? <MonitorOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Monitor style={{ width: '1.25rem', height: '1.25rem' }} />}
-      </button>
+      {/* No screen-share button: the server only lets students publish camera + mic. */}
 
       <style dangerouslySetInnerHTML={{__html: `
         .lk-custom-toggles .lk-toggle-btn { 
