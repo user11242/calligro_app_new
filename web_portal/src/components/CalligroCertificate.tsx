@@ -219,21 +219,21 @@ export default function CalligroCertificate({
           )}
         </div>
 
-        {/* ─── 4. BOTTOM PILLARS (SIGNATURES + AUTHENTIC EMBOSSED PAPER SEAL) ─── */}
-        <div className="w-full grid grid-cols-4 items-end pt-4 border-t border-[#C5A059]/25 mt-2">
+        {/* ─── 4. BOTTOM PILLARS (DATE, INSTRUCTOR & AUTHENTIC EMBOSSED PAPER SEAL) ─── */}
+        <div className="w-full grid grid-cols-3 items-end pt-4 border-t border-[#C5A059]/25 mt-2 px-6">
           
           {/* 1. Date Column */}
           <div className="flex flex-col items-center">
             <span className="text-[#7A694F] text-[11px] font-sans font-bold tracking-wider mb-2">
               تاريخ الاعتماد
             </span>
-            <div className="h-14 flex items-center justify-center">
+            <div className="h-16 flex items-center justify-center">
               <span className="text-[#141414] text-xl font-bold" style={{ fontFamily: "'Aref Ruqaa', serif" }}>
                 {effectiveDateStr}
               </span>
             </div>
-            <div className="w-32 h-[1px] bg-[#141414]/20 mt-1" />
-            <span className="text-[#8C6D23] text-[9.5px] font-sans font-semibold mt-1">
+            <div className="w-36 h-[1px] bg-[#141414]/20 mt-1" />
+            <span className="text-[#8C6D23] text-[10px] font-sans font-semibold mt-1">
               أكاديمية كاليغرو الدولية
             </span>
           </div>
@@ -243,12 +243,12 @@ export default function CalligroCertificate({
             <span className="text-[#7A694F] text-[11px] font-sans font-bold tracking-wider mb-2">
               مدرب المساق
             </span>
-            <div className="h-14 flex items-center justify-center w-full">
+            <div className="h-16 flex items-center justify-center w-full">
               {teacherSignatureUrl ? (
                 <img
                   src={formatImageUrl(teacherSignatureUrl)}
                   alt="Teacher Signature"
-                  className="max-h-12 object-contain mix-blend-multiply scale-110"
+                  className="max-h-14 object-contain mix-blend-multiply scale-110"
                 />
               ) : (
                 <span className="text-[#141414] text-2xl" style={{ fontFamily: "'Diwani Letter', serif" }}>
@@ -256,49 +256,31 @@ export default function CalligroCertificate({
                 </span>
               )}
             </div>
-            <div className="w-32 h-[1px] bg-[#141414]/20 mt-1" />
-            <span className="text-[#8C6D23] text-[9.5px] font-sans font-semibold mt-1">
+            <div className="w-36 h-[1px] bg-[#141414]/20 mt-1" />
+            <span className="text-[#8C6D23] text-[10px] font-sans font-semibold mt-1">
               المدرب المعتمد
             </span>
           </div>
 
-          {/* 3. Executive Director (CEO) Signature */}
-          <div className="flex flex-col items-center">
-            <span className="text-[#7A694F] text-[11px] font-sans font-bold tracking-wider mb-2">
-              المدير التنفيذي
-            </span>
-            <div className="h-14 flex items-center justify-center w-full">
-              <img
-                src="/assets/images/yazan_signature.png"
-                alt="Yazan Qattous Signature"
-                className="max-h-14 object-contain mix-blend-multiply scale-125 -translate-y-1"
-              />
-            </div>
-            <div className="w-32 h-[1px] bg-[#141414]/20 mt-1" />
-            <span className="text-[#8C6D23] text-[9.5px] font-sans font-semibold mt-1">
-              يزن قطوس
-            </span>
-          </div>
-
-          {/* 4. REAL EMBOSSED PAPER SEAL ("INSIDE THE PAPER ITSELF") */}
+          {/* 3. REAL EMBOSSED PAPER SEAL ("INSIDE THE PAPER ITSELF") IN PLACE OF CEO */}
           <div className="flex flex-col items-center justify-center relative">
             {/* The 3D Pressed Dry Embossed Seal */}
             <div
-              className="relative w-32 h-32 rounded-full flex items-center justify-center select-none"
+              className="relative w-36 h-36 rounded-full flex items-center justify-center select-none"
               style={{
                 // Matching paper gradient for true blind-emboss impression
                 background: "linear-gradient(135deg, #FCFAF7 0%, #F5F0E4 50%, #ECE4D3 100%)",
                 boxShadow: `
-                  -3px -3px 6px rgba(255, 255, 255, 0.95),
-                  3px 3px 10px rgba(145, 120, 85, 0.35),
-                  inset -2.5px -2.5px 5px rgba(255, 255, 255, 0.9),
-                  inset 2.5px 2.5px 5px rgba(125, 100, 65, 0.28)
+                  -4px -4px 8px rgba(255, 255, 255, 0.95),
+                  4px 4px 12px rgba(145, 120, 85, 0.35),
+                  inset -3px -3px 6px rgba(255, 255, 255, 0.9),
+                  inset 3px 3px 6px rgba(125, 100, 65, 0.28)
                 `,
               }}
             >
               {/* Embossed Notched / Ribbed Ring Outer Edge */}
               <div
-                className="absolute inset-1 rounded-full pointer-events-none"
+                className="absolute inset-1.5 rounded-full pointer-events-none"
                 style={{
                   border: "1.5px solid rgba(165, 138, 98, 0.4)",
                   boxShadow: "inset 1px 1px 2px rgba(120, 95, 65, 0.25), 1px 1px 1px rgba(255, 255, 255, 0.9)",
@@ -307,15 +289,15 @@ export default function CalligroCertificate({
 
               {/* Dotted Crimp Ring (Matching Image 2 Book Embosser) */}
               <div
-                className="absolute inset-2.5 rounded-full pointer-events-none"
+                className="absolute inset-3 rounded-full pointer-events-none"
                 style={{
-                  border: "1.5px dotted rgba(150, 125, 85, 0.5)",
+                  border: "1.5px dotted rgba(150, 125, 85, 0.55)",
                 }}
               />
 
               {/* Inner Raised Ring */}
               <div
-                className="absolute inset-4 rounded-full pointer-events-none"
+                className="absolute inset-5 rounded-full pointer-events-none"
                 style={{
                   border: "1px solid rgba(165, 138, 98, 0.3)",
                   boxShadow: "1px 1px 2px rgba(120, 95, 65, 0.2), inset 1px 1px 1px rgba(255, 255, 255, 0.8)",
@@ -323,16 +305,16 @@ export default function CalligroCertificate({
               />
 
               {/* Circular Curved Embossed Text (SVG textPath) */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 128 128">
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 144 144">
                 <defs>
                   <path
                     id="embossed-seal-circle"
-                    d="M 64, 64 m -46, 0 a 46,46 0 1,1 92,0 a 46,46 0 1,1 -92,0"
+                    d="M 72, 72 m -52, 0 a 52,52 0 1,1 104,0 a 52,52 0 1,1 -104,0"
                     fill="none"
                   />
                 </defs>
                 <text
-                  className="text-[6.5px] uppercase font-bold tracking-[2.2px]"
+                  className="text-[7.5px] uppercase font-bold tracking-[2.2px]"
                   fill="#947444"
                   style={{
                     filter: "drop-shadow(-0.8px -0.8px 0px rgba(255, 255, 255, 0.95)) drop-shadow(0.8px 0.8px 1px rgba(110, 85, 55, 0.4))",
@@ -347,7 +329,7 @@ export default function CalligroCertificate({
 
               {/* Center Raised Disc with Embossed Calligro Emblem */}
               <div
-                className="relative w-14 h-14 rounded-full flex items-center justify-center"
+                className="relative w-16 h-16 rounded-full flex items-center justify-center"
                 style={{
                   background: "linear-gradient(135deg, #FAF7F0 0%, #EFE8DA 100%)",
                   boxShadow: `
@@ -360,7 +342,7 @@ export default function CalligroCertificate({
               >
                 {/* The Logo Embossed Inside the Paper */}
                 <div
-                  className="w-9 h-9 flex items-center justify-center"
+                  className="w-10 h-10 flex items-center justify-center"
                   style={{
                     filter: `
                       drop-shadow(-1.5px -1.5px 0.5px rgba(255, 255, 255, 0.95))
@@ -380,11 +362,11 @@ export default function CalligroCertificate({
             </div>
 
             {/* Official Verification ID below the Embossed Stamp */}
-            <div className="mt-1.5 flex flex-col items-center text-center">
-              <span className="text-[#8C6D23] text-[8.5px] font-mono tracking-widest uppercase font-bold">
+            <div className="mt-2 flex flex-col items-center text-center">
+              <span className="text-[#8C6D23] text-[9px] font-mono tracking-widest uppercase font-bold">
                 VERIFIED SEAL
               </span>
-              <span className="text-[#141414]/75 text-[8px] font-mono tracking-wider font-semibold select-all">
+              <span className="text-[#141414]/75 text-[8.5px] font-mono tracking-wider font-semibold select-all">
                 {certificateId || "PENDING"}
               </span>
             </div>
