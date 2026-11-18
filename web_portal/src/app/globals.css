@@ -2,7 +2,15 @@
 
 @font-face {
   font-family: 'Thuluth';
-  src: url('/fonts/thuluth.ttf') format('truetype');
+  src: local('Diwan Thuluth'), url('/fonts/thuluth.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Diwan Thuluth';
+  src: local('Diwan Thuluth'), url('/fonts/thuluth.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

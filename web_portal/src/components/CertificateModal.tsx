@@ -25,6 +25,7 @@ interface CertificateModalProps {
 export default function CertificateModal({ isOpen, onClose, certificate }: CertificateModalProps) {
   const [downloading, setDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [modalLang, setModalLang] = useState<"ar" | "en" | "tr">("ar");
 
   if (!isOpen || !certificate) return null;
 
@@ -112,6 +113,40 @@ export default function CertificateModal({ isOpen, onClose, certificate }: Certi
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Language Switcher */}
+              <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10" dir="ltr">
+                <button
+                  onClick={() => setModalLang("ar")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    modalLang === "ar"
+                      ? "bg-[#D4AF37] text-black shadow-sm"
+                      : "text-white/60 hover:text-white"
+                  }`}
+                >
+                  العربية
+                </button>
+                <button
+                  onClick={() => setModalLang("en")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    modalLang === "en"
+                      ? "bg-[#D4AF37] text-black shadow-sm"
+                      : "text-white/60 hover:text-white"
+                  }`}
+                >
+                  English
+                </button>
+                <button
+                  onClick={() => setModalLang("tr")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    modalLang === "tr"
+                      ? "bg-[#D4AF37] text-black shadow-sm"
+                      : "text-white/60 hover:text-white"
+                  }`}
+                >
+                  Türkçe
+                </button>
+              </div>
+
               <button
                 onClick={handleCopyId}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-medium border border-white/10 transition-colors"
@@ -163,6 +198,7 @@ export default function CertificateModal({ isOpen, onClose, certificate }: Certi
                 teacherSignatureUrl={certificate.teacherSignatureUrl}
                 dateStr={dateStr}
                 totalHours={certificate.totalHours}
+                language={modalLang}
               />
             </div>
           </div>

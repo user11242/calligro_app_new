@@ -11,15 +11,194 @@ export interface CalligroCertificateProps {
   teacherName?: string;
   teacherSignatureUrl?: string | null;
   dateStr?: string;
+  courseDate?: Date | string | null;
   totalHours?: number | null;
   className?: string;
   style?: React.CSSProperties;
+  language?: "ar" | "en" | "tr";
 }
 
 // Helper to determine if text is primarily Arabic
 const isArabicText = (text: string) => /[\u0600-\u06FF]/.test(text);
 
-const SCALLOP_BORDER_PATH = "M 24 24 Q 32.958333333333336 19.5 41.9 24 Q 50.875 19.5 59.8 24 Q 68.79166666666667 19.5 77.8 24 Q 86.70833333333334 19.5 95.7 24 Q 104.625 19.5 113.6 24 Q 122.54166666666667 19.5 131.5 24 Q 140.45833333333334 19.5 149.4 24 Q 158.375 19.5 167.3 24 Q 176.29166666666669 19.5 185.3 24 Q 194.20833333333334 19.5 203.2 24 Q 212.125 19.5 221.1 24 Q 230.04166666666669 19.5 239.0 24 Q 247.95833333333334 19.5 256.9 24 Q 265.875 19.5 274.8 24 Q 283.7916666666667 19.5 292.8 24 Q 301.70833333333337 19.5 310.7 24 Q 319.625 19.5 328.6 24 Q 337.5416666666667 19.5 346.5 24 Q 355.45833333333337 19.5 364.4 24 Q 373.375 19.5 382.3 24 Q 391.2916666666667 19.5 400.3 24 Q 409.20833333333337 19.5 418.2 24 Q 427.125 19.5 436.1 24 Q 445.0416666666667 19.5 454.0 24 Q 462.95833333333337 19.5 471.9 24 Q 480.875 19.5 489.8 24 Q 498.79166666666674 19.5 507.8 24 Q 516.7083333333334 19.5 525.7 24 Q 534.625 19.5 543.6 24 Q 552.5416666666667 19.5 561.5 24 Q 570.4583333333334 19.5 579.4 24 Q 588.375 19.5 597.3 24 Q 606.2916666666667 19.5 615.3 24 Q 624.2083333333334 19.5 633.2 24 Q 642.125 19.5 651.1 24 Q 660.0416666666667 19.5 669.0 24 Q 677.9583333333334 19.5 686.9 24 Q 695.875 19.5 704.8 24 Q 713.7916666666667 19.5 722.8 24 Q 731.7083333333334 19.5 740.7 24 Q 749.625 19.5 758.6 24 Q 767.5416666666667 19.5 776.5 24 Q 785.4583333333334 19.5 794.4 24 Q 803.375 19.5 812.3 24 Q 821.2916666666667 19.5 830.3 24 Q 839.2083333333334 19.5 848.2 24 Q 857.125 19.5 866.1 24 Q 875.0416666666667 19.5 884.0 24 Q 892.9583333333334 19.5 901.9 24 Q 910.875 19.5 919.8 24 Q 928.7916666666667 19.5 937.8 24 Q 946.7083333333335 19.5 955.7 24 Q 964.625 19.5 973.6 24 Q 982.5416666666667 19.5 991.5 24 Q 1000.4583333333335 19.5 1009.4 24 Q 1018.3750000000001 19.5 1027.3 24 Q 1036.2916666666667 19.5 1045.3 24 Q 1054.2083333333335 19.5 1063.2 24 Q 1072.125 19.5 1081.1 24 Q 1090.0416666666667 19.5 1099.0 24 Q 1103.5 33.325 1099 42.6 Q 1103.5 51.974999999999994 1099 61.3 Q 1103.5 70.625 1099 79.9 Q 1103.5 89.27499999999999 1099 98.6 Q 1103.5 107.925 1099 117.3 Q 1103.5 126.57499999999999 1099 135.9 Q 1103.5 145.22499999999997 1099 154.5 Q 1103.5 163.875 1099 173.2 Q 1103.5 182.52499999999998 1099 191.8 Q 1103.5 201.175 1099 210.5 Q 1103.5 219.825 1099 229.1 Q 1103.5 238.47499999999997 1099 247.8 Q 1103.5 257.125 1099 266.4 Q 1103.5 275.775 1099 285.1 Q 1103.5 294.42499999999995 1099 303.8 Q 1103.5 313.075 1099 322.4 Q 1103.5 331.72499999999997 1099 341.0 Q 1103.5 350.375 1099 359.7 Q 1103.5 369.025 1099 378.3 Q 1103.5 387.67499999999995 1099 397.0 Q 1103.5 406.325 1099 415.6 Q 1103.5 424.97499999999997 1099 434.3 Q 1103.5 443.625 1099 452.9 Q 1103.5 462.275 1099 471.6 Q 1103.5 480.92499999999995 1099 490.2 Q 1103.5 499.57499999999993 1099 508.9 Q 1103.5 518.2249999999999 1099 527.5 Q 1103.5 536.875 1099 546.2 Q 1103.5 555.5249999999999 1099 564.8 Q 1103.5 574.175 1099 583.5 Q 1103.5 592.825 1099 602.1 Q 1103.5 611.4749999999999 1099 620.8 Q 1103.5 630.125 1099 639.4 Q 1103.5 648.7749999999999 1099 658.1 Q 1103.5 667.425 1099 676.8 Q 1103.5 686.075 1099 695.4 Q 1103.5 704.7249999999999 1099 714.0 Q 1103.5 723.375 1099 732.7 Q 1103.5 742.0249999999999 1099 751.3 Q 1103.5 760.675 1099 770.0 Q 1090.0416666666667 774.5 1081.1 770 Q 1072.125 774.5 1063.2 770 Q 1054.2083333333335 774.5 1045.3 770 Q 1036.2916666666667 774.5 1027.3 770 Q 1018.3750000000001 774.5 1009.4 770 Q 1000.4583333333335 774.5 991.5 770 Q 982.5416666666667 774.5 973.6 770 Q 964.625 774.5 955.7 770 Q 946.7083333333335 774.5 937.8 770 Q 928.7916666666667 774.5 919.8 770 Q 910.875 774.5 901.9 770 Q 892.9583333333334 774.5 884.0 770 Q 875.0416666666667 774.5 866.1 770 Q 857.125 774.5 848.2 770 Q 839.2083333333334 774.5 830.3 770 Q 821.2916666666667 774.5 812.3 770 Q 803.375 774.5 794.4 770 Q 785.4583333333334 774.5 776.5 770 Q 767.5416666666667 774.5 758.6 770 Q 749.625 774.5 740.7 770 Q 731.7083333333334 774.5 722.8 770 Q 713.7916666666667 774.5 704.8 770 Q 695.875 774.5 686.9 770 Q 677.9583333333334 774.5 669.0 770 Q 660.0416666666667 774.5 651.1 770 Q 642.125 774.5 633.2 770 Q 624.2083333333334 774.5 615.3 770 Q 606.2916666666667 774.5 597.3 770 Q 588.375 774.5 579.4 770 Q 570.4583333333334 774.5 561.5 770 Q 552.5416666666667 774.5 543.6 770 Q 534.625 774.5 525.7 770 Q 516.7083333333334 774.5 507.8 770 Q 498.79166666666674 774.5 489.8 770 Q 480.875 774.5 471.9 770 Q 462.95833333333337 774.5 454.0 770 Q 445.0416666666667 774.5 436.1 770 Q 427.125 774.5 418.2 770 Q 409.20833333333337 774.5 400.3 770 Q 391.2916666666667 774.5 382.3 770 Q 373.375 774.5 364.4 770 Q 355.45833333333337 774.5 346.5 770 Q 337.5416666666667 774.5 328.6 770 Q 319.625 774.5 310.7 770 Q 301.70833333333337 774.5 292.8 770 Q 283.7916666666667 774.5 274.8 770 Q 265.875 774.5 256.9 770 Q 247.95833333333334 774.5 239.0 770 Q 230.04166666666669 774.5 221.1 770 Q 212.125 774.5 203.2 770 Q 194.20833333333334 774.5 185.3 770 Q 176.29166666666669 774.5 167.3 770 Q 158.375 774.5 149.4 770 Q 140.45833333333334 774.5 131.5 770 Q 122.54166666666667 774.5 113.6 770 Q 104.625 774.5 95.7 770 Q 86.70833333333334 774.5 77.8 770 Q 68.79166666666667 774.5 59.8 770 Q 50.875 774.5 41.9 770 Q 32.958333333333336 774.5 24.0 770 Q 19.5 760.675 24 751.3 Q 19.5 742.0249999999999 24 732.7 Q 19.5 723.375 24 714.0 Q 19.5 704.7249999999999 24 695.4 Q 19.5 686.075 24 676.8 Q 19.5 667.425 24 658.1 Q 19.5 648.7749999999999 24 639.4 Q 19.5 630.125 24 620.8 Q 19.5 611.4749999999999 24 602.1 Q 19.5 592.825 24 583.5 Q 19.5 574.175 24 564.8 Q 19.5 555.5249999999999 24 546.2 Q 19.5 536.875 24 527.5 Q 19.5 518.2249999999999 24 508.9 Q 19.5 499.57499999999993 24 490.2 Q 19.5 480.92499999999995 24 471.6 Q 19.5 462.275 24 452.9 Q 19.5 443.625 24 434.3 Q 19.5 424.97499999999997 24 415.6 Q 19.5 406.325 24 397.0 Q 19.5 387.67499999999995 24 378.3 Q 19.5 369.025 24 359.7 Q 19.5 350.375 24 341.0 Q 19.5 331.72499999999997 24 322.4 Q 19.5 313.075 24 303.8 Q 19.5 294.42499999999995 24 285.1 Q 19.5 275.775 24 266.4 Q 19.5 257.125 24 247.8 Q 19.5 238.47499999999997 24 229.1 Q 19.5 219.825 24 210.5 Q 19.5 201.175 24 191.8 Q 19.5 182.52499999999998 24 173.2 Q 19.5 163.875 24 154.5 Q 19.5 145.22499999999997 24 135.9 Q 19.5 126.57499999999999 24 117.3 Q 19.5 107.925 24 98.6 Q 19.5 89.27499999999999 24 79.9 Q 19.5 70.625 24 61.3 Q 19.5 51.974999999999994 24 42.6 Q 19.5 33.325 24 24.0 Z";
+// Classical Ottoman Arabesque Illumination Wing (تذهيب إسلامي جانبي متناظر)
+function ArabesqueWing({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      className={`w-36 h-14 pointer-events-none select-none text-[#C5A059] ${className}`}
+      viewBox="0 0 160 60"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <linearGradient id="wing-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#C5A059" stopOpacity="0.1" />
+          <stop offset="40%" stopColor="#DFC37C" stopOpacity="0.85" />
+          <stop offset="80%" stopColor="#C5A059" stopOpacity="0.95" />
+          <stop offset="100%" stopColor="#8C6D23" stopOpacity="0.85" />
+        </linearGradient>
+      </defs>
+      {/* Flowing classical rumi tendril */}
+      <path
+        d="M2 30 C30 30 50 16 80 18 C110 20 120 38 145 38 C152 38 158 35 160 30 C154 28 145 22 135 24 C120 27 110 12 80 12 C55 12 35 26 2 30 Z"
+        fill="url(#wing-gold)"
+        opacity="0.22"
+      />
+      <path
+        d="M0 30 C30 30 50 15 80 17 C110 19 125 36 148 36 C155 36 158 33 160 30"
+        stroke="url(#wing-gold)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M25 28 C50 24 75 14 100 20 C120 25 135 34 148 36"
+        stroke="#2E5A54"
+        strokeWidth="0.8"
+        strokeDasharray="2.5 1.5"
+        opacity="0.6"
+      />
+      {/* Rumi curling petal motifs */}
+      <path
+        d="M85 17 C92 10 102 12 100 18 C98 24 88 22 85 17 Z"
+        fill="url(#wing-gold)"
+        opacity="0.85"
+      />
+      <path
+        d="M120 22 C128 16 136 18 134 25 C131 31 122 28 120 22 Z"
+        fill="url(#wing-gold)"
+        opacity="0.8"
+      />
+      <path
+        d="M50 25 C44 20 35 22 36 27 C38 32 46 30 50 25 Z"
+        fill="url(#wing-gold)"
+        opacity="0.75"
+      />
+      {/* Terminal palmette finial */}
+      <path
+        d="M152 30 C156 25 160 22 160 30 C160 38 156 35 152 30 Z"
+        fill="url(#wing-gold)"
+      />
+      {/* Accent gems */}
+      <circle cx="82" cy="18" r="1.8" fill="#2E5A54" />
+      <circle cx="118" cy="22" r="1.6" fill="url(#wing-gold)" />
+      <circle cx="148" cy="36" r="1.8" fill="#2E5A54" />
+      <circle cx="5" cy="30" r="1.5" fill="url(#wing-gold)" />
+    </svg>
+  );
+}
+
+// Classical Islamic Header Crest / Palmette (تاج الترويسة المذهب)
+function TitleCrest() {
+  return (
+    <svg
+      className="w-24 h-7 text-[#C5A059] mb-0.5 select-none pointer-events-none"
+      viewBox="0 0 100 30"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <linearGradient id="crest-gold" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#C5A059" stopOpacity="0.2" />
+          <stop offset="30%" stopColor="#DFC37C" stopOpacity="0.9" />
+          <stop offset="50%" stopColor="#EAD8A4" stopOpacity="1" />
+          <stop offset="70%" stopColor="#DFC37C" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#C5A059" stopOpacity="0.2" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M50 2 C50 2 54 10 62 14 C70 17 80 15 84 12 C78 22 66 24 50 25 C34 24 22 22 16 12 C20 15 30 17 38 14 C46 10 50 2 50 2 Z"
+        fill="url(#crest-gold)"
+        opacity="0.85"
+      />
+      <path
+        d="M50 6 C52 11 58 15 64 16 C58 19 50 20 42 16 C48 15 50 11 50 6 Z"
+        fill="#FAF7F2"
+        opacity="0.9"
+      />
+      <circle cx="50" cy="18" r="2" fill="#2E5A54" />
+      <circle cx="50" cy="24" r="1.2" fill="#C5A059" />
+      <path
+        d="M16 12 C10 10 4 14 0 16 C6 18 12 16 16 12 Z"
+        fill="url(#crest-gold)"
+        opacity="0.6"
+      />
+      <path
+        d="M84 12 C90 10 96 14 100 16 C94 18 88 16 84 12 Z"
+        fill="url(#crest-gold)"
+        opacity="0.6"
+      />
+    </svg>
+  );
+}
+
+// Classical Diploma Honor Plaque / Cartouche Box (إطار شرفي مميز)
+function DiplomaPlaque({
+  children,
+  maxWidth = "max-w-[720px]",
+  className = "",
+}: {
+  children: React.ReactNode;
+  maxWidth?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`relative w-full ${maxWidth} mx-auto px-6 py-2 flex items-center justify-center ${className}`}>
+      {/* Soft Warm Parchment Luminous Fill */}
+      <div
+        className="absolute inset-0 rounded-[2px] pointer-events-none"
+        style={{
+          background: "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(246,240,228,0.7) 50%, rgba(255,255,255,0.85) 100%)",
+          boxShadow: "0 1px 4px rgba(46,90,84,0.06), inset 0 0 14px rgba(197,160,89,0.14)",
+        }}
+      />
+
+      {/* Outer Antique Gold Hairline Border */}
+      <div className="absolute inset-0 border border-[#C5A059]/80 rounded-[2px] pointer-events-none" />
+
+      {/* Inner Banknote Emerald Hairline Inset Border */}
+      <div className="absolute inset-[3px] border border-[#2E5A54]/30 rounded-[1px] pointer-events-none" />
+
+      {/* 4 Vector Corner Diamonds */}
+      <div className="absolute -top-[4px] -left-[4px] w-2 h-2 text-[#C5A059] pointer-events-none select-none">
+        <svg viewBox="0 0 10 10" fill="currentColor" className="w-full h-full">
+          <path d="M5 0 L10 5 L5 10 L0 5 Z" />
+        </svg>
+      </div>
+      <div className="absolute -top-[4px] -right-[4px] w-2 h-2 text-[#C5A059] pointer-events-none select-none">
+        <svg viewBox="0 0 10 10" fill="currentColor" className="w-full h-full">
+          <path d="M5 0 L10 5 L5 10 L0 5 Z" />
+        </svg>
+      </div>
+      <div className="absolute -bottom-[4px] -left-[4px] w-2 h-2 text-[#C5A059] pointer-events-none select-none">
+        <svg viewBox="0 0 10 10" fill="currentColor" className="w-full h-full">
+          <path d="M5 0 L10 5 L5 10 L0 5 Z" />
+        </svg>
+      </div>
+      <div className="absolute -bottom-[4px] -right-[4px] w-2 h-2 text-[#C5A059] pointer-events-none select-none">
+        <svg viewBox="0 0 10 10" fill="currentColor" className="w-full h-full">
+          <path d="M5 0 L10 5 L5 10 L0 5 Z" />
+        </svg>
+      </div>
+
+      {/* Top & Bottom Center Tiny Diamond Finials */}
+      <div className="absolute -top-[3px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 text-[#C5A059] pointer-events-none select-none">
+        <svg viewBox="0 0 10 10" fill="currentColor" className="w-full h-full">
+          <path d="M5 0 L10 5 L5 10 L0 5 Z" />
+        </svg>
+      </div>
+      <div className="absolute -bottom-[3px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 text-[#C5A059] pointer-events-none select-none">
+        <svg viewBox="0 0 10 10" fill="currentColor" className="w-full h-full">
+          <path d="M5 0 L10 5 L5 10 L0 5 Z" />
+        </svg>
+      </div>
+
+      {/* Inner Content */}
+      <div className="relative z-10 w-full flex items-center justify-center">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function CalligroCertificate({
   id = "print-area",
@@ -29,507 +208,476 @@ export default function CalligroCertificate({
   teacherName = "Master Instructor",
   teacherSignatureUrl,
   dateStr,
+  courseDate,
   totalHours,
   className = "",
   style = {},
+  language,
 }: CalligroCertificateProps) {
-  const { t } = useTranslation();
+  const { locale } = useTranslation();
+
+  // Active language: use prop if provided, otherwise context locale
+  const lang: "ar" | "en" | "tr" =
+    language || (locale === "ar" || locale === "en" || locale === "tr" ? locale : "ar");
 
   const isArabicName = isArabicText(studentName || "");
 
-  const effectiveDateStr =
-    dateStr ||
-    new Date().toLocaleDateString("ar-SA", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+  // Formatted date string depending on language (uses courseDate if provided, or dateStr, or today)
+  const effectiveDateStr = (() => {
+    if (courseDate) {
+      const d = courseDate instanceof Date ? courseDate : new Date(courseDate);
+      if (!isNaN(d.getTime())) {
+        if (lang === "ar") {
+          return d.toLocaleDateString("ar-SA", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+        } else if (lang === "tr") {
+          return d.toLocaleDateString("tr-TR", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+        } else {
+          return d.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+        }
+      }
+    }
+
+    if (dateStr) {
+      return dateStr;
+    }
+
+    const now = new Date();
+    if (lang === "ar") {
+      return now.toLocaleDateString("ar-SA", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } else if (lang === "tr") {
+      return now.toLocaleDateString("tr-TR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } else {
+      return now.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+  })();
+
+  const isRtl = lang === "ar";
 
   return (
     <div
       id={id}
-      className={`w-[1123px] h-[794px] min-w-[1123px] relative overflow-hidden flex flex-col justify-between shadow-2xl print:w-[1123px] print:h-[794px] print:shadow-none print:max-w-none origin-top select-none p-12 ${className}`}
+      className={`w-[1123px] h-[794px] min-w-[1123px] relative overflow-hidden flex flex-col justify-between shadow-2xl print:w-[1123px] print:h-[794px] print:shadow-none print:max-w-none origin-top select-none ${className}`}
       style={{
         boxSizing: "border-box",
-        background: "radial-gradient(ellipse at 50% 50%, #FCFBF7 0%, #F9F6EE 65%, #F0E8D8 100%)",
+        background: "#FAF7F2",
         ...style,
       }}
-      dir="rtl"
+      dir={isRtl ? "rtl" : "ltr"}
     >
-      {/* ─── AUTHENTIC BANKNOTE DIPLOMA BORDER (CALLIGRO BLACK & GOLD PALETTE) ─── */}
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none z-10"
-        viewBox="0 0 1123 794"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          {/* Interlocking Guilloche Wave Lattice for Banknote Ribbon */}
-          <pattern
-            id="guilloche-lattice"
-            width="28"
-            height="18"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M 0 9 Q 7 0 14 9 T 28 9"
-              fill="none"
-              stroke="#1A1A1A"
-              strokeWidth="1.2"
-              opacity="0.8"
-            />
-            <path
-              d="M 0 9 Q 7 18 14 9 T 28 9"
-              fill="none"
-              stroke="#1A1A1A"
-              strokeWidth="1.2"
-              opacity="0.8"
-            />
-            <path
-              d="M 0 4.5 Q 7 13.5 14 4.5 T 28 4.5"
-              fill="none"
-              stroke="#C5A059"
-              strokeWidth="0.8"
-              opacity="0.75"
-            />
-            <path
-              d="M 0 13.5 Q 7 4.5 14 13.5 T 28 13.5"
-              fill="none"
-              stroke="#C5A059"
-              strokeWidth="0.8"
-              opacity="0.75"
-            />
-            <circle cx="14" cy="9" r="1.5" fill="#C5A059" />
-          </pattern>
-        </defs>
+      {/* ─── 100% IDENTICAL VINTAGE DIPLOMA ENGRAVED FRAME (GREEN VINTAGE WITH SUBTLE GOLD ACCENT) ─── */}
+      <img
+        src="/assets/images/diploma_frame_vintage_transparent.png"
+        alt="Vintage Diploma Frame"
+        className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10 select-none"
+      />
 
-        {/* 1. Outermost Continuous Banknote Scalloped Wave Frame */}
-        <path
-          d={SCALLOP_BORDER_PATH}
-          fill="none"
-          stroke="#1A1A1A"
-          strokeWidth="1.8"
-          opacity="0.9"
-        />
-        <path
-          d={SCALLOP_BORDER_PATH}
-          fill="none"
-          stroke="#C5A059"
-          strokeWidth="0.8"
-          opacity="0.5"
-          transform="scale(0.996) translate(2.2, 1.5)"
-        />
+      {/* ─── SUBTLE GOLD FOIL SHIMMER OVERLAY ON THE FRAME ENGRAVING ─── */}
+      <img
+        src="/assets/images/diploma_frame_vintage_gold.png"
+        alt="Gold Frame Accent"
+        className="absolute inset-0 w-full h-full object-fill pointer-events-none z-10 select-none opacity-30 mix-blend-screen"
+      />
 
-        {/* 2. Outer Fine Hairline Border */}
-        <rect
-          x="28"
-          y="28"
-          width="1067"
-          height="738"
-          stroke="#C5A059"
-          strokeWidth="1"
-          opacity="0.85"
-        />
+      {/* ─── OUTER GOLD HAIRLINE PERIMETER RIMMING THE ENGRAVED FRAME ─── */}
+      <div className="absolute inset-[16px_22px_18px_22px] border border-[#C5A059]/40 rounded-sm pointer-events-none z-10" />
 
-        {/* 3. Authentic Guilloche Ribbon Band (18px wide band around perimeter) */}
-        <path
-          fillRule="evenodd"
-          d="M 33 33 H 1090 V 761 H 33 Z M 51 51 H 1072 V 743 H 51 Z"
-          fill="url(#guilloche-lattice)"
-          stroke="#1A1A1A"
-          strokeWidth="1.5"
-        />
-        <rect
-          x="33"
-          y="33"
-          width="1057"
-          height="728"
-          stroke="#C5A059"
-          strokeWidth="0.75"
-        />
-        <rect
-          x="51"
-          y="51"
-          width="1021"
-          height="692"
-          stroke="#C5A059"
-          strokeWidth="0.75"
-        />
-
-        {/* 4. Inner Fine Double Pinstripe Frame */}
-        <rect
-          x="57"
-          y="57"
-          width="1009"
-          height="680"
-          stroke="#1A1A1A"
-          strokeWidth="1.5"
-        />
-        <rect
-          x="61"
-          y="61"
-          width="1001"
-          height="672"
-          stroke="#C5A059"
-          strokeWidth="0.75"
-          strokeDasharray="4 2"
-          opacity="0.75"
-        />
-
-        {/* ─── 4 ORNATE CORNER VICTORIAN SCROLLWORK FILIGREES (MATCHING REFERENCE) ─── */}
-        {/* Top-Right Corner */}
-        <g transform="translate(26, 26)">
-          <path
-            d="M 0 0 C 35 0 60 12 70 32 C 55 42 42 55 32 70 C 12 60 0 35 0 0 Z"
-            fill="#1A1A1A"
-            opacity="0.95"
-          />
-          <path
-            d="M 7 7 C 30 7 50 16 58 32 C 46 40 36 50 28 62 C 14 50 7 30 7 7 Z"
-            fill="#C5A059"
-            opacity="0.85"
-          />
-          <circle cx="28" cy="28" r="8" fill="#FCFBF7" stroke="#1A1A1A" strokeWidth="2" />
-          <circle cx="28" cy="28" r="4.5" fill="#C5A059" />
-          <circle cx="28" cy="28" r="2" fill="#1A1A1A" />
-        </g>
-
-        {/* Top-Left Corner */}
-        <g transform="translate(1097, 26) scale(-1, 1)">
-          <path
-            d="M 0 0 C 35 0 60 12 70 32 C 55 42 42 55 32 70 C 12 60 0 35 0 0 Z"
-            fill="#1A1A1A"
-            opacity="0.95"
-          />
-          <path
-            d="M 7 7 C 30 7 50 16 58 32 C 46 40 36 50 28 62 C 14 50 7 30 7 7 Z"
-            fill="#C5A059"
-            opacity="0.85"
-          />
-          <circle cx="28" cy="28" r="8" fill="#FCFBF7" stroke="#1A1A1A" strokeWidth="2" />
-          <circle cx="28" cy="28" r="4.5" fill="#C5A059" />
-          <circle cx="28" cy="28" r="2" fill="#1A1A1A" />
-        </g>
-
-        {/* Bottom-Right Corner */}
-        <g transform="translate(26, 768) scale(1, -1)">
-          <path
-            d="M 0 0 C 35 0 60 12 70 32 C 55 42 42 55 32 70 C 12 60 0 35 0 0 Z"
-            fill="#1A1A1A"
-            opacity="0.95"
-          />
-          <path
-            d="M 7 7 C 30 7 50 16 58 32 C 46 40 36 50 28 62 C 14 50 7 30 7 7 Z"
-            fill="#C5A059"
-            opacity="0.85"
-          />
-          <circle cx="28" cy="28" r="8" fill="#FCFBF7" stroke="#1A1A1A" strokeWidth="2" />
-          <circle cx="28" cy="28" r="4.5" fill="#C5A059" />
-          <circle cx="28" cy="28" r="2" fill="#1A1A1A" />
-        </g>
-
-        {/* Bottom-Left Corner */}
-        <g transform="translate(1097, 768) scale(-1, -1)">
-          <path
-            d="M 0 0 C 35 0 60 12 70 32 C 55 42 42 55 32 70 C 12 60 0 35 0 0 Z"
-            fill="#1A1A1A"
-            opacity="0.95"
-          />
-          <path
-            d="M 7 7 C 30 7 50 16 58 32 C 46 40 36 50 28 62 C 14 50 7 30 7 7 Z"
-            fill="#C5A059"
-            opacity="0.85"
-          />
-          <circle cx="28" cy="28" r="8" fill="#FCFBF7" stroke="#1A1A1A" strokeWidth="2" />
-          <circle cx="28" cy="28" r="4.5" fill="#C5A059" />
-          <circle cx="28" cy="28" r="2" fill="#1A1A1A" />
-        </g>
-      </svg>
-
-      {/* ─── TOP TRACKING SERIAL (MATCHING REFERENCE IIPM/SECP/24001) ─── */}
-      <div className="absolute top-[68px] left-[78px] z-20 text-left font-mono text-[10px] text-[#8C6D23] tracking-widest font-bold" dir="ltr">
-        CLG/REG/{certificateId ? certificateId.slice(0, 10).toUpperCase() : "24001"}
+      {/* ─── LUXURY INSET GOLD HAIRLINE BORDER WITH CORNER FLORETS ─── */}
+      <div className="absolute inset-[66px_98px_72px_98px] border border-[#C5A059]/65 rounded-sm pointer-events-none z-10">
+        <span className="absolute -top-[5px] -left-[5px] text-[#C5A059] text-[8px] select-none">❖</span>
+        <span className="absolute -top-[5px] -right-[5px] text-[#C5A059] text-[8px] select-none">❖</span>
+        <span className="absolute -bottom-[5px] -left-[5px] text-[#C5A059] text-[8px] select-none">❖</span>
+        <span className="absolute -bottom-[5px] -right-[5px] text-[#C5A059] text-[8px] select-none">❖</span>
       </div>
 
-      {/* ─── 1. TOP HEADER: CREST & INSTITUTION NAME ─── */}
-      <div className="relative z-20 flex flex-col items-center pt-3">
-        {/* Circular University Crest Emblem Badge */}
-        <div
-          className="w-16 h-16 rounded-full flex items-center justify-center p-1 shadow-md mb-2"
-          style={{
-            background: "radial-gradient(circle at 35% 35%, #FFFFFF 0%, #FAF8F5 60%, #E8DFCE 100%)",
-            border: "2px solid #C5A059",
-            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.12)",
-          }}
-        >
-          <div className="w-13 h-13 rounded-full border border-[#1A1A1A]/30 p-1 flex items-center justify-center">
-            <img
-              src="/assets/images/Logo.png"
-              alt="Calligro Crest"
-              className="w-full h-full object-contain"
-            />
+      {/* ─── INNER CONTENT CONTAINER (PRECISELY CENTERED WITHIN THE ENGRAVED DIPLOMA FRAME) ─── */}
+      <div className="absolute inset-[75px_95px_78px_95px] flex flex-col justify-between items-center text-center z-20">
+        
+        {/* ─── 1. TOP TITLE & ACCREDITATION PREAMBLE (ENRICHED WITH ISLAMIC ARABESQUE ILLUMINATION) ─── */}
+        <div className="flex flex-col items-center w-full pt-1">
+          {/* Top Classical Ottoman Illumination Crest */}
+          <TitleCrest />
+
+          {/* Certificate Title Row Flanked by Symmetrical Arabesque Wings */}
+          <div className="flex items-center justify-center w-full max-w-[960px] px-2">
+            {/* Left Ornamental Arabesque Wing */}
+            <div className="flex-1 flex justify-end pr-2 opacity-90">
+              <ArabesqueWing />
+            </div>
+
+            {/* Certificate Title in genuine Diwan Thuluth */}
+            <div className="flex flex-col items-center flex-shrink-0 px-2">
+              {lang === "ar" && (
+                <h1
+                  className="text-[116px] text-[#112420] leading-none my-0 select-none font-normal text-center whitespace-nowrap"
+                  style={{
+                    fontFamily: "'Diwan Thuluth', 'Thuluth', serif",
+                  }}
+                >
+                  شهادة حضور
+                </h1>
+              )}
+
+              {lang === "en" && (
+                <>
+                  <h1
+                    className="text-[44px] font-serif tracking-[0.22em] text-[#162D29] font-bold uppercase leading-tight text-center"
+                    style={{ letterSpacing: "0.20em" }}
+                  >
+                    CERTIFICATE
+                  </h1>
+                  <p
+                    className="text-[22px] font-serif tracking-[0.28em] text-[#2E5A54] font-medium uppercase mt-0.5 text-center"
+                    style={{ letterSpacing: "0.26em" }}
+                  >
+                    OF ATTENDANCE
+                  </p>
+                </>
+              )}
+
+              {lang === "tr" && (
+                <>
+                  <h1
+                    className="text-[42px] font-serif tracking-[0.20em] text-[#162D29] font-bold uppercase leading-tight text-center"
+                    style={{ letterSpacing: "0.18em" }}
+                  >
+                    KATILIM BELGESİ
+                  </h1>
+                  <p
+                    className="text-[17px] font-serif tracking-[0.24em] text-[#2E5A54] font-medium uppercase mt-0.5 text-center"
+                    style={{ letterSpacing: "0.22em" }}
+                  >
+                    RESMİ TAMAMLAMA SERTİFİKASI
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Right Ornamental Arabesque Wing (Horizontally Mirrored) */}
+            <div className="flex-1 flex justify-start pl-2 opacity-90">
+              <ArabesqueWing className="transform scale-x-[-1]" />
+            </div>
           </div>
-        </div>
 
-        {/* Institution Name (Tracked Serif Capital Letters from Reference) */}
-        <h3
-          className="text-[#1A1A1A] text-lg font-bold uppercase font-serif tracking-[0.24em]"
-        >
-          CALLIGRO ACADEMY OF ARABIC CALLIGRAPHY
-        </h3>
-        <p
-          className="text-[#8C6D23] text-sm font-semibold tracking-wide mt-0.5"
-          style={{ fontFamily: "'Aref Ruqaa', serif" }}
-        >
-          أكاديمية كاليغرو لتعليم فنون الخط العربي
-        </p>
+          {/* Ornate Flourish Divider with Subtle Gold/Green Accents */}
+          <div className="flex items-center gap-4 mt-2 mb-1.5 w-[720px]">
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#C5A059] to-transparent" />
+            <span className="text-[#C5A059] text-xs">❧ ❖ ☙</span>
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#C5A059] to-transparent" />
+          </div>
 
-        {/* ─── CERTIFICATE TITLE (MATCHING REFERENCE "CERTIFICATE OF MASTERY") ─── */}
-        <div className="flex flex-col items-center mt-2.5">
-          <h1
-            className="text-4xl md:text-5xl font-serif text-[#1A1A1A] font-extrabold uppercase tracking-[0.24em]"
-          >
-            CERTIFICATE
-          </h1>
+          {/* Introductory Certification Statement (Prominent, Larger & Bold) */}
           <p
-            className="text-2xl md:text-3xl font-serif text-[#8C6D23] font-bold uppercase tracking-[0.28em] mt-1"
-          >
-            OF ATTENDANCE
-          </p>
-          <span
-            className="text-3xl font-bold text-[#1A1A1A] mt-1"
-            style={{ fontFamily: "'Thuluth', 'Amiri', 'Aref Ruqaa', serif" }}
-          >
-            شهادة حضور
-          </span>
-
-          {/* Ornate Flourish Divider (Exact Reference Style: — ❧ ❖ ☙ —) */}
-          <div className="flex items-center gap-3 my-1.5 w-80">
-            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#C5A059] to-transparent" />
-            <span className="text-[#8C6D23] text-sm font-serif">❧ ❖ ☙</span>
-            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#C5A059] to-transparent" />
-          </div>
-        </div>
-
-        {/* Presented To */}
-        <p className="text-[#5A4E3A] text-xs font-serif italic tracking-wider mt-0.5">
-          Presented to / تُمنح بكل فخر واعتزاز إلى
-        </p>
-      </div>
-
-      {/* ─── 2. PARTICIPANT'S NAME (CALLIGRAPHIC SCRIPT WITH THIN BASELINE LINE) ─── */}
-      <div className="relative z-20 flex flex-col items-center my-auto py-1">
-        <h2
-          className="text-5xl md:text-6xl font-bold text-[#1A1A1A] text-center px-12"
-          style={{
-            fontFamily: isArabicName
-              ? "'Diwani Letter', 'Amiri', serif"
-              : "'Playfair Display', 'Brush Script MT', 'Great Vibes', Georgia, serif",
-            lineHeight: "1.25",
-            fontStyle: isArabicName ? "normal" : "italic",
-          }}
-        >
-          {studentName}
-        </h2>
-
-        {/* Classic Thin Horizontal Line Under the Name (Exact Match to Reference) */}
-        <div className="w-[460px] h-[1px] bg-[#C5A059] mt-2 opacity-90 shadow-sm" />
-      </div>
-
-      {/* ─── 3. COURSE ACHIEVEMENT (BOLD TITLE & ISSUED DATE) ─── */}
-      <div className="relative z-20 max-w-3xl mx-auto text-center space-y-1 mb-2">
-        <p className="text-[#4A3E2D] text-xs font-serif tracking-wider">
-          For completing this professional course on / لاجتيازه/ـا متطلبات الدورة التدريبية:
-        </p>
-        <p
-          className="text-2xl md:text-3xl font-bold text-[#1A1A1A] py-0.5"
-          style={{ fontFamily: "'Aref Ruqaa', 'Amiri', serif" }}
-        >
-          « {courseName} »
-        </p>
-        <p className="text-xs font-serif text-[#5A4E3A]">
-          <span>Issued / تاريخ الإصدار: </span>
-          <span className="font-semibold text-[#1A1A1A]">{effectiveDateStr}</span>
-          {totalHours && (
-            <span className="mr-2"> • بواقع {totalHours} ساعات تدريبية معتمدة</span>
-          )}
-        </p>
-      </div>
-
-      {/* ─── 4. BOTTOM SECTION: TWO SIGNATURES + PURE 3D BLIND EMBOSSED PAPER SEAL IN CENTER ─── */}
-      {/* Enforce dir="ltr" so Left = Executive Director, Center = Seal, Right = Registrar (matching reference) */}
-      <div
-        className="relative z-20 w-full grid grid-cols-3 items-end px-20 pb-2 pt-1"
-        dir="ltr"
-      >
-        {/* Left Signature Column: Executive Director / مدرب المساق */}
-        <div className="flex flex-col items-center text-center">
-          <div className="h-14 flex items-end justify-center w-full pb-1">
-            {teacherSignatureUrl ? (
-              <img
-                src={formatImageUrl(teacherSignatureUrl)}
-                alt="Signature"
-                className="max-h-14 object-contain mix-blend-multiply"
-              />
-            ) : (
-              <span
-                className="text-xl text-[#1A1A1A]"
-                style={{
-                  fontFamily: isArabicText(teacherName)
-                    ? "'Diwani Letter', serif"
-                    : "'Playfair Display', cursive, serif",
-                }}
-              >
-                {teacherName}
-              </span>
-            )}
-          </div>
-          <div className="w-44 h-[1px] bg-[#1A1A1A]/70 mt-1" />
-          <p className="text-[#1A1A1A] text-[11px] font-serif font-bold tracking-wider mt-1 uppercase">
-            Executive Director / مدرب المساق
-          </p>
-        </div>
-
-        {/* Center Pillar: PURE 3D BLIND EMBOSSED PAPER SEAL (PRESSED INSIDE PAPER - NO TREE / NO LOGO) */}
-        <div className="flex flex-col items-center justify-center">
-          <div
-            className="relative w-32 h-32 rounded-full flex items-center justify-center select-none"
+            className={`text-[#142D28] text-[20px] md:text-[21px] font-bold max-w-3xl mx-auto leading-relaxed mt-2.5 ${lang === "ar" ? "" : "tracking-wider font-serif text-base text-[#142D28]"}`}
             style={{
-              background: "radial-gradient(circle at 35% 35%, #FFFFFF 0%, #FAF8F5 60%, #EFE8DC 100%)",
-              boxShadow: `
-                -3px -3px 6px rgba(255, 255, 255, 0.98),
-                3px 3px 8px rgba(135, 110, 75, 0.28),
-                inset -2px -2px 4px rgba(255, 255, 255, 0.95),
-                inset 2px 2px 4px rgba(115, 90, 55, 0.25)
-              `,
+              fontFamily: lang === "ar" ? "'Amiri', serif" : "'Playfair Display', serif",
+              fontWeight: 700,
             }}
           >
-            {/* Outer Debossed Groove */}
-            <div
-              className="absolute inset-2 rounded-full pointer-events-none"
-              style={{
-                border: "1px solid rgba(155, 130, 95, 0.35)",
-                boxShadow:
-                  "inset 1.5px 1.5px 2px rgba(110, 85, 55, 0.22), 1px 1px 1px rgba(255, 255, 255, 0.9)",
-              }}
-            />
+            {lang === "ar" && "تشهد أكاديمية كاليغرو لتعليم فنون الخط العربي بأن المتدرب/ـة:"}
+            {lang === "en" && "Calligro International Academy of Arabic Calligraphy proudly certifies that:"}
+            {lang === "tr" && "Calligro Uluslararası Arap Hat Sanatı Akademisi işbu resmi belge ile onaylar ki:"}
+          </p>
+        </div>
 
-            {/* Dotted Crimp Ring */}
-            <div
-              className="absolute inset-3.5 rounded-full pointer-events-none"
-              style={{
-                border: "1.5px dotted rgba(145, 120, 85, 0.55)",
-              }}
-            />
-
-            {/* Inner Fine Pressed Ring */}
-            <div
-              className="absolute inset-5 rounded-full pointer-events-none"
-              style={{
-                border: "1px solid rgba(155, 130, 95, 0.3)",
-                boxShadow:
-                  "1px 1px 2px rgba(110, 85, 55, 0.18), inset 1px 1px 1px rgba(255, 255, 255, 0.9)",
-              }}
-            />
-
-            {/* Circular Curved 3D Embossed Typography with Clean Smooth Center */}
-            <svg
-              className="w-full h-full p-2 pointer-events-none"
-              viewBox="0 0 144 144"
-              style={{
-                filter: "drop-shadow(-1px -1px 0px rgba(255, 255, 255, 0.95)) drop-shadow(1.2px 1.2px 0.8px rgba(110, 85, 45, 0.45))",
-              }}
-            >
-              <defs>
-                <path
-                  id="final-emboss-top"
-                  d="M 24, 72 A 48, 48 0 0, 1 120, 72"
-                  fill="none"
-                />
-                <path
-                  id="final-emboss-bottom"
-                  d="M 120, 72 A 48, 48 0 0, 1 24, 72"
-                  fill="none"
-                />
-              </defs>
-
-              {/* Top Arc Text (Warm Embossed Paper Tone) */}
-              <text
-                className="text-[7.5px] uppercase font-bold tracking-[2.5px]"
-                fill="#9B7D46"
-                style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800 }}
-              >
-                <textPath href="#final-emboss-top" startOffset="50%" textAnchor="middle">
-                  CALLIGRO ACADEMY
-                </textPath>
-              </text>
-
-              {/* Bottom Arc Text */}
-              <text
-                className="text-[7px] uppercase font-bold tracking-[2.2px]"
-                fill="#9B7D46"
-                style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800 }}
-              >
-                <textPath href="#final-emboss-bottom" startOffset="50%" textAnchor="middle">
-                  OFFICIAL ACCREDITATION
-                </textPath>
-              </text>
-
-              {/* Left Symmetrical Embossed Dots */}
-              <circle cx="23" cy="67" r="1.5" fill="#9B7D46" />
-              <circle cx="22" cy="72" r="1.5" fill="#9B7D46" />
-              <circle cx="23" cy="77" r="1.5" fill="#9B7D46" />
-
-              {/* Right Symmetrical Embossed Dots */}
-              <circle cx="121" cy="67" r="1.5" fill="#9B7D46" />
-              <circle cx="122" cy="72" r="1.5" fill="#9B7D46" />
-              <circle cx="121" cy="77" r="1.5" fill="#9B7D46" />
-
-              {/* Central 3D Embossed Star Finials (Clean, Dignified, No tree, No logo) */}
-              <circle cx="72" cy="72" r="2.5" fill="#9B7D46" />
-              <circle cx="62" cy="72" r="1.5" fill="#9B7D46" />
-              <circle cx="82" cy="72" r="1.5" fill="#9B7D46" />
-            </svg>
+        {/* ─── 2. MIDDLE BLOCK: PARTICIPANT'S NAME & COURSE ACHIEVEMENT ─── */}
+        <div className="flex flex-col items-center my-auto w-full">
+          {/* Top Delicate Engraved Rule */}
+          <div className="flex items-center justify-center gap-3 w-[720px] mb-1">
+            <div className="h-[1px] flex-1 bg-gradient-to-l from-[#C5A059]/75 via-[#2E5A54]/30 to-transparent" />
+            <span className="text-[#C5A059] text-[8px] transform rotate-45 opacity-90 select-none">◆</span>
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C5A059]/75 via-[#2E5A54]/30 to-transparent" />
           </div>
 
-          {/* Minimalist Verification Record */}
-          <div className="mt-1 flex flex-col items-center text-center">
-            <span className="text-[#8C6D23] text-[8.5px] font-mono tracking-widest uppercase font-bold">
-              OFFICIAL SEAL
-            </span>
-            <span className="text-[#1A1A1A]/70 text-[8px] font-mono tracking-wider font-semibold select-all">
-              {certificateId ? certificateId.slice(0, 14) : "VERIFIED"}
-            </span>
+          {/* Participant's Name (Normal Upright Clean Typography in Distinctive Rich Gold Tone) */}
+          <div className="flex items-center justify-center gap-5 my-0.5 max-w-[840px] px-6">
+            <span className="text-[#C5A059]/75 text-sm select-none">❧</span>
+            <h2
+              className="text-4xl md:text-[48px] text-[#A67822] text-center font-semibold tracking-normal"
+              style={{
+                fontFamily: isArabicName
+                  ? "'Amiri', serif"
+                  : "'Playfair Display', Georgia, serif",
+                lineHeight: "1.25",
+                fontStyle: "normal",
+                color: "#A67822",
+              }}
+            >
+              {studentName}
+            </h2>
+            <span className="text-[#C5A059]/75 text-sm select-none">☙</span>
+          </div>
+
+          {/* Bottom Delicate Engraved Rule */}
+          <div className="flex items-center justify-center gap-3 w-[720px] mt-1 mb-3.5">
+            <div className="h-[1px] flex-1 bg-gradient-to-l from-[#C5A059]/75 via-[#2E5A54]/30 to-transparent" />
+            <span className="text-[#C5A059] text-[8px] transform rotate-45 opacity-90 select-none">◆</span>
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-[#C5A059]/75 via-[#2E5A54]/30 to-transparent" />
+          </div>
+
+          {/* Course Achievement, Student Commitment & Best Wishes */}
+          <div className="w-full max-w-[860px] mx-auto text-center space-y-2">
+            {/* Image 1: Completion Statement (Matching Image 3 font size & bold styling) */}
+            <p
+              className={`text-[#142D28] text-[20px] md:text-[21px] font-bold leading-relaxed max-w-3xl mx-auto ${lang === "ar" ? "" : "tracking-wider font-serif text-base text-[#142D28]"}`}
+              style={{
+                fontFamily: lang === "ar" ? "'Amiri', serif" : "'Playfair Display', serif",
+                fontWeight: 700,
+              }}
+            >
+              {lang === "ar" && "قد أتم/ـت بنجاح واقتدار كافة المتطلبات التدريبية والتطبيقات العملية المقررة لدورة:"}
+              {lang === "en" && "Has successfully fulfilled all curriculum and practical requirements for the course:"}
+              {lang === "tr" && "Aşağıda belirtilen uzmanlık kursunun tüm teorik ve pratik gereksinimlerini başarıyla tamamlamıştır:"}
+            </p>
+
+            {/* Course Title in Matching Distinguished Award Cartouche */}
+            <DiplomaPlaque maxWidth="max-w-[680px]" className="my-1.5">
+              <p
+                className="text-2xl md:text-[28px] font-bold text-[#142D28] py-0.5"
+                style={{
+                  fontFamily: isArabicText(courseName)
+                    ? "'Aref Ruqaa', 'Amiri', serif"
+                    : "'Playfair Display', serif",
+                }}
+              >
+                <span className="text-[#C5A059] font-serif font-normal text-2xl mx-1.5">«</span>
+                {courseName}
+                <span className="text-[#C5A059] font-serif font-normal text-2xl mx-1.5">»</span>
+              </p>
+            </DiplomaPlaque>
+
+            {/* Image 2: Commitment of the student & accredited hours (Matching Image 3 font size & bold styling) */}
+            <p
+              className={`text-[#142D28] text-[19px] md:text-[20px] font-bold leading-relaxed max-w-[840px] mx-auto ${lang === "ar" ? "" : "tracking-wider font-serif text-base text-[#142D28]"}`}
+              style={{
+                fontFamily: lang === "ar" ? "'Amiri', serif" : "'Playfair Display', serif",
+                fontWeight: 700,
+              }}
+            >
+              {lang === "ar" && (totalHours
+                ? `بواقع (${totalHours}) ساعات تدريبية معتمدة؛ وذلك تقديراً لالتزامه/ـا المتميز، وجهودهـ/ـا الدؤوبة، ومثابرتهـ/ـا في دراسة وتطبيق أصول وقواعد الخط العربي الأصيل.`
+                : "وذلك تقديراً لالتزامه/ـا المتميز، وجهودهـ/ـا الدؤوبة، ومثابرتهـ/ـا العالية في دراسة وتطبيق أصول وقواعد الخط العربي الأصيل.")}
+              {lang === "en" && (totalHours
+                ? `Comprising (${totalHours}) accredited training hours; in sincere recognition of outstanding student commitment, disciplined practice, and dedication to classical calligraphy arts.`
+                : "In sincere recognition of outstanding student commitment, disciplined practice, and profound dedication to classical calligraphy arts.")}
+              {lang === "tr" && (totalHours
+                ? `(${totalHours}) saatlik akredite eğitim kapsamında; hat sanatının kadim kurallarını öğrenmedeki üstün gayreti, örnek disiplini ve samimi bağlılığının takdiriyle.`
+                : "Hat sanatının kadim kurallarını öğrenmedeki üstün gayreti, örnek disiplini ve samimi bağlılığının takdiriyle.")}
+            </p>
+
+            {/* Warm wishes for success (Matching Image 3 font size & bold styling) */}
+            <p
+              className={`text-[#142D28] text-[18px] md:text-[19px] font-bold leading-relaxed max-w-[800px] mx-auto pt-0.5 ${lang === "ar" ? "" : "tracking-wider font-serif text-base text-[#142D28]"}`}
+              style={{
+                fontFamily: lang === "ar" ? "'Amiri', serif" : "'Playfair Display', serif",
+                fontWeight: 700,
+              }}
+            >
+              {lang === "ar" && "مع أصدق تمنياتنا له/ـا بدوام التوفيق والنجاح، ومزيد من التألق والإبداع في مسيرتهـ/ـا الفنية."}
+              {lang === "en" && "With our warmest wishes for continued success, artistic fulfillment, and enduring excellence."}
+              {lang === "tr" && "Sanat hayatında daimi muvaffakiyetler, ilham ve üstün başarılar dileriz."}
+            </p>
           </div>
         </div>
 
-        {/* Right Signature Column: Academic Registrar / مسجل الأكاديمية */}
-        <div className="flex flex-col items-center text-center">
-          <div className="h-14 flex items-end justify-center w-full pb-1">
-            <span
-              className="text-xl text-[#1A1A1A]"
+        {/* ─── 4. BOTTOM SECTION: INSTRUCTOR, 3D BLIND EMBOSSED SEAL & DATE/TIME ─── */}
+        <div
+          className="w-full grid grid-cols-3 items-end px-10 pb-1 max-w-[880px]"
+          dir="ltr"
+        >
+          {/* Left Column: DATE (TITLE UP, DATE DOWN) */}
+          <div className="flex flex-col items-center text-center">
+            <p className={`text-[#1A332F] text-[13px] font-serif font-bold mb-1 uppercase ${lang === "ar" ? "" : "tracking-wider"}`}>
+              {lang === "ar" && "التاريخ"}
+              {lang === "en" && "Date"}
+              {lang === "tr" && "Tarih"}
+            </p>
+            <div className="w-40 h-[1px] bg-gradient-to-r from-transparent via-[#C5A059]/75 to-transparent mb-1" />
+            <div className="h-12 flex items-center justify-center w-full">
+              <span
+                className="text-xl text-[#142622] font-semibold"
+                style={{
+                  fontFamily: lang === "ar"
+                    ? "'Aref Ruqaa', 'Amiri', serif"
+                    : "'Playfair Display', Georgia, serif",
+                }}
+              >
+                {effectiveDateStr}
+              </span>
+            </div>
+          </div>
+
+          {/* Center Pillar: EXACT 3D BLIND EMBOSSED PAPER SEAL (PROPORTIONAL TO SIGNATURE & DATE BLOCKS) */}
+          <div className="flex flex-col items-center justify-center pb-1">
+            {/* The Tactile 3D Paper Emboss Stamp */}
+            <div
+              className="relative w-[76px] h-[76px] rounded-full flex items-center justify-center select-none"
               style={{
-                fontFamily: "'Great Vibes', 'Playfair Display', cursive, serif",
-                fontStyle: "italic",
+                // Matching paper texture & tone for pure blind emboss
+                background: "radial-gradient(circle at 35% 30%, #FCFAF7 0%, #F5F0E4 60%, #EBE3D2 100%)",
+                boxShadow: `
+                  -2.5px -2.5px 5px rgba(255, 255, 255, 0.98),
+                  2.5px 2.5px 7px rgba(135, 110, 75, 0.35),
+                  inset -2px -2px 3px rgba(255, 255, 255, 0.95),
+                  inset 2px 2px 3px rgba(115, 90, 55, 0.28)
+                `,
               }}
             >
-              Academic Registrar
-            </span>
+              {/* Outer Circular Debossed Groove with subtle Gold Foil Rim */}
+              <div
+                className="absolute inset-1 rounded-full pointer-events-none"
+                style={{
+                  border: "1.2px solid rgba(197, 160, 89, 0.45)",
+                  boxShadow: "inset 1px 1px 1.5px rgba(140, 109, 35, 0.25), 1px 1px 1px rgba(255, 255, 255, 0.95)",
+                }}
+              />
+
+              {/* Dotted Crimp Ring with Gold Shimmer */}
+              <div
+                className="absolute inset-2 rounded-full pointer-events-none"
+                style={{
+                  border: "1px dotted rgba(197, 160, 89, 0.65)",
+                }}
+              />
+
+              {/* Inner Fine Pressed Ring */}
+              <div
+                className="absolute inset-3 rounded-full pointer-events-none"
+                style={{
+                  border: "0.75px solid rgba(155, 130, 95, 0.3)",
+                  boxShadow: "1px 1px 1.5px rgba(110, 85, 55, 0.2), inset 1px 1px 1px rgba(255, 255, 255, 0.9)",
+                }}
+              />
+
+              {/* Pure 3D Vector Embossed Content (100% Matching Book Embosser Reference) */}
+              <svg
+                className="w-full h-full p-1.5 pointer-events-none"
+                viewBox="0 0 160 160"
+                style={{
+                  filter: `
+                    drop-shadow(-1px -1px 0.3px rgba(255, 255, 255, 0.98))
+                    drop-shadow(1.2px 1.2px 1px rgba(115, 90, 55, 0.42))
+                  `,
+                }}
+              >
+                <defs>
+                  {/* Top Arc Path */}
+                  <path
+                    id="emboss-path-top"
+                    d="M 28, 80 A 52, 52 0 0, 1 132, 80"
+                    fill="none"
+                  />
+                  {/* Bottom Arc Path */}
+                  <path
+                    id="emboss-path-bottom"
+                    d="M 132, 80 A 52, 52 0 0, 1 28, 80"
+                    fill="none"
+                  />
+                </defs>
+
+                {/* Top Arc Curved Text (Pure Paper Relief Tone) */}
+                <text
+                  className="text-[8.5px] uppercase font-bold tracking-[2.8px]"
+                  fill="#F5EFE4"
+                  style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800 }}
+                >
+                  <textPath href="#emboss-path-top" startOffset="50%" textAnchor="middle">
+                    CALLIGRO ACADEMY
+                  </textPath>
+                </text>
+
+                {/* Bottom Arc Curved Text (Upright, matching book embosser) */}
+                <text
+                  className="text-[8px] uppercase font-bold tracking-[2.4px]"
+                  fill="#F5EFE4"
+                  style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 800 }}
+                >
+                  <textPath href="#emboss-path-bottom" startOffset="50%" textAnchor="middle">
+                    OFFICIAL ACCREDITATION
+                  </textPath>
+                </text>
+
+                {/* Left Embossed Beaded Dots (3 dots matching book embosser reference) */}
+                <circle cx="27" cy="74" r="1.6" fill="#F5EFE4" />
+                <circle cx="26" cy="80" r="1.8" fill="#F5EFE4" />
+                <circle cx="27" cy="86" r="1.6" fill="#F5EFE4" />
+
+                {/* Right Embossed Beaded Dots (3 dots matching reference) */}
+                <circle cx="133" cy="74" r="1.6" fill="#F5EFE4" />
+                <circle cx="134" cy="80" r="1.8" fill="#F5EFE4" />
+                <circle cx="133" cy="86" r="1.6" fill="#F5EFE4" />
+
+                {/* Central Clean 3D Embossed Star Finials */}
+                <circle cx="80" cy="80" r="2.8" fill="#F5EFE4" />
+                <circle cx="68" cy="80" r="1.6" fill="#F5EFE4" />
+                <circle cx="92" cy="80" r="1.6" fill="#F5EFE4" />
+              </svg>
+            </div>
           </div>
-          <div className="w-44 h-[1px] bg-[#1A1A1A]/70 mt-1" />
-          <p className="text-[#1A1A1A] text-[11px] font-serif font-bold tracking-wider mt-1 uppercase">
-            Registrar / مسجل الأكاديمية
+
+          {/* Right Column: INSTRUCTOR (TITLE UP, NAME/SIGNATURE DOWN) */}
+          <div className="flex flex-col items-center text-center">
+            <p className={`text-[#1A332F] text-[13px] font-serif font-bold mb-1 uppercase ${lang === "ar" ? "" : "tracking-wider"}`}>
+              {lang === "ar" && "المدرب"}
+              {lang === "en" && "Instructor"}
+              {lang === "tr" && "Eğitmen"}
+            </p>
+            <div className="w-40 h-[1px] bg-gradient-to-r from-transparent via-[#C5A059]/75 to-transparent mb-1" />
+            <div className="h-12 flex items-center justify-center w-full">
+              {teacherSignatureUrl ? (
+                <img
+                  src={formatImageUrl(teacherSignatureUrl)}
+                  alt="Signature"
+                  className="max-h-12 object-contain mix-blend-multiply"
+                />
+              ) : (
+                <span
+                  className="text-xl text-[#142622]"
+                  style={{
+                    fontFamily: isArabicText(teacherName)
+                      ? "'Diwani Letter', serif"
+                      : "'Great Vibes', 'Playfair Display', cursive, serif",
+                  }}
+                >
+                  {teacherName}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── 5. BOTTOM SERIAL NUMBER ─── */}
+        <div className="text-center pt-0.5 border-t border-[#2E5A54]/25 w-full max-w-xl">
+          <p className="text-[10px] font-mono text-[#2E5A54]/85 tracking-widest font-semibold uppercase">
+            {lang === "ar" && `الرقم التسلسلي: ${certificateId || "PENDING"}`}
+            {lang === "en" && `Certificate Serial Number: ${certificateId || "PENDING"}`}
+            {lang === "tr" && `Sertifika Seri Numarası: ${certificateId || "PENDING"}`}
           </p>
         </div>
       </div>
-
-      {/* ─── 5. BOTTOM ACCREDITATION DISCLAIMER (EXACT MATCH TO REFERENCE FOOTER) ─── */}
-      <div className="relative z-20 text-center pt-1 border-t border-[#1A1A1A]/15 mx-16">
-        <p className="text-[8.5px] font-serif text-[#1A1A1A]/70 tracking-wider">
-          This Institute is accredited by Calligro International Board for Calligraphy Arts & Islamic Heritage • Officially Verified Digital Credential
-        </p>
-      </div>
-
     </div>
   );
 }
