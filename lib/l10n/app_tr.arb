@@ -1241,5 +1241,8 @@
   "rescheduleErrBefore": "Şu andan sonra ve önceki dersin gününden farklı bir zaman seçin.",
   "rescheduleErrAfter": "Bir sonraki dersten önceki bir gün seçin.",
   "rescheduleErrAfterLast": "Son ders, kurs bitiminden en fazla 7 gün sonrasına taşınabilir.",
-  "classBackOnSchedule": "Ders her zamanki saatine döndü."
+  "classBackOnSchedule": "Ders her zamanki saatine döndü.",
+  "notifClassMoved": "{course}: {oldTime} dersi {newTime} zamanına alındı.",
+  "notifClassMovedNote": "{course}: {oldTime} dersi {newTime} zamanına alındı. Not: {note}",
+  "notifClassBack": "{course}: ders her zamanki saatinde, {oldTime}."
 }

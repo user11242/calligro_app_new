@@ -23,6 +23,10 @@ class FcmService {
 
   // ✅ Renamed to 'saveUserFcmToken' because it works for EVERYONE (Student/Teacher/Admin)
   Future<void> saveUserFcmToken(String uid) async {
+    // First, and whatever happens with the token: the phone's time zone, so
+    // class-time notifications (a moved class) show THIS user's local time.
+    await saveTimeZone(uid);
+
     String? token;
 
     try {
@@ -62,6 +66,18 @@ class FcmService {
         "preferredLanguage": languageCode,
         "lastTokenUpdate": FieldValue.serverTimestamp(), // Good for debugging
       }, SetOptions(merge: true));
+    }
+  }
+
+  /// The phone's UTC offset on the profile (users/{uid}.utcOffsetMinutes; the server
+  /// writes notification times with it). Only an update: a missing profile is not created.
+  Future<void> saveTimeZone(String uid, {Duration? offset}) async {
+    try {
+      await _firestore.collection("users").doc(uid).update({
+        "utcOffsetMinutes": (offset ?? DateTime.now().timeZoneOffset).inMinutes,
+      });
+    } catch (e) {
+      debugPrint("Time zone not saved yet: $e");
     }
   }
 }

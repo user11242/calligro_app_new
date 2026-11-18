@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:intl/intl.dart';
 import '../../../core/theme/colors.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/message/app_messenger.dart';
@@ -97,7 +98,7 @@ class NotificationsPage extends StatelessWidget {
                 context,
                 item: item,
                 title: item.title.isEmpty ? 'Notification' : item.title,
-                subtitle: item.body,
+                subtitle: item.classChange == null ? item.body : classChangeText(context, item.classChange!),
                 time: timeStr,
                 icon: icon,
                 iconColor: iconColor,
@@ -179,4 +180,17 @@ class NotificationsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A moved-class notification, written in the phone's language and LOCAL time
+/// (the push text came from the server, which may not know this phone's time zone).
+String classChangeText(BuildContext context, ClassChange c) {
+  final l10n = AppLocalizations.of(context)!;
+  final locale = Localizations.localeOf(context).toString();
+  String at(DateTime t) => '${DateFormat.MMMEd(locale).format(t.toLocal())}, ${DateFormat.jm(locale).format(t.toLocal())}';
+  final course = c.courseName.isEmpty ? '' : c.courseName;
+  if (c.isBack) return l10n.notifClassBack(course, at(c.oldStart));
+  return c.note.isEmpty
+      ? l10n.notifClassMoved(course, at(c.oldStart), at(c.newStart!))
+      : l10n.notifClassMovedNote(course, at(c.oldStart), at(c.newStart!), c.note);
 }

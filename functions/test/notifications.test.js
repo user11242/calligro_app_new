@@ -143,6 +143,14 @@ describe('Domain 5: Notifications & Cloud Triggers (Cloud Functions)', () => {
     };
     await notifications.notifyStudentsOnReschedule(event);
     expect(admin.mockSend).toHaveBeenCalled();
+    // The exact moments travel with the notification (the app shows them in local time).
+    const sent = admin.mockSend.mock.calls[admin.mockSend.mock.calls.length - 1][0];
+    expect(sent.data).toMatchObject({
+      classChange: 'moved',
+      oldStart: String(Date.parse('2030-11-30T15:00:00Z')),
+      newStart: String(Date.parse('2030-12-01T16:00:00Z')),
+      newEnd: String(Date.parse('2030-12-01T17:30:00Z')),
+    });
   });
 
   it('notifyStudentsOnReschedule: nothing about the class changed → nothing sent', async () => {

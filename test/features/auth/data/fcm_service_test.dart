@@ -81,5 +81,40 @@ void main() {
       final userDoc = await fakeFirestore.collection('users').doc('u1').get();
       expect(userDoc.exists, false);
     });
+
+    // THE BUG: the time zone was never saved on this (the main) path, so moved-class
+    // notifications fell back to the course's time zone, labelled "(UTC+3)".
+    test('the phone\'s time zone is saved on every start, even when notifications are denied', () async {
+      await fakeFirestore.collection('users').doc('u2').set({'role': 'student'});
+      when(mockMessaging.requestPermission(
+        alert: anyNamed('alert'),
+        badge: anyNamed('badge'),
+        sound: anyNamed('sound'),
+      )).thenAnswer((_) async => const NotificationSettings(
+            authorizationStatus: AuthorizationStatus.denied,
+            alert: AppleNotificationSetting.disabled,
+            announcement: AppleNotificationSetting.disabled,
+            badge: AppleNotificationSetting.disabled,
+            carPlay: AppleNotificationSetting.disabled,
+            criticalAlert: AppleNotificationSetting.disabled,
+            sound: AppleNotificationSetting.disabled,
+            timeSensitive: AppleNotificationSetting.disabled,
+            lockScreen: AppleNotificationSetting.disabled,
+            notificationCenter: AppleNotificationSetting.disabled,
+            showPreviews: AppleShowPreviewSetting.never,
+            providesAppNotificationSettings: AppleNotificationSetting.disabled,
+          ));
+      await fcmService.saveUserFcmToken('u2');
+      final data = (await fakeFirestore.collection('users').doc('u2').get()).data()!;
+      expect(data['utcOffsetMinutes'], DateTime.now().timeZoneOffset.inMinutes);
+    });
+
+    test('saveTimeZone: an explicit offset is stored; no profile → nothing is created', () async {
+      await fakeFirestore.collection('users').doc('u3').set({'role': 'student'});
+      await fcmService.saveTimeZone('u3', offset: const Duration(hours: 3));
+      expect((await fakeFirestore.collection('users').doc('u3').get()).data()!['utcOffsetMinutes'], 180);
+      await fcmService.saveTimeZone('nobody', offset: const Duration(hours: 3));
+      expect((await fakeFirestore.collection('users').doc('nobody').get()).exists, isFalse);
+    });
   });
 }

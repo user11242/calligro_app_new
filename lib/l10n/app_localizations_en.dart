@@ -4004,4 +4004,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get classBackOnSchedule => 'The class is back at its usual time.';
+
+  @override
+  String notifClassMoved(String course, String oldTime, String newTime) {
+    return '$course: the class on $oldTime is moved to $newTime.';
+  }
+
+  @override
+  String notifClassMovedNote(
+    String course,
+    String oldTime,
+    String newTime,
+    String note,
+  ) {
+    return '$course: the class on $oldTime is moved to $newTime. Note: $note';
+  }
+
+  @override
+  String notifClassBack(String course, String oldTime) {
+    return '$course: the class is back at its usual time, $oldTime.';
+  }
 }

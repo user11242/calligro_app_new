@@ -411,7 +411,15 @@ exports.notifyStudentsOnReschedule = onDocumentUpdated("courses/{courseId}", asy
             paramsFor: (user) => noticeParams(notice, user, courseName),
             payload: {
                 route: '/courseDetails',
-                courseId: event.params.courseId
+                courseId: event.params.courseId,
+                // The exact moments (ms), so the app's notification list shows them in
+                // the PHONE's own time zone, whatever the push text said.
+                classChange: notice.kind,
+                courseName,
+                oldStart: notice.oldStart ?? '',
+                newStart: notice.newStart ?? '',
+                newEnd: notice.newEnd ?? '',
+                note: notice.note || '',
             }
         })
     ));

@@ -99,6 +99,49 @@ class InboxTarget extends NotificationTarget {
 }
 
 /// An item of users/{uid}/notifications.
+/// A moved class (or a move undone), with the exact moments, so the app can
+/// show them in the phone's own time zone (the push text is written by the server).
+class ClassChange {
+  final bool isBack;
+  final String courseName;
+  final DateTime oldStart;
+  final DateTime? newStart;
+  final DateTime? newEnd;
+  final String note;
+
+  const ClassChange({
+    required this.isBack,
+    required this.courseName,
+    required this.oldStart,
+    this.newStart,
+    this.newEnd,
+    this.note = '',
+  });
+
+  /// From the notification's data (all values arrive as strings).
+  static ClassChange? fromData(Map<String, dynamic> data) {
+    final kind = '${data['classChange'] ?? ''}';
+    if (kind != 'moved' && kind != 'back') return null;
+    DateTime? at(String k) {
+      final v = int.tryParse('${data[k] ?? ''}');
+      return v == null ? null : DateTime.fromMillisecondsSinceEpoch(v, isUtc: true);
+    }
+
+    final old = at('oldStart');
+    if (old == null) return null;
+    final newStart = at('newStart'), newEnd = at('newEnd');
+    if (kind == 'moved' && (newStart == null || newEnd == null)) return null;
+    return ClassChange(
+      isBack: kind == 'back',
+      courseName: '${data['courseName'] ?? ''}',
+      oldStart: old,
+      newStart: newStart,
+      newEnd: newEnd,
+      note: '${data['note'] ?? ''}',
+    );
+  }
+}
+
 class InboxItem {
   final String id;
   final String title;
@@ -108,6 +151,9 @@ class InboxItem {
   final DateTime? createdAt;
   final NotificationTarget target;
 
+  /// Set for moved-class notifications (newer ones carry the exact times).
+  final ClassChange? classChange;
+
   const InboxItem({
     required this.id,
     this.title = '',
@@ -116,6 +162,7 @@ class InboxItem {
     this.read = false,
     this.createdAt,
     this.target = const InboxTarget(),
+    this.classChange,
   });
 
   /// Reads the server's shape ({title, body, read, data}) and the older
@@ -144,6 +191,7 @@ class InboxItem {
       read: d['read'] == true || d['isRead'] == true,
       createdAt: at,
       target: NotificationTarget.fromData(data),
+      classChange: ClassChange.fromData(data),
     );
   }
 }

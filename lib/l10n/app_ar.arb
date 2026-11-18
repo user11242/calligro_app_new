@@ -1340,5 +1340,8 @@
   "rescheduleErrBefore": "اختر وقتاً بعد الآن، وليس في يوم الحصة السابقة.",
   "rescheduleErrAfter": "اختر يوماً قبل الحصة التالية.",
   "rescheduleErrAfterLast": "يمكن نقل الحصة الأخيرة حتى 7 أيام بعد انتهاء الدورة.",
-  "classBackOnSchedule": "عادت الحصة إلى موعدها المعتاد."
+  "classBackOnSchedule": "عادت الحصة إلى موعدها المعتاد.",
+  "notifClassMoved": "{course}: تم نقل حصة {oldTime} إلى {newTime}.",
+  "notifClassMovedNote": "{course}: تم نقل حصة {oldTime} إلى {newTime}. ملاحظة: {note}",
+  "notifClassBack": "{course}: عادت الحصة إلى موعدها المعتاد، {oldTime}."
 }

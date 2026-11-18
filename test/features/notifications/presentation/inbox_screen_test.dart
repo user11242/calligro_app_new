@@ -5,6 +5,7 @@ import 'package:calligro_app/features/notifications/presentation/notification_se
 import 'package:calligro_app/features/notifications/presentation/notifications_page.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_notifications.dart';
@@ -68,5 +69,29 @@ void main() {
     await tester.tap(find.byIcon(Icons.done_all));
     await tester.pump(const Duration(milliseconds: 300));
     expect(inbox.items['u1']!.every((i) => i.read), isTrue);
+  });
+
+  testWidgets('a moved class is written in the PHONE\'s local time (not the server\'s UTC / course time)', (tester) async {
+    nav = RecordingNavigator();
+    final oldStart = DateTime.parse('2026-11-30T15:00:00Z');
+    final newStart = DateTime.parse('2026-12-01T16:00:00Z');
+    inbox = FakeInboxRepository()
+      ..put('u1', InboxItem(
+        id: 'r1',
+        title: 'Session Rescheduled',
+        body: 'Thuluth: the class on Mon 30 Nov, 15:00 is moved to Tue 1 Dec, 16:00. (UTC)',
+        type: 'reschedule',
+        createdAt: DateTime(2026, 11, 20),
+        target: const CourseTarget('c1'),
+        classChange: ClassChange(
+          isBack: false, courseName: 'Thuluth', oldStart: oldStart, newStart: newStart,
+          newEnd: newStart.add(const Duration(minutes: 90)), note: 'Travelling'),
+      ));
+    await pump(tester);
+    final local = newStart.toLocal();
+    final expectedNew = '${DateFormat.MMMEd('en').format(local)}, ${DateFormat.jm('en').format(local)}';
+    expect(find.textContaining(expectedNew), findsOneWidget);
+    expect(find.textContaining('Note: Travelling'), findsOneWidget);
+    expect(find.textContaining('(UTC)'), findsNothing, reason: 'the server text is replaced');
   });
 }

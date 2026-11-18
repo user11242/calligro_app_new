@@ -51,4 +51,36 @@ void main() {
       expect(InboxItem.fromMap('n3', {'title': 'Payout Completed', 'body': 'Done', 'type': 'payout_status'}).target, const InboxTarget());
     });
   });
+
+  group('moved-class notifications carry the exact times (shown in the phone\'s own time zone)', () {
+    final data = {
+      'route': '/courseDetails', 'courseId': 'c1', 'classChange': 'moved', 'courseName': 'Thuluth',
+      'oldStart': '${DateTime.parse('2026-11-30T15:00:00Z').millisecondsSinceEpoch}',
+      'newStart': '${DateTime.parse('2026-12-01T16:00:00Z').millisecondsSinceEpoch}',
+      'newEnd': '${DateTime.parse('2026-12-01T17:30:00Z').millisecondsSinceEpoch}',
+      'note': 'Travelling',
+    };
+
+    test('read from the server item', () {
+      final item = InboxItem.fromMap('n1', {'title': 'Session Rescheduled', 'body': 'server text', 'type': 'reschedule', 'data': data});
+      final c = item.classChange!;
+      expect(c.isBack, isFalse);
+      expect(c.oldStart, DateTime.parse('2026-11-30T15:00:00Z'));
+      expect(c.newStart, DateTime.parse('2026-12-01T16:00:00Z'));
+      expect(c.note, 'Travelling');
+      expect(item.target, const CourseTarget('c1'));
+    });
+
+    test('"back on schedule" needs only the usual time', () {
+      final c = ClassChange.fromData({...data, 'classChange': 'back', 'newStart': '', 'newEnd': ''})!;
+      expect(c.isBack, isTrue);
+      expect(c.newStart, isNull);
+    });
+
+    test('older notifications (no times) and other types: none', () {
+      expect(InboxItem.fromMap('n2', {'type': 'reschedule', 'data': {'courseId': 'c1'}}).classChange, isNull);
+      expect(ClassChange.fromData({...data, 'newStart': 'abc'}), isNull);
+      expect(ClassChange.fromData({'classChange': 'other'}), isNull);
+    });
+  });
 }

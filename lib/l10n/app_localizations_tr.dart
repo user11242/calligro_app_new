@@ -4007,4 +4007,24 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get classBackOnSchedule => 'Ders her zamanki saatine döndü.';
+
+  @override
+  String notifClassMoved(String course, String oldTime, String newTime) {
+    return '$course: $oldTime dersi $newTime zamanına alındı.';
+  }
+
+  @override
+  String notifClassMovedNote(
+    String course,
+    String oldTime,
+    String newTime,
+    String note,
+  ) {
+    return '$course: $oldTime dersi $newTime zamanına alındı. Not: $note';
+  }
+
+  @override
+  String notifClassBack(String course, String oldTime) {
+    return '$course: ders her zamanki saatinde, $oldTime.';
+  }
 }

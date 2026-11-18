@@ -3992,4 +3992,24 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get classBackOnSchedule => 'عادت الحصة إلى موعدها المعتاد.';
+
+  @override
+  String notifClassMoved(String course, String oldTime, String newTime) {
+    return '$course: تم نقل حصة $oldTime إلى $newTime.';
+  }
+
+  @override
+  String notifClassMovedNote(
+    String course,
+    String oldTime,
+    String newTime,
+    String note,
+  ) {
+    return '$course: تم نقل حصة $oldTime إلى $newTime. ملاحظة: $note';
+  }
+
+  @override
+  String notifClassBack(String course, String oldTime) {
+    return '$course: عادت الحصة إلى موعدها المعتاد، $oldTime.';
+  }
 }

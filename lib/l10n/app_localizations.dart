@@ -7485,6 +7485,29 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The class is back at its usual time.'**
   String get classBackOnSchedule;
+
+  /// No description provided for @notifClassMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{course}: the class on {oldTime} is moved to {newTime}.'**
+  String notifClassMoved(String course, String oldTime, String newTime);
+
+  /// No description provided for @notifClassMovedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'{course}: the class on {oldTime} is moved to {newTime}. Note: {note}'**
+  String notifClassMovedNote(
+    String course,
+    String oldTime,
+    String newTime,
+    String note,
+  );
+
+  /// No description provided for @notifClassBack.
+  ///
+  /// In en, this message translates to:
+  /// **'{course}: the class is back at its usual time, {oldTime}.'**
+  String notifClassBack(String course, String oldTime);
 }
 
 class _AppLocalizationsDelegate
