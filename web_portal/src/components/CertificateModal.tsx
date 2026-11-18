@@ -105,7 +105,7 @@ export default function CertificateModal({ isOpen, onClose, certificate }: Certi
               </div>
               <div>
                 <h3 className="text-white font-bold text-sm sm:text-base leading-snug">
-                  شهادة إتمام · {certificate.studentName}
+                  شهادة حضور · {certificate.studentName}
                 </h3>
                 <p className="text-white/40 text-xs font-mono">ID: {certificate.id}</p>
               </div>
