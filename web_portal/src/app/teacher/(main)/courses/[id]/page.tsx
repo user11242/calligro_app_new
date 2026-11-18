@@ -19,6 +19,7 @@ import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { useTranslation } from "@/hooks/useTranslation";
 import CertificateModal from "@/components/CertificateModal";
+import { issueCertificateAction, issueAllPendingCertificatesAction } from "@/app/actions/certificates";
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
@@ -282,72 +283,53 @@ export default function CourseStudioPage() {
   const completionRate = totalEnrolled > 0 ? Math.round((totalIssued / totalEnrolled) * 100) : 0;
   const totalHours = course ? calculateTotalHours(course) : null;
 
-  // Issue single certificate
+  // Issue single certificate via Server Action (guaranteed adminDb permissions)
   const handleIssueCertificate = async (item: { studentId: string; studentName: string }) => {
     if (!course) return;
     setIssuingStudentId(item.studentId);
     try {
-      const newCertRef = await addDoc(collection(db, "certificates"), {
+      const res = await issueCertificateAction({
+        courseId: course.id,
         studentId: item.studentId,
         studentName: item.studentName,
-        courseId: course.id,
-        courseName: course.courseName || course.courseTitle || course.title || "Untitled Course",
         teacherId: course.teacherId,
-        issueDate: serverTimestamp(),
+        courseName: course.courseName || course.courseTitle || course.title || "Untitled Course",
       });
 
-      const newCert = {
-        id: newCertRef.id,
-        studentId: item.studentId,
-        studentName: item.studentName,
-        courseId: course.id,
-        courseName: course.courseName || "Untitled Course",
-        teacherId: course.teacherId,
-        issueDate: new Date(),
-      };
-
-      setCertificates((prev) => [...prev.filter((c) => c.studentId !== item.studentId), newCert]);
-    } catch (err) {
+      if (res.success && res.certificate) {
+        setCertificates((prev) => [
+          ...prev.filter((c) => c.studentId !== item.studentId),
+          res.certificate,
+        ]);
+      } else {
+        alert(res.error || "Failed to issue certificate");
+      }
+    } catch (err: any) {
       console.error("Failed to issue certificate:", err);
+      alert(err?.message || "Failed to issue certificate");
     } finally {
       setIssuingStudentId(null);
     }
   };
 
-  // Bulk issue certificates for all pending students
+  // Bulk issue certificates for all pending students via Server Action
   const handleIssueAllCertificates = async () => {
     if (!course || pendingCount === 0) return;
     setIssuingAll(true);
     try {
-      const issuedStudentIds = new Set(certificates.map((c) => c.studentId));
-      const pendingStudents = students.filter((s) => !issuedStudentIds.has(s.id));
-      const newCerts: any[] = [];
-
-      for (const student of pendingStudents) {
-        const sName = student.name || student.displayName || student.email?.split("@")[0] || "Student";
-        const newCertRef = await addDoc(collection(db, "certificates"), {
-          studentId: student.id,
-          studentName: sName,
-          courseId: course.id,
-          courseName: course.courseName || course.courseTitle || course.title || "Untitled Course",
-          teacherId: course.teacherId,
-          issueDate: serverTimestamp(),
+      const res = await issueAllPendingCertificatesAction(course.id, course.teacherId);
+      if (res.success && res.certificates) {
+        setCertificates((prev) => {
+          const map = new Map(prev.map((c) => [c.studentId, c]));
+          res.certificates!.forEach((c: any) => map.set(c.studentId, c));
+          return Array.from(map.values());
         });
-
-        newCerts.push({
-          id: newCertRef.id,
-          studentId: student.id,
-          studentName: sName,
-          courseId: course.id,
-          courseName: course.courseName || "Untitled Course",
-          teacherId: course.teacherId,
-          issueDate: new Date(),
-        });
+      } else if (!res.success) {
+        alert(res.error || "Failed to issue certificates");
       }
-
-      setCertificates((prev) => [...prev, ...newCerts]);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to issue all certificates:", err);
+      alert(err?.message || "Failed to issue certificates");
     } finally {
       setIssuingAll(false);
     }

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, BookOpen, CheckSquare, LogOut, Loader2, Menu, X, GraduationCap } from "lucide-react";
+import { LayoutDashboard, BookOpen, CheckSquare, Award, LogOut, Loader2, Menu, X, GraduationCap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -52,6 +52,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const navItems = [
     { name: t('teacher.nav.dashboard'), href: "/teacher/dashboard", icon: LayoutDashboard },
     { name: t('teacher.nav.courses'), href: "/teacher/courses", icon: BookOpen },
+    { name: t('teacher.nav.certificates') || (locale === 'ar' ? "الشهادات" : "Certificates"), href: "/teacher/certificates", icon: Award },
     { name: t('teacher.nav.homeworks'), href: "/teacher/homeworks", icon: CheckSquare },
   ];
 

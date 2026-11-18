@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Download } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import Link from "next/link";
 import { formatImageUrl } from "@/lib/utils";
+import { issueCertificateAction } from "@/app/actions/certificates";
 
 export default function CertificatePage() {
   const { id } = useParams();
@@ -106,26 +107,17 @@ export default function CertificatePage() {
         if (!certSnap.empty) {
           setCertificateId(certSnap.docs[0].id);
         } else {
-          // Lazy-generate certificate ID for existing enrolled students
-          let finalStudentName = user.displayName || user.email?.split('@')[0] || "Student";
-          if (effectiveStudentId !== user.uid) {
-            const sRef = doc(db, "users", effectiveStudentId);
-            const sSnap = await getDoc(sRef);
-            if (sSnap.exists()) {
-              const sData = sSnap.data();
-              finalStudentName = sData.name || sData.displayName || sData.email?.split('@')[0] || "Student";
-            }
-          }
-
-          const newCertRef = await addDoc(collection(db, "certificates"), {
+          // Server Action generation: completely circumvents client Firestore permission-denied
+          const res = await issueCertificateAction({
+            courseId: id as string,
             studentId: effectiveStudentId,
-            studentName: finalStudentName,
-            courseId: id,
+            studentName: studentName || user.displayName || user.email?.split('@')[0] || "Student",
             courseName: courseData?.courseName || courseData?.courseTitle || courseData?.title || "Untitled Course",
             teacherId: courseData?.teacherId || "",
-            issueDate: serverTimestamp()
           });
-          setCertificateId(newCertRef.id);
+          if (res.success && res.certificate) {
+            setCertificateId(res.certificate.id);
+          }
         }
       } catch (err) {
         console.error("Error fetching certificate details:", err);
