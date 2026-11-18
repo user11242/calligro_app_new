@@ -60,10 +60,20 @@ class CourseChatMessage {
   }
 }
 
+/// The message is longer than [ChatPolicy.maxTextLength].
+class ChatMessageTooLong implements Exception {
+  const ChatMessageTooLong();
+  @override
+  String toString() => 'ChatMessageTooLong';
+}
+
 /// Who may remove a chat message: its sender, the course's teacher, an admin
 /// (firestore.rules agree).
 class ChatPolicy {
   ChatPolicy._();
+
+  /// Longest message text (firestore.rules refuse longer).
+  static const maxTextLength = 4000;
 
   static bool canDelete(CourseChatMessage message, String? uid, {required bool isTeacher, required bool isAdmin}) =>
       (uid != null && message.senderId == uid) || isTeacher || isAdmin;

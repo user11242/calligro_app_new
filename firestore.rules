@@ -262,12 +262,45 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.get('enrolledStudents', []) ||
           isAdmin()
         );
+        // Exactly the shape CourseChatService writes (store app 1.0.24 writes the same).
+        function chatProfile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+        // The name is the sender's own: full name, else name, else their sign-in name / "Member".
+        function chatNameOk(d) {
+          let me = chatProfile();
+          let full = me.get('fullName', '').trim();
+          let short = me.get('name', '').trim();
+          return (full != '' && d.senderName == full) ||
+            (short != '' && d.senderName == short) ||
+            (full == '' && short == '' && (d.senderName == 'Member' || d.senderName == request.auth.token.get('name', '')));
+        }
+        // The photo is the sender's own profile / sign-in photo, or none.
+        function chatPhotoOk(d) {
+          let me = chatProfile();
+          return d.get('senderPhotoUrl', null) == null ||
+            d.senderPhotoUrl == me.get('photoUrl', '').trim() ||
+            d.senderPhotoUrl == me.get('photoURL', '').trim() ||
+            d.senderPhotoUrl == request.auth.token.get('picture', '');
+        }
+        // Images only from this course's chat folder, uploaded by the sender (Storage path
+        // course_chats/<courseId>/<uid>_<time>.jpg) — never an outside link.
+        function chatImageOk(d) {
+          return d.get('imageUrl', null) == null ||
+            (d.imageUrl is string && d.imageUrl.matches(
+              'https://firebasestorage[.]googleapis[.]com/v0/b/[^/]+/o/course_chats%2F' + courseId + '%2F' + request.auth.uid + '_[^/?#]+([?].*)?'));
+        }
         // The "teacher" / "admin" badge must be true (CourseChatService._resolveSenderRole),
-        // and the time is the server's.
+        // the time is the server's, text up to 4000 characters, text or an image.
         allow create: if isSignedIn() &&
+          request.resource.data.keys().hasOnly(['senderId', 'senderName', 'senderPhotoUrl', 'senderRole', 'text', 'imageUrl', 'createdAt']) &&
           request.resource.data.senderId == request.auth.uid &&
           isCourseMember(courseId) &&
           request.resource.data.get('createdAt', request.time) == request.time &&
+          request.resource.data.get('text', '') is string &&
+          request.resource.data.get('text', '').size() <= 4000 &&
+          (request.resource.data.get('text', '').size() > 0 || request.resource.data.get('imageUrl', null) != null) &&
+          request.resource.data.senderName is string && chatNameOk(request.resource.data) &&
+          chatPhotoOk(request.resource.data) &&
+          chatImageOk(request.resource.data) &&
           (request.resource.data.get('senderRole', 'student') == 'student' ||
             (request.resource.data.senderRole == 'teacher' &&
               get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid) ||

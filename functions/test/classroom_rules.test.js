@@ -26,10 +26,10 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    await setDoc(doc(db, 'users/admin'), { role: 'admin' });
-    await setDoc(doc(db, 'users/teach'), { role: 'teacher', status: 'approved' });
+    await setDoc(doc(db, 'users/admin'), { role: 'admin', name: 'Platform Admin' });
+    await setDoc(doc(db, 'users/teach'), { role: 'teacher', status: 'approved', name: 'Ustadh Ali', fullName: 'Ali Hassan', photoUrl: 'https://img/ali.jpg' });
     await setDoc(doc(db, 'users/teach2'), { role: 'teacher', status: 'approved' });
-    await setDoc(doc(db, 'users/student'), { role: 'student' });
+    await setDoc(doc(db, 'users/student'), { role: 'student', name: 'Sara', photoUrl: 'https://img/sara.jpg' });
     await setDoc(doc(db, 'users/outsider'), { role: 'student' });
     await setDoc(doc(db, 'courses/c1'), { teacherId: 'teach', enrolledStudents: ['student'], enrolledCount: 1 });
     await setDoc(doc(db, `${A}/open`), { title: 'Alif', dueDate: future(), submissionCount: 0 });
@@ -120,7 +120,15 @@ describe('announcements', () => {
 });
 
 describe('course chat', () => {
-  const msg = (uid, role, over = {}) => ({ senderId: uid, senderName: 'x', senderPhotoUrl: null, senderRole: role, text: 'hi', imageUrl: null, createdAt: serverTimestamp(), ...over });
+  // Exactly what CourseChatService.sendMessage writes (store app 1.0.24 writes the same).
+  const names = { student: 'Sara', teach: 'Ali Hassan', admin: 'Platform Admin', outsider: 'Member' };
+  const photos = { student: 'https://img/sara.jpg', teach: 'https://img/ali.jpg' };
+  const msg = (uid, role, over = {}) => ({
+    senderId: uid, senderName: names[uid] || 'Member', senderPhotoUrl: photos[uid] || null, senderRole: role,
+    text: 'hi', imageUrl: null, createdAt: serverTimestamp(), ...over,
+  });
+  const img = (uid, course = 'c1') =>
+    `https://firebasestorage.googleapis.com/v0/b/calligro.appspot.com/o/course_chats%2F${course}%2F${uid}_1700000000.jpg?alt=media&token=t`;
   it('members post with their true badge', async () => {
     await assertSucceeds(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student')));
     await assertSucceeds(addDoc(collection(as('teach'), 'courses/c1/messages'), msg('teach', 'teacher')));
@@ -134,6 +142,34 @@ describe('course chat', () => {
     await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { createdAt: Timestamp.fromDate(new Date('2020-01-01')) })));
     await assertFails(addDoc(collection(as('outsider'), 'courses/c1/messages'), msg('outsider', 'student')));
     await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('teach', 'teacher')));
+  });
+  it('an image message with the sender\'s own chat image is accepted; text may be empty then', async () => {
+    await assertSucceeds(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { text: '', imageUrl: img('student') })));
+  });
+  it('the name must be the sender\'s own (full name, else name) — no posting as "Teacher"', async () => {
+    await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { senderName: 'Ustadh Ali' })));
+    await assertSucceeds(addDoc(collection(as('teach'), 'courses/c1/messages'), msg('teach', 'teacher', { senderName: 'Ali Hassan' })));
+    await assertSucceeds(addDoc(collection(as('teach'), 'courses/c1/messages'), msg('teach', 'teacher', { senderName: 'Ustadh Ali' })));
+  });
+  it('the photo must be the sender\'s own profile photo (or none)', async () => {
+    await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { senderPhotoUrl: 'https://img/ali.jpg' })));
+    await assertSucceeds(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { senderPhotoUrl: null })));
+  });
+  it('images only from this course\'s chat folder, uploaded by the sender (no outside links)', async () => {
+    for (const bad of ['https://evil.example.com/x.jpg', img('teach'), img('student', 'other-course'), 'javascript:alert(1)']) {
+      await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { imageUrl: bad })), bad);
+    }
+  });
+  it('length: up to 4000 characters; no empty message; no extra fields', async () => {
+    await assertSucceeds(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { text: 'x'.repeat(4000) })));
+    await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { text: 'x'.repeat(4001) })));
+    await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { text: '' })));
+    await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { pinned: true })));
+  });
+  it('reporting a message (as the app writes it) is accepted; reporting as someone else is not', async () => {
+    const report = (by) => ({ type: 'course_chat_message', courseId: 'c1', messageId: 'm1', reportedUserId: 'teach', reportedByUserId: by, reason: 'spam', messageText: 'hi', createdAt: serverTimestamp() });
+    await assertSucceeds(addDoc(collection(as('student'), 'reports'), report('student')));
+    await assertFails(addDoc(collection(as('student'), 'reports'), report('teach')));
   });
 });
 

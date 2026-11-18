@@ -453,6 +453,8 @@ class _CourseChatPageState extends State<CourseChatPage> {
                     style: const TextStyle(color: Colors.white, fontSize: 15),
                     minLines: 1,
                     maxLines: 4,
+                    maxLength: ChatPolicy.maxTextLength, // the rules refuse longer
+                    buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                     textInputAction: TextInputAction.newline,
                     decoration: InputDecoration(
                       hintText: l10n.typeMessageHint,

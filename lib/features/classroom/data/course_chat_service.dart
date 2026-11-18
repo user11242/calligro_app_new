@@ -55,6 +55,7 @@ class CourseChatService {
     if (trimmedText.isEmpty && imageFile == null) {
       return;
     }
+    if (trimmedText.length > ChatPolicy.maxTextLength) throw const ChatMessageTooLong();
 
     final profile = await _resolveSenderProfile(user);
     final senderRole = _resolveSenderRole(
@@ -105,7 +106,7 @@ class CourseChatService {
       'courseId': courseId,
       'messageId': messageId,
       'reportedUserId': reportedUserId,
-      'reportedBy': reporterId,
+      'reportedByUserId': reporterId, // the field firestore.rules check (as community reports)
       'reason': reason,
       'messageText': messageText ?? '',
       'createdAt': FieldValue.serverTimestamp(),

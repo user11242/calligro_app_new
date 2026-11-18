@@ -265,10 +265,26 @@ void main() {
       expect(data['courseId'], 'c1');
       expect(data['messageId'], 'm1');
       expect(data['reportedUserId'], 's1');
-      expect(data['reportedBy'], 's2');
+      // THE BUG: it was 'reportedBy', which firestore.rules refuse (they need
+      // reportedByUserId, like community reports), so every chat report failed.
+      expect(data['reportedByUserId'], 's2');
+      expect(data.containsKey('reportedBy'), isFalse);
       expect(data['reason'], 'Inappropriate content');
       expect(data['messageText'], 'Bad text');
     });
+  });
+
+  test('a message longer than the rules allow (4000) is refused here with a clear error', () async {
+    final service = CourseChatService(
+      firestore: FakeFirebaseFirestore(),
+      auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 's1', displayName: 'Sara')),
+      storage: MockFirebaseStorage(),
+    );
+    expect(ChatPolicy.maxTextLength, 4000);
+    await expectLater(
+      service.sendMessage(courseId: 'c1', text: 'x' * 4001),
+      throwsA(isA<ChatMessageTooLong>()),
+    );
   });
 }
 

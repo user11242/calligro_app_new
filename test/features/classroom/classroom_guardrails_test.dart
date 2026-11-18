@@ -60,4 +60,18 @@ void main() {
     expect(rules.contains("hasOnly(['seenByTeacher', 'status', 'points', 'feedback', 'gradedAt'])"), isTrue);
     expect(rules.contains('request.time < assignment().dueDate'), isTrue);
   });
+
+  test('chat reports use the field the rules check (it was "reportedBy", so every report failed)', () {
+    final rules = File('firestore.rules').readAsStringSync();
+    final chat = File('lib/features/classroom/data/course_chat_service.dart').readAsStringSync();
+    expect(rules.contains('request.resource.data.reportedByUserId == request.auth.uid'), isTrue);
+    expect(chat.contains("'reportedByUserId': reporterId"), isTrue);
+    expect(chat.contains("'reportedBy':"), isFalse);
+  });
+
+  test('chat message limits match the rules (4000 characters, only the app\'s fields)', () {
+    final rules = File('firestore.rules').readAsStringSync();
+    expect(rules.contains("get('text', '').size() <= 4000"), isTrue);
+    expect(rules.contains("hasOnly(['senderId', 'senderName', 'senderPhotoUrl', 'senderRole', 'text', 'imageUrl', 'createdAt'])"), isTrue);
+  });
 }
