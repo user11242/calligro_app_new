@@ -104,6 +104,7 @@ export default function CourseStudioPage() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
+  const [teacherProfile, setTeacherProfile] = useState<any>(null);
   const [teacherCommission, setTeacherCommission] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -141,6 +142,7 @@ export default function CourseStudioPage() {
         userUnsub = onSnapshot(userRef, (userSnap) => {
           if (userSnap.exists()) {
             const uData = userSnap.data();
+            setTeacherProfile(uData);
             if (uData.commissionRate !== undefined) {
               setTeacherCommission(uData.commissionRate * 100);
             } else if (uData.earningPercentage !== undefined) {
@@ -597,7 +599,8 @@ export default function CourseStudioPage() {
                                   ...item.certificate,
                                   studentName: item.studentName,
                                   courseName: course.courseName || course.courseTitle || "Course",
-                                  teacherName: auth.currentUser?.displayName || "Instructor",
+                                  teacherName: teacherProfile?.name || auth.currentUser?.displayName || "Instructor",
+                                  teacherSignatureUrl: teacherProfile?.signatureUrl || null,
                                   totalHours,
                                 })
                               }
@@ -854,7 +857,8 @@ export default function CourseStudioPage() {
                                       ...cert,
                                       studentName: item.studentName,
                                       courseName: course.courseName || course.courseTitle || "Course",
-                                      teacherName: auth.currentUser?.displayName || "Instructor",
+                                      teacherName: teacherProfile?.name || auth.currentUser?.displayName || "Instructor",
+                                      teacherSignatureUrl: teacherProfile?.signatureUrl || null,
                                       totalHours,
                                     })
                                   }

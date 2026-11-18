@@ -39,6 +39,7 @@ const formatDateSafe = (d: any) => {
 
 export default function TeacherCertificatesPage() {
   const [teacherUid, setTeacherUid] = useState<string | null>(null);
+  const [teacherProfile, setTeacherProfile] = useState<any>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("all");
   const [studentsByCourse, setStudentsByCourse] = useState<Record<string, any[]>>({});
@@ -122,6 +123,12 @@ export default function TeacherCertificatesPage() {
       if (!user) return;
       setTeacherUid(user.uid);
       setLoading(true);
+      try {
+        const uDoc = await getDoc(doc(db, "users", user.uid));
+        if (uDoc.exists()) setTeacherProfile(uDoc.data());
+      } catch (e) {
+        // fallback
+      }
       await loadData(user.uid);
       setLoading(false);
     });
@@ -584,6 +591,8 @@ export default function TeacherCertificatesPage() {
                                       ...item.certificate,
                                       courseName: item.courseName,
                                       studentName: item.studentName,
+                                      teacherName: teacherProfile?.name || auth.currentUser?.displayName || "مدرب الدورة",
+                                      teacherSignatureUrl: teacherProfile?.signatureUrl || null,
                                     })
                                   }
                                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/80 hover:text-white hover:bg-white/10 font-semibold text-xs transition-all"
