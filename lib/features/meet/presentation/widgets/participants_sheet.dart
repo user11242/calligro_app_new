@@ -151,7 +151,8 @@ class _ParticipantsSheetState extends State<ParticipantsSheet> {
             const SizedBox(width: 4),
           ],
           // Only students can be moderated (the server refuses moderators anyway).
-          if (!p.isLocal && !p.isModerator && c.isTeacher) ...[
+          // The course teacher or a platform admin (the server checks it again).
+          if (!p.isLocal && !p.isModerator && c.canModerate) ...[
             action(Key('mute-mic-${p.identity}'), micOn ? Icons.mic : Icons.mic_off,
                 micOn ? Colors.white : Colors.red, () => _mute(p, mic: true)),
             const SizedBox(width: 4),

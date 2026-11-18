@@ -213,11 +213,19 @@ exports.moderateParticipant = onCall({
 
   const uid = request.auth.uid;
 
-  // Verify the caller is the teacher of this course
+  // The course teacher may do everything; a platform admin may moderate
+  // STUDENTS (mute, camera, mute all, remove) but not record or end the class.
   const courseSnap = await admin.firestore().collection("courses").doc(courseId).get();
   if (!courseSnap.exists) throw new HttpsError("not-found", "Course not found.");
   const courseData = courseSnap.data();
-  if (courseData.teacherId !== uid) {
+  const isCourseTeacher = courseData.teacherId === uid;
+  let isPlatformAdmin = false;
+  if (!isCourseTeacher) {
+    const callerSnap = await admin.firestore().collection("users").doc(uid).get();
+    isPlatformAdmin = callerSnap.exists && callerSnap.data().role === "admin";
+  }
+  const ADMIN_ACTIONS = ["mute_mic", "mute_camera", "mute_all", "kick"];
+  if (!isCourseTeacher && !(isPlatformAdmin && ADMIN_ACTIONS.includes(action))) {
     throw new HttpsError("permission-denied", "Only the teacher can moderate participants.");
   }
 
@@ -405,7 +413,7 @@ exports.moderateParticipant = onCall({
         .set({
           blockedAt: admin.firestore.FieldValue.serverTimestamp(),
           expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + KICK_BLOCK_MS),
-          reason: "kicked_by_teacher",
+          reason: isCourseTeacher ? "kicked_by_teacher" : "kicked_by_admin",
         });
 
       await roomService.removeParticipant(secureRoomName, targetIdentity);

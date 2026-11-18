@@ -345,7 +345,7 @@ class MeetControlBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 14),
               ],
-              if (c.isTeacher)
+              if (c.canModerate) // the teacher, or an admin
                 MeetControlButton(key: const Key('open-participants'), icon: Icons.people, onTap: _tap(onOpenParticipants))
               else
                 MeetControlButton(

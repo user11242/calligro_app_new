@@ -98,6 +98,9 @@ class StageCandidate {
   /// Has a video track that is present and not muted.
   final bool hasLiveVideo;
 
+  /// THIS course's teacher (an admin is a moderator but not the course teacher).
+  final bool isCourseTeacher;
+
   const StageCandidate({
     required this.identity,
     this.isLocal = false,
@@ -105,6 +108,7 @@ class StageCandidate {
     this.isModerator = false,
     this.isSpeaking = false,
     this.hasLiveVideo = false,
+    this.isCourseTeacher = false,
   });
 }
 
@@ -118,8 +122,9 @@ class StageSelection {
 class StageLayoutPolicy {
   StageLayoutPolicy._();
 
-  /// Focus priority: screen share → the teacher (us if we teach, else any
-  /// moderator) → the active speaker's camera → the first tile.
+  /// Focus priority: the course teacher's screen share → the course teacher →
+  /// any screen share → a moderator (e.g. an admin, when the teacher is not
+  /// there) → the active speaker's camera → the first tile.
   /// PiP priority among the rest: someone speaking → someone with live video → first.
   /// Returns null when there is nothing to show.
   static StageSelection? select(
@@ -129,7 +134,11 @@ class StageLayoutPolicy {
   }) {
     if (c.isEmpty) return null;
 
-    int focus = c.indexWhere((t) => t.isScreenShare);
+    // The course teacher is ALWAYS the big screen when present (their screen share
+    // first). An admin is a moderator too, and used to take the stage when listed first.
+    int focus = c.indexWhere((t) => t.isCourseTeacher && t.isScreenShare);
+    if (focus < 0) focus = c.indexWhere((t) => (t.isCourseTeacher || (t.isLocal && localIsTeacher)) && !t.isScreenShare);
+    if (focus < 0) focus = c.indexWhere((t) => t.isScreenShare);
     if (focus < 0) {
       focus = c.indexWhere((t) => (t.isLocal && localIsTeacher) || t.isModerator);
     }

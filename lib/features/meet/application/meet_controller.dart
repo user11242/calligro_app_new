@@ -201,6 +201,7 @@ class MeetController extends ChangeNotifier {
             isModerator: p.isModerator,
             isSpeaking: p.isSpeaking,
             hasLiveVideo: p.hasLiveVideo,
+            isCourseTeacher: _isCourseTeacher(p),
           ),
       ],
       localIsTeacher: isTeacher,
@@ -210,7 +211,19 @@ class MeetController extends ChangeNotifier {
     return MeetStage(_participants[sel.focusIndex], sel.pipIndex == null ? null : _participants[sel.pipIndex!]);
   }
 
-  int get gridColumns => StageLayoutPolicy.gridColumns(_participants.length);
+  /// THIS course's teacher (any of their devices), not just any moderator.
+  bool _isCourseTeacher(MeetParticipant p) {
+    if (p.isLocal && isTeacher) return true;
+    final tid = teacherId;
+    return tid != null && tid.isNotEmpty && (p.identity == tid || p.identity == '${tid}_mobile');
+  }
+
+  /// May mute, turn off cameras and remove students: the course teacher, or a
+  /// moderator the server let in (a platform admin). The server checks it again.
+  bool get canModerate =>
+      isTeacher || _participants.any((p) => p.isLocal && p.isModerator);
+
+    int get gridColumns => StageLayoutPolicy.gridColumns(_participants.length);
 
   // ── Shared student work (the teacher shows a submission to the class) ──
   SharedWork? _sharedWork;

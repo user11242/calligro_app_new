@@ -396,12 +396,30 @@ describe("moderateParticipant", () => {
     test("unknown course", async () => {
       await expectHttpsError(call(lk.moderateParticipant, "T1", { courseId: "nope", action: "kick" }), "not-found");
     });
-    test.each(["s1", "admin1", "T2", "outsider"])("%s is not this course's teacher → refused, nothing happens", async (uid) => {
+    test.each(["s1", "T2", "outsider"])("%s is neither this course's teacher nor an admin → refused, nothing happens", async (uid) => {
       for (const action of ["kick", "mute_mic", "mute_camera", "mute_all", "stop_recording", "end_room"]) {
         await expectHttpsError(moderate(uid, { action, targetIdentity: "s2" }), "permission-denied");
       }
       expect(mockState.lk.calls).toEqual([]);
       expect(mockState.db.writes).toEqual([]);
+    });
+    test("a platform admin may mute, turn off cameras, mute all and remove STUDENTS, like the teacher", async () => {
+      await expect(moderate("admin1", { action: "mute_mic", targetIdentity: "s1" })).resolves.toEqual({ success: true, action: "muted_mic" });
+      await expect(moderate("admin1", { action: "mute_camera", targetIdentity: "s1" })).resolves.toEqual({ success: true, action: "muted_camera" });
+      await expect(moderate("admin1", { action: "mute_all" })).resolves.toMatchObject({ success: true, action: "muted_all" });
+      await expect(moderate("admin1", { action: "kick", targetIdentity: "s2" })).resolves.toEqual({ success: true, action: "kicked" });
+      expect(mockState.lk.participant(ROOM, "s2")).toBeUndefined();
+      expect(mockState.db.get(`activeRooms/${ROOM}/blockedParticipants/s2`).reason).toBe("kicked_by_admin");
+    });
+    test("...but not the teacher (moderators are never muted or removed)", async () => {
+      await expectHttpsError(moderate("admin1", { action: "kick", targetIdentity: "T1_mobile" }), "permission-denied", "Moderators cannot");
+      expect(mockState.lk.participant(ROOM, "T1_mobile")).toBeDefined();
+    });
+    test("recording and ending the class stay with the course teacher (an admin is refused)", async () => {
+      for (const action of ["stop_recording", "end_room"]) {
+        await expectHttpsError(moderate("admin1", { action }), "permission-denied");
+      }
+      expect(mockState.lk.callsTo("deleteRoom")).toEqual([]);
     });
     test("unknown action", async () => {
       await expectHttpsError(moderate("T1", { action: "ban_forever", targetIdentity: "s1" }), "invalid-argument", "Unknown action");

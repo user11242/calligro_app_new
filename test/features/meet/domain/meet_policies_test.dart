@@ -147,6 +147,46 @@ void main() {
       expect(StageLayoutPolicy.select([teacherCam, s1, local], localIsTeacher: false)!.pipIndex, 1);
     });
 
+    group('the COURSE TEACHER is always the big screen (an admin is a moderator too)', () {
+      const courseTeacher = StageCandidate(identity: 'T1_mobile', isModerator: true, isCourseTeacher: true);
+      const admin = StageCandidate(identity: 'admin1', isModerator: true, isSpeaking: true, hasLiveVideo: true);
+      const adminScreen = StageCandidate(identity: 'admin1', isModerator: true, isScreenShare: true);
+      const meAdmin = StageCandidate(identity: 'admin1', isLocal: true, isModerator: true);
+
+      test('a student: the admin joined (and listed / speaking first) → still the teacher (THE BUG)', () {
+        final sel = StageLayoutPolicy.select([local, admin, courseTeacher], localIsTeacher: false)!;
+        expect(sel.focusIndex, 2);
+        expect(sel.pipIndex, 1, reason: 'the speaking admin can be the small picture');
+      });
+
+      test('the admin\'s own phone: the teacher, not themself', () {
+        final sel = StageLayoutPolicy.select([meAdmin, s1, courseTeacher], localIsTeacher: false)!;
+        expect(sel.focusIndex, 2);
+      });
+
+      test('the teacher\'s own phone: themself, whoever joins', () {
+        const meTeacher = StageCandidate(identity: 'T1_mobile', isLocal: true, isModerator: true, isCourseTeacher: true);
+        final sel = StageLayoutPolicy.select([meTeacher, admin, s2Speaking], localIsTeacher: true)!;
+        expect(sel.focusIndex, 0);
+      });
+
+      test('an admin sharing their screen does not take the stage from the teacher', () {
+        final sel = StageLayoutPolicy.select([local, courseTeacher, admin, adminScreen], localIsTeacher: false)!;
+        expect(sel.focusIndex, 1);
+      });
+
+      test('the TEACHER sharing their screen: the share is the big screen', () {
+        const teacherShare = StageCandidate(identity: 'T1', isModerator: true, isScreenShare: true, isCourseTeacher: true);
+        final sel = StageLayoutPolicy.select([local, admin, courseTeacher, teacherShare], localIsTeacher: false)!;
+        expect(sel.focusIndex, 3);
+      });
+
+      test('the teacher is not in the class (yet): the old order (a moderator, e.g. the admin)', () {
+        final sel = StageLayoutPolicy.select([local, s1, admin], localIsTeacher: false)!;
+        expect(sel.focusIndex, 2);
+      });
+    });
+
     test('the PiP is never the focused tile', () {
       final sel = StageLayoutPolicy.select([s2Speaking, teacherCam], localIsTeacher: false)!;
       expect(sel.focusIndex, 1);
