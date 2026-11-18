@@ -346,52 +346,28 @@ export default function CalligroCertificate({
                 <circle cx="134" cy="80" r="1.6" fill="#F5EFE4" />
                 <circle cx="133" cy="86" r="1.6" fill="#F5EFE4" />
 
-                {/* Center Embossed Emblem: Tree of Knowledge & Art (Exact Match to Image 2) */}
+                {/* Center Embossed Emblem: Official Calligro Calligraphy Pen Nib (NO TREE) */}
                 <g fill="#F5EFE4" stroke="#F5EFE4" strokeLinecap="round" strokeLinejoin="round">
-                  {/* Trunk & Main Roots */}
+                  {/* Calligraphy Chisel-Tip Pen Nib */}
                   <path
-                    d="M 77 94 Q 78 82 76 74 Q 74 65 67 60 Q 75 64 79 70 Q 82 64 88 59 Q 84 66 82 74 Q 81 82 83 94 Z"
+                    d="M 80 54 L 87 72 C 87 80 84 86 82 93 L 80 98 L 78 93 C 76 86 73 80 73 72 Z"
+                    strokeWidth="0.8"
+                  />
+                  {/* Pen Nib Ink Slit */}
+                  <path d="M 80 72 L 80 97" stroke="#ECE3D2" strokeWidth="1.2" fill="none" />
+                  {/* Pen Nib Breather Hole */}
+                  <circle cx="80" cy="70" r="2" fill="#ECE3D2" stroke="none" />
+
+                  {/* Elegant Calligraphic "C" Crescent Swash around the Pen */}
+                  <path
+                    d="M 64 60 C 56 72 58 88 72 97 C 67 93 64 83 66 73 C 68 65 73 60 80 56 C 73 56 68 58 64 60 Z"
                     strokeWidth="0.5"
                   />
-                  {/* Spreading Roots into Paper */}
-                  <path d="M 77 94 Q 73 98 67 101" strokeWidth="1.8" fill="none" />
-                  <path d="M 78 95 Q 75 101 71 104" strokeWidth="1.5" fill="none" />
-                  <path d="M 80 95 Q 80 102 80 105" strokeWidth="1.6" fill="none" />
-                  <path d="M 82 95 Q 85 101 89 104" strokeWidth="1.5" fill="none" />
-                  <path d="M 83 94 Q 87 98 93 101" strokeWidth="1.8" fill="none" />
 
-                  {/* Branches */}
-                  <path d="M 76 72 Q 70 66 62 65 Q 57 65 53 62" strokeWidth="1.5" fill="none" />
-                  <path d="M 72 68 Q 66 61 62 55 Q 58 50 56 45" strokeWidth="1.4" fill="none" />
-                  <path d="M 78 68 Q 76 58 74 52 Q 72 46 72 40" strokeWidth="1.5" fill="none" />
-                  <path d="M 82 68 Q 84 58 86 52 Q 88 46 88 40" strokeWidth="1.5" fill="none" />
-                  <path d="M 84 68 Q 90 61 94 55 Q 98 50 100 45" strokeWidth="1.4" fill="none" />
-                  <path d="M 80 72 Q 86 66 94 65 Q 99 65 103 62" strokeWidth="1.5" fill="none" />
-
-                  {/* Embossed Leaves Canopy (Directly pressed into the paper) */}
-                  <circle cx="53" cy="62" r="2.2" />
-                  <circle cx="57" cy="57" r="2.4" />
-                  <circle cx="56" cy="45" r="2.2" />
-                  <circle cx="61" cy="49" r="2.5" />
-                  <circle cx="62" cy="55" r="2.4" />
-                  <circle cx="66" cy="45" r="2.5" />
-                  <circle cx="68" cy="52" r="2.3" />
-                  <circle cx="72" cy="40" r="2.5" />
-                  <circle cx="73" cy="47" r="2.4" />
-                  <circle cx="78" cy="38" r="2.6" />
-                  <circle cx="80" cy="45" r="2.5" />
-                  <circle cx="82" cy="38" r="2.6" />
-                  <circle cx="87" cy="40" r="2.5" />
-                  <circle cx="87" cy="47" r="2.4" />
-                  <circle cx="92" cy="45" r="2.5" />
-                  <circle cx="94" cy="55" r="2.4" />
-                  <circle cx="99" cy="49" r="2.5" />
-                  <circle cx="100" cy="45" r="2.2" />
-                  <circle cx="103" cy="62" r="2.2" />
-                  <circle cx="99" cy="57" r="2.4" />
-                  
-                  {/* Subtle Central Accent Star */}
-                  <circle cx="80" cy="60" r="1.8" />
+                  {/* Classical Calligraphic Accent Stars */}
+                  <circle cx="60" cy="78" r="1.5" />
+                  <circle cx="100" cy="78" r="1.5" />
+                  <circle cx="80" cy="46" r="1.8" />
                 </g>
               </svg>
             </div>
