@@ -19,6 +19,8 @@ admins. If an upload to R2 fails, the recorder writes to the backup folder and
 - **Everything else** (how it works, the server steps, the test drill, what each alert
   means): [`docs/RECORDING_SAFETY.md`](../docs/RECORDING_SAFETY.md)
 
-Files: `docker-compose.yml`, `livekit.yaml` (LiveKit), `config.yaml` (recorder),
+Files: `docker-compose.yml`, `livekit.yaml` (LiveKit) and `config.yaml` (recorder) — these two
+hold the LiveKit secret, live only on the server and are never committed; the repository has
+`livekit.yaml.example` / `config.yaml.example` templates —
 `scripts/safety_check.sh` (cron, every 5 min), `scripts/rebuild_recording.sh` (manual
 rebuild, only when an alert asks for it).

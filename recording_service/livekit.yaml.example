@@ -1,3 +1,5 @@
+# LiveKit settings. Copy to livekit.yaml ON THE SERVER and fill in the keys.
+# The real livekit.yaml holds the LiveKit secret: it is never committed (.gitignore).
 port: 7880
 bind_addresses:
   - "0.0.0.0"
@@ -11,7 +13,7 @@ redis:
   address: "127.0.0.1:6379"
 
 keys:
-  APICFTjxXVwXvnq: K9sVYI1DJMlneZVOZ98zqecYYS1fuGFYrUUEQ3CXtYoA
+  <LIVEKIT_API_KEY>: <LIVEKIT_API_SECRET>
 
 # ── Built-in TURN Server ──────────────────────────────────────
 # Enables relay for students behind strict firewalls (universities,
@@ -26,7 +28,7 @@ turn:
   external_tls: true
 
 webhook:
-  api_key: APICFTjxXVwXvnq
+  api_key: <LIVEKIT_API_KEY>
   urls:
     - https://livekit-livekitwebhook-yc7sgeqhya-uc.a.run.app
 

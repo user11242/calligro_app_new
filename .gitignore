@@ -61,3 +61,8 @@ pop_calls.txt
 test_*.dart
 *.code-workspace
 .DS_Store
+
+# LiveKit server settings hold the LiveKit secret: only the .example templates are committed.
+recording_service/livekit.yaml
+recording_service/config.yaml
+recording_service/.env
