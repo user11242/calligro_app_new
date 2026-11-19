@@ -190,7 +190,7 @@ export default function CalligroMeetRoom({
               transition={{ delay: 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className={`relative z-10 w-full max-w-[1100px] mx-4 p-8 bg-[#13151A]/80 backdrop-blur-3xl border border-white/[0.08] rounded-3xl shadow-2xl flex flex-col md:flex-row items-center gap-10`}
             >
-              {/* Video Preview - Larger (like Google Meet) */}
+              {/* Video Preview - Larger */}
               <div className="w-full md:w-[65%] aspect-video bg-black/50 rounded-2xl overflow-hidden border border-white/5 relative flex items-center justify-center shadow-inner group">
                 {!stream && !permissionError && (
                   <div className="flex flex-col items-center gap-3 text-white/40">

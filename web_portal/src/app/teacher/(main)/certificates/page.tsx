@@ -61,7 +61,8 @@ export default function TeacherCertificatesPage() {
   const loadData = useCallback(async (uid: string) => {
     try {
       // 1. Attempt server action via adminDb (bypasses all client security rules & indexing)
-      const res = await getTeacherCertificatesDataAction(uid);
+      const token = (await auth.currentUser?.getIdToken()) ?? "";
+      const res = await getTeacherCertificatesDataAction(token, uid);
       if (res.success && res.courses) {
         setCourses(res.courses || []);
         setCertificates(res.certificates || []);
@@ -226,12 +227,9 @@ export default function TeacherCertificatesPage() {
     const key = `${item.courseId}_${item.studentId}`;
     setIssuingKey(key);
     try {
-      const res = await issueCertificateAction({
+      const res = await issueCertificateAction((await auth.currentUser?.getIdToken()) ?? "", {
         courseId: item.courseId,
         studentId: item.studentId,
-        studentName: item.studentName,
-        teacherId: auth.currentUser?.uid,
-        courseName: item.courseName,
       });
 
       if (res.success && res.certificate) {
@@ -262,7 +260,7 @@ export default function TeacherCertificatesPage() {
 
       const newCertificates: any[] = [];
       for (const cId of activeCourseIds) {
-        const res = await issueAllPendingCertificatesAction(cId, auth.currentUser?.uid);
+        const res = await issueAllPendingCertificatesAction((await auth.currentUser?.getIdToken()) ?? "", cId);
         if (res.success && Array.isArray(res.certificates)) {
           newCertificates.push(...res.certificates);
         }

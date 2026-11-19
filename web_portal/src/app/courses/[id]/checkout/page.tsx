@@ -115,67 +115,6 @@ function CheckoutContent() {
     }
   };
 
-  const handleAdminBypass = async () => {
-    if (process.env.NODE_ENV !== "development") return;
-
-    try {
-      const user = currentUser || libAuth.currentUser;
-      if (!user) {
-        setError("You must be logged in to join.");
-        return;
-      }
-
-      setJoining(true);
-
-      await runTransaction(libDb, async (transaction) => {
-        const courseRef = doc(libDb, "courses", id as string);
-        const transactionRef = doc(collection(libDb, "transactions"));
-
-        const courseSnap = await transaction.get(courseRef);
-        if (!courseSnap.exists()) throw new Error("Course not found");
-
-        const courseData = courseSnap.data()!;
-        const enrolledStudents = Array.isArray(courseData.enrolledStudents)
-          ? [...courseData.enrolledStudents]
-          : [];
-
-        if (!enrolledStudents.includes(user.uid)) {
-          enrolledStudents.push(user.uid);
-
-          transaction.update(courseRef, {
-            enrolledStudents: enrolledStudents,
-            enrolledCount: enrolledStudents.length,
-          });
-
-          transaction.set(transactionRef, {
-            studentId: user.uid,
-            studentName:
-              user.displayName || user.email?.split("@")[0] || t("nav.student_login").split(" ")[0],
-            teacherId: courseData.teacherId || "",
-            teacherName: courseData.teacherName || "Unknown Teacher",
-            courseId: id as string,
-            courseName:
-              courseData.courseName ||
-              courseData.courseTitle ||
-              courseData.title ||
-              "Untitled Course",
-            amount: 0,
-            currency: "USD",
-            source: "admin_bypass",
-            status: "completed",
-            createdAt: serverTimestamp(),
-          });
-        }
-      });
-
-      router.push(`/courses/${id}/classroom`);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to bypass. Please check permissions.");
-    } finally {
-      setJoining(false);
-    }
-  };
 
   if (loading || authChecking) {
     return (
@@ -372,21 +311,6 @@ function CheckoutContent() {
                     </div>
                   )}
                 </div>
-
-                {process.env.NODE_ENV === "development" && (
-                  <button
-                    onClick={handleAdminBypass}
-                    disabled={joining}
-                    className="w-full mt-4 py-4 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-[24px] border border-white/10 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                  >
-                    {joining ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <ShieldCheck className="w-4 h-4 text-green-500" />
-                    )}
-                    [ {t("course.admin_bypass")} ]
-                  </button>
-                )}
 
                 {/* Card & Wallet Badges */}
                 <div className="mt-10 flex items-center gap-6 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-500">

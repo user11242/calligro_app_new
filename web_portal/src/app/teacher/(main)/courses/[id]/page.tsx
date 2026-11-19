@@ -290,12 +290,9 @@ export default function CourseStudioPage() {
     if (!course) return;
     setIssuingStudentId(item.studentId);
     try {
-      const res = await issueCertificateAction({
+      const res = await issueCertificateAction((await auth.currentUser?.getIdToken()) ?? "", {
         courseId: course.id,
         studentId: item.studentId,
-        studentName: item.studentName,
-        teacherId: course.teacherId,
-        courseName: course.courseName || course.courseTitle || course.title || "Untitled Course",
       });
 
       if (res.success && res.certificate) {
@@ -319,7 +316,7 @@ export default function CourseStudioPage() {
     if (!course || pendingCount === 0) return;
     setIssuingAll(true);
     try {
-      const res = await issueAllPendingCertificatesAction(course.id, course.teacherId);
+      const res = await issueAllPendingCertificatesAction((await auth.currentUser?.getIdToken()) ?? "", course.id);
       if (res.success && res.certificates) {
         setCertificates((prev) => {
           const map = new Map(prev.map((c) => [c.studentId, c]));

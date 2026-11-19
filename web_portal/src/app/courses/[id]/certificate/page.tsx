@@ -112,12 +112,11 @@ export default function CertificatePage() {
           setCertificateId(certSnap.docs[0].id);
         } else {
           // Server Action generation: completely circumvents client Firestore permission-denied
-          const res = await issueCertificateAction({
+          // The server checks who is asking (the student themselves or the teacher) and
+          // takes the names from the profile / course.
+          const res = await issueCertificateAction(await user.getIdToken(), {
             courseId: id as string,
             studentId: effectiveStudentId,
-            studentName: studentName || user.displayName || user.email?.split('@')[0] || "Student",
-            courseName: courseData?.courseName || courseData?.courseTitle || courseData?.title || "Untitled Course",
-            teacherId: courseData?.teacherId || "",
           });
           if (res.success && res.certificate) {
             setCertificateId(res.certificate.id);

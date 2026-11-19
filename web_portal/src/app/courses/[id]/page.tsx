@@ -221,51 +221,6 @@ export default function CourseDetailsPage() {
     }
   };
 
-  const handleAdminBypass = async () => {
-    if (process.env.NODE_ENV !== "development") return;
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-      setJoining(true);
-      setError(null);
-      
-      await runTransaction(db, async (transaction) => {
-        const courseRef = doc(db, "courses", id as string);
-        const transactionRef = doc(collection(db, "transactions"));
-        const courseSnap = await transaction.get(courseRef);
-        if (!courseSnap.exists()) throw new Error("Course not found");
-
-        const courseData = courseSnap.data()!;
-        const enrolledStudents = Array.isArray(courseData.enrolledStudents) ? [...courseData.enrolledStudents] : [];
-        if (!enrolledStudents.includes(user.uid)) {
-          enrolledStudents.push(user.uid);
-          transaction.update(courseRef, {
-            enrolledStudents,
-            enrolledCount: enrolledStudents.length
-          });
-          transaction.set(transactionRef, {
-            studentId: user.uid,
-            studentName: user.displayName || user.email?.split('@')[0] || t("nav.student_login").split(' ')[0],
-            teacherId: courseData.teacherId || '',
-            courseId: id as string,
-            amount: 0,
-            status: 'completed',
-            source: 'admin_bypass',
-            createdAt: serverTimestamp(),
-          });
-        }
-      });
-      setIsEnrolled(true);
-      setJoining(false);
-    } catch (err: any) {
-      console.error(err);
-      setError(`Bypass failed: ${err.message}`);
-      setJoining(false);
-    }
-  };
 
   const mapLevel = (level: string) => {
     const l = level?.toLowerCase() || "";
@@ -756,16 +711,6 @@ export default function CourseDetailsPage() {
 
               </div>
 
-              {process.env.NODE_ENV === "development" && !isEnrolled && (
-                <button
-                  onClick={handleAdminBypass}
-                  disabled={joining}
-                  className="w-full mt-6 py-3 bg-white/5 hover:bg-white/10 text-white/30 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl border border-white/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-green-500" />}
-                  [ {t("course.admin_bypass")} ]
-                </button>
-              )}
 
               {error && (
                 <p className="mt-4 text-center text-red-500 text-xs font-bold animate-pulse bg-red-500/10 py-2 rounded-xl border border-red-500/20">{error}</p>
