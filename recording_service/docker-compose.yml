@@ -1,22 +1,28 @@
+# Calligro live classes + recording server (Contabo).
+# Versions are FIXED (set in .env): nothing changes on a restart unless we decide so.
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:${REDIS_VERSION:-7.4-alpine}
     restart: unless-stopped
     command: redis-server --appendonly yes
     network_mode: "host"
+    logging: &logs
+      driver: json-file
+      options: { max-size: "50m", max-file: "5" } # logs can never fill the disk
 
   livekit:
-    image: livekit/livekit-server:latest
+    image: livekit/livekit-server:${LIVEKIT_SERVER_VERSION:-v1.13.11}
     command: --config /etc/livekit.yaml
     restart: unless-stopped
     network_mode: "host"
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml
+      - ./livekit.yaml:/etc/livekit.yaml:ro
     depends_on:
       - redis
+    logging: *logs
 
   egress:
-    image: livekit/egress:latest
+    image: livekit/egress:${EGRESS_VERSION:-v1.15.0}
     restart: unless-stopped
     network_mode: "host"
     cap_add:
@@ -25,7 +31,11 @@ services:
       - EGRESS_CONFIG_FILE=/etc/egress/config.yaml
     volumes:
       - ./config.yaml:/etc/egress/config.yaml:ro
-      - /tmp/egress_backup:/tmp/egress_backup
+      # Upload fallback (config.yaml "backup:"), same path inside and outside: on the host
+      # disk, NOT /tmp, so it survives restarts. scripts/safety_check.sh uploads it to R2
+      # and removes local copies 7 days later.
+      - /opt/calligro-recordings/backup:/opt/calligro-recordings/backup
     depends_on:
       - redis
       - livekit
+    logging: *logs

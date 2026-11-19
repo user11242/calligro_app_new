@@ -5,8 +5,13 @@ ws_url: "ws://127.0.0.1:7880"
 redis:
   address: "127.0.0.1:6379"
 
-storage:
-  backup_dir: "/tmp/egress_backup"
+# Upload fallback. If an upload to R2 fails, the recorder writes the file here instead
+# (same path on the host and in the container). Every 5 minutes scripts/safety_check.sh
+# uploads it to R2 at its normal path, where the cloud safety net
+# (functions/recording_safety.js) picks it up and puts the lesson back in the list.
+# It must be the top-level "backup:" section ("storage: backup_dir:" is ignored).
+backup:
+  prefix: "/opt/calligro-recordings/backup"
 
 logging:
   level: "info"
