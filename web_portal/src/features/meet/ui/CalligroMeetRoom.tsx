@@ -5,7 +5,8 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
 } from "@livekit/components-react";
-import { VideoPresets, RoomOptions } from "livekit-client";
+import { VideoPresets, RoomOptions, DisconnectReason } from "livekit-client";
+import { shouldRetryWithRelay } from "@/features/meet/domain/disconnect";
 import "@livekit/components-styles";
 import CalligroMeetLayout from "./CalligroMeetLayout";
 import ResilienceManager from "./ResilienceManager";
@@ -299,8 +300,11 @@ export default function CalligroMeetRoom({
               connect={true}
               options={roomOptions}
               onDisconnected={(reason) => {
-                console.warn("[Resilience] Disconnected from room. Reason:", reason);
-                if (iceTransportPolicy === "all") {
+                const reasonName = reason === undefined ? undefined : DisconnectReason[reason];
+                console.warn("[Resilience] Disconnected from room. Reason:", reasonName);
+                // Only a network problem is retried (through the relay). A class that ended,
+                // a removal or our own Leave is final — reconnecting would rejoin with the old pass.
+                if (shouldRetryWithRelay(reasonName, iceTransportPolicy)) {
                   console.warn("[Resilience] Attempting ICE Relay Fallback over TCP/TLS port 443...");
                   setIceTransportPolicy("relay");
                 }
