@@ -62,11 +62,12 @@ Deploy the functions: `livekit` (start + webhook + reconcile) and `recordingSafe
 URL of `recordingSafety-recordingServerAlert` — that is `ALERT_URL` below.
 
 ### B. Cloudflare R2 (dashboard)
-Bucket `calligro-recordings` → Settings → **Object lifecycle rules** → add:
-- Prefix `recording-segments/` → **delete objects 30 days after upload**.
-
-The watchdog already deletes pieces after 7 days; this rule is only a last guard so
-pieces can never pile up.
+Nothing to add. The bucket `calligro-recordings` already has a lifecycle rule that deletes
+files **14 days** after upload (the app hides lessons older than 14 days, see
+`course_recordings.dart` `retention`). It also covers the live pieces
+(`recording-segments/`), which the watchdog deletes after 7 days anyway. Keep the 14-day
+rule in mind: a manual rebuild (see "Recording needs attention") must happen within
+14 days of the class, before the pieces expire.
 
 ### C. Contabo server
 The server keeps its own `config.yaml` and `livekit.yaml` (they hold the keys) and Caddy
