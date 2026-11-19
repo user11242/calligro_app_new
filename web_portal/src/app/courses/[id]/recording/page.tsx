@@ -3,10 +3,13 @@
 import { LiveKitRoom } from "@livekit/components-react";
 import "@livekit/components-styles";
 import CalligroMeetLayout from "@/components/meet/CalligroMeetLayout";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export default function RecordingLayoutPage({ params }: { params: { id: string } }) {
+// The page LiveKit egress opens to record a class. Next 15 passes page params as a
+// Promise, so the course id is read with useParams() (like every other page).
+export default function RecordingLayoutPage() {
+  const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [mounted, setMounted] = useState(false);
@@ -34,7 +37,7 @@ export default function RecordingLayoutPage({ params }: { params: { id: string }
       className="h-screen w-screen"
     >
       <CalligroMeetLayout 
-        courseId={params.id} 
+        courseId={id} 
         isTeacher={false} 
         onLeave={() => {}} 
         isRecordingMode={true} 
