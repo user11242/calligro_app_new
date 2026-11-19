@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:calligro_app/core/theme/colors.dart';
+import 'package:calligro_app/core/services/version_policy.dart';
 
 enum VersionStatus {
   upToDate,
@@ -42,12 +43,16 @@ class VersionCheckService {
   factory VersionCheckService() => _instance;
   VersionCheckService._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Only touched when the config is read or saved (showing a dialog needs no database).
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
-  static const String _defaultIosUrl =
-      'https://apps.apple.com/app/calligro/id6670783307';
-  static const String _defaultAndroidUrl =
-      'https://play.google.com/store/apps/details?id=com.yazan.calligroApp';
+  // The old defaults ('…/calligro/id6670783307', '…id=com.yazan.calligroApp') were
+  // "not found" pages: the real links live in VersionPolicy.
+  static const String _defaultIosUrl = VersionPolicy.iosStoreUrl;
+  static const String _defaultAndroidUrl = VersionPolicy.androidStoreUrl;
+
+  /// The check runs on the splash screen: it may never hold the app longer than this.
+  static const Duration configTimeout = Duration(seconds: 5);
 
   DocumentReference<Map<String, dynamic>> get _configRef =>
       _firestore.collection('app_config').doc('version_control');
@@ -58,7 +63,7 @@ class VersionCheckService {
 
   Future<Map<String, dynamic>> getConfig() async {
     try {
-      final doc = await _configRef.get();
+      final doc = await _configRef.get().timeout(configTimeout);
       if (doc.exists && doc.data() != null) {
         return doc.data()!;
       }
@@ -66,29 +71,8 @@ class VersionCheckService {
       debugPrint('[VersionCheckService] Failed to load config: $e');
     }
 
-    // Default configuration if not found
-    return {
-      'min_required_build': 100,
-      'latest_build': 104,
-      'latest_version_name': '1.0.23',
-      'is_force_update': false,
-      'ios_store_url': _defaultIosUrl,
-      'android_store_url': _defaultAndroidUrl,
-      'update_title_ar': 'تحديث جديد متاح',
-      'update_title_en': 'New Update Available',
-      'update_message_ar':
-          'يرجى تحديث كاليجرو للاستفادة من أحدث الميزات وتحسينات الأداء.',
-      'update_message_en':
-          'Please update Calligro to enjoy the latest features and performance improvements.',
-      'available_versions': [
-        {'build': 105, 'version': '1.0.23', 'label': 'v1.0.23 (Build 105)'},
-        {'build': 104, 'version': '1.0.23', 'label': 'v1.0.23 (Build 104)'},
-        {'build': 103, 'version': '1.0.22', 'label': 'v1.0.22 (Build 103)'},
-        {'build': 102, 'version': '1.0.21', 'label': 'v1.0.21 (Build 102)'},
-        {'build': 101, 'version': '1.0.21', 'label': 'v1.0.21 (Build 101)'},
-        {'build': 100, 'version': '1.0.20', 'label': 'v1.0.20 (Build 100)'},
-      ],
-    };
+    // Not reachable / not set: no update prompt (the messages have their own defaults).
+    return const {};
   }
 
   Future<VersionCheckResult> checkVersion({bool isArabic = true}) async {
@@ -99,18 +83,23 @@ class VersionCheckService {
       debugPrint('[VersionCheckService] Failed to read package info: $e');
       packageInfo = PackageInfo(
         appName: 'Calligro',
-        packageName: 'com.yazan.calligroApp',
-        version: '1.0.23',
-        buildNumber: '104',
+        packageName: 'com.yazan.calligro_app',
+        version: '',
+        buildNumber: '',
       );
     }
 
-    final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 104;
+    // Our own build number unknown → never block or nag on a guess.
+    final ownBuild = int.tryParse(packageInfo.buildNumber);
+    final currentBuild = ownBuild ?? 1 << 30;
     final currentVersion = packageInfo.version;
 
     final config = await getConfig();
-    final minRequiredBuild = (config['min_required_build'] as num?)?.toInt() ?? 100;
-    final latestBuild = (config['latest_build'] as num?)?.toInt() ?? 104;
+    final platform = Platform.isIOS ? AppPlatform.ios : AppPlatform.android;
+    final minRequiredBuild = VersionPolicy.minBuild(config, platform) ?? 0;
+    final latestBuild = (config['latest_build_${platform.name}'] as num?)?.toInt() ??
+        (config['latest_build'] as num?)?.toInt() ??
+        minRequiredBuild;
     final latestVersionName = (config['latest_version_name'] as String?) ?? currentVersion;
     final isForceUpdate = (config['is_force_update'] as bool?) ?? false;
 
@@ -126,22 +115,14 @@ class VersionCheckService {
             ? 'يرجى تحديث كاليجرو للاستفادة من أحدث الميزات وتحسينات الأداء.'
             : 'Please update Calligro to enjoy the latest features and performance improvements.');
 
-    final storeUrl = Platform.isIOS
-        ? ((config['ios_store_url'] as String?)?.isNotEmpty == true
-            ? config['ios_store_url'] as String
-            : _defaultIosUrl)
-        : ((config['android_store_url'] as String?)?.isNotEmpty == true
-            ? config['android_store_url'] as String
-            : _defaultAndroidUrl);
+    // A missing or known-broken saved link is replaced by the real store page.
+    final storeUrl = VersionPolicy.storeUrl(config, platform);
 
-    VersionStatus status;
-    if (currentBuild < minRequiredBuild) {
-      status = isForceUpdate ? VersionStatus.forceUpdate : VersionStatus.optionalUpdate;
-    } else if (currentBuild < latestBuild) {
-      status = VersionStatus.optionalUpdate;
-    } else {
-      status = VersionStatus.upToDate;
-    }
+    final status = switch (VersionPolicy.decide(config, platform, currentBuild)) {
+      UpdateDecision.required => VersionStatus.forceUpdate,
+      UpdateDecision.optional => VersionStatus.optionalUpdate,
+      UpdateDecision.upToDate => VersionStatus.upToDate,
+    };
 
     return VersionCheckResult(
       status: status,
@@ -156,6 +137,10 @@ class VersionCheckService {
       storeUrl: storeUrl,
     );
   }
+
+  /// Saves the admin page's fields (VersionPolicy.configFields + messages).
+  Future<void> saveFields(Map<String, dynamic> fields) =>
+      _configRef.set({...fields, 'updated_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
 
   Future<void> saveConfig({
     required int minRequiredBuild,
@@ -201,19 +186,22 @@ class VersionCheckService {
     }
   }
 
+  /// [preview]: the admin page shows exactly what users see, but can always close it
+  /// (a forced dialog cannot be closed otherwise).
   Future<bool> showUpdateDialog(
     BuildContext context,
-    VersionCheckResult result,
-  ) async {
+    VersionCheckResult result, {
+    bool preview = false,
+  }) async {
     final isForced = result.status == VersionStatus.forceUpdate;
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     final dismissed = await showDialog<bool>(
       context: context,
-      barrierDismissible: !isForced,
+      barrierDismissible: !isForced || preview,
       builder: (dialogContext) {
         return PopScope(
-          canPop: !isForced,
+          canPop: !isForced || preview,
           child: Dialog(
             backgroundColor: const Color(0xFF1E2026),
             shape: RoundedRectangleBorder(
@@ -336,6 +324,18 @@ class VersionCheckService {
                       ),
                     ),
                   ),
+
+                  if (preview && isForced) ...[
+                    const SizedBox(height: 10),
+                    TextButton(
+                      key: const Key('closeUpdatePreview'),
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      child: Text(
+                        isArabic ? 'إغلاق المعاينة (المستخدم لا يرى هذا الزر)' : 'Close preview (users don\'t see this)',
+                        style: const TextStyle(color: Colors.white54, fontSize: 13),
+                      ),
+                    ),
+                  ],
 
                   // "Later" button only if NOT forced
                   if (!isForced) ...[

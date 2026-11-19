@@ -1,243 +1,321 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:calligro_app/core/services/version_check_service.dart';
-import 'package:calligro_app/core/theme/colors.dart';
-import 'package:calligro_app/core/message/app_messenger.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'package:calligro_app/core/message/app_messenger.dart';
+import 'package:calligro_app/core/services/version_check_service.dart';
+import 'package:calligro_app/core/services/version_policy.dart';
+import 'package:calligro_app/core/theme/colors.dart';
+
+/// Where the update setting is read and saved (Firestore `app_config/version_control`).
+abstract interface class VersionConfigStore {
+  Future<Map<String, dynamic>> load();
+  Future<void> save(Map<String, dynamic> fields);
+
+  /// This device's installed version, e.g. ('1.0.24', 107).
+  Future<(String, int)> installedVersion();
+}
+
+class FirestoreVersionConfigStore implements VersionConfigStore {
+  final _service = VersionCheckService();
+
+  @override
+  Future<Map<String, dynamic>> load() => _service.getConfig();
+
+  @override
+  Future<void> save(Map<String, dynamic> fields) => _service.saveFields(fields);
+
+  @override
+  Future<(String, int)> installedVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    return (info.version, int.tryParse(info.buildNumber) ?? 0);
+  }
+}
+
+/// Admin: who must (or may) update the app, per store, and what they are told.
 class AdminVersionControlPage extends StatefulWidget {
-  const AdminVersionControlPage({super.key});
+  const AdminVersionControlPage({super.key, this.store});
+
+  /// Tests pass a fake; the app uses Firestore.
+  final VersionConfigStore? store;
 
   @override
   State<AdminVersionControlPage> createState() => _AdminVersionControlPageState();
 }
 
+class _VersionOption {
+  final int build;
+  final String version;
+  const _VersionOption(this.build, this.version);
+  String get label => 'v$version · Build $build';
+  Map<String, dynamic> toMap() => {'build': build, 'version': version, 'label': 'v$version (Build $build)'};
+}
+
 class _AdminVersionControlPageState extends State<AdminVersionControlPage> {
-  final VersionCheckService _versionService = VersionCheckService();
+  late final VersionConfigStore _store = widget.store ?? FirestoreVersionConfigStore();
 
-  bool _isLoading = true;
-  bool _isSaving = false;
+  static const _danger = Color(0xFFE5484D);
+  static const _ok = Color(0xFF3DD68C);
+  static const _card = Color(0xFF1E2026);
 
-  int _currentDeviceBuild = 104;
-  String _currentDeviceVersion = '1.0.23';
+  bool _loading = true;
+  String? _loadError;
+  bool _saving = false;
 
-  // Form State
-  int? _selectedMinBuild;
-  bool _isForceUpdate = false;
+  Map<String, dynamic> _live = const {};
+  String _deviceVersion = '';
+  int _deviceBuild = 0;
+  final List<_VersionOption> _versions = [];
 
-  List<Map<String, dynamic>> _availableVersions = [];
+  int? _iosMin;
+  int? _androidMin;
+  bool _force = false;
+  bool _fixedBrokenLinks = false;
 
-  final TextEditingController _titleArCtrl = TextEditingController();
-  final TextEditingController _titleEnCtrl = TextEditingController();
-  final TextEditingController _msgArCtrl = TextEditingController();
-  final TextEditingController _msgEnCtrl = TextEditingController();
-  final TextEditingController _iosUrlCtrl = TextEditingController();
-  final TextEditingController _androidUrlCtrl = TextEditingController();
+  final _titleAr = TextEditingController();
+  final _msgAr = TextEditingController();
+  final _titleEn = TextEditingController();
+  final _msgEn = TextEditingController();
+  final _iosUrl = TextEditingController();
+  final _androidUrl = TextEditingController();
+
+  /// The form as last loaded/saved, to know if anything changed.
+  String _savedSnapshot = '';
 
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    for (final c in [_titleAr, _msgAr, _titleEn, _msgEn, _iosUrl, _androidUrl]) {
+      c.addListener(_onEdit);
+    }
+    _load();
   }
 
   @override
   void dispose() {
-    _titleArCtrl.dispose();
-    _titleEnCtrl.dispose();
-    _msgArCtrl.dispose();
-    _msgEnCtrl.dispose();
-    _iosUrlCtrl.dispose();
-    _androidUrlCtrl.dispose();
+    for (final c in [_titleAr, _msgAr, _titleEn, _msgEn, _iosUrl, _androidUrl]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _loadInitialData() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      _currentDeviceBuild = int.tryParse(packageInfo.buildNumber) ?? 104;
-      _currentDeviceVersion = packageInfo.version;
-    } catch (e) {
-      debugPrint('Failed to read package info: $e');
-    }
-
-    final config = await _versionService.getConfig();
-
-    final rawList = config['available_versions'] as List<dynamic>? ?? [];
-    _availableVersions = rawList
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList();
-
-    // Default builds list if empty
-    if (_availableVersions.isEmpty) {
-      _availableVersions = [
-        {'build': 105, 'version': '1.0.23', 'label': 'v1.0.23 (Build 105)'},
-        {'build': 104, 'version': '1.0.23', 'label': 'v1.0.23 (Build 104)'},
-        {'build': 103, 'version': '1.0.22', 'label': 'v1.0.22 (Build 103)'},
-        {'build': 102, 'version': '1.0.21', 'label': 'v1.0.21 (Build 102)'},
-        {'build': 101, 'version': '1.0.21', 'label': 'v1.0.21 (Build 101)'},
-        {'build': 100, 'version': '1.0.20', 'label': 'v1.0.20 (Build 100)'},
-      ];
-    }
-
-    _selectedMinBuild = (config['min_required_build'] as num?)?.toInt() ?? _availableVersions.first['build'] as int;
-    _isForceUpdate = (config['is_force_update'] as bool?) ?? false;
-
-    _titleArCtrl.text = config['update_title_ar'] ?? 'تحديث جديد متاح';
-    _titleEnCtrl.text = config['update_title_en'] ?? 'New Update Available';
-    _msgArCtrl.text = config['update_message_ar'] ??
-        'يرجى تحديث كاليجرو للاستفادة من أحدث ميزات تسجيل الدروس وشاشة الاجتماعات.';
-    _msgEnCtrl.text = config['update_message_en'] ??
-        'Please update Calligro to enjoy the latest video recordings and meeting features.';
-    _iosUrlCtrl.text = config['ios_store_url'] ??
-        'https://apps.apple.com/app/calligro/id6670783307';
-    _androidUrlCtrl.text = config['android_store_url'] ??
-        'https://play.google.com/store/apps/details?id=com.yazan.calligroApp';
-
-    // If current build is not present in available versions, offer to insert it
-    final exists = _availableVersions.any((v) => v['build'] == _currentDeviceBuild);
-    if (!exists) {
-      _availableVersions.insert(0, {
-        'build': _currentDeviceBuild,
-        'version': _currentDeviceVersion,
-        'label': 'v$_currentDeviceVersion (Build $_currentDeviceBuild) - الحالي',
-      });
-    }
-
-    // Ensure selected build exists in the list
-    if (!_availableVersions.any((v) => v['build'] == _selectedMinBuild)) {
-      _selectedMinBuild = _availableVersions.first['build'] as int;
-    }
-
-    setState(() => _isLoading = false);
+  void _onEdit() {
+    if (mounted) setState(() {});
   }
 
-  void _addNewVersionDialog() {
-    final buildCtrl = TextEditingController();
-    final versionCtrl = TextEditingController(text: _currentDeviceVersion);
+  String _snapshot() => [
+        _iosMin, _androidMin, _force, _titleAr.text, _msgAr.text, _titleEn.text, _msgEn.text, _iosUrl.text, _androidUrl.text,
+        _versions.map((v) => v.build).join(','),
+      ].join('|');
 
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E2026),
-          title: const Text('إضافة إصدار جديد للقائمة',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: buildCtrl,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'رقم البناء (Build Number e.g. 105)',
-                  labelStyle: const TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.black26,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: versionCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'اسم الإصدار (Version Name e.g. 1.0.23)',
-                  labelStyle: const TextStyle(color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.black26,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
+  bool get _dirty => !_loading && _snapshot() != _savedSnapshot;
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final (version, build) = await _store.installedVersion();
+      final config = await _store.load();
+      if (!mounted) return;
+      _apply(config, version, build);
+    } catch (e) {
+      if (mounted) setState(() => _loadError = '$e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _apply(Map<String, dynamic> config, String deviceVersion, int deviceBuild) {
+    _live = config;
+    _deviceVersion = deviceVersion;
+    _deviceBuild = deviceBuild;
+
+    _versions.clear();
+    void add(int? build, String? version) {
+      if (build == null || build <= 0 || _versions.any((v) => v.build == build)) return;
+      _versions.add(_VersionOption(build, (version == null || version.isEmpty) ? '?' : version));
+    }
+
+    for (final raw in (config['available_versions'] as List?) ?? const []) {
+      if (raw is Map) add((raw['build'] as num?)?.toInt(), raw['version'] as String?);
+    }
+    add(deviceBuild, deviceVersion);
+    _iosMin = VersionPolicy.minBuild(config, AppPlatform.ios);
+    _androidMin = VersionPolicy.minBuild(config, AppPlatform.android);
+    add(_iosMin, null);
+    add(_androidMin, null);
+    _versions.sort((a, b) => b.build.compareTo(a.build));
+    _iosMin ??= _versions.isEmpty ? null : _versions.last.build;
+    _androidMin ??= _versions.isEmpty ? null : _versions.last.build;
+
+    _force = config['is_force_update'] == true;
+    _titleAr.text = config['update_title_ar'] as String? ?? 'تحديث جديد متاح';
+    _msgAr.text = config['update_message_ar'] as String? ??
+        'يرجى تحديث كاليجرو للاستفادة من أحدث الميزات وتحسينات الأداء.';
+    _titleEn.text = config['update_title_en'] as String? ?? 'New Update Available';
+    _msgEn.text = config['update_message_en'] as String? ??
+        'Please update Calligro to enjoy the latest features and performance improvements.';
+
+    final savedIos = config['ios_store_url'] as String?;
+    final savedAndroid = config['android_store_url'] as String?;
+    _fixedBrokenLinks = VersionPolicy.isKnownBrokenStoreUrl(savedIos) || VersionPolicy.isKnownBrokenStoreUrl(savedAndroid);
+    _iosUrl.text = VersionPolicy.correctedStoreUrl(savedIos, AppPlatform.ios);
+    _androidUrl.text = VersionPolicy.correctedStoreUrl(savedAndroid, AppPlatform.android);
+
+    // A corrected broken link counts as an unsaved change (Save puts it right for everyone).
+    _savedSnapshot = _fixedBrokenLinks ? '' : _snapshot();
+  }
+
+  String _versionName(int? build) => _versions.firstWhere((v) => v.build == build, orElse: () => _VersionOption(build ?? 0, '?')).version;
+
+  Future<void> _save() async {
+    final ios = _iosMin, android = _androidMin;
+    if (ios == null || android == null || _saving) return;
+
+    if (_force) {
+      final ok = await _confirmForce(ios, android);
+      if (ok != true || !mounted) return;
+    }
+
+    setState(() => _saving = true);
+    final fields = {
+      ...VersionPolicy.configFields(
+        iosMinBuild: ios,
+        androidMinBuild: android,
+        isForceUpdate: _force,
+        iosVersionName: _versionName(ios),
+        androidVersionName: _versionName(android),
+        iosStoreUrl: _iosUrl.text,
+        androidStoreUrl: _androidUrl.text,
+      ),
+      'available_versions': [for (final v in _versions) v.toMap()],
+      'update_title_ar': _titleAr.text.trim(),
+      'update_message_ar': _msgAr.text.trim(),
+      'update_title_en': _titleEn.text.trim(),
+      'update_message_en': _msgEn.text.trim(),
+    };
+    try {
+      await _store.save(fields);
+      if (!mounted) return;
+      setState(() {
+        _live = {..._live, ...fields, 'updated_at': DateTime.now()};
+        _fixedBrokenLinks = false;
+        _savedSnapshot = _snapshot();
+      });
+      AppMessenger.showSnackBar(
+        context,
+        title: 'تم الحفظ',
+        message: _force ? 'التحديث الإجباري مفعّل الآن' : 'إعدادات التحديث الاختياري محفوظة',
+        type: MessengerType.success,
+      );
+    } catch (e) {
+      if (mounted) {
+        AppMessenger.showSnackBar(context, title: 'تعذّر الحفظ', message: '$e', type: MessengerType.error);
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<bool?> _confirmForce(int ios, int android) => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: _card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(children: [
+            Icon(Icons.lock_rounded, color: _danger),
+            SizedBox(width: 10),
+            Expanded(child: Text('تفعيل التحديث الإجباري؟', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          ]),
+          content: Text(
+            'لن يتمكن هؤلاء من دخول التطبيق حتى يحدّثوه:\n'
+            '• آيفون أقدم من Build $ios\n'
+            '• أندرويد أقدم من Build $android\n\n'
+            'تأكد أن هذين الإصدارين منشوران فعلاً في App Store و Google Play، وإلا سيُمنع المستخدمون دون تحديث متاح لهم.',
+            style: const TextStyle(color: Colors.white70, height: 1.5),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء', style: TextStyle(color: Colors.white60)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء', style: TextStyle(color: Colors.white60))),
             ElevatedButton(
-              onPressed: () {
-                final buildNum = int.tryParse(buildCtrl.text.trim());
-                final vName = versionCtrl.text.trim();
-                if (buildNum != null && vName.isNotEmpty) {
-                  setState(() {
-                    _availableVersions.removeWhere((v) => v['build'] == buildNum);
-                    _availableVersions.insert(0, {
-                      'build': buildNum,
-                      'version': vName,
-                      'label': 'v$vName (Build $buildNum)',
-                    });
-                    _availableVersions.sort((a, b) => (b['build'] as int).compareTo(a['build'] as int));
-                    _selectedMinBuild = buildNum;
-                  });
-                  Navigator.pop(ctx);
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentGold),
-              child: const Text('إضافة', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              key: const Key('confirmForceUpdate'),
+              style: ElevatedButton.styleFrom(backgroundColor: _danger),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('نعم، فعّل', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
-        );
-      },
+        ),
+      );
+
+  void _preview() {
+    final isIos = defaultTargetPlatform == TargetPlatform.iOS;
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final min = (isIos ? _iosMin : _androidMin) ?? 0;
+    VersionCheckService().showUpdateDialog(
+      context,
+      VersionCheckResult(
+        status: _force ? VersionStatus.forceUpdate : VersionStatus.optionalUpdate,
+        currentBuild: _deviceBuild,
+        currentVersion: _deviceVersion,
+        minRequiredBuild: min,
+        latestBuild: min,
+        latestVersionName: _versionName(min),
+        isForceUpdate: _force,
+        updateTitle: isArabic ? _titleAr.text : _titleEn.text,
+        updateMessage: isArabic ? _msgAr.text : _msgEn.text,
+        storeUrl: isIos ? _iosUrl.text : _androidUrl.text,
+      ),
+      preview: true,
     );
   }
 
-  Future<void> _saveSettings() async {
-    if (_selectedMinBuild == null) return;
-
-    setState(() => _isSaving = true);
-
+  Future<void> _openLink(String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return;
     try {
-      final selectedVersionObj = _availableVersions.firstWhere(
-        (v) => v['build'] == _selectedMinBuild,
-        orElse: () => {
-          'build': _selectedMinBuild!,
-          'version': _currentDeviceVersion,
-          'label': 'v$_currentDeviceVersion (Build $_selectedMinBuild)',
-        },
-      );
-
-      await _versionService.saveConfig(
-        minRequiredBuild: _selectedMinBuild!,
-        isForceUpdate: _isForceUpdate,
-        latestBuild: _selectedMinBuild!,
-        latestVersionName: selectedVersionObj['version'] as String? ?? _currentDeviceVersion,
-        availableVersions: _availableVersions,
-        updateTitleAr: _titleArCtrl.text.trim(),
-        updateTitleEn: _titleEnCtrl.text.trim(),
-        updateMessageAr: _msgArCtrl.text.trim(),
-        updateMessageEn: _msgEnCtrl.text.trim(),
-        iosStoreUrl: _iosUrlCtrl.text.trim(),
-        androidStoreUrl: _androidUrlCtrl.text.trim(),
-      );
-
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: 'تم الحفظ بنجاح',
-          message: _isForceUpdate
-              ? 'تم تفعيل التحديث الإجباري للإصدار Build $_selectedMinBuild'
-              : 'تم حفظ إعدادات التحديث (اختياري)',
-          type: MessengerType.success,
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        AppMessenger.showSnackBar(
-          context,
-          title: 'خطأ أثناء الحفظ',
-          message: e.toString(),
-          type: MessengerType.error,
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
+
+  void _addVersion() {
+    final build = TextEditingController();
+    final version = TextEditingController(text: _deviceVersion);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('إضافة إصدار', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          _field(build, 'رقم البناء (Build)', Icons.tag_rounded, number: true),
+          const SizedBox(height: 12),
+          _field(version, 'اسم الإصدار (مثال 1.0.25)', Icons.label_outline_rounded),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(color: Colors.white60))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentGold),
+            onPressed: () {
+              final b = int.tryParse(build.text.trim());
+              final v = version.text.trim();
+              if (b == null || b <= 0 || v.isEmpty) return;
+              setState(() {
+                _versions.removeWhere((x) => x.build == b);
+                _versions.add(_VersionOption(b, v));
+                _versions.sort((a, c) => c.build.compareTo(a.build));
+              });
+              Navigator.pop(ctx);
+            },
+            child: const Text('إضافة', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── UI ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -246,355 +324,323 @@ class _AdminVersionControlPageState extends State<AdminVersionControlPage> {
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
-        title: const Text(
-          'إدارة إصدارات التطبيق والتحديث',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
+        centerTitle: true,
+        title: const Text('تحديث التطبيق', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        centerTitle: true,
       ),
-      body: _isLoading
+      body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.accentGold))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Current Build Info Card ──
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF1E2026),
-                          AppColors.accentGold.withValues(alpha: 0.12),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppColors.accentGold.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.accentGold, width: 1.5),
-                          ),
-                          child: const Icon(Icons.phone_iphone_rounded, color: AppColors.accentGold, size: 26),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'إصدار التطبيق المثبت على هذا الجهاز:',
-                                style: TextStyle(color: Colors.white70, fontSize: 13),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'v$_currentDeviceVersion (Build $_currentDeviceBuild)',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          : _loadError != null
+              ? _loadFailed()
+              : _form(),
+      bottomNavigationBar: _loading || _loadError != null ? null : _actions(),
+    );
+  }
 
-                  const SizedBox(height: 24),
+  Widget _loadFailed() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.cloud_off_rounded, color: Colors.white38, size: 48),
+            const SizedBox(height: 12),
+            Text('تعذّر تحميل الإعدادات\n$_loadError', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60)),
+            const SizedBox(height: 16),
+            OutlinedButton(onPressed: _load, child: const Text('إعادة المحاولة')),
+          ]),
+        ),
+      );
 
-                  // ── Section 1: Choose Version to Enforce ──
-                  const Text(
-                    '1. اختر الإصدار المطلوب تطبيقه:',
-                    style: TextStyle(
-                      color: AppColors.accentGold,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'اختر الإصدار من القائمة التي لدينا دون الحاجة لكتابة أرقام يدوياً:',
-                    style: TextStyle(color: Colors.white60, fontSize: 13),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E2026),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        value: _selectedMinBuild,
-                        isExpanded: true,
-                        dropdownColor: const Color(0xFF1E2026),
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.accentGold),
-                        items: _availableVersions.map((v) {
-                          final buildNum = v['build'] as int;
-                          final label = v['label'] as String? ?? 'Build $buildNum';
-                          final isCurrent = buildNum == _currentDeviceBuild;
-
-                          return DropdownMenuItem<int>(
-                            value: buildNum,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.tag_rounded,
-                                  size: 18,
-                                  color: isCurrent ? AppColors.accentGold : Colors.white60,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  label,
-                                  style: TextStyle(
-                                    color: isCurrent ? AppColors.accentGold : Colors.white,
-                                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedMinBuild = val);
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: _addNewVersionDialog,
-                      icon: const Icon(Icons.add_circle_outline, color: AppColors.accentGold, size: 18),
-                      label: const Text(
-                        'إضافة إصدار جديد للقائمة',
-                        style: TextStyle(color: AppColors.accentGold, fontSize: 13),
-                      ),
-                    ),
-                  ),
-
-                  const Divider(color: Colors.white10, height: 32),
-
-                  // ── Section 2: Force Update Toggle ──
-                  const Text(
-                    '2. حالة الإلزام (إجباري أم اختياري):',
-                    style: TextStyle(
-                      color: AppColors.accentGold,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E2026),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _isForceUpdate
-                            ? Colors.redAccent.withValues(alpha: 0.5)
-                            : Colors.white12,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: _isForceUpdate
-                                    ? Colors.redAccent.withValues(alpha: 0.15)
-                                    : Colors.green.withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _isForceUpdate
-                                    ? Icons.lock_rounded
-                                    : Icons.lock_open_rounded,
-                                color: _isForceUpdate ? Colors.redAccent : Colors.greenAccent,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _isForceUpdate
-                                        ? 'إلزام المستخدمين بالتحديث (إجباري)'
-                                        : 'تحديث اختياري (تنبيه فقط)',
-                                    style: TextStyle(
-                                      color: _isForceUpdate ? Colors.redAccent : Colors.greenAccent,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _isForceUpdate
-                                        ? 'المستخدمون على إصدار أقدم لن يتمكنوا من فتح التطبيق إلا بعد التحديث.'
-                                        : 'سيظهر إشعار عند فتح التطبيق مع إمكانية الضغط على "لاحقاً".',
-                                    style: const TextStyle(color: Colors.white60, fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Switch(
-                              value: _isForceUpdate,
-                              activeTrackColor: Colors.redAccent.withValues(alpha: 0.3),
-                              inactiveThumbColor: Colors.white70,
-                              inactiveTrackColor: Colors.white24,
-                              onChanged: (val) {
-                                setState(() => _isForceUpdate = val);
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Divider(color: Colors.white10, height: 32),
-
-                  // ── Section 3: Messages ──
-                  const Text(
-                    '3. رسالة التحديث للمستخدمين:',
-                    style: TextStyle(
-                      color: AppColors.accentGold,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  _buildCustomTextField(
-                    controller: _titleArCtrl,
-                    label: 'عنوان التنبيه (عربي)',
-                    icon: Icons.title,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildCustomTextField(
-                    controller: _msgArCtrl,
-                    label: 'نص التنبيه وشرح التحديث (عربي)',
-                    icon: Icons.notes_rounded,
-                    maxLines: 2,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _buildCustomTextField(
-                    controller: _titleEnCtrl,
-                    label: 'Alert Title (English)',
-                    icon: Icons.title,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildCustomTextField(
-                    controller: _msgEnCtrl,
-                    label: 'Update Message (English)',
-                    icon: Icons.notes_rounded,
-                    maxLines: 2,
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // ── Save Button ──
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _saveSettings,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentGold,
-                        foregroundColor: Colors.black,
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: _isSaving
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.black,
-                              ),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.check_circle_rounded, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'حفظ وتطبيق إعدادات التحديث',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-                ],
+  Widget _form() => ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          _liveCard(),
+          const SizedBox(height: 24),
+          _section('نوع التحديث', 'ماذا يحدث لمن يستخدم إصداراً أقدم؟'),
+          Row(children: [
+            Expanded(child: _modeCard(force: false)),
+            const SizedBox(width: 12),
+            Expanded(child: _modeCard(force: true)),
+          ]),
+          const SizedBox(height: 24),
+          _section('الحد الأدنى للإصدار', 'لكل متجر إصداره: اختر إصداراً منشوراً فعلاً في ذلك المتجر.'),
+          _panel(Column(children: [
+            _platformRow(ios: true),
+            const Divider(color: Colors.white10, height: 24),
+            _platformRow(ios: false),
+            const SizedBox(height: 8),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: _addVersion,
+                icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.accentGold, size: 20),
+                label: const Text('إضافة إصدار للقائمة', style: TextStyle(color: AppColors.accentGold)),
               ),
             ),
+          ])),
+          const SizedBox(height: 24),
+          _section('رسالة التحديث', 'تظهر للمستخدمين بلغة التطبيق لديهم.'),
+          _panel(Column(children: [
+            _langTag('العربية'),
+            _field(_titleAr, 'العنوان', Icons.title_rounded),
+            const SizedBox(height: 10),
+            _field(_msgAr, 'النص', Icons.notes_rounded, lines: 3),
+            const SizedBox(height: 18),
+            _langTag('English'),
+            _field(_titleEn, 'Title', Icons.title_rounded, ltr: true),
+            const SizedBox(height: 10),
+            _field(_msgEn, 'Message', Icons.notes_rounded, lines: 3, ltr: true),
+          ])),
+          const SizedBox(height: 24),
+          _section('روابط المتجر', 'زر "تحديث الآن" يفتح هذه الصفحات.'),
+          if (_fixedBrokenLinks) _notice('تم تصحيح رابط متجر كان يفتح صفحة غير موجودة. اضغط حفظ ليصل التصحيح لكل المستخدمين.'),
+          _panel(Column(children: [
+            _linkField(_iosUrl, 'App Store (آيفون)', Icons.apple_rounded),
+            const SizedBox(height: 10),
+            _linkField(_androidUrl, 'Google Play (أندرويد)', Icons.android_rounded),
+          ])),
+        ],
+      );
+
+  Widget _liveCard() {
+    final iosLive = VersionPolicy.minBuild(_live, AppPlatform.ios);
+    final androidLive = VersionPolicy.minBuild(_live, AppPlatform.android);
+    final forced = _live['is_force_update'] == true;
+    final active = iosLive != null || androidLive != null;
+    final color = !active ? Colors.white54 : (forced ? _danger : AppColors.accentGold);
+    DateTime? updatedAt;
+    try {
+      final updated = _live['updated_at'];
+      updatedAt = updated is DateTime ? updated : (updated as dynamic)?.toDate() as DateTime?; // a Firestore Timestamp
+    } catch (_) {}
+
+    return Container(
+      key: const Key('liveStatus'),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [color.withValues(alpha: 0.16), _card], begin: Alignment.topRight, end: Alignment.bottomLeft),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(!active ? Icons.check_circle_outline_rounded : (forced ? Icons.lock_rounded : Icons.notifications_active_outlined), color: color),
+          const SizedBox(width: 10),
+          const Text('المطبّق الآن على المستخدمين', style: TextStyle(color: Colors.white60, fontSize: 13)),
+        ]),
+        const SizedBox(height: 10),
+        Text(
+          !active ? 'لا يوجد طلب تحديث' : (forced ? 'تحديث إجباري' : 'تحديث اختياري'),
+          style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w800),
+        ),
+        if (active) ...[
+          const SizedBox(height: 10),
+          _liveLine(Icons.apple_rounded, 'آيفون', iosLive),
+          const SizedBox(height: 4),
+          _liveLine(Icons.android_rounded, 'أندرويد', androidLive),
+        ],
+        const Divider(color: Colors.white12, height: 26),
+        Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.phone_iphone_rounded, color: Colors.white38, size: 16),
+            const SizedBox(width: 6),
+            Text('هذا الجهاز: v$_deviceVersion · Build $_deviceBuild', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          ]),
+          if (updatedAt != null)
+            Text('آخر حفظ ${updatedAt.toLocal().toString().substring(0, 16)}',
+                style: const TextStyle(color: Colors.white38, fontSize: 11)),
+        ]),
+      ]),
     );
   }
 
-  Widget _buildCustomTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    int maxLines = 1,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E2026),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        style: const TextStyle(color: Colors.white, fontSize: 14),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: Colors.white60, fontSize: 13),
-          prefixIcon: Icon(icon, color: AppColors.accentGold, size: 20),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  Widget _liveLine(IconData icon, String name, int? build) => Row(children: [
+        Icon(icon, color: Colors.white70, size: 18),
+        const SizedBox(width: 8),
+        Text('$name: ', style: const TextStyle(color: Colors.white70)),
+        Expanded(
+          child: Text(build == null ? '—' : 'أقل من Build $build يُطلب منه التحديث',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
         ),
+      ]);
+
+  Widget _modeCard({required bool force}) {
+    final selected = _force == force;
+    final color = force ? _danger : _ok;
+    return InkWell(
+      key: Key(force ? 'modeForce' : 'modeOptional'),
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => setState(() => _force = force),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : _card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: selected ? color : Colors.white10, width: selected ? 1.6 : 1),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(force ? Icons.lock_rounded : Icons.lock_open_rounded, color: color, size: 22),
+            const Spacer(),
+            Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? color : Colors.white24, size: 20),
+          ]),
+          const SizedBox(height: 10),
+          Text(force ? 'إجباري' : 'اختياري', style: TextStyle(color: selected ? color : Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 4),
+          Text(
+            force ? 'لا يمكن دخول التطبيق قبل التحديث' : 'تنبيه مع زر "لاحقاً"',
+            style: const TextStyle(color: Colors.white54, fontSize: 12, height: 1.4),
+          ),
+        ]),
       ),
     );
   }
+
+  Widget _platformRow({required bool ios}) {
+    final value = ios ? _iosMin : _androidMin;
+    return Row(children: [
+      Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12)),
+        child: Icon(ios ? Icons.apple_rounded : Icons.android_rounded, color: Colors.white),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(ios ? 'آيفون · App Store' : 'أندرويد · Google Play',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              key: Key(ios ? 'iosMin' : 'androidMin'),
+              value: value,
+              isExpanded: true,
+              dropdownColor: _card,
+              iconEnabledColor: AppColors.accentGold,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              items: [
+                for (final v in _versions)
+                  DropdownMenuItem(
+                    value: v.build,
+                    child: Text(v.build == _deviceBuild ? '${v.label}  (هذا الجهاز)' : v.label),
+                  ),
+              ],
+              onChanged: (b) => setState(() => ios ? _iosMin = b : _androidMin = b),
+            ),
+          ),
+        ]),
+      ),
+    ]);
+  }
+
+  Widget _section(String title, String subtitle) => Padding(
+        padding: const EdgeInsets.only(bottom: 10, right: 4, left: 4),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(color: AppColors.accentGold, fontSize: 16, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12.5)),
+        ]),
+      );
+
+  Widget _panel(Widget child) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.white10)),
+        child: child,
+      );
+
+  Widget _langTag(String text) => Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(text, style: const TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.w700)),
+        ),
+      );
+
+  Widget _notice(String text) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.accentGold.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.4)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.build_circle_outlined, color: AppColors.accentGold),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, key: const Key('fixedLinksNotice'), style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4))),
+        ]),
+      );
+
+  Widget _field(TextEditingController c, String label, IconData icon, {int lines = 1, bool ltr = false, bool number = false}) =>
+      TextField(
+        controller: c,
+        maxLines: lines,
+        keyboardType: number ? TextInputType.number : null,
+        textDirection: ltr ? TextDirection.ltr : null,
+        style: const TextStyle(color: Colors.white, fontSize: 14.5),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+          prefixIcon: Icon(icon, color: AppColors.accentGold, size: 20),
+          filled: true,
+          fillColor: Colors.black.withValues(alpha: 0.18),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        ),
+      );
+
+  Widget _linkField(TextEditingController c, String label, IconData icon) => Row(children: [
+        Expanded(child: _field(c, label, icon, ltr: true)),
+        const SizedBox(width: 6),
+        IconButton(
+          tooltip: 'فتح الرابط للتأكد منه',
+          onPressed: () => _openLink(c.text),
+          icon: const Icon(Icons.open_in_new_rounded, color: AppColors.accentGold),
+        ),
+      ]);
+
+  Widget _actions() => SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          decoration: const BoxDecoration(color: AppColors.primary, border: Border(top: BorderSide(color: Colors.white10))),
+          child: Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                key: const Key('previewUpdate'),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white24),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: _preview,
+                icon: const Icon(Icons.visibility_outlined, color: Colors.white70),
+                label: const Text('معاينة', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                key: const Key('saveVersionControl'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _force ? _danger : AppColors.accentGold,
+                  disabledBackgroundColor: Colors.white12,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: _dirty && !_saving ? _save : null,
+                child: _saving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    : Text(
+                        _dirty ? (_force ? 'حفظ وتفعيل الإجباري' : 'حفظ') : 'لا توجد تغييرات',
+                        style: TextStyle(color: _dirty ? (_force ? Colors.white : Colors.black) : Colors.white38, fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ),
+          ]),
+        ),
+      );
 }
