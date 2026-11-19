@@ -6,6 +6,7 @@ import { RoomEvent, type RemoteParticipant } from "livekit-client";
 import { Mic, MicOff, Video, VideoOff, Hand } from "lucide-react";
 import { motion } from "framer-motion";
 import { isFromModerator } from "./moderation";
+import { MeetMessages, encodeMeetMessage } from "@/features/meet/domain/meetMessages";
 
 export default function StudentControls() {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
@@ -15,12 +16,8 @@ export default function StudentControls() {
   const handleRaiseHand = async () => {
     const newState = !isHandRaised;
     setIsHandRaised(newState);
-    const encoder = new TextEncoder();
-    const data = encoder.encode(JSON.stringify({ 
-      cmd: newState ? "raise_hand" : "lower_hand", 
-      name: localParticipant.name || "Student" 
-    }));
-    send(data, { reliable: true });
+    const name = localParticipant.name || "Student";
+    send(encodeMeetMessage(newState ? MeetMessages.raiseHand(name) : MeetMessages.lowerHand(name)), { reliable: true });
   };
   
   // Listen for teacher force-lowering our hand
@@ -31,12 +28,7 @@ export default function StudentControls() {
         if (data.cmd === "force_lower_hand" && data.targetId === localParticipant.identity
             && isFromModerator(participant)) {
           setIsHandRaised(false);
-          const encoder = new TextEncoder();
-          const pData = encoder.encode(JSON.stringify({ 
-            cmd: "lower_hand", 
-            name: localParticipant.name || "Student" 
-          }));
-          send(pData, { reliable: true });
+          send(encodeMeetMessage(MeetMessages.lowerHand(localParticipant.name || "Student")), { reliable: true });
         }
       } catch (e) {}
     };

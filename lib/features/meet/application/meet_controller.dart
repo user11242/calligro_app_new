@@ -637,6 +637,7 @@ class MeetController extends ChangeNotifier {
         _applyAction(MeetMessageHandler(
           localIdentity: _room.localIdentity,
           isTeacher: isTeacher,
+          isModerator: canModerate, // an admin is not muted by "mute all"
           teacherId: teacherId,
         ).handle(data, senderIdentity: senderIdentity, senderMetadata: senderMetadata));
     }

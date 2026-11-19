@@ -6,6 +6,7 @@ import { Track } from "livekit-client";
 import { Mic, MicOff, Video, VideoOff, Monitor, MonitorOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { moderateOnServer } from "./moderation";
+import { MeetMessages, encodeMeetMessage } from "@/features/meet/domain/meetMessages";
 
 export default function TeacherControls({ courseId }: { courseId: string }) {
   // Default (unnamed) channel: that is what the web layout and the Flutter app listen on.
@@ -15,9 +16,7 @@ export default function TeacherControls({ courseId }: { courseId: string }) {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   const handleMuteAll = async () => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(JSON.stringify({ cmd: "mute_all" }));
-    send(data, { reliable: true });
+    send(encodeMeetMessage(MeetMessages.muteAll()), { reliable: true });
     // Enforce on the server so modified clients cannot ignore it
     try {
       await moderateOnServer(courseId, "mute_all");

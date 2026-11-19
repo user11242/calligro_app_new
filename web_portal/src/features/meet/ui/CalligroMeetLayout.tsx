@@ -28,6 +28,7 @@ import CalligraphyBoard from "./CalligraphyBoard";
 import ProtractorOverlay from "./ProtractorOverlay";
 import LocalRecorderWrapper from "./LocalRecorderWrapper";
 import { isFromModerator } from "./moderation";
+import { decideMeetAction, MeetMessages, encodeMeetMessage } from "@/features/meet/domain/meetMessages";
 import { auth, db } from "@/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -283,83 +284,73 @@ export default function CalligroMeetLayout({
       const data = JSON.parse(new TextDecoder().decode(message.payload));
       
       const senderIdentity = message.from?.identity;
-      // 🔐 Teacher-only commands are ignored unless the sender is a verified moderator.
-      const fromModerator = isFromModerator(message.from);
-      const teacherOnly =
-        data.cmd === "force_lower_hand" ||
-        data.cmd === "mute_all" ||
-        data.cmd === "mute_student" || data.type === "force_mute_mic" ||
-        data.cmd === "disable_camera" || data.type === "force_mute_camera" ||
-        data.cmd === "kick_student" || data.type === "kick_participant" ||
-        data.type === "end_meeting_for_all" ||
-        data.cmd === "toggle_whiteboard" || data.cmd === "set_whiteboard_mode" ||
-        data.type === "PROTRACTOR_STATE";
-      if (teacherOnly && !fromModerator) {
-        console.warn("Ignoring teacher-only command from non-moderator:", senderIdentity, data.cmd || data.type);
-        return;
-      }
+      // 🔐 The shared Meet rules (features/meet/domain, same contract as the app):
+      // teacher-only commands count only from a verified moderator.
+      const action = decideMeetAction(data, {
+        senderIdentity,
+        senderIsModerator: isFromModerator(message.from),
+        localIdentity: localParticipant.identity,
+        isTeacher,
+        isModerator: isTeacher || isFromModerator(localParticipant),
+      });
 
-      if (data.type === "RAISE_HAND" || data.cmd === "raise_hand") {
-        setToastMessage(`${data.name} raised their hand! ✋`);
-        setTimeout(() => setToastMessage(null), 5000);
-        if (senderIdentity) {
-          setRaisedHands(prev => new Set(prev).add(senderIdentity));
-        }
-      }
-      if (data.cmd === "lower_hand") {
-        if (senderIdentity) {
+      switch (action.kind) {
+        case "ignored":
+          if (action.reason === "notFromModerator") {
+            console.warn("Ignoring teacher-only command from non-moderator:", senderIdentity, data.cmd || data.type);
+          }
+          break;
+        case "handRaised":
+          setToastMessage(`${action.name} raised their hand! ✋`);
+          setTimeout(() => setToastMessage(null), 5000);
+          if (action.identity) setRaisedHands(prev => new Set(prev).add(action.identity!));
+          break;
+        case "handLowered":
+          if (action.identity) {
+            setRaisedHands(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(action.identity!);
+              return newSet;
+            });
+          }
+          break;
+        case "handForceLowered":
           setRaisedHands(prev => {
             const newSet = new Set(prev);
-            newSet.delete(senderIdentity);
+            newSet.delete(action.targetId);
             return newSet;
           });
-        }
-      }
-      
-      if (data.cmd === "force_lower_hand" && data.targetId) {
-        setRaisedHands(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(data.targetId);
-          return newSet;
-        });
-      }
-      
-      // Teacher Commands -> Student Actions
-      if (data.cmd === "mute_all" && !isTeacher) {
-        localParticipant.setMicrophoneEnabled(false);
-      }
-      if ((data.cmd === "mute_student" || data.type === "force_mute_mic") && 
-          (data.identity === localParticipant.identity || data.targetId === localParticipant.identity)) {
-        localParticipant.setMicrophoneEnabled(false);
-      }
-      if ((data.cmd === "disable_camera" || data.type === "force_mute_camera") && 
-          (data.identity === localParticipant.identity || data.targetId === localParticipant.identity)) {
-        localParticipant.setCameraEnabled(false);
-      }
-      if ((data.cmd === "kick_student" || data.type === "kick_participant") &&
-          (data.identity === localParticipant.identity || data.targetId === localParticipant.identity)) {
-        setToastMessage("You have been removed from the class.");
-        setIsEnding(true);
-        setTimeout(() => onLeave(), 2000);
-      }
-      
-      if (data.type === "end_meeting_for_all") {
-        setToastMessage(t("meet.teacher_ended"));
-        setIsEnding(true);
-        // Use a small timeout so the user sees the message before unmounting
-        setTimeout(() => onLeave(), 2000);
-      }
-
-      if (data.cmd === "toggle_whiteboard") {
-        setIsWhiteboardActive(data.state);
-        if (data.mode) setWhiteboardMode(data.mode);
-      }
-      if (data.cmd === "set_whiteboard_mode") {
-        setWhiteboardMode(data.mode);
-      }
-      if (data.type === "PROTRACTOR_STATE") {
-        setIsProtractorActive(data.active);
-        if (data.angle !== undefined) setProtractorAngle(data.angle);
+          break;
+        // Teacher Commands -> Student Actions
+        case "mutedAll":
+        case "micMuted":
+          localParticipant.setMicrophoneEnabled(false);
+          break;
+        case "cameraDisabled":
+          localParticipant.setCameraEnabled(false);
+          break;
+        case "kicked":
+          setToastMessage("You have been removed from the class.");
+          setIsEnding(true);
+          setTimeout(() => onLeave(), 2000);
+          break;
+        case "meetingEnded":
+          setToastMessage(t("meet.teacher_ended"));
+          setIsEnding(true);
+          // Use a small timeout so the user sees the message before unmounting
+          setTimeout(() => onLeave(), 2000);
+          break;
+        case "whiteboard":
+          setIsWhiteboardActive(action.active);
+          if (action.mode) setWhiteboardMode(action.mode);
+          break;
+        case "whiteboardMode":
+          setWhiteboardMode(action.mode);
+          break;
+        case "protractor":
+          setIsProtractorActive(action.active);
+          if (action.angle !== undefined) setProtractorAngle(action.angle);
+          break;
       }
     } catch (e) {
       console.error("Data channel parse error:", e);
@@ -372,18 +363,10 @@ export default function CalligroMeetLayout({
   useEffect(() => {
     if (isTeacher && connectionState === ConnectionState.Connected) {
       try {
-        const p1 = send(new TextEncoder().encode(JSON.stringify({
-          cmd: "toggle_whiteboard",
-          state: isWhiteboardActive,
-          mode: whiteboardMode
-        })), { reliable: true });
+        const p1 = send(encodeMeetMessage(MeetMessages.whiteboard(isWhiteboardActive, whiteboardMode)), { reliable: true });
         if (p1 && p1.catch) p1.catch(() => {});
 
-        const p2 = send(new TextEncoder().encode(JSON.stringify({
-          type: "PROTRACTOR_STATE",
-          active: isProtractorActive,
-          angle: protractorAngle
-        })), { reliable: true });
+        const p2 = send(encodeMeetMessage(MeetMessages.protractor(isProtractorActive, protractorAngle)), { reliable: true });
         if (p2 && p2.catch) p2.catch(() => {});
       } catch (e) {
         console.warn("Failed to broadcast state, connection might not be ready", e);
@@ -394,10 +377,7 @@ export default function CalligroMeetLayout({
   const handleWhiteboardModeChange = (newMode: "standard" | "calligraphy") => {
     setWhiteboardMode(newMode);
     if (connectionState !== ConnectionState.Connected) return;
-    const p = send(new TextEncoder().encode(JSON.stringify({
-      cmd: "set_whiteboard_mode",
-      mode: newMode
-    })), { reliable: true });
+    const p = send(encodeMeetMessage(MeetMessages.whiteboardMode(newMode)), { reliable: true });
     if (p && p.catch) p.catch(() => {});
   };
 
@@ -405,11 +385,7 @@ export default function CalligroMeetLayout({
     setIsProtractorActive(active);
     setProtractorAngle(angle);
     if (connectionState !== ConnectionState.Connected) return;
-    const p = send(new TextEncoder().encode(JSON.stringify({
-      type: "PROTRACTOR_STATE",
-      active,
-      angle
-    })), { reliable: true });
+    const p = send(encodeMeetMessage(MeetMessages.protractor(active, angle)), { reliable: true });
     if (p && p.catch) p.catch(() => {});
   };
 
@@ -614,11 +590,7 @@ export default function CalligroMeetLayout({
                       const newState = !isWhiteboardActive;
                       setIsWhiteboardActive(newState);
                       if (isTeacher) {
-                        send(new TextEncoder().encode(JSON.stringify({
-                          cmd: "toggle_whiteboard",
-                          state: newState,
-                          mode: whiteboardMode
-                        })), { reliable: true });
+                        send(encodeMeetMessage(MeetMessages.whiteboard(newState, whiteboardMode)), { reliable: true });
 
                         // Automatically sync screen share state so mobile apps (Flutter) can see the whiteboard!
                         if (newState && !localParticipant.isScreenShareEnabled) {

@@ -6,6 +6,7 @@ import { Users, Mic, MicOff, Video, VideoOff, UserCheck, UserMinus, Loader2, Han
 import { motion } from "framer-motion";
 import { RaisedHandsContext } from "./CalligroMeetLayout";
 import { moderateOnServer } from "./moderation";
+import { MeetMessages, encodeMeetMessage } from "@/features/meet/domain/meetMessages";
 interface ParticipantsPanelProps {
   isTeacher: boolean;
   courseId: string;
@@ -20,22 +21,8 @@ export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsP
 
   const moderateParticipant = async (action: "mute_mic" | "mute_camera" | "kick", identity: string) => {
     try {
-      const encoder = new TextEncoder();
-      let payload: any = { targetId: identity };
-
-      if (action === "mute_mic") {
-        payload.type = "force_mute_mic";
-        payload.cmd = "mute_student"; // For web compat
-      } else if (action === "mute_camera") {
-        payload.type = "force_mute_camera";
-        payload.cmd = "disable_camera"; // For web compat
-      } else if (action === "kick") {
-        payload.type = "kick_participant";
-        payload.cmd = "kick_student"; // For web compat
-      }
-
-      // Data message = friendly notice on the student's screen.
-      send(encoder.encode(JSON.stringify(payload)), { reliable: true });
+      // Data message = friendly notice on the student's screen (shared Meet rules).
+      send(encodeMeetMessage(MeetMessages.moderate(action, identity)), { reliable: true });
       // Server call = actual enforcement (mute on the SFU / remove + block from rejoining).
       setPendingAction(`${identity}:${action}`);
       await moderateOnServer(courseId, action, identity);
@@ -158,8 +145,7 @@ export default function ParticipantsPanel({ isTeacher, courseId }: ParticipantsP
                     {isHandRaised && (
                       <button
                         onClick={() => {
-                          const encoder = new TextEncoder();
-                          send(encoder.encode(JSON.stringify({ cmd: "force_lower_hand", targetId: p.identity })), { reliable: true });
+                          send(encodeMeetMessage(MeetMessages.forceLowerHand(p.identity)), { reliable: true });
                           // Force state update directly via context mutability is messy, 
                           // but the data channel listener in layout handles this state globally!
                         }}

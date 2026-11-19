@@ -84,13 +84,18 @@ class MeetMessageHandler {
   /// Our own LiveKit identity (null while the room is not connected yet).
   final String? localIdentity;
   final bool isTeacher;
+
+  /// We are a moderator (the teacher or a platform admin): "mute all" is not for us
+  /// (the server never mutes moderators either).
+  final bool isModerator;
   final String? teacherId;
 
   const MeetMessageHandler({
     required this.localIdentity,
     required this.isTeacher,
     required this.teacherId,
-  });
+    bool? isModerator,
+  }) : isModerator = isModerator ?? isTeacher;
 
   MeetAction handle(
     List<int> data, {
@@ -141,7 +146,7 @@ class MeetMessageHandler {
 
     if (cmd == MeetProtocol.muteAll) {
       if (!fromModerator()) return const IgnoreMessage(IgnoreReason.unauthorizedSender);
-      if (isTeacher) return const IgnoreMessage(IgnoreReason.notApplicableToTeacher);
+      if (isModerator) return const IgnoreMessage(IgnoreReason.notApplicableToTeacher);
       return const MutedByMuteAll();
     }
 

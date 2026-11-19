@@ -1,0 +1,88 @@
+{
+  "_about": "The Calligro Meet message contract between the app (lib/features/meet/domain/meet_message_handler.dart) and the website (web_portal/src/features/meet/domain/meetMessages.ts). Both test suites run EVERY case here, so a name or field that drifts on either side fails a test. Messages are JSON on LiveKit's default data channel. Teacher identity: '<uid>' (website) or '<uid>_mobile' (app); its token metadata is role 'moderator'. The course teacher here is T1.",
+  "senders": {
+    "teacherWeb": { "identity": "T1", "metadata": "{\"role\":\"moderator\",\"teacherId\":\"T1\"}" },
+    "teacherApp": { "identity": "T1_mobile", "metadata": "{\"role\":\"moderator\",\"teacherId\":\"T1\"}" },
+    "admin": { "identity": "admin1", "metadata": "{\"role\":\"moderator\",\"teacherId\":\"T1\"}" },
+    "student": { "identity": "s2", "metadata": "{\"role\":\"participant\",\"teacherId\":\"T1\"}" },
+    "unknown": { "identity": null, "metadata": null }
+  },
+  "receivers": {
+    "student": { "identity": "s1", "isTeacher": false, "isModerator": false },
+    "teacher": { "identity": "T1_mobile", "isTeacher": true, "isModerator": true },
+    "admin": { "identity": "admin9", "isTeacher": false, "isModerator": true }
+  },
+  "_actions": "handRaised | handLowered | handForceLowered | mutedAll | micMuted | cameraDisabled | kicked | meetingEnded | ignored",
+  "cases": [
+    { "name": "a student raises their hand", "from": "student", "message": { "cmd": "raise_hand", "name": "Omar" },
+      "expect": { "student": "handRaised", "teacher": "handRaised", "admin": "handRaised" } },
+    { "name": "a student lowers their hand", "from": "student", "message": { "cmd": "lower_hand", "name": "Omar" },
+      "expect": { "student": "handLowered", "teacher": "handLowered", "admin": "handLowered" } },
+    { "name": "the teacher (website) lowers a student's hand", "from": "teacherWeb", "message": { "cmd": "force_lower_hand", "targetId": "s1" },
+      "expect": { "student": "handForceLowered", "teacher": "handForceLowered", "admin": "handForceLowered" } },
+    { "name": "the teacher (app) lowers a student's hand", "from": "teacherApp", "message": { "cmd": "force_lower_hand", "targetId": "s1" },
+      "expect": { "student": "handForceLowered" } },
+    { "name": "a STUDENT cannot lower someone's hand", "from": "student", "message": { "cmd": "force_lower_hand", "targetId": "s1" },
+      "expect": { "student": "ignored", "teacher": "ignored" } },
+
+    { "name": "the teacher (website) mutes everyone", "from": "teacherWeb", "message": { "cmd": "mute_all" },
+      "expect": { "student": "mutedAll", "teacher": "ignored", "admin": "ignored" } },
+    { "name": "the teacher (app) mutes everyone", "from": "teacherApp", "message": { "cmd": "mute_all" },
+      "expect": { "student": "mutedAll", "teacher": "ignored", "admin": "ignored" } },
+    { "name": "a STUDENT cannot mute everyone", "from": "student", "message": { "cmd": "mute_all" },
+      "expect": { "student": "ignored" } },
+
+    { "name": "the teacher mutes a student's mic (app form)", "from": "teacherApp", "message": { "type": "force_mute_mic", "targetId": "s1" },
+      "expect": { "student": "micMuted" } },
+    { "name": "the teacher mutes a student's mic (website form, with the old alias)", "from": "teacherWeb", "message": { "type": "force_mute_mic", "cmd": "mute_student", "targetId": "s1" },
+      "expect": { "student": "micMuted" } },
+    { "name": "a mute for SOMEONE ELSE changes nothing here", "from": "teacherWeb", "message": { "type": "force_mute_mic", "targetId": "s7" },
+      "expect": { "student": "ignored" } },
+    { "name": "the teacher turns off a student's camera (website form)", "from": "teacherWeb", "message": { "type": "force_mute_camera", "cmd": "disable_camera", "targetId": "s1" },
+      "expect": { "student": "cameraDisabled" } },
+    { "name": "the teacher turns off a student's camera (app form)", "from": "teacherApp", "message": { "type": "force_mute_camera", "targetId": "s1" },
+      "expect": { "student": "cameraDisabled" } },
+    { "name": "an ADMIN mutes a student", "from": "admin", "message": { "type": "force_mute_mic", "targetId": "s1" },
+      "expect": { "student": "micMuted" } },
+    { "name": "a STUDENT cannot mute another student", "from": "student", "message": { "type": "force_mute_mic", "targetId": "s1" },
+      "expect": { "student": "ignored" } },
+
+    { "name": "the teacher removes a student (website form)", "from": "teacherWeb", "message": { "type": "kick_participant", "cmd": "kick_student", "targetId": "s1" },
+      "expect": { "student": "kicked" } },
+    { "name": "the teacher removes a student (app form)", "from": "teacherApp", "message": { "type": "kick_participant", "targetId": "s1" },
+      "expect": { "student": "kicked" } },
+    { "name": "a STUDENT cannot remove anyone", "from": "student", "message": { "type": "kick_participant", "targetId": "s1" },
+      "expect": { "student": "ignored" } },
+
+    { "name": "the teacher ends the class for everyone (app)", "from": "teacherApp", "message": { "type": "end_meeting_for_all" },
+      "expect": { "student": "meetingEnded", "admin": "meetingEnded" } },
+    { "name": "a STUDENT cannot end the class", "from": "student", "message": { "type": "end_meeting_for_all" },
+      "expect": { "student": "ignored" } },
+    { "name": "an unknown sender is never trusted", "from": "unknown", "message": { "type": "end_meeting_for_all" },
+      "expect": { "student": "ignored" } },
+
+    { "name": "junk is ignored", "from": "teacherWeb", "message": { "cmd": "ban_everyone_forever" },
+      "expect": { "student": "ignored", "teacher": "ignored" } }
+  ],
+  "sent": {
+    "_about": "Exactly what each side SENDS (the builders), so both keep speaking the same language.",
+    "app": {
+      "raiseHand": { "cmd": "raise_hand", "name": "Sara" },
+      "lowerHand": { "cmd": "lower_hand", "name": "Sara" },
+      "forceLowerHand": { "cmd": "force_lower_hand", "targetId": "s1" },
+      "muteMic": { "type": "force_mute_mic", "targetId": "s1" },
+      "muteCamera": { "type": "force_mute_camera", "targetId": "s1" },
+      "kick": { "type": "kick_participant", "targetId": "s1" },
+      "endMeeting": { "type": "end_meeting_for_all" }
+    },
+    "web": {
+      "raiseHand": { "cmd": "raise_hand", "name": "Sara" },
+      "lowerHand": { "cmd": "lower_hand", "name": "Sara" },
+      "forceLowerHand": { "cmd": "force_lower_hand", "targetId": "s1" },
+      "muteAll": { "cmd": "mute_all" },
+      "muteMic": { "targetId": "s1", "type": "force_mute_mic", "cmd": "mute_student" },
+      "muteCamera": { "targetId": "s1", "type": "force_mute_camera", "cmd": "disable_camera" },
+      "kick": { "targetId": "s1", "type": "kick_participant", "cmd": "kick_student" }
+    }
+  }
+}
