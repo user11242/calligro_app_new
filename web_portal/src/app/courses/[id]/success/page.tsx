@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { auth, db } from "@/shared/firebase/client";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { getCourse, getTeacher, watchCourse } from "@/features/payments/data/paymentCourses";
+import { isEnrolled as isEnrolledIn } from "@/features/payments/domain/enrolment";
 import Navbar from "@/shared/ui/Navbar";
 import Footer from "@/shared/ui/Footer";
 import { CheckCircle2, PlayCircle, Sparkles, ArrowRight, User, Loader2, Clock } from "lucide-react";
@@ -72,19 +73,11 @@ export default function SuccessPage() {
   useEffect(() => {
     if (!id) return;
     const fetchCourseAndTeacher = async () => {
-      const docRef = doc(db, "courses", id as string);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const courseData: any = { id: docSnap.id, ...docSnap.data() };
+      const courseData = await getCourse(db, id as string);
+      if (courseData) {
         setCourse(courseData);
-
-        if (courseData.teacherId) {
-          const tRef = doc(db, "users", courseData.teacherId);
-          const tSnap = await getDoc(tRef);
-          if (tSnap.exists()) {
-            setTeacher(tSnap.data());
-          }
-        }
+        const teacherData = await getTeacher(db, courseData.teacherId);
+        if (teacherData) setTeacher(teacherData);
       }
     };
     fetchCourseAndTeacher();
@@ -103,9 +96,8 @@ export default function SuccessPage() {
       }
       setPhase("confirming");
       timer = setTimeout(() => setPhase((p) => (p === "confirming" ? "delayed" : p)), 90_000);
-      stopCourse = onSnapshot(doc(db, "courses", id as string), (snap) => {
-        const enrolled = snap.data()?.enrolledStudents;
-        if (Array.isArray(enrolled) && enrolled.includes(user.uid)) {
+      stopCourse = watchCourse(db, id as string, (c) => {
+        if (isEnrolledIn(c, user.uid)) {
           if (timer) clearTimeout(timer);
           setPhase("enrolled");
         }

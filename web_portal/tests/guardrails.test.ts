@@ -69,13 +69,12 @@ describe("feature structure: src/features/<feature>/{domain,data,server,ui}, src
   });
 
   it("pages talking to Firestore directly: a FROZEN list that may only shrink as features move to data/", () => {
+    // Moved to features/payments/data: the checkout and success pages.
     const frozen = new Set([
       "src/app/admin/layout.tsx",
       "src/app/courses/[id]/certificate/page.tsx",
-      "src/app/courses/[id]/checkout/page.tsx",
       "src/app/courses/[id]/classroom/page.tsx",
       "src/app/courses/[id]/page.tsx",
-      "src/app/courses/[id]/success/page.tsx",
       "src/app/courses/page.tsx",
       "src/app/login/page.tsx",
       "src/app/page.tsx",

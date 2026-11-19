@@ -15,7 +15,7 @@ import Link from "next/link";
 import { formatImageUrl } from "@/shared/utils/utils";
 import { getFlagFromPhoneNumber } from "@/shared/utils/countryUtils";
 import { useTranslation } from "@/shared/i18n/useTranslation";
-import { blockMessageKey } from "@/features/payments/domain/checkoutRules";
+import { requestWhopCheckout } from "@/features/payments/application/whopCheckout";
 import { translateText } from "@/shared/i18n/translateText";
 import AutoTranslatedText from "@/shared/i18n/AutoTranslatedText";
 import { FEE_MULTIPLIER, calculateWebPrice, formatPrice } from "@/features/payments/domain/pricing";
@@ -187,38 +187,15 @@ export default function CourseDetailsPage() {
     setJoining(true);
     setError(null);
 
-    try {
-      const res = await fetch("/api/whop/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId: id,
-          userId: user.uid,
-        }),
-      });
-
-      const data = await res.json();
-      const blockedKey = blockMessageKey(data.code);
-      if (blockedKey) {
-        // Refused before payment (full, already enrolled, not open yet): say so plainly.
-        setError(t(blockedKey));
-        setJoining(false);
-        return;
-      }
-      if (!res.ok || !data.purchaseUrl) {
-        const errorMsg =
-          typeof data.error === "object"
-            ? (data.error.message || JSON.stringify(data.error))
-            : (data.error || "Failed to initialize checkout");
-        throw new Error(errorMsg);
-      }
-
-      window.location.href = data.purchaseUrl;
-    } catch (err: any) {
-      console.error("Whop Checkout Error:", err);
-      setError(err.message || "Failed to open secure checkout");
-      setJoining(false);
+    // The server checks the course and opens a Whop checkout (features/payments).
+    const result = await requestWhopCheckout({ courseId: id as string, userId: user.uid });
+    if (result.kind === "redirect") {
+      window.location.href = result.url;
+      return;
     }
+    if (result.kind === "error") console.error("Whop Checkout Error:", result.message);
+    setError(result.kind === "blocked" ? t(result.messageKey) : result.message);
+    setJoining(false);
   };
 
 

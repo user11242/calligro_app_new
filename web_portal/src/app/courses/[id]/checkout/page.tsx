@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, runTransaction, collection, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "@/shared/ui/Navbar";
 import {
@@ -16,7 +15,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "@/shared/i18n/useTranslation";
-import { blockMessageKey } from "@/features/payments/domain/checkoutRules";
+import { requestWhopCheckout } from "@/features/payments/application/whopCheckout";
+import { getCourse } from "@/features/payments/data/paymentCourses";
+import { isEnrolled as isEnrolledIn } from "@/features/payments/domain/enrolment";
 import { db as libDb, auth as libAuth } from "@/shared/firebase/client";
 import { ENABLE_8_PERCENT_FEE, FEE_RATE, calculateWebPrice } from "@/features/payments/domain/pricing";
 
@@ -47,16 +48,14 @@ function CheckoutContent() {
 
     const initCheckout = async () => {
       try {
-        const docRef = doc(libDb, "courses", id as string);
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) {
+        const courseData = await getCourse(libDb, id as string);
+        if (!courseData) {
           setError("Course not found");
           return;
         }
-        const courseData = { id: docSnap.id, ...(docSnap.data() as any) };
         setCourse(courseData);
 
-        if (currentUser && courseData.enrolledStudents?.includes(currentUser.uid)) {
+        if (isEnrolledIn(courseData, currentUser?.uid)) {
           setIsEnrolled(true);
         }
       } catch (err) {
@@ -81,38 +80,16 @@ function CheckoutContent() {
     setJoining(true);
     setError(null);
 
-    try {
-      const res = await fetch("/api/whop/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId: id,
-          userId: user.uid,
-        }),
-      });
-
-      const data = await res.json();
-      const blockedKey = blockMessageKey(data.code);
-      if (blockedKey) {
-        // Refused before payment (full, already enrolled, not open yet): say so plainly.
-        setError(t(blockedKey));
-        setJoining(false);
-        return;
-      }
-      if (!res.ok || !data.purchaseUrl) {
-        const errorMsg =
-          typeof data.error === "object"
-            ? (data.error.message || JSON.stringify(data.error))
-            : (data.error || "Failed to initialize Whop checkout");
-        throw new Error(errorMsg);
-      }
-
-      window.location.href = data.purchaseUrl;
-    } catch (err: any) {
-      console.error("Whop Checkout Error:", err);
-      setError(err.message || "Failed to open secure checkout");
-      setJoining(false);
+    // The server checks the course and opens a Whop checkout (features/payments).
+    const result = await requestWhopCheckout({ courseId: id as string, userId: user.uid });
+    if (result.kind === "redirect") {
+      window.location.href = result.url;
+      return;
     }
+    if (result.kind === "error") console.error("Whop Checkout Error:", result.message);
+    // Refused before payment (full, already enrolled, not open yet): say so plainly.
+    setError(result.kind === "blocked" ? t(result.messageKey) : result.message);
+    setJoining(false);
   };
 
 
