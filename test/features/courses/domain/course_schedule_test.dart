@@ -23,6 +23,32 @@ void main() {
         moves: moves,
       );
 
+  group('time zones: every student, in every country, gets the TEACHER\'s class times', () {
+    final tz = cases['timeZones'] as Map<String, dynamic>;
+    for (final k in (tz['cases'] as List).cast<Map<String, dynamic>>()) {
+      test(k['name'] as String, () {
+        final sch = CourseSchedule.fromMap(Map<String, dynamic>.from(k['course'] as Map),
+            fallbackOffset: Duration(minutes: k['viewerOffsetMinutes'] as int));
+        expect(sch.utcOffset.inMinutes, k['offsetMinutes']);
+        expect([for (final x in sch.sessions()) x.start.toUtc().toIso8601String()],
+            [for (final x in (k['regular'] as List)) t(x as String).toIso8601String()]);
+      });
+    }
+
+    test('the join button opens and closes at the real class time for a student in Malaysia', () {
+      final course = Map<String, dynamic>.from((tz['cases'] as List).first['course'] as Map); // Jordan, Mon 20:00-21:30
+      final sch = CourseSchedule.fromMap(course, fallbackOffset: const Duration(hours: 8));
+      // First class: 2026-11-30 17:00-18:30 UTC (20:00-21:30 in Jordan, 01:00-02:30 in Malaysia).
+      expect(sch.joinCheck(t('2026-11-30T16:49:00Z')).status, JoinStatus.opensLater, reason: '11 min before: locked');
+      expect(sch.joinCheck(t('2026-11-30T16:50:00Z')).status, JoinStatus.open, reason: '10 min before: open');
+      expect(sch.joinCheck(t('2026-11-30T18:59:00Z')).status, JoinStatus.open, reason: '29 min after the end: open');
+      final after = sch.joinCheck(t('2026-11-30T19:00:00Z'));
+      expect(after.status, JoinStatus.opensLater, reason: '30 min after the end: locked until next week');
+      expect(after.opensAt, t('2026-12-07T16:50:00Z'));
+      expect(sch.joinCheck(t('2026-12-14T19:00:00Z')).status, JoinStatus.ended);
+    });
+  });
+
   group('shared cases (same answers as the server)', () {
     test('the regular classes', () {
       final starts = schedule().sessions().map((s) => s.start.toUtc().toIso8601String()).toList();

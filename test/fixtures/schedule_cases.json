@@ -2,7 +2,10 @@
   "_about": "Shared by the app (test/features/courses/domain/course_schedule_test.dart) and the server (functions/test/schedule.test.js): both must give the same answers. Times are UTC ISO strings; offsetMinutes is the course's time zone (UTC+3 = 180).",
   "course": {
     "offsetMinutes": 180,
-    "selectedDays": ["Monday", "Wednesday"],
+    "selectedDays": [
+      "Monday",
+      "Wednesday"
+    ],
     "startDate": "2026-11-29T21:00:00Z",
     "endDate": "2026-12-15T21:00:00Z",
     "startTime": "2026-11-20T15:00:00Z",
@@ -24,7 +27,8 @@
       "name": "first class: from now until the day before the 2nd class (Wed 2 Dec)",
       "now": "2026-11-25T09:00:00Z",
       "next": "2026-11-30T15:00:00Z",
-      "isFirst": true, "isLast": false,
+      "isFirst": true,
+      "isLast": false,
       "earliest": "2026-11-25T09:00:00Z",
       "latestDay": "2026-12-01"
     },
@@ -32,7 +36,8 @@
       "name": "middle class (Mon 7 Dec, after Wed 2 Dec): from the day after the previous class to the day before the following one",
       "now": "2026-12-03T09:00:00Z",
       "next": "2026-12-07T15:00:00Z",
-      "isFirst": false, "isLast": false,
+      "isFirst": false,
+      "isLast": false,
       "earliest": "2026-12-03T09:00:00Z",
       "latestDay": "2026-12-08"
     },
@@ -40,7 +45,8 @@
       "name": "the previous class was today: the moved class cannot land on today",
       "now": "2026-12-02T17:00:00Z",
       "next": "2026-12-07T15:00:00Z",
-      "isFirst": false, "isLast": false,
+      "isFirst": false,
+      "isLast": false,
       "earliest": "2026-12-02T21:00:00Z",
       "latestDay": "2026-12-08"
     },
@@ -48,7 +54,8 @@
       "name": "last class: up to 7 days after the end date (Wed 16 Dec + 7 = Wed 23 Dec)",
       "now": "2026-12-15T09:00:00Z",
       "next": "2026-12-16T15:00:00Z",
-      "isFirst": false, "isLast": true,
+      "isFirst": false,
+      "isLast": true,
       "earliest": "2026-12-15T09:00:00Z",
       "latestDay": "2026-12-23"
     },
@@ -56,7 +63,8 @@
       "name": "a class in progress is not the next one",
       "now": "2026-12-07T15:30:00Z",
       "next": "2026-12-09T15:00:00Z",
-      "isFirst": false, "isLast": false,
+      "isFirst": false,
+      "isLast": false,
       "earliest": "2026-12-07T21:00:00Z",
       "latestDay": "2026-12-13"
     },
@@ -70,85 +78,241 @@
     {
       "name": "first class later (Mon 30 Nov → Tue 1 Dec): the start date follows",
       "now": "2026-11-25T09:00:00Z",
-      "newStart": "2026-12-01T15:00:00Z", "newEnd": "2026-12-01T16:30:00Z",
+      "newStart": "2026-12-01T15:00:00Z",
+      "newEnd": "2026-12-01T16:30:00Z",
       "ok": true,
-      "startDate": "2026-11-30T21:00:00Z", "endDate": "2026-12-15T21:00:00Z"
+      "startDate": "2026-11-30T21:00:00Z",
+      "endDate": "2026-12-15T21:00:00Z"
     },
     {
       "name": "first class earlier (Mon 30 Nov → Fri 27 Nov): the start date follows",
       "now": "2026-11-25T09:00:00Z",
-      "newStart": "2026-11-27T15:00:00Z", "newEnd": "2026-11-27T16:30:00Z",
+      "newStart": "2026-11-27T15:00:00Z",
+      "newEnd": "2026-11-27T16:30:00Z",
       "ok": true,
-      "startDate": "2026-11-26T21:00:00Z", "endDate": "2026-12-15T21:00:00Z"
+      "startDate": "2026-11-26T21:00:00Z",
+      "endDate": "2026-12-15T21:00:00Z"
     },
     {
       "name": "last class after the end date (Wed 16 Dec → Sat 19 Dec): the end date follows",
       "now": "2026-12-15T09:00:00Z",
-      "newStart": "2026-12-19T15:00:00Z", "newEnd": "2026-12-19T16:30:00Z",
+      "newStart": "2026-12-19T15:00:00Z",
+      "newEnd": "2026-12-19T16:30:00Z",
       "ok": true,
-      "startDate": "2026-11-29T21:00:00Z", "endDate": "2026-12-18T21:00:00Z"
+      "startDate": "2026-11-29T21:00:00Z",
+      "endDate": "2026-12-18T21:00:00Z"
     },
     {
       "name": "last class earlier (Wed 16 Dec → Tue 15 Dec): the end date does NOT move earlier",
       "now": "2026-12-15T09:00:00Z",
-      "newStart": "2026-12-15T15:00:00Z", "newEnd": "2026-12-15T16:30:00Z",
+      "newStart": "2026-12-15T15:00:00Z",
+      "newEnd": "2026-12-15T16:30:00Z",
       "ok": true,
-      "startDate": "2026-11-29T21:00:00Z", "endDate": "2026-12-15T21:00:00Z"
+      "startDate": "2026-11-29T21:00:00Z",
+      "endDate": "2026-12-15T21:00:00Z"
     },
     {
       "name": "middle class to another hour the same day",
       "now": "2026-12-03T09:00:00Z",
-      "newStart": "2026-12-07T17:00:00Z", "newEnd": "2026-12-07T18:00:00Z",
+      "newStart": "2026-12-07T17:00:00Z",
+      "newEnd": "2026-12-07T18:00:00Z",
       "ok": true,
-      "startDate": "2026-11-29T21:00:00Z", "endDate": "2026-12-15T21:00:00Z"
+      "startDate": "2026-11-29T21:00:00Z",
+      "endDate": "2026-12-15T21:00:00Z"
     },
     {
       "name": "onto the following class's day: refused",
       "now": "2026-12-03T09:00:00Z",
-      "newStart": "2026-12-09T09:00:00Z", "newEnd": "2026-12-09T10:00:00Z",
-      "ok": false, "error": "afterWindow"
+      "newStart": "2026-12-09T09:00:00Z",
+      "newEnd": "2026-12-09T10:00:00Z",
+      "ok": false,
+      "error": "afterWindow"
     },
     {
       "name": "last class more than 7 days after the end: refused",
       "now": "2026-12-15T09:00:00Z",
-      "newStart": "2026-12-24T15:00:00Z", "newEnd": "2026-12-24T16:30:00Z",
-      "ok": false, "error": "afterWindow"
+      "newStart": "2026-12-24T15:00:00Z",
+      "newEnd": "2026-12-24T16:30:00Z",
+      "ok": false,
+      "error": "afterWindow"
     },
     {
       "name": "in the past: refused",
       "now": "2026-12-03T09:00:00Z",
-      "newStart": "2026-12-03T08:00:00Z", "newEnd": "2026-12-03T08:30:00Z",
-      "ok": false, "error": "beforeWindow"
+      "newStart": "2026-12-03T08:00:00Z",
+      "newEnd": "2026-12-03T08:30:00Z",
+      "ok": false,
+      "error": "beforeWindow"
     },
     {
       "name": "onto the day of the previous class: refused",
       "now": "2026-12-02T17:00:00Z",
-      "newStart": "2026-12-02T19:00:00Z", "newEnd": "2026-12-02T20:00:00Z",
-      "ok": false, "error": "beforeWindow"
+      "newStart": "2026-12-02T19:00:00Z",
+      "newEnd": "2026-12-02T20:00:00Z",
+      "ok": false,
+      "error": "beforeWindow"
     },
     {
       "name": "ends before it starts: refused",
       "now": "2026-12-03T09:00:00Z",
-      "newStart": "2026-12-07T17:00:00Z", "newEnd": "2026-12-07T16:00:00Z",
-      "ok": false, "error": "endBeforeStart"
+      "newStart": "2026-12-07T17:00:00Z",
+      "newEnd": "2026-12-07T16:00:00Z",
+      "ok": false,
+      "error": "endBeforeStart"
     },
     {
       "name": "crosses midnight (local): refused",
       "now": "2026-12-03T09:00:00Z",
-      "newStart": "2026-12-07T20:00:00Z", "newEnd": "2026-12-07T21:30:00Z",
-      "ok": false, "error": "crossesMidnight"
+      "newStart": "2026-12-07T20:00:00Z",
+      "newEnd": "2026-12-07T21:30:00Z",
+      "ok": false,
+      "error": "crossesMidnight"
     },
     {
       "name": "longer than 6 hours: refused",
       "now": "2026-12-03T09:00:00Z",
-      "newStart": "2026-12-07T05:00:00Z", "newEnd": "2026-12-07T11:30:00Z",
-      "ok": false, "error": "tooLong"
+      "newStart": "2026-12-07T05:00:00Z",
+      "newEnd": "2026-12-07T11:30:00Z",
+      "ok": false,
+      "error": "tooLong"
     },
     {
       "name": "after the course is over: nothing to move",
       "now": "2026-12-16T17:00:00Z",
-      "newStart": "2026-12-18T15:00:00Z", "newEnd": "2026-12-18T16:00:00Z",
-      "ok": false, "error": "noNextSession"
+      "newStart": "2026-12-18T15:00:00Z",
+      "newEnd": "2026-12-18T16:00:00Z",
+      "ok": false,
+      "error": "noNextSession"
     }
-  ]
+  ],
+  "timeZones": {
+    "_about": "Courses saved WITHOUT scheduleUtcOffsetMinutes (every course before it was saved at creation). The start date is saved as midnight in the TEACHER's time zone, so that is the course's time zone - never the viewer's phone. viewerOffsetMinutes is the student's phone; every viewer must get the same classes.",
+    "cases": [
+      {
+        "name": "Jordan teacher (UTC+3), Mon 20:00-21:30, student in Malaysia (UTC+8)",
+        "course": {
+          "selectedDays": [
+            "Monday"
+          ],
+          "startDate": "2026-11-29T21:00:00Z",
+          "endDate": "2026-12-13T21:00:00Z",
+          "startTime": "2026-11-29T17:00:00Z",
+          "endTime": "2026-11-29T18:30:00Z"
+        },
+        "viewerOffsetMinutes": 480,
+        "offsetMinutes": 180,
+        "regular": [
+          "2026-11-30T17:00:00Z",
+          "2026-12-07T17:00:00Z",
+          "2026-12-14T17:00:00Z"
+        ]
+      },
+      {
+        "name": "same course, student in New York (UTC-5)",
+        "course": {
+          "selectedDays": [
+            "Monday"
+          ],
+          "startDate": "2026-11-29T21:00:00Z",
+          "endDate": "2026-12-13T21:00:00Z",
+          "startTime": "2026-11-29T17:00:00Z",
+          "endTime": "2026-11-29T18:30:00Z"
+        },
+        "viewerOffsetMinutes": -300,
+        "offsetMinutes": 180,
+        "regular": [
+          "2026-11-30T17:00:00Z",
+          "2026-12-07T17:00:00Z",
+          "2026-12-14T17:00:00Z"
+        ]
+      },
+      {
+        "name": "Jordan teacher, a LATE class Mon 23:30-00:30 (crosses midnight UTC+3), student in Germany (UTC+1)",
+        "course": {
+          "selectedDays": [
+            "Monday"
+          ],
+          "startDate": "2026-11-29T21:00:00Z",
+          "endDate": "2026-12-06T21:00:00Z",
+          "startTime": "2026-11-29T20:30:00Z",
+          "endTime": "2026-11-29T21:30:00Z"
+        },
+        "viewerOffsetMinutes": 60,
+        "offsetMinutes": 180,
+        "regular": [
+          "2026-11-30T20:30:00Z",
+          "2026-12-07T20:30:00Z"
+        ]
+      },
+      {
+        "name": "US teacher (UTC-5), Tue 21:00-22:00 (= Wed 02:00 UTC), student in Jordan (UTC+3)",
+        "course": {
+          "selectedDays": [
+            "Tuesday"
+          ],
+          "startDate": "2026-12-01T05:00:00Z",
+          "endDate": "2026-12-08T05:00:00Z",
+          "startTime": "2026-12-02T02:00:00Z",
+          "endTime": "2026-12-02T03:00:00Z"
+        },
+        "viewerOffsetMinutes": 180,
+        "offsetMinutes": -300,
+        "regular": [
+          "2026-12-02T02:00:00Z",
+          "2026-12-09T02:00:00Z"
+        ]
+      },
+      {
+        "name": "India teacher (UTC+5:30), Sat 10:00-11:00, student in Jordan",
+        "course": {
+          "selectedDays": [
+            "Saturday"
+          ],
+          "startDate": "2026-12-04T18:30:00Z",
+          "endDate": "2026-12-11T18:30:00Z",
+          "startTime": "2026-12-05T04:30:00Z",
+          "endTime": "2026-12-05T05:30:00Z"
+        },
+        "viewerOffsetMinutes": 180,
+        "offsetMinutes": 330,
+        "regular": [
+          "2026-12-05T04:30:00Z",
+          "2026-12-12T04:30:00Z"
+        ]
+      },
+      {
+        "name": "a saved time zone always wins",
+        "course": {
+          "scheduleUtcOffsetMinutes": 120,
+          "selectedDays": [
+            "Monday"
+          ],
+          "startDate": "2026-11-29T21:00:00Z",
+          "endDate": "2026-11-29T21:00:00Z",
+          "startTime": "2026-11-29T17:00:00Z",
+          "endTime": "2026-11-29T18:30:00Z"
+        },
+        "viewerOffsetMinutes": 480,
+        "offsetMinutes": 120,
+        "regular": []
+      },
+      {
+        "name": "a start date that is not a midnight anywhere (odd minutes): the viewer's phone, as before",
+        "course": {
+          "selectedDays": [
+            "Monday"
+          ],
+          "startDate": "2026-11-29T21:07:00Z",
+          "endDate": "2026-11-29T21:07:00Z",
+          "startTime": "2026-11-29T17:00:00Z",
+          "endTime": "2026-11-29T18:30:00Z"
+        },
+        "viewerOffsetMinutes": 180,
+        "offsetMinutes": 180,
+        "regular": [
+          "2026-11-30T17:00:00Z"
+        ]
+      }
+    ]
+  }
 }

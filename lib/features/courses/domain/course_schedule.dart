@@ -118,11 +118,28 @@ class CourseSchedule {
   static Set<int> weekdaysFromNames(Iterable<String> names) =>
       {for (final n in names) if (_dayNames.contains(n)) _dayNames.indexOf(n) + 1};
 
-  /// From the course document. The course's own time zone
-  /// (scheduleUtcOffsetMinutes) wins; older courses use [fallbackOffset] (the phone's).
+  /// The time zone a course's start date was midnight in: the start date is saved as
+  /// midnight on the TEACHER's phone (the date picker), so this is the teacher's time
+  /// zone. Null when it is not a plausible midnight (whole quarter hours, UTC-12…+14).
+  static Duration? offsetFromStartDate(DateTime? startDate) {
+    if (startDate == null) return null;
+    final u = startDate.toUtc();
+    if (u.second != 0 || u.millisecond != 0 || u.minute % 15 != 0) return null;
+    var minutes = (24 * 60 - (u.hour * 60 + u.minute)) % (24 * 60);
+    if (minutes > 14 * 60) minutes -= 24 * 60;
+    return Duration(minutes: minutes);
+  }
+
+  /// From the course document. The course's time zone: the saved one
+  /// (scheduleUtcOffsetMinutes), else the teacher's, read from the start date; only
+  /// when neither is known, [fallbackOffset] (the phone's). Using the VIEWER's phone
+  /// gave a student in another country other class days, so the join button was
+  /// locked during the real class.
   factory CourseSchedule.fromMap(Map<String, dynamic> d, {required Duration fallbackOffset}) {
     final off = d['scheduleUtcOffsetMinutes'];
-    final offset = off is num ? Duration(minutes: off.toInt()) : fallbackOffset;
+    final offset = off is num
+        ? Duration(minutes: off.toInt())
+        : offsetFromStartDate(_date(d['scheduleStartDate']) ?? _date(d['startDate'])) ?? fallbackOffset;
     final moves = <SessionMove>[];
     final history = d['sessionMoves'];
     if (history is List) {

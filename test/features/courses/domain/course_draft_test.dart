@@ -1,6 +1,7 @@
 import 'package:calligro_app/features/courses/domain/course_draft.dart';
 import 'package:calligro_app/features/courses/domain/course_models.dart';
 import 'package:calligro_app/features/courses/domain/course_policy.dart';
+import 'package:calligro_app/features/courses/domain/course_schedule.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 CourseDraft draft({
@@ -103,6 +104,14 @@ void main() {
       final c = Course.fromMap('new', draft(price: 120).toDocument(author, createdAt: created));
       expect(c.iapProductId, 'com.yazan.calligro.tier_120');
       expect(CoursePolicy.productIdFor(c), 'com.yazan.calligro.tier_120');
+    });
+
+    test('a new course saves the teacher\'s time zone, and it matches the one read back from its start date', () {
+      final d = draft();
+      final doc = d.toDocument(author, createdAt: created);
+      expect(doc['scheduleUtcOffsetMinutes'], d.startDate!.timeZoneOffset.inMinutes);
+      expect(CourseSchedule.offsetFromStartDate(d.startDate!.toUtc())?.inMinutes, d.startDate!.timeZoneOffset.inMinutes,
+          reason: 'the picker gives local midnight, so both ways agree');
     });
 
     test('free courses store no product (was tier_0 / tier_50)', () {

@@ -493,7 +493,7 @@ async function checkUnrecordedClasses(now) {
     if (!course.teacherId || !Array.isArray(course.enrolledStudents) || course.enrolledStudents.length === 0) continue;
     let classes;
     try {
-      classes = schedule.sessions(schedule.scheduleOf(course, course.scheduleUtcOffsetMinutes ?? 0));
+      classes = schedule.sessions(schedule.scheduleOf(course, 0)); // the course's own time zone
     } catch (_) {
       continue;
     }

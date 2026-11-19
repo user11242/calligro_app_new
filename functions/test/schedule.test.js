@@ -30,6 +30,16 @@ describe('the schedule rule (same answers as the app)', () => {
     expect(s.every((x) => x.end - x.start === 90 * 60 * 1000)).toBe(true);
   });
 
+  describe('time zones: every viewer gets the TEACHER\'s class times (shared with the app)', () => {
+    for (const k of cases.timeZones.cases) {
+      test(k.name, () => {
+        const s = scheduleOf(k.course, k.viewerOffsetMinutes);
+        expect(s.offset).toBe(k.offsetMinutes);
+        expect(sessions(s).map((x) => new Date(x.start).toISOString())).toEqual(k.regular.map((x) => new Date(x).toISOString()));
+      });
+    }
+  });
+
   for (const w of cases.windows) {
     test(`window: ${w.name}`, () => {
       const win = rescheduleWindow(scheduleOf(fixtureCourse(), 0), t(w.now));

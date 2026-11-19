@@ -48,9 +48,32 @@ const dayOf = (local) => Math.floor(local / DAY) * DAY; // local midnight (as lo
 const dayKey = (localDay) => new Date(localDay).toISOString().slice(0, 10);
 const weekdayOf = (localDay) => ((new Date(localDay).getUTCDay() + 6) % 7) + 1; // 1 = Monday
 
+/**
+ * The time zone a course's start date was midnight in (minutes): the start date is
+ * saved as midnight on the TEACHER's phone, so this is the teacher's time zone. Null
+ * when it is not a plausible midnight (whole quarter hours, UTC-12…+14).
+ * Mirrors CourseSchedule.offsetFromStartDate in the app.
+ */
+function offsetFromStartDate(startDate) {
+  const t = ms(startDate);
+  if (t == null) return null;
+  const d = new Date(t);
+  if (d.getUTCSeconds() !== 0 || d.getUTCMilliseconds() !== 0 || d.getUTCMinutes() % 15 !== 0) return null;
+  let minutes = (24 * 60 - (d.getUTCHours() * 60 + d.getUTCMinutes())) % (24 * 60);
+  if (minutes > 14 * 60) minutes -= 24 * 60;
+  return minutes;
+}
+
+/** The course's time zone: saved, else the teacher's (from the start date), else [fallback]. */
+function offsetOf(course, fallbackOffsetMinutes) {
+  if (typeof course.scheduleUtcOffsetMinutes === "number") return course.scheduleUtcOffsetMinutes;
+  const inferred = offsetFromStartDate(course.scheduleStartDate ?? course.startDate);
+  return inferred ?? fallbackOffsetMinutes;
+}
+
 /** The schedule of a course document (moves from sessionMoves + rescheduledSession). */
 function scheduleOf(course, fallbackOffsetMinutes) {
-  const off = typeof course.scheduleUtcOffsetMinutes === "number" ? course.scheduleUtcOffsetMinutes : fallbackOffsetMinutes;
+  const off = offsetOf(course, fallbackOffsetMinutes);
   const moves = [];
   for (const m of Array.isArray(course.sessionMoves) ? course.sessionMoves : []) {
     const mv = readMove(m, off);
@@ -221,7 +244,9 @@ async function rescheduleNext(db, uid, { courseId, newStart, newEnd, note, utcOf
   const cleanNote = typeof note === "string" ? note.trim().slice(0, MAX_NOTE) : "";
   return db.runTransaction(async (tx) => {
     const { ref, course } = await loadOwned(tx, db, uid, courseId);
-    const offset = typeof course.scheduleUtcOffsetMinutes === "number" ? course.scheduleUtcOffsetMinutes : validOffset(utcOffsetMinutes) ?? 0;
+    // The course's own time zone (saved, else read from its start date); the teacher's
+    // phone only when neither is known. Saved below, so every app agrees from now on.
+    const offset = offsetOf(course, validOffset(utcOffsetMinutes) ?? 0);
     const s = scheduleOf(course, offset);
     const plan = planMove(s, { now, newStart, newEnd });
     if (plan.error) throw new HttpsError("failed-precondition", `Cannot move the class: ${plan.error}`, { reason: plan.error });
@@ -267,7 +292,7 @@ async function rescheduleNext(db, uid, { courseId, newStart, newEnd, note, utcOf
 async function cancelNextReschedule(db, uid, { courseId }, now = Date.now()) {
   return db.runTransaction(async (tx) => {
     const { ref, course } = await loadOwned(tx, db, uid, courseId);
-    const s = scheduleOf(course, course.scheduleUtcOffsetMinutes ?? 0);
+    const s = scheduleOf(course, 0);
     const w = rescheduleWindow(s, now);
     if (!w || !w.session.originalStart) throw new HttpsError("failed-precondition", "The next class was not moved.", { reason: "notRescheduled" });
     const slot = w.session.originalStart;
@@ -304,6 +329,8 @@ exports.rescheduleNextSession = callable(rescheduleNext);
 exports.cancelNextSessionReschedule = callable(cancelNextReschedule);
 
 exports.scheduleOf = scheduleOf;
+exports.offsetOf = offsetOf;
+exports.offsetFromStartDate = offsetFromStartDate;
 exports.sessions = sessions;
 exports.rescheduleWindow = rescheduleWindow;
 exports.planMove = planMove;

@@ -136,6 +136,10 @@ class CourseDraft {
     'ageCategory': ageCategory,
     'startDate': startDate,
     'endDate': endDate,
+    // The course's time zone (the teacher's, on the start date): every student, in
+    // every country, sees the same class times. Older courses get it from the start
+    // date (CourseSchedule.offsetFromStartDate).
+    if (startDate != null) 'scheduleUtcOffsetMinutes': startDate!.timeZoneOffset.inMinutes,
     'selectedTime': startTime,
     'startTime': startTime,
     'endTime': endTime,
