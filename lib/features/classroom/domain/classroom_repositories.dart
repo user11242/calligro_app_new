@@ -64,6 +64,10 @@ abstract interface class RecordingsRepository {
 
   /// [title] null/empty = back to "Lesson N".
   Future<void> rename(String courseId, String recordingId, String? title);
+
+  /// Asks the server to add finished recordings missing from the list
+  /// (livekit-reconcileCourseRecordings; it never brings back failed ones).
+  Future<void> recoverMissing(String courseId);
 }
 
 /// Announcements board and session changes of one course.
@@ -79,4 +83,27 @@ abstract interface class BoardRepository {
   /// Asks the server to put the next class back at its usual time.
   Future<void> cancelReschedule(String courseId);
   Future<String> displayName(String uid);
+}
+
+/// A student enrolled in a course, as shown on the course page's Students tab.
+class EnrolledStudent {
+  final String uid;
+  final String? name;
+  final String? email;
+  final String? photoUrl;
+  final DateTime? createdAt;
+  const EnrolledStudent({required this.uid, this.name, this.email, this.photoUrl, this.createdAt});
+}
+
+/// The course document and the people around it, for the course page.
+abstract interface class CourseDetailsRepository {
+  /// The course document, live (null = deleted). One listener per page.
+  Stream<Map<String, dynamic>?> watchCourse(String courseId);
+  Future<Map<String, dynamic>?> getCourse(String courseId);
+
+  /// The platform role on the user's profile ("student", "teacher", "admin"), or null.
+  Future<String?> userRole(String uid);
+
+  /// Profiles of these students (unknown ids are left out), in the order Firestore returns them.
+  Future<List<EnrolledStudent>> students(List<String> uids);
 }

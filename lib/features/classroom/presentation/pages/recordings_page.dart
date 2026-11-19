@@ -3,7 +3,6 @@ import 'package:calligro_app/features/classroom/application/classroom_recordings
 import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
 import 'package:calligro_app/features/classroom/domain/course_recordings.dart';
 import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
@@ -33,12 +32,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
     if (_recordings != null) return;
     _recordings = ClassroomScope.of(context).recordings;
     _stream = _recordings!.repository.watchRecordings(widget.courseId);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _reconcileRecordings();
+    _reconcileRecordings(); // once, when the list opens
   }
 
   bool _isOpeningRecording = false;
@@ -90,11 +84,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
     _isReconciling = true;
 
     try {
-      await FirebaseFunctions.instanceFor(
-        region: 'us-central1',
-      ).httpsCallable('livekit-reconcileCourseRecordings').call({'courseId': widget.courseId});
-    } catch (e) {
-      debugPrint('Silent recordings reconciliation error: $e');
+      await _recordings!.recoverMissing(widget.courseId);
     } finally {
       if (mounted) _isReconciling = false;
     }

@@ -241,48 +241,15 @@ extension _ClassroomSections on _CourseDetailsPageState {
       }
       // ─────────────────────────────────────────────────────────────────
 
-      final user = FirebaseAuth.instance.currentUser;
-      String userName = user?.displayName ?? "User";
-      String userEmail = user?.email ?? "";
-      String userAvatar = user?.photoURL ?? "";
-
-      // Fetch the true full name and photo URL from Firestore
-      if (user != null) {
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-          if (userDoc.exists) {
-            final data = userDoc.data();
-            if (data != null) {
-              if (data['fullName'] != null &&
-                  data['fullName'].toString().isNotEmpty) {
-                userName = data['fullName'];
-              } else if (data['name'] != null &&
-                  data['name'].toString().isNotEmpty) {
-                userName = data['name'];
-              }
-              if (data['photoUrl'] != null &&
-                  data['photoUrl'].toString().isNotEmpty) {
-                userAvatar = data['photoUrl'];
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint("Failed to fetch user doc for classroom: $e");
-        }
-      }
-
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        AppMessenger.showSnackBar(
-          context,
-          title: l10n.startingClassroom,
-          message: l10n.pleaseWaitConnecting,
-          type: MessengerType.info,
-        );
-      }
+      // The page may have closed while the permission dialogs were open.
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      AppMessenger.showSnackBar(
+        context,
+        title: l10n.startingClassroom,
+        message: l10n.pleaseWaitConnecting,
+        type: MessengerType.info,
+      );
 
       try {
         // (The old "already in the meeting" check read heartbeats nothing has

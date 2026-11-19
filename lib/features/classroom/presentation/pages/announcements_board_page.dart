@@ -37,6 +37,12 @@ class _AnnouncementsBoardPageState extends State<AnnouncementsBoardPage> {
   CourseRole get _role => widget.role ?? (widget.isTeacher ? CourseRole.owner : CourseRole.student);
 
   @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_board != null) return;

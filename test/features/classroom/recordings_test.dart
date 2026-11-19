@@ -81,6 +81,18 @@ void main() {
       expect(find.byIcon(Icons.edit_outlined), findsNothing);
     });
 
+    testWidgets('opening the list asks the server once to recover missing recordings; a failure stays silent', (tester) async {
+      final repo = await pump(tester, CourseRole.student);
+      expect(repo.recoverCalls, ['c1']);
+      expect(find.text('Alif class'), findsOneWidget);
+    });
+
+    test('recoverMissing never throws (nothing recovered this time is fine)', () async {
+      final repo = FakeRecordingsRepository()..failRecover = Exception('offline');
+      await ClassroomRecordings(repository: repo).recoverMissing('c1');
+      expect(repo.recoverCalls, ['c1']);
+    });
+
     testWidgets('the teacher renames', (tester) async {
       final repo = await pump(tester, CourseRole.owner);
       await tester.tap(find.byIcon(Icons.edit_outlined));

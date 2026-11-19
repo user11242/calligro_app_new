@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
 import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
 import 'package:calligro_app/features/classroom/presentation/widgets/next_session_card.dart';
@@ -6,7 +8,6 @@ import 'package:calligro_app/features/courses/domain/course_schedule.dart';
 import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
 import 'package:calligro_app/core/theme/colors.dart';
@@ -67,12 +68,20 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
 
   List<String> _enrolledStudents = const [];
 
+  /// The page's ONE live listener on the course (schedule moves, enrolments);
+  /// stopped in dispose (it used to run on after the page was closed).
+  StreamSubscription<Map<String, dynamic>?>? _courseSub;
+
+  /// Students tab: the profiles, loaded once per distinct list of student ids.
+  Future<List<Map<String, dynamic>>>? _studentDetails;
+  String? _studentDetailsKey;
+
   /// The viewer's role in THIS course. Being a teacher of another course
   /// gives no teacher controls here (it used to: `userRole == 'teacher'`).
   CourseRole get _role => ClassroomAccess.roleOf(
         teacherId: courseTeacherId ?? (widget.courseData['teacherId'] as String? ?? ''),
         enrolledStudents: _enrolledStudents,
-        uid: FirebaseAuth.instance.currentUser?.uid ?? '',
+        uid: ClassroomScope.of(context).currentUid,
         isAdmin: userRole == 'admin',
       );
 
@@ -143,22 +152,18 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   }
 
   Future<void> _checkUserRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      if (doc.exists && mounted) {
-        setState(() {
-          userRole = doc.data()?['role'] ?? 'student';
-        });
-      }
+    final services = ClassroomScope.of(context);
+    final uid = services.currentUid;
+    if (uid.isEmpty) return;
+    final role = await services.courseDetails.userRole(uid);
+    if (role != null && mounted) {
+      setState(() => userRole = role);
     }
   }
 
   @override
   void dispose() {
+    _courseSub?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -208,13 +213,9 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
 
   Future<void> _fetchFullCourseData() async {
     try {
-      DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .get();
+      final data = await ClassroomScope.of(context).courseDetails.getCourse(widget.courseId);
 
-      if (doc.exists && mounted) {
-        final data = doc.data() as Map<String, dynamic>;
+      if (data != null && mounted) {
 
         setState(() {
           courseTeacherId = data['teacherId'] ?? courseTeacherId;
@@ -421,19 +422,16 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   }
 
   void _listenToOverrides() {
-    FirebaseFirestore.instance
-        .collection('courses')
-        .doc(widget.courseId)
-        .snapshots()
-        .listen((snapshot) {
-          if (snapshot.exists && mounted) {
-            final data = snapshot.data() as Map<String, dynamic>;
-            // Moves (of any class, not only today's) are applied by the schedule rule.
-            setState(() {
-              _schedule = CourseSchedule.fromMap(data, fallbackOffset: DateTime.now().timeZoneOffset);
-            });
-          }
+    _courseSub?.cancel(); // never two listeners
+    _courseSub = ClassroomScope.of(context).courseDetails.watchCourse(widget.courseId).listen((data) {
+      if (data != null && mounted) {
+        // Moves (of any class, not only today's) are applied by the schedule rule.
+        setState(() {
+          _schedule = CourseSchedule.fromMap(data, fallbackOffset: DateTime.now().timeZoneOffset);
+          _enrolledStudents = _ids(data['enrolledStudents']); // live, for the Students tab
         });
+      }
+    });
   }
 
   /// Whether a student may join the live class now (the one schedule rule; a
@@ -473,19 +471,22 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
     try {
       final result = await ClassroomScope.of(context).board.cancelReschedule(widget.courseId, _role);
       if (!result.ok) throw Exception(result.message ?? result.outcome.name);
+      if (!mounted) return;
       _showMessage(
         AppLocalizations.of(context)!.success,
         AppLocalizations.of(context)!.classBackOnSchedule,
         MessengerType.info,
       );
     } catch (e) {
+      if (!mounted) return;
       _showMessage(
         AppLocalizations.of(context)!.error,
         "${AppLocalizations.of(context)!.error}: $e",
         MessengerType.error,
       );
+    } finally {
+      if (mounted) setState(() => _isSavingReschedule = false);
     }
-    setState(() => _isSavingReschedule = false);
   }
 
   void _showMessage(String title, String msg, MessengerType type) {

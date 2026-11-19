@@ -203,6 +203,14 @@ class FakeMaterialFiles implements MaterialFiles {
 class FakeRecordingsRepository implements RecordingsRepository {
   final recordings = <CourseRecording>[];
   final renames = <({String id, String? title})>[];
+  final recoverCalls = <String>[];
+  Object? failRecover;
+
+  @override
+  Future<void> recoverMissing(String courseId) async {
+    recoverCalls.add(courseId);
+    if (failRecover != null) throw failRecover!;
+  }
   final _changes = StreamController<void>.broadcast(sync: true);
 
   void put(CourseRecording r) {
@@ -226,4 +234,48 @@ class FakeRecordingsRepository implements RecordingsRepository {
 
   @override
   Future<void> rename(String courseId, String recordingId, String? title) async => renames.add((id: recordingId, title: title));
+}
+
+class FakeCourseDetailsRepository implements CourseDetailsRepository {
+  Map<String, dynamic>? course;
+  final roles = <String, String>{};
+  final profiles = <String, EnrolledStudent>{};
+  int listeners = 0;
+  final studentReads = <List<String>>[];
+  final _changes = StreamController<void>.broadcast(sync: true);
+
+  void setCourse(Map<String, dynamic>? c) {
+    course = c;
+    _changes.add(null);
+  }
+
+  @override
+  Stream<Map<String, dynamic>?> watchCourse(String courseId) {
+    late final StreamController<Map<String, dynamic>?> c;
+    StreamSubscription<void>? sub;
+    c = StreamController(
+      onListen: () {
+        listeners++;
+        c.add(course);
+        sub = _changes.stream.listen((_) => c.add(course));
+      },
+      onCancel: () {
+        listeners--;
+        sub?.cancel();
+      },
+    );
+    return c.stream;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getCourse(String courseId) async => course;
+
+  @override
+  Future<String?> userRole(String uid) async => roles[uid];
+
+  @override
+  Future<List<EnrolledStudent>> students(List<String> uids) async {
+    studentReads.add(List.of(uids));
+    return [for (final id in uids) if (profiles[id] != null) profiles[id]!];
+  }
 }

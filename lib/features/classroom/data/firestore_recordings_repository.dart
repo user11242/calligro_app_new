@@ -1,11 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../domain/classroom_repositories.dart';
 import '../domain/course_recordings.dart';
 
 class FirestoreRecordingsRepository implements RecordingsRepository {
-  FirestoreRecordingsRepository({FirebaseFirestore? firestore}) : _injected = firestore;
+  FirestoreRecordingsRepository({FirebaseFirestore? firestore, Future<void> Function(String courseId)? recover})
+      : _injected = firestore,
+        _recover = recover;
   final FirebaseFirestore? _injected;
+  final Future<void> Function(String courseId)? _recover;
   FirebaseFirestore get _db => _injected ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> _recordings(String courseId) =>
@@ -21,4 +25,13 @@ class FirestoreRecordingsRepository implements RecordingsRepository {
   Future<void> rename(String courseId, String recordingId, String? title) => _recordings(courseId)
       .doc(recordingId)
       .update({'title': (title == null || title.trim().isEmpty) ? FieldValue.delete() : title.trim()});
+
+  @override
+  Future<void> recoverMissing(String courseId) async {
+    final recover = _recover;
+    if (recover != null) return recover(courseId);
+    await FirebaseFunctions.instanceFor(region: 'us-central1')
+        .httpsCallable('livekit-reconcileCourseRecordings')
+        .call({'courseId': courseId});
+  }
 }

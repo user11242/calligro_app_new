@@ -19,4 +19,12 @@ class ClassroomRecordings {
       return ClassroomResult(ClassroomOutcome.failed, message: '$e');
     }
   }
+
+  /// Opening the list quietly recovers finished recordings that never made it into
+  /// it. Silent: a failure only means nothing was recovered this time.
+  Future<void> recoverMissing(String courseId) async {
+    try {
+      await _repo.recoverMissing(courseId);
+    } catch (_) {}
+  }
 }

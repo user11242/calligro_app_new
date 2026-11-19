@@ -9,6 +9,8 @@ import '../data/firestore_board_repository.dart';
 import '../data/firestore_materials_repository.dart';
 import '../data/firestore_recordings_repository.dart';
 import '../data/firestore_assignment_repository.dart';
+import '../data/firestore_course_details_repository.dart';
+import '../domain/classroom_repositories.dart';
 
 /// What the in-course screens talk to. The ONLY place that picks real implementations.
 class ClassroomServices {
@@ -17,7 +19,11 @@ class ClassroomServices {
     required this.materials,
     ClassroomRecordings? recordings,
     ClassroomBoard? board,
+    CourseDetailsRepository? courseDetails,
+    String Function()? currentUid,
   })  : recordings = recordings ?? ClassroomRecordings(repository: FirestoreRecordingsRepository()),
+        courseDetails = courseDetails ?? FirestoreCourseDetailsRepository(),
+        _currentUid = currentUid ?? (() => FirebaseAuth.instance.currentUser?.uid ?? ''),
         board = board ??
             ClassroomBoard(
               repository: FirestoreBoardRepository(),
@@ -41,6 +47,13 @@ class ClassroomServices {
   final ClassroomMaterials materials;
   final ClassroomRecordings recordings;
   final ClassroomBoard board;
+
+  /// The course document and its people, for the course page.
+  final CourseDetailsRepository courseDetails;
+  final String Function() _currentUid;
+
+  /// The signed-in user's id ('' when signed out).
+  String get currentUid => _currentUid();
 }
 
 class ClassroomScope extends InheritedWidget {

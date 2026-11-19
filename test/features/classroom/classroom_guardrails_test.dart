@@ -25,7 +25,7 @@ void main() {
     }
   });
 
-  test('assignment, submission, material, recording and board screens use no Firestore/Storage directly', () {
+  test('every classroom screen (the course page included) uses no Firebase directly', () {
     for (final name in [
       'assignments_page.dart',
       'assignment_details_page.dart',
@@ -33,12 +33,28 @@ void main() {
       'course_materials_page.dart',
       'recordings_page.dart',
       'announcements_board_page.dart',
+      'course_details_page.dart',
+      'course_details_overview.dart',
+      'course_details_schedule.dart',
+      'course_details_classroom.dart',
+      'course_details_students.dart',
+      'course_details_header.dart',
+      'course_details_texts.dart',
     ]) {
       final c = File('lib/features/classroom/presentation/pages/$name').readAsStringSync();
-      for (final banned in ['FirebaseFirestore', 'FirebaseStorage', 'FirebaseAuth.instance']) {
+      for (final banned in ['FirebaseFirestore', 'FirebaseStorage', 'FirebaseAuth.instance', 'FirebaseFunctions']) {
         expect(c.contains(banned), isFalse, reason: '$name uses $banned');
       }
     }
+  });
+
+  test('the course page keeps ONE course listener and stops it when closed', () {
+    final page = File('lib/features/classroom/presentation/pages/course_details_page.dart').readAsStringSync();
+    final students = File('lib/features/classroom/presentation/pages/course_details_students.dart').readAsStringSync();
+    expect(page.contains('_courseSub?.cancel();\n    _tabController.dispose();'), isTrue, reason: 'cancelled in dispose');
+    expect(page.contains('_courseSub = ClassroomScope.of(context).courseDetails.watchCourse('), isTrue);
+    expect(students.contains('.snapshots()'), isFalse, reason: 'the Students tab re-subscribed on every redraw');
+    expect(students.contains('future: _studentDetailsFor('), isTrue, reason: 'profiles load once per list of ids');
   });
 
   test('nobody writes submissionCount any more (any signed-in user could set it)', () {

@@ -4,20 +4,10 @@ part of 'course_details_page.dart';
 /// read the page's state.
 extension _StudentSections on _CourseDetailsPageState {
   Widget _buildEnrolledStudentsList() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('courses')
-          .doc(widget.courseId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) return const SizedBox();
-        if (!snapshot.hasData) return const SizedBox();
-        final courseData = snapshot.data!.data() as Map<String, dynamic>?;
-        if (courseData == null) return const SizedBox();
-        final dynamic studentsRaw = courseData['enrolledStudents'];
-        final List<String> enrolledStudentIds = (studentsRaw is List)
-            ? List<String>.from(studentsRaw.whereType<String>())
-            : [];
+    // The enrolled students come from the page's one live course listener
+    // (_listenToOverrides); their profiles load once per change of the list,
+    // not on every redraw.
+    final List<String> enrolledStudentIds = _enrolledStudents;
 
         if (enrolledStudentIds.isEmpty) {
           return Container(
@@ -40,7 +30,7 @@ extension _StudentSections on _CourseDetailsPageState {
           );
         }
         return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchStudentDetails(enrolledStudentIds),
+          future: _studentDetailsFor(enrolledStudentIds),
           builder: (context, studentDetailsSnapshot) {
             if (!studentDetailsSnapshot.hasData) {
               return const Center(
@@ -186,8 +176,6 @@ extension _StudentSections on _CourseDetailsPageState {
             );
           },
         );
-      },
-    );
   }
 
   Widget _buildDefaultAvatar(String? name) {
@@ -206,52 +194,40 @@ extension _StudentSections on _CourseDetailsPageState {
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchStudentDetails(
-    List<String> studentIds,
-  ) async {
+  /// The profiles for [studentIds], loaded once per distinct list of ids.
+  Future<List<Map<String, dynamic>>> _studentDetailsFor(List<String> studentIds) {
+    final key = studentIds.join(',');
+    if (_studentDetails != null && _studentDetailsKey == key) return _studentDetails!;
+    _studentDetailsKey = key;
+    return _studentDetails = _fetchStudentDetails(studentIds);
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchStudentDetails(List<String> studentIds) async {
     if (studentIds.isEmpty) return [];
-    const int batchSize = 10;
-    List<Future<QuerySnapshot>> futures = [];
-    for (int i = 0; i < studentIds.length; i += batchSize) {
-      final List<String> batch = studentIds.sublist(
-        i,
-        (i + batchSize > studentIds.length) ? studentIds.length : i + batchSize,
-      );
-      futures.add(
-        FirebaseFirestore.instance
-            .collection('users')
-            .where(FieldPath.documentId, whereIn: batch)
-            .get(),
-      );
-    }
     final l10n = AppLocalizations.of(context)!;
-    List<QuerySnapshot> snapshots = await Future.wait(futures);
-    List<Map<String, dynamic>> students = [];
-    for (var snapshot in snapshots) {
-      for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        students.add({
-          'uid': doc.id,
-          'name': data['fullName'] ?? data['name'] ?? l10n.unknownStudent,
-          'email': data['email'] ?? l10n.noEmail,
-          'profilePic': data['photoUrl'] ?? data['profilePic'],
-          'createdAt': (data['createdAt'] is Timestamp)
-              ? (data['createdAt'] as Timestamp).toDate()
-              : null,
-        });
-      }
-    }
-    return students;
+    final students = await ClassroomScope.of(context).courseDetails.students(studentIds);
+    return [
+      for (final s in students)
+        {
+          'uid': s.uid,
+          'name': s.name ?? l10n.unknownStudent,
+          'email': s.email ?? l10n.noEmail,
+          'profilePic': s.photoUrl,
+          'createdAt': s.createdAt,
+        },
+    ];
   }
 
   void _showAdminNotificationDialog() async {
     // Fetch latest course document to get accurate enrolledStudents and teacherId
-    DocumentSnapshot<Map<String, dynamic>>? courseDoc;
+    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final courseDetails = ClassroomScope.of(context).courseDetails;
+    Map<String, dynamic>? latest;
     try {
-      courseDoc = await FirebaseFirestore.instance.collection('courses').doc(widget.courseId).get();
+      latest = await courseDetails.getCourse(widget.courseId);
     } catch (_) {}
 
-    final data = courseDoc?.data() ?? widget.courseData;
+    final data = latest ?? widget.courseData;
     final String cName = data['courseName'] ?? data['courseTitle'] ?? courseName;
     final String tName = data['teacherName'] ?? widget.courseData['teacherName'] ?? 'Instructor';
     final String tId = data['teacherId'] ?? widget.courseData['teacherId'] ?? '';
@@ -260,7 +236,6 @@ extension _StudentSections on _CourseDetailsPageState {
         ? studentsRaw.map((e) => e.toString()).toList()
         : <String>[];
     final int enrolledCount = studentIds.length;
-    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     if (!mounted) return;
 
@@ -472,7 +447,7 @@ extension _StudentSections on _CourseDetailsPageState {
                                     message: text,
                                   );
 
-                                  if (mounted) {
+                                  if (mounted && dialogCtx.mounted) {
                                     Navigator.pop(dialogCtx);
                                     _showMessage(
                                       isArabic ? "تم الإرسال" : "Sent",

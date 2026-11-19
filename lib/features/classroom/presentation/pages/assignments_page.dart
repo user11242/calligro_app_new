@@ -45,6 +45,13 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
     'paper5.jpg',
   ];
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _instructionsController.dispose();
+    super.dispose();
+  }
+
   DateTime? _courseStartDate;
   ClassroomAssignments? _work;
   Stream<List<Assignment>>? _assignments;
