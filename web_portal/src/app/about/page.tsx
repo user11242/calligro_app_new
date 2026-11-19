@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Navbar from "@/shared/ui/Navbar";
+import Footer from "@/shared/ui/Footer";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";

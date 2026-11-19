@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter, usePathname } from "next/navigation";
 import { LayoutDashboard, BookOpen, CheckSquare, Award, LogOut, Loader2, Menu, X, GraduationCap } from "lucide-react";
@@ -8,8 +8,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { onAuthStateChanged } from "firebase/auth";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useLocale } from "@/context/LocaleContext";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import { useLocale } from "@/shared/i18n/LocaleContext";
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const [isTeacher, setIsTeacher] = useState<boolean | null>(null);

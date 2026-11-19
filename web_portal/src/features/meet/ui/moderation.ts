@@ -1,6 +1,6 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
 import type { Participant } from "livekit-client";
-import { app } from "@/lib/firebase";
+import { app } from "@/shared/firebase/client";
 
 /**
  * True if a data message's sender is a moderator (teacher/admin).

@@ -6,13 +6,13 @@ import {
   Award, Users, Check, Clock, Search, Filter, ShieldCheck,
   Eye, Copy, ExternalLink, Loader2, BookOpen, Sparkles, AlertCircle, RefreshCw
 } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import Image from "next/image";
 import Link from "next/link";
-import { useTranslation } from "@/hooks/useTranslation";
-import CertificateModal from "@/components/CertificateModal";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import CertificateModal from "@/features/certificates/ui/CertificateModal";
 import {
   issueCertificateAction,
   issueAllPendingCertificatesAction,

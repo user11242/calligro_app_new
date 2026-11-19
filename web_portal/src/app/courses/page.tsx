@@ -1,14 +1,15 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { db, auth } from "@/lib/firebase";
+import { db, auth } from "@/shared/firebase/client";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
-import Navbar from "@/components/Navbar";
-import CourseCard from "@/components/CourseCard";
+import Navbar from "@/shared/ui/Navbar";
+import CourseCard from "@/features/courses/ui/CourseCard";
 import { Search, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 function CoursesPageContent() {
   const searchParams = useSearchParams();
@@ -172,7 +173,7 @@ function CoursesPageContent() {
 
               {/* Verify Certificate Button */}
               <div className="pt-8">
-                <a 
+                <Link
                   href="/verify"
                   className="group relative flex items-center justify-between bg-gradient-to-r from-[#d4af37]/10 to-transparent border border-[#d4af37]/20 rounded-2xl p-5 hover:bg-[#d4af37]/20 hover:border-[#d4af37]/40 transition-all duration-300"
                 >
@@ -185,7 +186,7 @@ function CoursesPageContent() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                </a>
+                </Link>
               </div>
 
             </div>

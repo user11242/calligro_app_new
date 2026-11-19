@@ -5,9 +5,9 @@
  * and `metadata` that Whop copies onto the payment).
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { checkoutBlock, isCourseFull } from "../src/lib/checkoutRules";
-import { calculateWebPrice, formatPrice } from "../src/lib/pricingConfig";
-import { createWhopCheckout } from "../src/lib/whop";
+import { checkoutBlock, isCourseFull } from "../../../src/features/payments/domain/checkoutRules";
+import { calculateWebPrice, formatPrice } from "../../../src/features/payments/domain/pricing";
+import { createWhopCheckout } from "../../../src/features/payments/server/whop.server";
 
 const course = (o: Record<string, unknown> = {}) => ({ price: 100, teacherId: "t1", enrolledStudents: [], enrolledCount: 0, ...o });
 const teacher = (o: Record<string, unknown> = {}) => ({ commissionRate: 0.6, ...o });
@@ -102,8 +102,8 @@ describe("createWhopCheckout: the request Whop receives", () => {
 
 describe("what the buyer is told when checkout is refused", () => {
   it("every refusal has a message that exists in en, ar and tr", async () => {
-    const { BLOCK_MESSAGE_KEY, blockMessageKey } = await import("../src/lib/checkoutRules");
-    const locales = ["en", "ar", "tr"].map((l) => require(`../src/locales/${l}.json`));
+    const { BLOCK_MESSAGE_KEY, blockMessageKey } = await import("../../../src/features/payments/domain/checkoutRules");
+    const locales = ["en", "ar", "tr"].map((l) => require(`../../../src/shared/i18n/locales/${l}.json`));
     for (const key of Object.values(BLOCK_MESSAGE_KEY)) {
       for (const l of locales) expect(typeof l[key], key).toBe("string");
     }

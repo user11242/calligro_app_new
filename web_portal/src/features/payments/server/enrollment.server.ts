@@ -1,7 +1,7 @@
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
-import { calculateNetTuition, calculateWebPrice } from "./pricingConfig";
-import type { WhopPayment } from "./whopWebhook";
-import { isCourseFull } from "./checkoutRules";
+import { calculateNetTuition, calculateWebPrice } from "../domain/pricing";
+import type { WhopPayment } from "./whopWebhook.server";
+import { isCourseFull } from "../domain/checkoutRules";
 
 type PaidWhop = Extract<WhopPayment, { kind: "paid" }>;
 

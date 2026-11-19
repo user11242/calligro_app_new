@@ -11,7 +11,7 @@ import CalligroMeetLayout from "./CalligroMeetLayout";
 import ResilienceManager from "./ResilienceManager";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import { useLocalParticipant } from "@livekit/components-react";
 
 

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/shared/ui/Navbar";
 import { Search, CheckCircle2, ShieldCheck, XCircle, Loader2, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { db } from "@/lib/firebase";
+import { db } from "@/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 export default function VerifySearchPage() {
   const [certId, setCertId] = useState("");

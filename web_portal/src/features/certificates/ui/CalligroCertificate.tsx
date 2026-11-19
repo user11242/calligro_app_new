@@ -1,7 +1,7 @@
 "use client";
 
-import { useTranslation } from "@/hooks/useTranslation";
-import { formatImageUrl } from "@/lib/utils";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import { formatImageUrl } from "@/shared/utils/utils";
 
 export interface CalligroCertificateProps {
   id?: string;

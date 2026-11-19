@@ -4,11 +4,11 @@ import { ArrowRight, PlayCircle, Lock, Calendar, Clock, CheckCircle } from "luci
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { formatImageUrl } from "@/lib/utils";
-import { auth } from "@/lib/firebase";
-import { useTranslation } from "@/hooks/useTranslation";
-import { translateText } from "@/lib/translateText";
-import { FEE_MULTIPLIER, calculateWebPrice, formatPrice } from "@/lib/pricingConfig";
+import { formatImageUrl } from "@/shared/utils/utils";
+import { auth } from "@/shared/firebase/client";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import { translateText } from "@/shared/i18n/translateText";
+import { FEE_MULTIPLIER, calculateWebPrice, formatPrice } from "@/features/payments/domain/pricing";
 
 interface CourseCardProps {
   course: any;

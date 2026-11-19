@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { db, auth } from "@/lib/firebase";
+import { db, auth } from "@/shared/firebase/client";
 import { doc, getDoc, collection, query, where, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/shared/ui/Navbar";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, Clock, Award, ShieldCheck, CheckCircle2,
@@ -12,13 +12,13 @@ import {
   Apple, Play, Video, ChevronDown
 } from "lucide-react";
 import Link from "next/link";
-import { formatImageUrl } from "@/lib/utils";
-import { getFlagFromPhoneNumber } from "@/lib/countryUtils";
-import { useTranslation } from "@/hooks/useTranslation";
-import { blockMessageKey } from "@/lib/checkoutRules";
-import { translateText } from "@/lib/translateText";
-import AutoTranslatedText from "@/components/AutoTranslatedText";
-import { FEE_MULTIPLIER, calculateWebPrice, formatPrice } from "@/lib/pricingConfig";
+import { formatImageUrl } from "@/shared/utils/utils";
+import { getFlagFromPhoneNumber } from "@/shared/utils/countryUtils";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import { blockMessageKey } from "@/features/payments/domain/checkoutRules";
+import { translateText } from "@/shared/i18n/translateText";
+import AutoTranslatedText from "@/shared/i18n/AutoTranslatedText";
+import { FEE_MULTIPLIER, calculateWebPrice, formatPrice } from "@/features/payments/domain/pricing";
 
 // --- ICON REGISTRY MATCHING APP ---
 const ICON_REGISTRY: Record<string, any> = {

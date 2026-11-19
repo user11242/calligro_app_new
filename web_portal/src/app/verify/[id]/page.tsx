@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { db } from "@/lib/firebase";
+import { db } from "@/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/shared/ui/Navbar";
 
 export default function VerifyCertificatePage() {
   const params = useParams();

@@ -8,7 +8,7 @@ import {
   Award, Search, Copy, Check, ShieldCheck, Eye, Download,
   ExternalLink, Sparkles
 } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import {
   doc, getDoc, collection, getDocs, onSnapshot,
   query, where, addDoc, serverTimestamp
@@ -17,8 +17,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { useTranslation } from "@/hooks/useTranslation";
-import CertificateModal from "@/components/CertificateModal";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import CertificateModal from "@/features/certificates/ui/CertificateModal";
 import { issueCertificateAction, issueAllPendingCertificatesAction } from "@/app/actions/certificates";
 
 const fadeUp = (delay = 0) => ({

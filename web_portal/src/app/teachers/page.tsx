@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
+import { db } from "@/shared/firebase/client";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import Navbar from "@/components/Navbar";
-import TeacherCard from "@/components/TeacherCard";
+import Navbar from "@/shared/ui/Navbar";
+import TeacherCard from "@/features/teachers/ui/TeacherCard";
 import { Loader2, Users, Search } from "lucide-react";
 import { motion } from "framer-motion";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState<any[]>([]);

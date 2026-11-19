@@ -3,12 +3,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { MoveRight, Globe, LogOut, User as UserIcon, Menu, X, Search } from "lucide-react";
-import { useLocale } from "@/context/LocaleContext";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useLocale } from "@/shared/i18n/LocaleContext";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {

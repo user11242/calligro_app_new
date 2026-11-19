@@ -2,7 +2,7 @@
 
 import { LiveKitRoom } from "@livekit/components-react";
 import "@livekit/components-styles";
-import CalligroMeetLayout from "@/components/meet/CalligroMeetLayout";
+import CalligroMeetLayout from "@/features/meet/ui/CalligroMeetLayout";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 

@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { db, auth } from "@/lib/firebase";
+import { db, auth } from "@/shared/firebase/client";
 import { doc, getDoc, collection, query, where, getDocs, orderBy, onSnapshot } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
-import Navbar from "@/components/Navbar";
-import CourseCard from "@/components/CourseCard";
+import Navbar from "@/shared/ui/Navbar";
+import CourseCard from "@/features/courses/ui/CourseCard";
 import { Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import Image from "next/image";
 
 export default function TeacherProfilePage() {

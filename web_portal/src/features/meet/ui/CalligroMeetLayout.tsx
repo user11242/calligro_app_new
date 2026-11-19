@@ -18,7 +18,7 @@ import {
 import { Track, ParticipantEvent, ConnectionState, RoomEvent, DisconnectReason } from "livekit-client";
 import { Users, MessageSquare, PhoneOff, ShieldCheck, PenTool, Hand, Compass, WifiOff, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import ParticipantsPanel from "./ParticipantsPanel";
 import ChatPanel from "./ChatPanel";
 import TeacherControls from "./TeacherControls";
@@ -28,7 +28,7 @@ import CalligraphyBoard from "./CalligraphyBoard";
 import ProtractorOverlay from "./ProtractorOverlay";
 import LocalRecorderWrapper from "./LocalRecorderWrapper";
 import { isFromModerator } from "./moderation";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 
 // Context to pass the local user's avatar down to CustomParticipantTile

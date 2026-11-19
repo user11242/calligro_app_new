@@ -34,7 +34,7 @@ export default function TeacherLedgerPage() {
       // Creating a withdrawal request and marking it as completed to represent a payout
       const payoutId = `payout_${Date.now()}`;
       const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
-      const { db } = await import("../../../../lib/firebase");
+      const { db } = await import("../../../../shared/firebase/client");
       
       await setDoc(doc(db, "withdrawal_requests", payoutId), {
         teacherId: ledger.id,

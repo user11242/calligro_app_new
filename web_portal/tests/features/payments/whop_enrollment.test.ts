@@ -1,13 +1,13 @@
 /**
  * Whop purchase → enrolment + accounting, against the Firestore emulator:
  *   firebase emulators:exec --only firestore --project demo-calligro \
- *     "cd web_portal && npx vitest run tests/whop_enrollment.test.ts"
+ *     "cd web_portal && npx vitest run tests/features/payments/whop_enrollment.test.ts"
  */
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 import * as admin from "firebase-admin";
-import { recordWhopPurchase } from "../src/lib/enrollment";
-import { parseWhopPayment } from "../src/lib/whopWebhook";
+import { recordWhopPurchase } from "../../../src/features/payments/server/enrollment.server";
+import { parseWhopPayment } from "../../../src/features/payments/server/whopWebhook.server";
 
 const app = admin.initializeApp({ projectId: "demo-calligro-web" }, "whop-enrollment-test");
 const db = app.firestore();

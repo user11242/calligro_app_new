@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { db, auth } from "@/lib/firebase";
+import { db, auth } from "@/shared/firebase/client";
 import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ArrowLeft, Download } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import Link from "next/link";
-import { formatImageUrl } from "@/lib/utils";
+import { formatImageUrl } from "@/shared/utils/utils";
 import { issueCertificateAction } from "@/app/actions/certificates";
-import CalligroCertificate from "@/components/CalligroCertificate";
+import CalligroCertificate from "@/features/certificates/ui/CalligroCertificate";
 
 export default function CertificatePage() {
   const { id } = useParams();

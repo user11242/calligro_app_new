@@ -39,3 +39,67 @@ describe("server actions check who is calling", () => {
     }
   });
 });
+
+describe("feature structure: src/features/<feature>/{domain,data,server,ui}, src/shared, src/app (routes)", () => {
+  it("domain code is pure TypeScript: no Firebase, React, Next or other layers", () => {
+    for (const f of all.filter((f) => /\/features\/[^/]+\/domain\//.test(f.path))) {
+      expect(/from\s+["'](firebase|firebase-admin|react|next)[/"']/.test(f.code), `${f.path}: domain must stay pure`).toBe(false);
+      expect(/from\s+["'][^"']*\/(data|server|ui)\//.test(f.code), `${f.path}: domain must not depend on data/server/ui`).toBe(false);
+      expect(/@\/shared\/firebase/.test(f.code), `${f.path}: domain must not touch Firebase`).toBe(false);
+    }
+  });
+
+  it("the admin key is used only in *.server.ts files, API routes and server actions", () => {
+    for (const f of all.filter((f) => /firebase-admin|shared\/firebase\/admin\.server/.test(f.code))) {
+      const ok = /\.server\.ts$/.test(f.path) || /\/app\/api\/.*\/route\.ts$/.test(f.path) || isServerAction(f.code);
+      expect(ok, `${f.path} uses the admin key`).toBe(true);
+    }
+  });
+
+  it("files in a feature's server/ folder are named *.server.ts", () => {
+    for (const f of all.filter((f) => /\/features\/[^/]+\/server\//.test(f.path))) {
+      expect(/\.server\.ts$/.test(f.path), f.path).toBe(true);
+    }
+  });
+
+  it("the old folders do not grow back (lib/components/hooks/context)", () => {
+    const old = all.filter((f) => /^src\/(lib|components|hooks|context)\//.test(f.path)).map((f) => f.path);
+    // financeService moves into the admin feature in its phase; nothing else may be added here.
+    expect(old).toEqual(["src/lib/financeService.ts"]);
+  });
+
+  it("pages talking to Firestore directly: a FROZEN list that may only shrink as features move to data/", () => {
+    const frozen = new Set([
+      "src/app/admin/layout.tsx",
+      "src/app/courses/[id]/certificate/page.tsx",
+      "src/app/courses/[id]/checkout/page.tsx",
+      "src/app/courses/[id]/classroom/page.tsx",
+      "src/app/courses/[id]/page.tsx",
+      "src/app/courses/[id]/success/page.tsx",
+      "src/app/courses/page.tsx",
+      "src/app/login/page.tsx",
+      "src/app/page.tsx",
+      "src/app/profile/page.tsx",
+      "src/app/teacher/(main)/certificates/page.tsx",
+      "src/app/teacher/(main)/courses/[id]/page.tsx",
+      "src/app/teacher/(main)/courses/page.tsx",
+      "src/app/teacher/(main)/dashboard/page.tsx",
+      "src/app/teacher/(main)/homeworks/page.tsx",
+      "src/app/teacher/(main)/layout.tsx",
+      "src/app/teacher/courses/[id]/classroom/page.tsx",
+      "src/app/teachers/[id]/page.tsx",
+      "src/app/teachers/page.tsx",
+      "src/app/verify/[id]/page.tsx",
+      "src/app/verify/page.tsx",
+      "src/features/meet/ui/CalligroMeetLayout.tsx",
+      "src/shared/ui/Navbar.tsx",
+      "src/lib/financeService.ts",
+    ]);
+    const direct = all
+      .filter((f) => /from\s+["']firebase\/firestore["']/.test(f.code))
+      .map((f) => f.path)
+      .filter((p) => !/\/data\//.test(p) && p !== "src/shared/firebase/client.ts");
+    for (const p of direct) expect(frozen.has(p), `${p} talks to Firestore directly: use the feature's data/ layer`).toBe(true);
+  });
+});
+

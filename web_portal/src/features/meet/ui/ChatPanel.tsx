@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useChat, useLocalParticipant } from "@livekit/components-react";
-import { translateText } from "@/lib/translateText";
+import { translateText } from "@/shared/i18n/translateText";
 import { Send, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 

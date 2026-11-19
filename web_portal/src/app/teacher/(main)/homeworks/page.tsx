@@ -7,12 +7,12 @@ import {
   Users, BookOpen, FileText, Image as ImageIcon, ExternalLink, Award,
   AlertCircle, Search
 } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { collection, query, where, getDocs, collectionGroup, doc, updateDoc } from "firebase/firestore";
 import Image from "next/image";
 import { onAuthStateChanged } from "firebase/auth";
 import { format } from "date-fns";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },

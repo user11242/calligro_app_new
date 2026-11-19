@@ -82,7 +82,7 @@ jobs:
       - name: Run Whop enrolment tests against the Firestore emulator
         run: >
           firebase emulators:exec --only firestore --project demo-calligro
-          "cd web_portal && npx vitest run tests/whop_enrollment.test.ts tests/features/certificates"
+          "cd web_portal && npx vitest run tests/features/payments/whop_enrollment.test.ts tests/features/certificates"
 
   web_portal_tests:
     name: Web Portal Finance Tests (Domain 1)
@@ -102,7 +102,7 @@ jobs:
         run: npm install --legacy-peer-deps
         
       - name: Run Finance Webhook Tests
-        run: npx vitest run tests/finance.test.ts tests/whop_webhook.test.ts tests/whop_checkout.test.ts tests/guardrails.test.ts
+        run: npx vitest run tests/finance.test.ts tests/features/payments/whop_webhook.test.ts tests/features/payments/whop_checkout.test.ts tests/guardrails.test.ts
 
   deploy_ios:
     name: Deploy to Apple TestFlight (CD)

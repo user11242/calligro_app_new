@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { ArrowUpRight, Plus, Calendar, Clock, TrendingUp as TrendingUpIcon, Loader2, Search, ChevronDown, Landmark, BadgeDollarSign, ReceiptText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { financeService, Transaction, Expense } from "@/lib/financeService";
-import { ENABLE_8_PERCENT_FEE, FEE_RATE } from "@/lib/pricingConfig";
+import { ENABLE_8_PERCENT_FEE, FEE_RATE } from "@/features/payments/domain/pricing";
 
 // While the 8% fee switch is off, no label mentions it and the buffer columns are hidden.
 const NO_FEE_LABELS = {

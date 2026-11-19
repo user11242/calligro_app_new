@@ -6,7 +6,7 @@
  * features/certificates/data/certificates.server.ts. They used to use the admin
  * key with no check at all.
  */
-import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { adminAuth, adminDb } from "@/shared/firebase/admin.server";
 import {
   CertificateRefused,
   callerFromToken,
@@ -14,9 +14,9 @@ import {
   issueCertificate,
   loadTeacherCertificates,
   type IssueCertificateParams,
-} from "@/features/certificates/data/certificates.server";
+} from "@/features/certificates/server/certificates.server";
 
-export type { IssueCertificateParams } from "@/features/certificates/data/certificates.server";
+export type { IssueCertificateParams } from "@/features/certificates/server/certificates.server";
 
 // Results keep the shape the pages already read: { success, error?, ... }.
 async function run<T extends object>(

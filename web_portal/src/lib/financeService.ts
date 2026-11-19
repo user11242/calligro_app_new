@@ -1,4 +1,4 @@
-import { db, auth } from "./firebase";
+import { db, auth } from "../shared/firebase/client";
 import { 
   collection, 
   query, 

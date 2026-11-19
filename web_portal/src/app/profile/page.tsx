@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Navbar from "@/shared/ui/Navbar";
+import Footer from "@/shared/ui/Footer";
 import { motion, AnimatePresence } from "framer-motion";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { onAuthStateChanged, signOut, User as FirebaseUser } from "firebase/auth";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { useTranslation } from "@/hooks/useTranslation";
-import { formatImageUrl } from "@/lib/utils";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import { formatImageUrl } from "@/shared/utils/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { 

@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Users, Star, Search, Play, ChevronRight, Loader2, Filter, Video } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import Link from "next/link";
 import Image from "next/image";
 import { onAuthStateChanged } from "firebase/auth";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },

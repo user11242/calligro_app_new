@@ -1,8 +1,8 @@
 "use client";
 
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { useTranslation } from "@/hooks/useTranslation";
+import Navbar from "@/shared/ui/Navbar";
+import Footer from "@/shared/ui/Footer";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import { Smartphone, Download, Sparkles, CheckCircle2 } from "lucide-react";
 import Image from "next/image";
 

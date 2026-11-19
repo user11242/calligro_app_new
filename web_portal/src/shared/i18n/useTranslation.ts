@@ -1,7 +1,7 @@
-import { useLocale } from "@/context/LocaleContext";
-import en from "@/locales/en.json";
-import ar from "@/locales/ar.json";
-import tr from "@/locales/tr.json";
+import { useLocale } from "@/shared/i18n/LocaleContext";
+import en from "@/shared/i18n/locales/en.json";
+import ar from "@/shared/i18n/locales/ar.json";
+import tr from "@/shared/i18n/locales/tr.json";
 
 const translations = {
   en,

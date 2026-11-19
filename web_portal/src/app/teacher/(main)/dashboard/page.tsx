@@ -7,13 +7,13 @@ import {
   Globe, Mail, TrendingUp, Calendar, Clock,
   CheckCircle2, Sparkles, BarChart2, Loader2, ArrowUpRight,
 } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import Image from "next/image";
 import { onAuthStateChanged } from "firebase/auth";
 import { format, formatDistanceToNow } from "date-fns";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 20 },

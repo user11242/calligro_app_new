@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useLocale } from "@/context/LocaleContext";
-import { translateText } from "@/lib/translateText";
+import { useLocale } from "@/shared/i18n/LocaleContext";
+import { translateText } from "@/shared/i18n/translateText";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface AutoTranslatedTextProps {

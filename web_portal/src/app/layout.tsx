@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   },
 };
 
-import { LocaleProvider } from "@/context/LocaleContext";
+import { LocaleProvider } from "@/shared/i18n/LocaleContext";
 
 export default function RootLayout({
   children,

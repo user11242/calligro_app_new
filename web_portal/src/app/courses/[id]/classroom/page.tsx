@@ -4,12 +4,12 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { auth, app, db } from "@/lib/firebase";
+import { auth, app, db } from "@/shared/firebase/client";
 import { getDoc, doc } from "firebase/firestore";
 import { Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import CalligroMeetRoom from "@/components/meet/CalligroMeetRoom";
-import { useTranslation } from "@/hooks/useTranslation";
+import CalligroMeetRoom from "@/features/meet/ui/CalligroMeetRoom";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 export default function ClassroomPage() {
   const { t } = useTranslation();

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebaseAdmin";
-import { createWhopCheckout } from "@/lib/whop";
-import { calculateWebPrice } from "@/lib/pricingConfig";
-import { checkoutBlock, type CheckoutBlock } from "@/lib/checkoutRules";
+import { adminDb } from "@/shared/firebase/admin.server";
+import { createWhopCheckout } from "@/features/payments/server/whop.server";
+import { calculateWebPrice } from "@/features/payments/domain/pricing";
+import { checkoutBlock, type CheckoutBlock } from "@/features/payments/domain/checkoutRules";
 
 const BLOCK_STATUS: Record<CheckoutBlock, number> = {
   course_not_found: 404,

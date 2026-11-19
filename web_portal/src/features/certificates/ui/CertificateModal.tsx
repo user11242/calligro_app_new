@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download, ExternalLink, Check, Copy, Loader2, Award, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import CalligroCertificate from "@/components/CalligroCertificate";
+import CalligroCertificate from "@/features/certificates/ui/CalligroCertificate";
 
 interface CertificateModalProps {
   isOpen: boolean;

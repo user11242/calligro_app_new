@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, Loader2, Check, Smartphone } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import Image from "next/image";
-import Navbar from "@/components/Navbar";
-import { useTranslation } from "@/hooks/useTranslation";
+import Navbar from "@/shared/ui/Navbar";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");

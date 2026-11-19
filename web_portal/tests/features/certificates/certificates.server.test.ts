@@ -16,7 +16,7 @@ import {
   loadTeacherCertificates,
   callerFromToken,
   CertificateRefused,
-} from "../../../src/features/certificates/data/certificates.server";
+} from "../../../src/features/certificates/server/certificates.server";
 
 const app = admin.initializeApp({ projectId: "demo-calligro-certs" }, "certificates-test");
 const db = app.firestore();

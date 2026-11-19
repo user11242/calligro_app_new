@@ -1,17 +1,17 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Navbar from "@/shared/ui/Navbar";
+import Footer from "@/shared/ui/Footer";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
-import { db } from "@/lib/firebase";
+import { db } from "@/shared/firebase/client";
 import { collection, query, limit, getDocs, orderBy, where } from "firebase/firestore";
 import Image from "next/image";
 import { Star, ArrowRight, Play, Layout, Users, Sparkles, Search, BookOpen, Clock, ChevronRight, ChevronLeft, CheckCircle, TrendingUp, Quote, Trophy, Medal, Map, Award } from "lucide-react";
-import { formatImageUrl } from "@/lib/utils";
-import { useTranslation } from "@/hooks/useTranslation";
-import AutoTranslatedText from "@/components/AutoTranslatedText";
-import { calculateWebPrice, formatPrice } from "@/lib/pricingConfig";
+import { formatImageUrl } from "@/shared/utils/utils";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import AutoTranslatedText from "@/shared/i18n/AutoTranslatedText";
+import { calculateWebPrice, formatPrice } from "@/features/payments/domain/pricing";
 
 // Safe date formatter for Firebase Timestamps or strings
 const formatCourseDate = (dateVal: any, locale: string) => {

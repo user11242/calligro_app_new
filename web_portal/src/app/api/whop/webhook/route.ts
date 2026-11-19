@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebaseAdmin";
-import { parseWhopPayment, verifyWhopSignature } from "@/lib/whopWebhook";
-import { recordWhopPurchase } from "@/lib/enrollment";
+import { adminDb } from "@/shared/firebase/admin.server";
+import { parseWhopPayment, verifyWhopSignature } from "@/features/payments/server/whopWebhook.server";
+import { recordWhopPurchase } from "@/features/payments/server/enrollment.server";
 
 /**
  * Whop → enrolment. Only signed webhooks (WHOP_WEBHOOK_SECRET) of a succeeded

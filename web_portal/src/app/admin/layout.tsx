@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { LayoutDashboard, Wallet, UserCheck, FileText, BarChart3, LogOut, Loader2, Menu, X, Lock, ShieldCheck } from "lucide-react";

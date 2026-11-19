@@ -1,9 +1,9 @@
 "use client";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Navbar from "@/shared/ui/Navbar";
+import Footer from "@/shared/ui/Footer";
 import { motion } from "framer-motion";
 import { ShieldCheck, Lock, Eye, Database } from "lucide-react";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 export default function PrivacyPage() {
   const { t } = useTranslation();

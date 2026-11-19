@@ -2,7 +2,7 @@
 import { CheckCircle2, ArrowRight, Star } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 interface TeacherCardProps {
   teacher: {

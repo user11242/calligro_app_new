@@ -3,7 +3,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, runTransaction, collection, serverTimestamp } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/shared/ui/Navbar";
 import {
   Loader2,
   ShieldCheck,
@@ -15,10 +15,10 @@ import {
   Info,
 } from "lucide-react";
 import Link from "next/link";
-import { useTranslation } from "@/hooks/useTranslation";
-import { blockMessageKey } from "@/lib/checkoutRules";
-import { db as libDb, auth as libAuth } from "@/lib/firebase";
-import { ENABLE_8_PERCENT_FEE, FEE_RATE, calculateWebPrice } from "@/lib/pricingConfig";
+import { useTranslation } from "@/shared/i18n/useTranslation";
+import { blockMessageKey } from "@/features/payments/domain/checkoutRules";
+import { db as libDb, auth as libAuth } from "@/shared/firebase/client";
+import { ENABLE_8_PERCENT_FEE, FEE_RATE, calculateWebPrice } from "@/features/payments/domain/pricing";
 
 function CheckoutContent() {
   const { id } = useParams();

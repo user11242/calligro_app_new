@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import crypto from "crypto";
-import { verifyWhopSignature, parseWhopPayment, MAX_WEBHOOK_AGE_SECONDS } from "../src/lib/whopWebhook";
+import { verifyWhopSignature, parseWhopPayment, MAX_WEBHOOK_AGE_SECONDS } from "../../../src/features/payments/server/whopWebhook.server";
 
 // Standard Webhooks signing, as Whop does it.
 const SECRET = "ws_test_secret_123";

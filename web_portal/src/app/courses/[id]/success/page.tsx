@@ -1,15 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
+import { auth, db } from "@/shared/firebase/client";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Navbar from "@/shared/ui/Navbar";
+import Footer from "@/shared/ui/Footer";
 import { CheckCircle2, PlayCircle, Sparkles, ArrowRight, User, Loader2, Clock } from "lucide-react";
 import Link from "next/link";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 import { motion } from "framer-motion";
-import { formatImageUrl } from "@/lib/utils";
+import { formatImageUrl } from "@/shared/utils/utils";
 import Image from "next/image";
 
 export default function SuccessPage() {

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation } from "@/shared/i18n/useTranslation";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
