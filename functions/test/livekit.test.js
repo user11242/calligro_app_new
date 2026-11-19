@@ -29,6 +29,7 @@ const mockState = {
   delays: [],
   s3Configs: [],
   lkClients: [],
+  alerts: [],
 };
 
 const mockSecrets = {
@@ -47,6 +48,10 @@ jest.mock("firebase-admin", () => {
   firestore.Timestamp = helpers.Timestamp;
   return { firestore };
 });
+
+jest.mock("../notifications.js", () => ({
+  notifyAdmins: jest.fn(async (alert) => { mockState.alerts.push(alert); return 1; }),
+}));
 
 jest.mock("firebase-functions/params", () => ({
   defineSecret: (name) => ({ name, value: () => mockSecrets[name] }),
@@ -85,6 +90,8 @@ jest.mock("@aws-sdk/client-s3", () => {
   class PutObjectCommand extends Command {}
   class GetObjectCommand extends Command {}
   class HeadObjectCommand extends Command {}
+  class ListObjectsV2Command extends Command {}
+  class DeleteObjectCommand extends Command {}
   class S3Client {
     constructor(config) { mockState.s3Configs.push(config); }
     async send(cmd) {
@@ -96,10 +103,14 @@ jest.mock("@aws-sdk/client-s3", () => {
         }
         return { ContentLength: mockState.r2.get(cmd.input.Key) };
       }
+      if (cmd instanceof ListObjectsV2Command) {
+        const keys = [...mockState.r2.keys()].filter((k) => k.startsWith(cmd.input.Prefix)).sort();
+        return { Contents: keys.map((Key) => ({ Key, Size: mockState.r2.get(Key) })), IsTruncated: false };
+      }
       throw new Error(`unexpected S3 command ${cmd.constructor.name}`);
     }
   }
-  return { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand };
+  return { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, DeleteObjectCommand };
 });
 
 jest.mock("@aws-sdk/s3-request-presigner", () => ({
@@ -189,6 +200,7 @@ beforeEach(() => {
   mockState.delays = [];
   mockState.s3Configs = [];
   mockState.lkClients = [];
+  mockState.alerts = [];
   getSignedUrl.mockClear();
   seedWorld(mockState.db);
   global.setTimeout = (cb, ms) => { mockState.delays.push(ms); cb(); return 0; };
@@ -650,6 +662,10 @@ describe("moderateParticipant", () => {
 describe("startAutomatedRecording", () => {
   const start = (uid, data) => call(lk.startAutomatedRecording, uid, { courseId: "c1", audioTrackId: "TR_a", videoTrackId: "TR_v", ...data });
 
+  test("runs in both regions: older apps (≤ 1.0.21) still call us-east1", () => {
+    expect(lk.startAutomatedRecording.__options.region).toEqual(["us-central1", "us-east1"]);
+  });
+
   test("access control and validation", async () => {
     await expectHttpsError(call(lk.startAutomatedRecording, null, {}), "unauthenticated");
     await expectHttpsError(start("T1", { courseId: undefined }), "invalid-argument");
@@ -685,15 +701,22 @@ describe("startAutomatedRecording", () => {
     const [, room, identity, output, opts] = mockState.lk.callsTo("startParticipantEgress")[0];
     expect(room).toBe(ROOM);
     expect(identity).toBe("T1_mobile");
+    const r2 = {
+      case: "s3",
+      value: {
+        accessKey: "r2-access", secret: "r2-secret", endpoint: "https://r2.example.com",
+        bucket: "calligro-recordings", region: "auto", forcePathStyle: true,
+      },
+    };
     expect(output).toEqual({
-      fileType: 0,
-      filepath: `courses/c1/recordings/recording-c1-${NOW}.mp4`,
-      output: {
-        case: "s3",
-        value: {
-          accessKey: "r2-access", secret: "r2-secret", endpoint: "https://r2.example.com",
-          bucket: "calligro-recordings", region: "auto", forcePathStyle: true,
-        },
+      // The normal MP4 (reaches R2 when the class ends)…
+      file: { fileType: 0, filepath: `courses/c1/recordings/recording-c1-${NOW}.mp4`, output: r2 },
+      // …and the safety net: 6-second pieces uploaded to R2 during the class.
+      segments: {
+        filenamePrefix: `recording-segments/c1/${NOW}/seg`,
+        playlistName: `recording-segments/c1/${NOW}/index`,
+        segmentDuration: 6,
+        output: r2,
       },
     });
     const { EncodingOptionsPreset } = jest.requireActual("livekit-server-sdk");
@@ -724,7 +747,8 @@ describe("startAutomatedRecording", () => {
     expect(res.egressId).toMatch(/^EG_track_/);
     const [, room, output, opts] = mockState.lk.callsTo("startTrackCompositeEgress")[0];
     expect(room).toBe(ROOM);
-    expect(output.filepath).toBe(`courses/c1/recordings/recording-c1-${NOW}.mp4`);
+    expect(output.file.filepath).toBe(`courses/c1/recordings/recording-c1-${NOW}.mp4`);
+    expect(output.segments.filenamePrefix).toBe(`recording-segments/c1/${NOW}/seg`);
     expect(opts.audioTrackId).toBe("TR_a");
     expect(opts.videoTrackId).toBe("TR_v");
   });
@@ -742,6 +766,7 @@ describe("startAutomatedRecording", () => {
     const expected = {
       sessionId: `c1_${NOW}`, egressId, roomName: ROOM, r2FilePath: `courses/c1/recordings/recording-c1-${NOW}.mp4`,
       startedAt: Timestamp.fromMillis(NOW), teacherId: "T1", courseId: "c1", status: "active",
+      safetyNet: true, segmentsPrefix: `recording-segments/c1/${NOW}/`,
     };
     expect(mockState.db.get(`courses/c1/activeSessions/c1_${NOW}`)).toEqual(expected);
     expect(mockState.db.get(`activeRecordings/${egressId}`)).toEqual(expected);
@@ -750,8 +775,21 @@ describe("startAutomatedRecording", () => {
     expect(mockState.db.has(`courses/c1/activeSessions/${today}`)).toBe(false);
   });
 
+  test("a recorder that refuses live pieces still records the MP4 (the class is never left unrecorded)", async () => {
+    mockState.lk.addParticipant(ROOM, { identity: "T1_mobile", role: "moderator" });
+    mockState.lk.rejectSegments = true;
+    const res = await start("T1");
+    expect(res.status).toBe("started");
+    const calls = mockState.lk.calls.filter((c) => c[0].startsWith("start") && c[0].endsWith("Egress"));
+    // pieces: participant → composite (both refused), then MP4 only: participant succeeds
+    expect(calls.map((c) => c[0])).toEqual(["startParticipantEgress", "startTrackCompositeEgress", "startParticipantEgress"]);
+    expect(calls[2][3]).toEqual(expect.objectContaining({ filepath: `courses/c1/recordings/recording-c1-${NOW}.mp4` }));
+    expect(calls[2][3].segments).toBeUndefined();
+    expect(mockState.db.get(`activeRecordings/${res.egressId}`)).toMatchObject({ safetyNet: true, segmentsPrefix: null });
+  });
+
   test("both egress types failing → internal error and nothing stored", async () => {
-    mockState.lk.failNext.startTrackCompositeEgress = new Error("egress unavailable");
+    mockState.lk.failAlways.startTrackCompositeEgress = new Error("egress unavailable");
     await expectHttpsError(start("T1"), "internal", "Failed to start");
     expect(mockState.db.paths("activeRecordings")).toEqual([]);
     expect(mockState.db.paths("courses/c1/activeSessions")).toEqual([]);
@@ -848,10 +886,145 @@ describe("livekitWebhook", () => {
       expect(mockState.db.get("courses/c1/activeSessions/2026-11-14")).toMatchObject({ status: "completed" });
     });
 
+    test("a finished recording closes the room record, so a later room_finished cannot overwrite its exact length", async () => {
+      // The teacher's app died: the egress ends on its own, students stay 2 more hours.
+      const rec = seedActiveRecording({ startedAt: NOW - 50 * 60 * 1000 });
+      await runWebhook(await signedWebhook(ended(rec.egressId, "EGRESS_COMPLETE", { fileResults: [{ filename: "f.mp4", duration: "2712000000000" }] })));
+      expect(mockState.db.get(`activeRooms/${ROOM}`)).toMatchObject({ status: "ended" });
+      now = NOW + 2 * HOUR;
+      await runWebhook(await signedWebhook({ event: "room_finished", room: { name: ROOM } }));
+      expect(mockState.db.get(`courses/c1/recordings/${rec.egressId}`)).toMatchObject({ duration: 2712, status: "ready" });
+    });
+
+    test("a finished OLDER recording does not close the room record of a newer one", async () => {
+      const rec = seedActiveRecording({ egressId: "EG_new" });
+      mockState.db.seed("activeRecordings/EG_old", { ...mockState.db.get(`activeRecordings/${rec.egressId}`), egressId: "EG_old", sessionId: "c1_old" });
+      await runWebhook(await signedWebhook(ended("EG_old", "EGRESS_COMPLETE")));
+      expect(mockState.db.get(`activeRooms/${ROOM}`)).toMatchObject({ status: "active", egressId: "EG_new" });
+    });
+
+    test("a failed recording is marked failed on the course's session too (so it is never recovered)", async () => {
+      const rec = seedActiveRecording();
+      await runWebhook(await signedWebhook(ended(rec.egressId, "EGRESS_FAILED", { error: "pipeline frozen" })));
+      expect(mockState.db.get(`courses/c1/activeSessions/${rec.sessionId}`)).toMatchObject({ status: "failed" });
+    });
+
     test("unknown egress → 200, nothing written", async () => {
       const res = await runWebhook(await signedWebhook(ended("EG_unknown", "EGRESS_COMPLETE")));
       expect(res.statusCode).toBe(200);
       expect(mockState.db.writes).toEqual([]);
+    });
+  });
+
+  describe("egress_ended with the safety net (recordings started by this version)", () => {
+    const ended = (egressId, status, extra = {}) => ({ event: "egress_ended", egressInfo: { egressId, roomName: ROOM, status, ...extra } });
+    /** Like LiveKit: once it reports a recorder as ended, it lists it as ended too. */
+    const reportFailed = async (egressId, extra) => {
+      mockState.lk.egresses.find((e) => e.egressId === egressId).status = EgressStatus.FAILED;
+      return runWebhook(await signedWebhook(ended(egressId, "EGRESS_FAILED", extra)));
+    };
+    function seedSafe() {
+      const rec = seedActiveRecording();
+      for (const p of [`courses/c1/activeSessions/${rec.sessionId}`, `activeRecordings/${rec.egressId}`, `activeRooms/${ROOM}`]) {
+        mockState.db.seed(p, { ...mockState.db.get(p), safetyNet: true, segmentsPrefix: `recording-segments/c1/${rec.startedAt}/` });
+      }
+      return rec;
+    }
+
+    test("finished AND the file is really in R2 → ready; pieces scheduled for clean-up in 7 days", async () => {
+      const rec = seedSafe();
+      mockState.r2.set(rec.r2FilePath, 900_000_000);
+      await runWebhook(await signedWebhook(ended(rec.egressId, "EGRESS_COMPLETE", { fileResults: [{ duration: "2712000000000" }] })));
+      const url = `https://cdn.example.com/${rec.r2FilePath}`;
+      expect(mockState.db.get(`courses/c1/recordings/${rec.egressId}`)).toEqual({
+        egressId: rec.egressId, roomName: ROOM, videoUrl: url, r2FilePath: rec.r2FilePath,
+        recordedAt: Timestamp.fromMillis(rec.startedAt), duration: 2712,
+        qualities: { "1080p": url, "720p": url, "480p": url, "360p": url }, status: "ready",
+      });
+      expect(mockState.db.get(`activeRecordings/${rec.egressId}`)).toMatchObject({ status: "completed", segmentsCleanup: "pending", storedAtMs: NOW });
+      expect(mockState.db.get(`activeRooms/${ROOM}`).status).toBe("ended");
+      expect(mockState.db.get(`courses/c1/activeSessions/${rec.sessionId}`).status).toBe("completed");
+    });
+
+    test("'finished' but the file is NOT in R2 → recovery (hidden, not shown broken)", async () => {
+      const rec = seedSafe();
+      // stop_recording already wrote the recording (the app would show it):
+      mockState.db.seed(`courses/c1/recordings/${rec.egressId}`, { egressId: rec.egressId, r2FilePath: rec.r2FilePath, videoUrl: "x" });
+      await runWebhook(await signedWebhook(ended(rec.egressId, "EGRESS_COMPLETE")));
+      expect(mockState.db.get(`courses/c1/recordings/${rec.egressId}`)).toMatchObject({ status: "failed", recoveryStatus: "checking" });
+      expect(mockState.db.get(`activeRecordings/${rec.egressId}`)).toMatchObject({
+        status: "recovering", recovery: { state: "checking", reason: "file_missing", since: NOW, egressEndedAtMs: NOW },
+      });
+      expect(mockState.db.get(`activeRooms/${ROOM}`).status).toBe("recovering");
+    });
+
+    test("recorder failed → recovery (the pieces may hold the class), not just hidden", async () => {
+      const rec = seedSafe();
+      await runWebhook(await signedWebhook(ended(rec.egressId, "EGRESS_FAILED", { error: "pipeline frozen" })));
+      expect(mockState.db.get(`activeRecordings/${rec.egressId}`)).toMatchObject({
+        status: "recovering", recovery: { state: "checking", reason: "recorder_failed: pipeline frozen" },
+      });
+      expect(mockState.db.has(`courses/c1/recordings/${rec.egressId}`)).toBe(false);
+    });
+
+    test("recorder failed while the teacher is still teaching → a NEW recording starts at once (rest of the class)", async () => {
+      const rec = seedSafe();
+      mockState.lk.addParticipant(ROOM, { identity: "T1_mobile", role: "moderator" });
+      mockState.lk.addParticipant(ROOM, { identity: "s1" });
+      await reportFailed(rec.egressId);
+
+      const [, room, identity, output] = mockState.lk.callsTo("startParticipantEgress")[0];
+      expect([room, identity]).toEqual([ROOM, "T1_mobile"]);
+      expect(output.segments).toBeDefined(); // the new recording has its own live pieces
+      const newId = mockState.lk.egresses.find((e) => e.kind === "participant").egressId;
+      expect(mockState.db.get(`activeRecordings/${newId}`)).toMatchObject({ status: "active", safetyNet: true, courseId: "c1" });
+      expect(mockState.db.get(`activeRecordings/${rec.egressId}`).status).toBe("recovering"); // the first part is recovered
+      expect(mockState.db.get(`activeRooms/${ROOM}`)).toMatchObject({ egressId: newId, status: "active", autoRestarts: [NOW] });
+    });
+
+    test("the teacher already left → no new recording", async () => {
+      const rec = seedSafe();
+      mockState.lk.addParticipant(ROOM, { identity: "s1" });
+      await reportFailed(rec.egressId);
+      expect(mockState.lk.callsTo("startParticipantEgress")).toEqual([]);
+    });
+
+    test("teacher without a camera (screen share only) → no new recording", async () => {
+      const rec = seedSafe();
+      mockState.lk.addParticipant(ROOM, {
+        identity: "T1_mobile", role: "moderator",
+        tracks: [{ sid: "mic", type: TrackType.AUDIO, muted: false }, { sid: "screen", type: TrackType.VIDEO, source: 3, muted: false }],
+      });
+      await reportFailed(rec.egressId);
+      expect(mockState.lk.callsTo("startParticipantEgress")).toEqual([]);
+    });
+
+    test("a recorder failing in a loop is restarted at most 3 times an hour", async () => {
+      const rec = seedSafe();
+      mockState.db.seed(`activeRooms/${ROOM}`, {
+        ...mockState.db.get(`activeRooms/${ROOM}`), autoRestarts: [NOW - 50 * 60 * 1000, NOW - 20 * 60 * 1000, NOW - 5 * 60 * 1000],
+      });
+      mockState.lk.addParticipant(ROOM, { identity: "T1_mobile", role: "moderator" });
+      await reportFailed(rec.egressId);
+      expect(mockState.lk.callsTo("startParticipantEgress")).toEqual([]);
+      // An hour later it may try again.
+      now = NOW + 61 * 60 * 1000;
+      const rec2 = { ...rec };
+      mockState.db.seed(`activeRecordings/${rec2.egressId}`, { ...mockState.db.get(`activeRecordings/${rec2.egressId}`), status: "active" });
+      await reportFailed(rec2.egressId);
+      expect(mockState.lk.callsTo("startParticipantEgress")).toHaveLength(1);
+    });
+
+    test("a recording in recovery is never re-saved by room_finished, stop_recording or the list's self-heal", async () => {
+      const rec = seedSafe();
+      await runWebhook(await signedWebhook(ended(rec.egressId, "EGRESS_FAILED")));
+      mockState.lk.egresses.find((e) => e.egressId === rec.egressId).status = EgressStatus.FAILED;
+      mockState.r2.set(rec.r2FilePath, 5_000_000); // a partial file
+      await runWebhook(await signedWebhook({ event: "room_finished", room: { name: ROOM } }));
+      await call(lk.moderateParticipant, "T1", { courseId: "c1", action: "stop_recording" });
+      await call(lk.reconcileCourseRecordings, "s1", { courseId: "c1" });
+      expect(mockState.db.has(`courses/c1/recordings/${rec.egressId}`)).toBe(false);
+      expect(mockState.db.get(`activeRecordings/${rec.egressId}`).status).toBe("recovering");
     });
   });
 
@@ -868,6 +1041,15 @@ describe("livekitWebhook", () => {
       mockState.db.seed(`activeRooms/${ROOM}`, { ...mockState.db.get(`activeRooms/${ROOM}`), status: "ended" });
       await runWebhook(await signedWebhook({ event: "room_finished", room: { name: ROOM } }));
       expect(mockState.db.paths("courses/c1/recordings")).toEqual([]);
+    });
+
+    test("a recording already saved by egress_ended keeps its exact length", async () => {
+      const rec = seedActiveRecording({ startedAt: NOW - 50 * 60 * 1000 });
+      mockState.db.seed(`courses/c1/recordings/${rec.egressId}`, { egressId: rec.egressId, r2FilePath: rec.r2FilePath, duration: 2712, status: "ready" });
+      now = NOW + 2 * HOUR;
+      await runWebhook(await signedWebhook({ event: "room_finished", room: { name: ROOM } }));
+      expect(mockState.db.get(`courses/c1/recordings/${rec.egressId}`)).toEqual({ egressId: rec.egressId, r2FilePath: rec.r2FilePath, duration: 2712, status: "ready" });
+      expect(mockState.db.get(`activeRooms/${ROOM}`)).toMatchObject({ status: "ended" });
     });
 
     test("a room with no recording (only the course mapping) is ignored", async () => {
@@ -1049,6 +1231,26 @@ describe("reconcileCourseRecordings (self-healing)", () => {
     expect(mockState.db.paths("courses/c1/recordings/")).toEqual(["courses/c1/recordings/EG_saved"]);
   });
 
+  test("a FAILED recording is never brought back, even when part of its file exists", async () => {
+    // Marked failed on the session itself…
+    session("c1_F1", { egressId: "EG_F1", r2FilePath: "courses/c1/recordings/f1.mp4", status: "failed" });
+    mockState.r2.set("courses/c1/recordings/f1.mp4", 5_000_000);
+    // …or only on the egress index (how older failures were recorded).
+    session("c1_F2", { egressId: "EG_F2", r2FilePath: "courses/c1/recordings/f2.mp4", status: "active" });
+    mockState.db.seed("activeRecordings/EG_F2", { status: "failed" });
+    mockState.r2.set("courses/c1/recordings/f2.mp4", 5_000_000);
+    await expect(reconcile("s1")).resolves.toEqual({ success: true, recoveredCount: 0 });
+    expect(mockState.db.paths("courses/c1/recordings/")).toEqual([]);
+  });
+
+  test("end to end: egress fails, a partial file is left in storage, opening the list does not show it", async () => {
+    const rec = seedActiveRecording();
+    await runWebhook(await signedWebhook({ event: "egress_ended", egressInfo: { egressId: rec.egressId, roomName: ROOM, status: "EGRESS_FAILED" } }));
+    mockState.r2.set(rec.r2FilePath, 5_000_000);
+    await expect(reconcile("s1")).resolves.toEqual({ success: true, recoveredCount: 0 });
+    expect(mockState.db.has(`courses/c1/recordings/${rec.egressId}`)).toBe(false);
+  });
+
   test("only the 10 most recent sessions are checked", async () => {
     for (let i = 0; i < 12; i++) {
       session(`c1_${i}`, { egressId: `EG_${i}`, r2FilePath: `courses/c1/recordings/${i}.mp4`, startedAt: Timestamp.fromMillis(NOW - i * HOUR) });
@@ -1150,7 +1352,8 @@ describe("End-to-end: one complete class", () => {
     await call(lk.moderateParticipant, "T1", { courseId: "c1", action: "end_room" });
     expect(L.rooms.has(ROOM)).toBe(false);
 
-    // LiveKit confirms the file.
+    // LiveKit confirms the file — and it really is in R2.
+    mockState.r2.set(`courses/c1/recordings/recording-c1-${NOW}.mp4`, 900_000_000);
     await runWebhook(await signedWebhook({ event: "egress_ended", egressInfo: { egressId, roomName: ROOM, status: "EGRESS_COMPLETE", fileResults: [{ duration: "2995000000000" }] } }));
     const recording = mockState.db.get(`courses/c1/recordings/${egressId}`);
     expect(recording).toMatchObject({ status: "ready", duration: 2995, r2FilePath: `courses/c1/recordings/recording-c1-${NOW}.mp4` });

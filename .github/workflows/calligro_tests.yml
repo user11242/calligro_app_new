@@ -44,7 +44,7 @@ jobs:
         run: npm ci
 
       - name: Run LiveKit Function Tests
-        run: npx jest test/livekit.test.js test/transcoder.test.js
+        run: npx jest test/livekit.test.js test/transcoder.test.js test/recording_safety.test.js
 
   security_rules_tests:
     name: Firestore & Storage Security Rules (emulators)
@@ -102,7 +102,7 @@ jobs:
         run: npm install --legacy-peer-deps
         
       - name: Run Finance Webhook Tests
-        run: npx vitest run tests/finance.test.ts tests/features/payments/whop_webhook.test.ts tests/features/payments/whop_checkout.test.ts tests/features/payments/whop_checkout_client.test.ts tests/features/courses/course_policy.test.ts tests/features/meet/meet_contract.test.ts tests/guardrails.test.ts
+        run: npx vitest run tests/finance.test.ts tests/features/payments/whop_webhook.test.ts tests/features/payments/whop_checkout.test.ts tests/features/payments/whop_checkout_client.test.ts tests/features/courses/course_policy.test.ts tests/features/meet/meet_contract.test.ts tests/features/meet/disconnect.test.ts tests/guardrails.test.ts
 
   deploy_ios:
     name: Deploy to Apple TestFlight (CD)

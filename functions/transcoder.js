@@ -20,11 +20,10 @@ const { onTaskDispatched } = require("firebase-functions/v2/tasks");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const { getFunctions } = require("firebase-admin/functions");
-const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const ffmpegPath = require("ffmpeg-static");
-const { spawn } = require("child_process");
 const fs = require("fs");
+const { BUCKET, makeS3, runFfmpeg, writeConcatList, joinParts, removeFiles } = require("./media.js");
 const path = require("path");
 const os = require("os");
 
@@ -34,9 +33,15 @@ const r2Endpoint = defineSecret("CLOUDFLARE_R2_ENDPOINT");
 const r2PublicUrl = defineSecret("CLOUDFLARE_R2_PUBLIC_URL");
 
 const REGION = "us-central1";
-const BUCKET = "calligro-recordings";
 const QUEUE_FUNCTION = "transcoder-transcodeRendition";
 const MAX_ATTEMPTS = 2;
+
+/**
+ * A task may run 30 minutes at most (the Cloud Tasks limit), which is not enough to
+ * convert a 2-3 hour class in one go. Longer recordings are converted in pieces of
+ * this length (each its own task) and then joined without re-encoding.
+ */
+const CHUNK_SECONDS = 1200;
 
 const RENDITIONS = {
   "720p": { height: 720, videoBitrate: "1400k", audioBitrate: "128k" },
@@ -53,18 +58,26 @@ function renditionKey(r2FilePath, label) {
   return `${r2FilePath.replace(/\.(mp4|webm|mov)$/i, "")}_${label}.mp4`;
 }
 
+/** Recording length in seconds (LiveKit nanoseconds in old documents); 0 if unknown. */
+function durationSeconds(recording) {
+  const raw = Number(recording.duration) || 0;
+  return raw > 100000000 ? raw / 1e9 : raw;
+}
+
+/** Number of pieces a rendition is converted in (1 = the whole file in one task). */
+function partCount(recording) {
+  return Math.max(1, Math.ceil(durationSeconds(recording) / CHUNK_SECONDS));
+}
+
+/** R2 key of one piece of a rendition (deleted once the pieces are joined). */
+function partKey(r2FilePath, label, part) {
+  return renditionKey(r2FilePath, label).replace(/\.mp4$/, `.part${part}.ts`);
+}
+
 /** Renditions not produced yet for this recording. */
 function missingRenditions(recording) {
   const done = recording.renditionKeys || {};
   return Object.keys(RENDITIONS).filter((label) => !done[label]);
-}
-
-function makeS3(secrets) {
-  return new S3Client({
-    region: "auto",
-    endpoint: secrets.endpoint,
-    credentials: { accessKeyId: secrets.accessKey, secretAccessKey: secrets.secretKey },
-  });
 }
 
 function readSecrets() {
@@ -80,29 +93,39 @@ function recordingRef(courseId, recordingId) {
   return admin.firestore().collection("courses").doc(courseId).collection("recordings").doc(recordingId);
 }
 
-/** Runs ffmpeg: input URL → local MP4 at the given height. */
+/** Encoding settings shared by whole files and pieces (so joined pieces match). */
+function encodeArgs(height, videoBitrate, audioBitrate) {
+  return [
+    "-vf", `scale=-2:${height}`, // -2 keeps aspect ratio with an even width (H.264)
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
+    "-b:v", videoBitrate, "-maxrate", videoBitrate, "-bufsize", `${parseInt(videoBitrate, 10) * 2}k`,
+    "-c:a", "aac", "-b:a", audioBitrate,
+  ];
+}
+
+const INPUT_RECONNECT = ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5"];
+
+/** Whole file: input URL → local MP4 at the given height. */
 function transcodeStream(inputUrl, outputPath, height, videoBitrate, audioBitrate) {
-  return new Promise((resolve, reject) => {
-    const args = [
-      "-y",
-      "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
-      "-i", inputUrl,
-      "-vf", `scale=-2:${height}`, // -2 keeps aspect ratio with an even width (H.264)
-      "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
-      "-b:v", videoBitrate, "-maxrate", videoBitrate, "-bufsize", `${parseInt(videoBitrate, 10) * 2}k`,
-      "-c:a", "aac", "-b:a", audioBitrate,
-      "-movflags", "+faststart",
-      outputPath,
-    ];
-    const proc = spawn(ffmpegPath, args);
-    let stderr = "";
-    proc.stderr.on("data", (d) => { stderr = (stderr + d.toString()).slice(-2000); });
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-300)}`));
-    });
-  });
+  return runFfmpeg([
+    "-y", ...INPUT_RECONNECT,
+    "-i", inputUrl,
+    ...encodeArgs(height, videoBitrate, audioBitrate),
+    "-movflags", "+faststart",
+    outputPath,
+  ]);
+}
+
+/** One piece: [start, start+length) of the input → local MPEG-TS (joins cleanly). */
+function transcodePart(inputUrl, outputPath, start, length, height, videoBitrate, audioBitrate) {
+  return runFfmpeg([
+    "-y", ...INPUT_RECONNECT,
+    "-ss", String(start), "-t", String(length), // before -i: seek, don't decode from the start
+    "-i", inputUrl,
+    ...encodeArgs(height, videoBitrate, audioBitrate),
+    "-f", "mpegts",
+    outputPath,
+  ]);
 }
 
 /** Enqueues one task per missing rendition and marks the recording "queued". */
@@ -110,11 +133,23 @@ async function enqueueTranscoding(courseId, recordingId, recording) {
   const missing = missingRenditions(recording);
   if (missing.length === 0) return 0;
   const queue = getFunctions().taskQueue(`locations/${REGION}/functions/${QUEUE_FUNCTION}`);
-  await Promise.all(missing.map((label) => queue.enqueue({ courseId, recordingId, label })));
+  const parts = partCount(recording);
+  const tasks = [];
+  for (const label of missing) {
+    if (parts === 1) {
+      tasks.push({ courseId, recordingId, label });
+      continue;
+    }
+    const done = (recording.renditionParts || {})[label] || {};
+    for (let part = 0; part < parts; part++) {
+      if (!done[part]) tasks.push({ courseId, recordingId, label, part, parts });
+    }
+  }
+  await Promise.all(tasks.map((task) => queue.enqueue(task)));
   await recordingRef(courseId, recordingId).set(
     { transcodingStatus: "queued", transcodeError: null },
     { merge: true });
-  return missing.length;
+  return tasks.length;
 }
 
 /**
@@ -122,7 +157,10 @@ async function enqueueTranscoding(courseId, recordingId, recording) {
  * recording is gone, or if the recording failed.
  * Returns "skipped" | "done" (all renditions now exist → "completed").
  */
-async function processRendition({ courseId, recordingId, label }, secrets) {
+async function processRendition({ courseId, recordingId, label, part, parts }, secrets) {
+  if (Number.isInteger(parts) && parts > 1) {
+    return processPart({ courseId, recordingId, label, part, parts }, secrets);
+  }
   const spec = RENDITIONS[label];
   if (!spec) throw new Error(`Unknown rendition "${label}"`);
 
@@ -148,9 +186,15 @@ async function processRendition({ courseId, recordingId, label }, secrets) {
       Bucket: BUCKET, Key: key, Body: fs.createReadStream(localOutput), ContentType: "video/mp4",
     }));
   } finally {
-    try { fs.unlinkSync(localOutput); } catch (_) { /* not created */ }
+    removeFiles(localOutput);
   }
 
+  await recordRendition(ref, label, key, secrets);
+  return "done";
+}
+
+/** Saves a finished rendition; marks the recording completed once all exist. */
+async function recordRendition(ref, label, key, secrets) {
   const publicUrl = `${secrets.publicUrl.replace(/\/$/, "")}/${key}`;
   // Nested merge: each task adds only its own rendition.
   // `qualities` (public URLs) is kept for older app versions only.
@@ -165,6 +209,69 @@ async function processRendition({ courseId, recordingId, label }, secrets) {
       transcodeError: null,
     }, { merge: true });
   }
+}
+
+/**
+ * One piece of a long recording. Idempotent. The task that finds every piece present
+ * joins them into the rendition (if two finish at once both join: same result).
+ * Returns "skipped" | "part" | "done".
+ */
+async function processPart({ courseId, recordingId, label, part, parts }, secrets) {
+  const spec = RENDITIONS[label];
+  if (!spec) throw new Error(`Unknown rendition "${label}"`);
+  if (!Number.isInteger(part) || part < 0 || part >= parts) throw new Error(`Invalid piece ${part}/${parts}`);
+
+  const ref = recordingRef(courseId, recordingId);
+  const snap = await ref.get();
+  if (!snap.exists) return "skipped";
+  const recording = snap.data();
+  if (recording.status === "failed" || !recording.r2FilePath) return "skipped";
+  if ((recording.renditionKeys || {})[label]) return "skipped";
+
+  const s3 = makeS3(secrets);
+  const signed = (key) => getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn: 2 * 3600 });
+
+  if (!((recording.renditionParts || {})[label] || {})[part]) {
+    await ref.set({ transcodingStatus: "processing" }, { merge: true });
+    const localPart = path.join(os.tmpdir(), `transcode_${recordingId}_${label}_part${part}.ts`);
+    const key = partKey(recording.r2FilePath, label, part);
+    try {
+      await transcodePart(await signed(recording.r2FilePath), localPart, part * CHUNK_SECONDS, CHUNK_SECONDS,
+        spec.height, spec.videoBitrate, spec.audioBitrate);
+      await s3.send(new PutObjectCommand({
+        Bucket: BUCKET, Key: key, Body: fs.createReadStream(localPart), ContentType: "video/mp2t",
+      }));
+    } finally {
+      removeFiles(localPart);
+    }
+    await ref.set({ renditionParts: { [label]: { [part]: key } } }, { merge: true });
+  }
+
+  const now = (await ref.get()).data();
+  const done = (now.renditionParts || {})[label] || {};
+  const keys = [];
+  for (let i = 0; i < parts; i++) keys.push(done[i]);
+  if (keys.some((k) => !k) || (now.renditionKeys || {})[label]) return "part";
+
+  // Every piece exists: join them, in order, into the normal rendition file.
+  const listPath = path.join(os.tmpdir(), `transcode_${recordingId}_${label}_list.txt`);
+  const localOutput = path.join(os.tmpdir(), `transcode_${recordingId}_${label}.mp4`);
+  const key = renditionKey(recording.r2FilePath, label);
+  try {
+    const urls = await Promise.all(keys.map(signed));
+    writeConcatList(listPath, urls);
+    await joinParts(listPath, localOutput);
+    await s3.send(new PutObjectCommand({
+      Bucket: BUCKET, Key: key, Body: fs.createReadStream(localOutput), ContentType: "video/mp4",
+    }));
+  } finally {
+    removeFiles(listPath, localOutput);
+  }
+  await recordRendition(ref, label, key, secrets);
+
+  // The pieces are no longer needed (best effort: a leftover piece only costs storage).
+  await Promise.all(keys.map((k) => s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: k }))
+    .catch((e) => console.warn(`Could not delete piece ${k}:`, e.message))));
   return "done";
 }
 
@@ -195,19 +302,19 @@ exports.transcodeRendition = onTaskDispatched({
   secrets: [r2AccessKey, r2SecretKey, r2Endpoint, r2PublicUrl],
   region: REGION,
   cpu: 2,
-  memory: "2GiB",
+  memory: "4GiB", // /tmp lives in memory: a long class's joined 720p file is >1 GB
   timeoutSeconds: 1800,
   maxInstances: 3,
   retryConfig: { maxAttempts: MAX_ATTEMPTS, minBackoffSeconds: 60 },
   rateLimits: { maxConcurrentDispatches: 3 },
 }, async (req) => {
-  const { courseId, recordingId, label } = req.data || {};
+  const { courseId, recordingId, label, part, parts } = req.data || {};
   if (!courseId || !recordingId || !RENDITIONS[label]) {
     console.error("Invalid transcode task payload:", req.data);
     return; // don't retry a malformed task
   }
   try {
-    const result = await processRendition({ courseId, recordingId, label }, readSecrets());
+    const result = await processRendition({ courseId, recordingId, label, part, parts }, readSecrets());
     console.log(`Rendition ${label} for ${recordingId}: ${result}`);
   } catch (err) {
     const finalAttempt = (req.retryCount || 0) >= MAX_ATTEMPTS - 1;
@@ -261,5 +368,5 @@ exports.transcodeRecording = onCall({
 
 // Internal helpers for unit tests only (not deployed as functions).
 if (process.env.NODE_ENV === "test") {
-  exports._test = { RENDITIONS, renditionKey, missingRenditions, processRendition, enqueueTranscoding, QUEUE_FUNCTION };
+  exports._test = { RENDITIONS, CHUNK_SECONDS, renditionKey, partKey, partCount, missingRenditions, transcodePart, joinParts, processRendition, enqueueTranscoding, QUEUE_FUNCTION };
 }

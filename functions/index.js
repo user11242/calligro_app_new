@@ -40,6 +40,12 @@ setGlobalOptions({ maxInstances: 5, region: "us-central1" });
 // --------------------
 exports.livekit = require("./livekit.js");
 exports.transcoder = require("./transcoder.js");
+// The recording safety net (live pieces, verification, recovery, watchdog, server alerts).
+// Only the Cloud Functions are exported; the module's helpers stay internal.
+{
+  const { rebuildRecording, recordingWatchdog, recordingServerAlert } = require("./recording_safety.js");
+  exports.recordingSafety = { rebuildRecording, recordingWatchdog, recordingServerAlert };
+}
 
 // --------------------
 // Utility: Generate OTP

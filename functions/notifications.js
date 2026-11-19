@@ -35,6 +35,18 @@ function getLocalizedText(lang, key, params = {}) {
             new_reply_body: "{userName} replied to your comment.",
             new_teacher_title: "New Teacher Registration 🎓",
             new_teacher_body: "{teacherName} is waiting for approval.",
+            recording_recovered_title: "Recording recovered 🛟",
+            recording_recovered_body: "The recording of '{courseName}' ({time}) had a problem and was recovered automatically ({detail}).",
+            recording_lost_title: "Recording lost ⚠️",
+            recording_lost_body: "The recording of '{courseName}' ({time}) could not be saved or recovered. Reason: {detail}.",
+            recording_manual_title: "Recording needs attention 🛠️",
+            recording_manual_body: "The pieces of '{courseName}' ({time}) are safe, but the recording must be rebuilt by hand. Folder: {detail}.",
+            recording_missing_title: "Class not recorded ⚠️",
+            recording_missing_body: "The class of '{courseName}' at {time} ended without a recording.",
+            recording_server_title: "Recording server problem 🖥️",
+            recording_server_disk_low_body: "The recording server's disk is almost full: {detail}.",
+            recording_server_recorder_down_body: "The recorder on the recording server is not running: {detail}.",
+            recording_server_backup_waiting_body: "Backed-up recordings on the server are not uploading: {detail}.",
             new_announcement_title: "📢 {courseName}",
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "Session Rescheduled ⏰",
@@ -72,6 +84,18 @@ function getLocalizedText(lang, key, params = {}) {
             new_reply_body: "رد {userName} على تعليقك.",
             new_teacher_title: "معلم جديد ينتظر 🎓",
             new_teacher_body: "{teacherName} ينتظر الموافقة.",
+            recording_recovered_title: "تم استرجاع التسجيل 🛟",
+            recording_recovered_body: "حدثت مشكلة في تسجيل '{courseName}' ({time}) وتم استرجاعه تلقائياً ({detail}).",
+            recording_lost_title: "فُقد التسجيل ⚠️",
+            recording_lost_body: "تعذّر حفظ أو استرجاع تسجيل '{courseName}' ({time}). السبب: {detail}.",
+            recording_manual_title: "التسجيل يحتاج إلى تدخل 🛠️",
+            recording_manual_body: "أجزاء تسجيل '{courseName}' ({time}) محفوظة، لكن يجب إعادة بناء التسجيل يدوياً. المجلد: {detail}.",
+            recording_missing_title: "حصة بدون تسجيل ⚠️",
+            recording_missing_body: "انتهت حصة '{courseName}' في {time} بدون تسجيل.",
+            recording_server_title: "مشكلة في خادم التسجيل 🖥️",
+            recording_server_disk_low_body: "مساحة القرص في خادم التسجيل على وشك النفاد: {detail}.",
+            recording_server_recorder_down_body: "برنامج التسجيل على خادم التسجيل متوقف: {detail}.",
+            recording_server_backup_waiting_body: "التسجيلات الاحتياطية على الخادم لا يتم رفعها: {detail}.",
             new_announcement_title: "📢 {courseName}",
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "إعادة جدولة الجلسة ⏰",
@@ -109,6 +133,18 @@ function getLocalizedText(lang, key, params = {}) {
             new_reply_body: "{userName} yorumunuza yanıt verdi.",
             new_teacher_title: "Yeni Eğitmen Kaydı 🎓",
             new_teacher_body: "{teacherName} onay bekliyor.",
+            recording_recovered_title: "Kayıt kurtarıldı 🛟",
+            recording_recovered_body: "'{courseName}' ({time}) kaydında bir sorun oluştu ve otomatik olarak kurtarıldı ({detail}).",
+            recording_lost_title: "Kayıt kayboldu ⚠️",
+            recording_lost_body: "'{courseName}' ({time}) kaydı kaydedilemedi veya kurtarılamadı. Neden: {detail}.",
+            recording_manual_title: "Kayıt ilgi bekliyor 🛠️",
+            recording_manual_body: "'{courseName}' ({time}) kaydının parçaları güvende, ancak kaydın elle yeniden oluşturulması gerekiyor. Klasör: {detail}.",
+            recording_missing_title: "Ders kaydedilmedi ⚠️",
+            recording_missing_body: "'{courseName}' dersi ({time}) kayıt olmadan sona erdi.",
+            recording_server_title: "Kayıt sunucusu sorunu 🖥️",
+            recording_server_disk_low_body: "Kayıt sunucusunun diski neredeyse dolu: {detail}.",
+            recording_server_recorder_down_body: "Kayıt sunucusundaki kaydedici çalışmıyor: {detail}.",
+            recording_server_backup_waiting_body: "Sunucudaki yedek kayıtlar yüklenmiyor: {detail}.",
             new_announcement_title: "📢 {courseName}",
             new_announcement_body: "{teacherName}: {message}",
             session_rescheduled_title: "Oturum Yeniden Planlandı ⏰",
@@ -876,6 +912,24 @@ exports.notifyAdminHelper = async ({ receiverId, teacherName, teacherUserId }) =
             userId: teacherUserId,
         }
     });
+};
+
+/**
+ * Notifies every platform admin (in their own language). [key] makes it idempotent:
+ * the same alert is never delivered twice to the same admin.
+ */
+exports.notifyAdmins = async ({ key, type, titleKey, bodyKey, params = {}, payload = {} }) => {
+    const adminsSnap = await admin.firestore().collection("users").where("role", "==", "admin").get();
+    await Promise.all(adminsSnap.docs.map((adminDoc) => sendNotification({
+        key: `${key}_${adminDoc.id}`,
+        receiverId: adminDoc.id,
+        type,
+        titleKey,
+        bodyKey,
+        params,
+        payload,
+    })));
+    return adminsSnap.size;
 };
 
 // ------------------------------------------------------------------------

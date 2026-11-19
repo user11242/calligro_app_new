@@ -16,6 +16,8 @@ class FakeLiveKitServer {
     this.egresses = []; // { egressId, roomName, status, kind, args }
     this.calls = []; // [method, ...args]
     this.failNext = {}; // method -> Error (thrown once)
+    this.failAlways = {}; // method -> Error (thrown every time)
+    this.rejectSegments = false; // true: an older recorder that refuses live-piece outputs
     this._egressSeq = 0;
   }
 
@@ -43,6 +45,7 @@ class FakeLiveKitServer {
   callsTo(method) { return this.calls.filter((c) => c[0] === method); }
   _record(method, args) {
     this.calls.push([method, ...args]);
+    if (this.failAlways[method]) throw this.failAlways[method];
     if (this.failNext[method]) {
       const err = this.failNext[method];
       delete this.failNext[method];
@@ -84,9 +87,11 @@ class FakeLiveKitServer {
   }
 
   // ── EgressClient ─────────────────────────────────────────────────────
-  async listEgress({ roomName }) {
-    this._record("listEgress", [roomName]);
-    return this.egresses.filter((e) => e.roomName === roomName).map((e) => ({ ...e }));
+  async listEgress({ roomName, egressId }) {
+    this._record("listEgress", [roomName || egressId]);
+    return this.egresses
+      .filter((e) => (egressId ? e.egressId === egressId : e.roomName === roomName))
+      .map((e) => ({ ...e }));
   }
   async stopEgress(egressId) {
     this._record("stopEgress", [egressId]);
@@ -97,6 +102,7 @@ class FakeLiveKitServer {
   }
   async startParticipantEgress(roomName, identity, output, opts) {
     this._record("startParticipantEgress", [roomName, identity, output, opts]);
+    if (this.rejectSegments && output.segments) throw new Error("multiple outputs not supported");
     if (!this.participant(roomName, identity)) throw new Error(`participant ${identity} not in room`);
     const e = { egressId: `EG_part_${++this._egressSeq}`, roomName, status: EgressStatus.STARTING, kind: "participant" };
     this.egresses.push(e);
@@ -104,6 +110,7 @@ class FakeLiveKitServer {
   }
   async startTrackCompositeEgress(roomName, output, opts) {
     this._record("startTrackCompositeEgress", [roomName, output, opts]);
+    if (this.rejectSegments && output.segments) throw new Error("multiple outputs not supported");
     const e = { egressId: `EG_track_${++this._egressSeq}`, roomName, status: EgressStatus.STARTING, kind: "track" };
     this.egresses.push(e);
     return { ...e };

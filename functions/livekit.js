@@ -5,6 +5,7 @@ const { AccessToken, EgressClient, RoomServiceClient, EncodingOptionsPreset, Tra
 const { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const crypto = require("crypto");
+const safety = require("./recording_safety.js").helpers;
 
 // --------------------
 // Environment & Constants
@@ -432,7 +433,182 @@ exports.moderateParticipant = onCall({
 // --------------------
 // Start Automated R2 Recording (Track Composite — teacher cam + mic)
 // --------------------
+/**
+ * Starts the recorder for a course's class (MP4 + live pieces). Used by the teacher's app
+ * (startAutomatedRecording) and by the safety net when a recorder dies mid-class.
+ * The caller has already checked who may start it.
+ */
+async function startRecordingFor({ courseId, uid, audioTrackId, videoTrackId, orientation }) {
+  const today = new Date().toISOString().split('T')[0];
+  const secureRoomName = getSecureRoomName(courseId);
+
+  const egressClient = new EgressClient(
+    LIVEKIT_URL,
+    livekitApiKey.value(),
+    livekitApiSecret.value()
+  );
+
+  // Don't start another egress if one is already active for this room
+  const activeEgresses = await egressClient.listEgress({ roomName: secureRoomName });
+  const activeOnes = activeEgresses.filter(e => e.status <= 1); // 0=Starting, 1=Active
+  if (activeOnes.length > 0) {
+    return { status: "already_recording", egressId: activeOnes[0].egressId };
+  }
+
+  const timestamp = Date.now();
+  const filepath = `courses/${courseId}/recordings/recording-${courseId}-${timestamp}.mp4`;
+  const r2Target = {
+    accessKey: r2AccessKey.value(),
+    secret: r2SecretKey.value(),
+    endpoint: r2Endpoint.value(),
+    bucket: "calligro-recordings",
+    region: "auto",
+    forcePathStyle: true
+  };
+
+  const fileOutput = {
+    fileType: 0, // FileType.MP4 (0)
+    filepath: filepath,
+    output: { case: "s3", value: r2Target }
+  };
+  // 🛟 Safety net: the same video as 6-second pieces, uploaded to R2 DURING the class
+  // (the MP4 only reaches R2 at the end). See recording_safety.js.
+  const segmentsPrefix = safety.segmentsPrefixFor(courseId, timestamp);
+  const withPieces = { file: fileOutput, segments: safety.segmentOutput(segmentsPrefix, r2Target) };
+
+  // Choose preset based on orientation (default to portrait if not specified)
+  const preset = orientation === 'landscape' 
+      ? EncodingOptionsPreset.H264_1080P_30 
+      : EncodingOptionsPreset.PORTRAIT_H264_1080P_30;
+
+  console.log(`Starting recording for room=${secureRoomName}, audio=${audioTrackId}, video=${videoTrackId}, orientation=${orientation}, preset=${preset}`);
+
+  // Resolve teacher participant identity in the room
+  let teacherIdentity = `${uid}_mobile`;
+  try {
+    const roomService = new RoomServiceClient(
+      LIVEKIT_URL,
+      livekitApiKey.value(),
+      livekitApiSecret.value()
+    );
+    const participants = await roomService.listParticipants(secureRoomName);
+    const foundTeacher = participants.find(p => p.identity.startsWith(uid));
+    if (foundTeacher) {
+      teacherIdentity = foundTeacher.identity;
+    }
+  } catch (listErr) {
+    console.warn("Could not list room participants, using default identity:", listErr);
+  }
+
+  // Resilient Egress Strategy:
+  // 1. ParticipantEgress (binds to the teacher, resilient to phone calls / track republishes),
+  //    then TrackCompositeEgress — both with the MP4 + live pieces.
+  // 2. If the recorder refuses two outputs (an older recorder version), the same two
+  //    strategies with the MP4 only: a class is never left unrecorded for the safety net's sake.
+  const startEgress = async (output) => {
+    try {
+      console.log(`Attempting ParticipantEgress: room=${secureRoomName}, identity=${teacherIdentity}`);
+      return await egressClient.startParticipantEgress(secureRoomName, teacherIdentity, output, {
+        encodingOptions: preset,
+        screenShare: false,
+        webhooks: [{ url: LIVEKIT_WEBHOOK_URL }]
+      });
+    } catch (partErr) {
+      console.warn(`ParticipantEgress failed (${partErr.message}), falling back to TrackCompositeEgress`);
+      return await egressClient.startTrackCompositeEgress(secureRoomName, output, {
+        audioTrackId: audioTrackId,
+        videoTrackId: videoTrackId,
+        encodingOptions: preset,
+        webhooks: [{ url: LIVEKIT_WEBHOOK_URL }]
+      });
+    }
+  };
+  let egressInfo;
+  let piecesOn = true;
+  try {
+    egressInfo = await startEgress(withPieces);
+  } catch (piecesErr) {
+    console.error(`⚠️ Recording with live pieces refused (${piecesErr.message}); recording the MP4 only`);
+    piecesOn = false;
+    egressInfo = await startEgress(fileOutput);
+  }
+
+  // Store egressId in Firestore across multiple indices for fail-safe retrieval
+  const sessionId = `${courseId}_${timestamp}`;
+  const sessionPayload = {
+    sessionId: sessionId,
+    egressId: egressInfo.egressId,
+    roomName: secureRoomName,
+    r2FilePath: filepath,
+    startedAt: admin.firestore.FieldValue.serverTimestamp(),
+    teacherId: uid,
+    courseId: courseId,
+    status: "active",
+    safetyNet: true, // watched by recording_safety.js (verify, recover, alert)
+    segmentsPrefix: piecesOn ? segmentsPrefix : null,
+  };
+
+  // 1. Course specific session, keyed uniquely by sessionId (never by date — two classes
+  //    on the same day must not overwrite each other)
+  await admin.firestore().collection("courses").doc(courseId).collection("activeSessions").doc(sessionId).set(sessionPayload, { merge: true });
+
+  // 2. Global direct O(1) key lookups (Zero index dependencies)
+  await Promise.all([
+    admin.firestore().collection("activeRecordings").doc(egressInfo.egressId).set(sessionPayload, { merge: true }),
+    admin.firestore().collection("activeRooms").doc(secureRoomName).set(sessionPayload, { merge: true }),
+  ]);
+
+  return { 
+    status: "started", 
+    egressId: egressInfo.egressId
+  };
+}
+
+/** At most this many automatic restarts per class per hour (a recorder failing in a loop stops). */
+const MAX_AUTO_RESTARTS_PER_HOUR = 3;
+
+/**
+ * 🛟 The recorder died while the class goes on: if the course teacher is still in the
+ * class with camera and mic, start a NEW recording at once, so the rest of the class is
+ * recorded too (the part before the failure is recovered from its live pieces).
+ * Returns what happened ("restarted", "teacher_not_in_class", "too_many_restarts", …).
+ */
+async function restartRecordingIfTeacherInClass(courseId, teacherId) {
+  if (!courseId || !teacherId) return "unknown_class";
+  const roomName = getSecureRoomName(courseId);
+  const roomService = new RoomServiceClient(LIVEKIT_URL, livekitApiKey.value(), livekitApiSecret.value());
+  let participants;
+  try {
+    participants = await roomService.listParticipants(roomName);
+  } catch (err) {
+    return "class_not_running";
+  }
+  const teacher = participants.find((p) => p.identity === teacherId || p.identity === `${teacherId}_mobile`);
+  const SCREEN_SHARE = 3; // LiveKit TrackSource.SCREEN_SHARE
+  const audio = teacher && teacher.tracks.find((t) => t.type === 0);
+  const video = teacher && teacher.tracks.find((t) => t.type === 1 && t.source !== SCREEN_SHARE);
+  if (!teacher || !audio || !video) return "teacher_not_in_class";
+
+  const roomRef = admin.firestore().collection("activeRooms").doc(roomName);
+  const roomSnap = await roomRef.get();
+  const recent = ((roomSnap.exists && roomSnap.data().autoRestarts) || []).filter((t) => t > Date.now() - 3600 * 1000);
+  if (recent.length >= MAX_AUTO_RESTARTS_PER_HOUR) {
+    console.error(`🛟 Not restarting the recorder for ${courseId}: ${recent.length} restarts in the last hour`);
+    return "too_many_restarts";
+  }
+  const result = await startRecordingFor({
+    courseId, uid: teacherId, audioTrackId: audio.sid, videoTrackId: video.sid, orientation: "landscape",
+  });
+  await roomRef.set({ autoRestarts: [...recent, Date.now()] }, { merge: true });
+  console.warn(`🛟 Recorder restarted for ${courseId} while the class goes on: ${result.status} ${result.egressId}`);
+  return result.status === "started" ? "restarted" : result.status;
+}
+
 exports.startAutomatedRecording = onCall({ 
+  // Both regions: app versions up to 1.0.21 call us-east1, newer ones us-central1.
+  // Same (current) code in both, so every teacher gets the recording safety net.
+  // Drop "us-east1" once no old app version is in use any more.
+  region: ["us-central1", "us-east1"],
   secrets: [
     livekitApiKey, 
     livekitApiSecret, 
@@ -463,126 +639,7 @@ exports.startAutomatedRecording = onCall({
       throw new HttpsError("permission-denied", "Only the teacher can start recording.");
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const secureRoomName = getSecureRoomName(courseId);
-
-    const egressClient = new EgressClient(
-      LIVEKIT_URL,
-      livekitApiKey.value(),
-      livekitApiSecret.value()
-    );
-
-    // Don't start another egress if one is already active for this room
-    const activeEgresses = await egressClient.listEgress({ roomName: secureRoomName });
-    const activeOnes = activeEgresses.filter(e => e.status <= 1); // 0=Starting, 1=Active
-    if (activeOnes.length > 0) {
-      return { status: "already_recording", egressId: activeOnes[0].egressId };
-    }
-
-    const timestamp = Date.now();
-    const filepath = `courses/${courseId}/recordings/recording-${courseId}-${timestamp}.mp4`;
-
-    const fileOutput = {
-      fileType: 0, // FileType.MP4 (0)
-      filepath: filepath,
-      output: {
-        case: "s3",
-        value: {
-          accessKey: r2AccessKey.value(),
-          secret: r2SecretKey.value(),
-          endpoint: r2Endpoint.value(),
-          bucket: "calligro-recordings",
-          region: "auto",
-          forcePathStyle: true
-        }
-      }
-    };
-
-    // Choose preset based on orientation (default to portrait if not specified)
-    const preset = orientation === 'landscape' 
-        ? EncodingOptionsPreset.H264_1080P_30 
-        : EncodingOptionsPreset.PORTRAIT_H264_1080P_30;
-
-    console.log(`Starting recording for room=${secureRoomName}, audio=${audioTrackId}, video=${videoTrackId}, orientation=${orientation}, preset=${preset}`);
-
-    // Resolve teacher participant identity in the room
-    let teacherIdentity = `${uid}_mobile`;
-    try {
-      const roomService = new RoomServiceClient(
-        LIVEKIT_URL,
-        livekitApiKey.value(),
-        livekitApiSecret.value()
-      );
-      const participants = await roomService.listParticipants(secureRoomName);
-      const foundTeacher = participants.find(p => p.identity.startsWith(uid));
-      if (foundTeacher) {
-        teacherIdentity = foundTeacher.identity;
-      }
-    } catch (listErr) {
-      console.warn("Could not list room participants, using default identity:", listErr);
-    }
-
-    // Resilient Egress Strategy:
-    // 1. Try ParticipantEgress first (binds to teacher identity, resilient to phone call / track republishes)
-    // 2. Fall back to TrackCompositeEgress if ParticipantEgress is unsupported or fails
-    let egressInfo;
-    try {
-      console.log(`Attempting ParticipantEgress: room=${secureRoomName}, identity=${teacherIdentity}`);
-      egressInfo = await egressClient.startParticipantEgress(
-        secureRoomName,
-        teacherIdentity,
-        fileOutput,
-        {
-          encodingOptions: preset,
-          screenShare: false,
-          webhooks: [{
-            url: LIVEKIT_WEBHOOK_URL
-          }]
-        }
-      );
-    } catch (partErr) {
-      console.warn(`ParticipantEgress failed (${partErr.message}), falling back to TrackCompositeEgress`);
-      egressInfo = await egressClient.startTrackCompositeEgress(
-        secureRoomName,
-        fileOutput,
-        {
-          audioTrackId: audioTrackId,
-          videoTrackId: videoTrackId,
-          encodingOptions: preset,
-          webhooks: [{
-            url: LIVEKIT_WEBHOOK_URL
-          }]
-        }
-      );
-    }
-
-    // Store egressId in Firestore across multiple indices for fail-safe retrieval
-    const sessionId = `${courseId}_${timestamp}`;
-    const sessionPayload = {
-      sessionId: sessionId,
-      egressId: egressInfo.egressId,
-      roomName: secureRoomName,
-      r2FilePath: filepath,
-      startedAt: admin.firestore.FieldValue.serverTimestamp(),
-      teacherId: uid,
-      courseId: courseId,
-      status: "active",
-    };
-
-    // 1. Course specific session, keyed uniquely by sessionId (never by date — two classes
-    //    on the same day must not overwrite each other)
-    await admin.firestore().collection("courses").doc(courseId).collection("activeSessions").doc(sessionId).set(sessionPayload, { merge: true });
-
-    // 2. Global direct O(1) key lookups (Zero index dependencies)
-    await Promise.all([
-      admin.firestore().collection("activeRecordings").doc(egressInfo.egressId).set(sessionPayload, { merge: true }),
-      admin.firestore().collection("activeRooms").doc(secureRoomName).set(sessionPayload, { merge: true }),
-    ]);
-
-    return { 
-      status: "started", 
-      egressId: egressInfo.egressId
-    };
+    return await startRecordingFor({ courseId, uid, audioTrackId, videoTrackId, orientation });
   } catch (error) {
     console.error("LiveKit Egress Error:", error);
     if (error instanceof HttpsError) throw error;
@@ -597,7 +654,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { WebhookReceiver } = require("livekit-server-sdk");
 
 exports.livekitWebhook = onRequest({
-  secrets: [livekitApiKey, livekitApiSecret, r2PublicUrl]
+  secrets: [livekitApiKey, livekitApiSecret, r2PublicUrl, r2AccessKey, r2SecretKey, r2Endpoint]
 }, async (req, res) => {
   try {
     const receiver = new WebhookReceiver(
@@ -668,7 +725,32 @@ exports.livekitWebhook = onRequest({
         // EgressStatus: 3 = COMPLETE, 6 = LIMIT_REACHED (file is valid, just capped).
         // 4 = FAILED, 5 = ABORTED → no usable file.
         const succeeded = [3, 6, "EGRESS_COMPLETE", "EGRESS_LIMIT_REACHED"].includes(egressInfo.status);
-        if (succeeded) {
+        if (sessionData.safetyNet) {
+          // 🛟 Verify, don't trust: "finished" only counts when the MP4 is really in R2.
+          // Otherwise (or on failure) the recording goes into recovery — never just hidden.
+          const session = { ...sessionData, courseId, egressId };
+          const s3 = safety.makeS3({
+            accessKey: r2AccessKey.value(), secretKey: r2SecretKey.value(), endpoint: r2Endpoint.value(),
+          });
+          const bytes = succeeded ? await safety.objectSize(s3, sessionData.r2FilePath) : 0;
+          if (bytes >= safety.MIN_FILE_BYTES) {
+            await safety.saveReadyRecording({
+              session, egressId, r2FilePath: sessionData.r2FilePath, durationSeconds, publicBase: r2PublicUrl.value(),
+            });
+            console.log(`Recording ${egressId} verified in R2 (${bytes} bytes), duration ${durationSeconds}s`);
+          } else {
+            await safety.beginRecovery({
+              session, egressId, reason: succeeded ? "file_missing" : `recorder_failed: ${egressInfo.error || egressInfo.status}`,
+            });
+            await admin.firestore().collection("activeRecordings").doc(egressId)
+              .set({ recovery: { egressEndedAtMs: Date.now() } }, { merge: true });
+            try {
+              await restartRecordingIfTeacherInClass(courseId, sessionData.teacherId);
+            } catch (restartErr) {
+              console.error("🛟 Could not restart the recorder:", restartErr);
+            }
+          }
+        } else if (succeeded) {
           const publicDomain = r2PublicUrl.value().replace(/\/$/, "");
           const r2FilePath = sessionData.r2FilePath;
           const fullUrl = `${publicDomain}/${r2FilePath}`;
@@ -703,9 +785,27 @@ exports.livekitWebhook = onRequest({
             sessionDocRef ? sessionDocRef.update({ status: "completed", videoUrl: fullUrl }).catch(() => {}) : Promise.resolve(),
           ]);
 
+          // Close the room's "active recording" pointer (only if it is still THIS recording):
+          // room_finished and stop_recording would otherwise re-save it with a wall-clock
+          // length that includes the time students stayed after the recording ended.
+          if (sessionData.roomName) {
+            const roomRef = admin.firestore().collection("activeRooms").doc(sessionData.roomName);
+            const roomSnap = await roomRef.get();
+            if (roomSnap.exists && roomSnap.data().egressId === egressId) {
+              await roomRef.set({ status: "ended" }, { merge: true });
+            }
+          }
+
           console.log(`Successfully saved recording URL: ${fullUrl}, duration: ${durationSeconds}s`);
         } else {
           if (sessionDocRef) await sessionDocRef.update({ status: "failed", error: egressInfo.error || null }).catch(() => {});
+          // sessionDocRef is usually the egress index; mark the course's own session failed too,
+          // so reconcileCourseRecordings never brings a broken partial file back.
+          if (sessionData.sessionId) {
+            await admin.firestore().collection("courses").doc(courseId)
+              .collection("activeSessions").doc(sessionData.sessionId)
+              .set({ status: "failed" }, { merge: true }).catch(() => {});
+          }
           // The stop path may already have written a recording doc for this egress.
           // Mark it failed so clients hide it instead of showing an unplayable lesson.
           const recRef = admin.firestore().collection("courses").doc(courseId).collection("recordings").doc(egressId);
@@ -743,7 +843,14 @@ exports.livekitWebhook = onRequest({
               const courseId = data.courseId;
               const egressId = data.egressId;
               const r2FilePath = data.r2FilePath;
-              if (courseId && egressId && r2FilePath) {
+              const recRef = courseId && egressId
+                ? admin.firestore().collection("courses").doc(courseId).collection("recordings").doc(egressId)
+                : null;
+              const alreadySaved = recRef ? (await recRef.get()).exists : false;
+              if (alreadySaved) {
+                // egress_ended already saved it with its exact length: only close the room record.
+                await roomDoc.ref.set({ status: "ended" }, { merge: true });
+              } else if (courseId && egressId && r2FilePath) {
                 const publicDomain = r2PublicUrl.value().replace(/\/$/, "");
                 const fullUrl = `${publicDomain}/${r2FilePath}`;
                 const startMs = data.startedAt?.toMillis ? data.startedAt.toMillis() : Date.now();
@@ -993,6 +1100,12 @@ exports.reconcileCourseRecordings = onCall({
       const egressId = sessionData.egressId;
       const r2FilePath = sessionData.r2FilePath;
       if (!egressId || !r2FilePath) continue;
+      // A failed egress may leave a partial file behind: never bring it back as playable.
+      // Recordings in recovery belong to the safety net (recording_safety.js).
+      const NOT_RECOVERABLE_HERE = ["failed", "recovering", "recovered", "needs_manual", "lost"];
+      if (NOT_RECOVERABLE_HERE.includes(sessionData.status)) continue;
+      const egressSnap = await admin.firestore().collection("activeRecordings").doc(egressId).get();
+      if (egressSnap.exists && NOT_RECOVERABLE_HERE.includes(egressSnap.data().status)) continue;
 
       // Check if already in recordings
       const recDoc = await admin.firestore()
@@ -1120,4 +1233,11 @@ exports.getRecordingPlaybackUrl = onCall({
       { expiresIn: 3600 * 3 });
   }
   return { success: true, playbackUrl, qualities };
+});
+
+// Internal helpers for the recording safety net (recording_safety.js). Not enumerable,
+// so the deploy never mistakes them for Cloud Functions.
+Object.defineProperty(exports, "_internal", {
+  enumerable: false,
+  value: { restartRecordingIfTeacherInClass, getSecureRoomName },
 });

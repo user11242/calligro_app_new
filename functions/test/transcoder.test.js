@@ -7,7 +7,7 @@
 const fs = require("fs");
 const { FakeFirestore } = require("./helpers/fakeFirestore");
 
-const mockState = { db: null, enqueued: [], queueNames: [], uploads: [], spawns: [], ffmpegFailFor: new Set() };
+const mockState = { db: null, enqueued: [], queueNames: [], uploads: [], spawns: [], deletes: [], ffmpegFailFor: new Set() };
 
 jest.mock("firebase-admin", () => {
   const helpers = require("./helpers/fakeFirestore");
@@ -49,6 +49,7 @@ jest.mock("@aws-sdk/client-s3", () => {
   class Command { constructor(input) { this.input = input; } }
   class PutObjectCommand extends Command {}
   class GetObjectCommand extends Command {}
+  class DeleteObjectCommand extends Command {}
   class S3Client {
     async send(cmd) {
       if (cmd instanceof PutObjectCommand) {
@@ -59,10 +60,14 @@ jest.mock("@aws-sdk/client-s3", () => {
         mockState.uploads.push({ ...rest, bodyPath: Body.path, bytes });
         return {};
       }
+      if (cmd instanceof DeleteObjectCommand) {
+        mockState.deletes.push(cmd.input.Key);
+        return {};
+      }
       throw new Error("unexpected command");
     }
   }
-  return { S3Client, PutObjectCommand, GetObjectCommand };
+  return { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand };
 });
 
 jest.mock("@aws-sdk/s3-request-presigner", () => ({
@@ -84,7 +89,10 @@ jest.mock("child_process", () => ({
         proc.stderr.emit("data", Buffer.from("Invalid data found when processing input"));
         proc.emit("close", 1);
       } else {
-        require("fs").writeFileSync(args[args.length - 1], "fake mp4 bytes");
+        const fsm = require("fs");
+        const concatList = args.includes("concat") ? args[args.indexOf("-i") + 1] : null;
+        if (concatList) mockState.concatLists.push(fsm.readFileSync(concatList, "utf8"));
+        fsm.writeFileSync(args[args.length - 1], "fake mp4 bytes");
         proc.emit("close", 0);
       }
     });
@@ -93,7 +101,7 @@ jest.mock("child_process", () => ({
 }));
 
 const tx = require("../transcoder.js");
-const { renditionKey, missingRenditions, QUEUE_FUNCTION } = tx._test;
+const { renditionKey, missingRenditions, partCount, CHUNK_SECONDS, QUEUE_FUNCTION } = tx._test;
 
 const REC = "courses/c1/recordings/EG_1";
 const FILE = "courses/c1/recordings/recording-c1-1000.mp4";
@@ -120,6 +128,8 @@ beforeEach(() => {
   mockState.queueNames = [];
   mockState.uploads = [];
   mockState.spawns = [];
+  mockState.deletes = [];
+  mockState.concatLists = [];
   mockState.ffmpegFailFor = new Set();
   seedWorld();
   jest.spyOn(console, "log").mockImplementation(() => {});
@@ -340,5 +350,114 @@ describe("transcodeRecording (manual trigger)", () => {
     mockState.db.seed(REC, { status: "ready", r2FilePath: FILE, transcodingStatus: "failed", renditionKeys: { "480p": "b" } });
     await expect(run("T1")).resolves.toEqual({ success: true, queued: 2 });
     expect(mockState.db.get(REC)).toMatchObject({ transcodingStatus: "queued", transcodeError: null });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+describe("long classes are converted in 20-minute pieces (a task may run 30 minutes at most)", () => {
+  const HOURS_2 = 2 * 3600;
+  const part = (label, i, n, retryCount = 0) =>
+    tx.transcodeRendition({ data: { courseId: "c1", recordingId: "EG_1", label, part: i, parts: n }, retryCount });
+
+  test("how many pieces", () => {
+    expect(CHUNK_SECONDS).toBe(1200);
+    expect(partCount({})).toBe(1); // unknown length → one piece, as before
+    expect(partCount({ duration: 0 })).toBe(1);
+    expect(partCount({ duration: 1200 })).toBe(1);
+    expect(partCount({ duration: 1201 })).toBe(2);
+    expect(partCount({ duration: HOURS_2 })).toBe(6);
+    expect(partCount({ duration: String(HOURS_2) })).toBe(6);
+    expect(partCount({ duration: HOURS_2 * 1e9 })).toBe(6); // LiveKit nanoseconds (old documents)
+  });
+
+  test("a short class is still one task per quality, exactly as before", async () => {
+    const ready = { status: "ready", r2FilePath: FILE, duration: 1100 };
+    mockState.db.seed(REC, ready);
+    await tx.onRecordingReady(written(null, ready));
+    expect(mockState.enqueued).toEqual([
+      { courseId: "c1", recordingId: "EG_1", label: "720p" },
+      { courseId: "c1", recordingId: "EG_1", label: "480p" },
+      { courseId: "c1", recordingId: "EG_1", label: "360p" },
+    ]);
+  });
+
+  test("a 2-hour class → 6 pieces per quality", async () => {
+    const ready = { status: "ready", r2FilePath: FILE, duration: HOURS_2 };
+    mockState.db.seed(REC, ready);
+    await tx.onRecordingReady(written(null, ready));
+    expect(mockState.enqueued).toHaveLength(18);
+    expect(mockState.enqueued.filter((t) => t.label === "720p")).toEqual(
+      [0, 1, 2, 3, 4, 5].map((i) => ({ courseId: "c1", recordingId: "EG_1", label: "720p", part: i, parts: 6 })));
+  });
+
+  test("a retry after a partial run re-queues only the missing pieces", async () => {
+    const rec = { status: "ready", r2FilePath: FILE, duration: HOURS_2, transcodingStatus: "failed",
+      renditionKeys: { "480p": "b", "360p": "c" }, renditionParts: { "720p": { 0: "p0", 3: "p3" } } };
+    mockState.db.seed(REC, rec);
+    await expect(tx.transcodeRecording({ auth: { uid: "T1" }, data: { courseId: "c1", recordingId: "EG_1" } }))
+      .resolves.toEqual({ success: true, queued: 4 });
+    expect(mockState.enqueued.map((t) => t.part)).toEqual([1, 2, 4, 5]);
+  });
+
+  describe("pieces", () => {
+    beforeEach(() => mockState.db.seed(REC, { status: "ready", r2FilePath: FILE, duration: HOURS_2, transcodingStatus: "queued" }));
+
+    test("each piece converts only its own 20 minutes (seek before reading)", async () => {
+      await part("720p", 2, 6);
+      const { args } = mockState.spawns[0];
+      expect(args.slice(args.indexOf("-ss"), args.indexOf("-ss") + 4)).toEqual(["-ss", "2400", "-t", "1200"]);
+      expect(args.indexOf("-ss")).toBeLessThan(args.indexOf("-i"));
+      expect(args[args.indexOf("-vf") + 1]).toBe("scale=-2:720");
+      expect(args).toContain("mpegts"); // pieces join without re-encoding
+      const key = "courses/c1/recordings/recording-c1-1000_720p.part2.ts";
+      expect(mockState.uploads).toEqual([expect.objectContaining({ Key: key, ContentType: "video/mp2t" })]);
+      expect(fs.existsSync(mockState.uploads[0].bodyPath)).toBe(false);
+      const rec = mockState.db.get(REC);
+      expect(rec.renditionParts).toEqual({ "720p": { 2: key } });
+      expect(rec.renditionKeys).toBeUndefined(); // not finished until every piece exists
+    });
+
+    test("the last piece joins them all, in order, into the normal quality file and cleans up", async () => {
+      for (const i of [5, 0, 3, 1, 4]) await part("480p", i, 6);
+      expect(mockState.concatLists).toEqual([]);
+      await part("480p", 2, 6);
+
+      expect(mockState.concatLists).toHaveLength(1);
+      const lines = mockState.concatLists[0].trim().split("\n");
+      expect(lines).toEqual([0, 1, 2, 3, 4, 5].map((i) =>
+        `file 'https://signed.example/courses/c1/recordings/recording-c1-1000_480p.part${i}.ts?exp=7200'`));
+      const join = mockState.spawns[mockState.spawns.length - 1].args;
+      expect(join).toEqual(expect.arrayContaining(["-c", "copy", "+faststart"]));
+
+      const key = "courses/c1/recordings/recording-c1-1000_480p.mp4";
+      expect(mockState.uploads[mockState.uploads.length - 1]).toMatchObject({ Key: key, ContentType: "video/mp4" });
+      expect(mockState.db.get(REC).renditionKeys).toEqual({ "480p": key });
+      expect(mockState.db.get(REC).qualities).toEqual({ "480p": `https://cdn.example.com/${key}` });
+      expect(mockState.deletes.sort()).toEqual([0, 1, 2, 3, 4, 5].map((i) => `courses/c1/recordings/recording-c1-1000_480p.part${i}.ts`));
+    });
+
+    test("all pieces of all qualities → completed, original untouched", async () => {
+      for (const label of ["720p", "480p", "360p"]) for (let i = 0; i < 6; i++) await part(label, i, 6);
+      const rec = mockState.db.get(REC);
+      expect(Object.keys(rec.renditionKeys).sort()).toEqual(["360p", "480p", "720p"]);
+      expect(rec).toMatchObject({ transcoded: true, transcodingStatus: "completed", status: "ready", r2FilePath: FILE });
+    });
+
+    test("a piece already done is not redone (retries are safe)", async () => {
+      await part("720p", 0, 6);
+      await part("720p", 0, 6);
+      expect(mockState.spawns).toHaveLength(1);
+    });
+
+    test("a failed piece is retried by Cloud Tasks; on its last attempt the quality is marked failed", async () => {
+      mockState.ffmpegFailFor.add("360");
+      await expect(part("360p", 1, 6, 0)).rejects.toThrow("ffmpeg exited with code 1");
+      await expect(part("360p", 1, 6, 1)).resolves.toBeUndefined();
+      expect(mockState.db.get(REC)).toMatchObject({ transcodingStatus: "failed", status: "ready" });
+    });
+  });
+
+  test("the worker has room for a long class's joined file (temp files live in memory)", () => {
+    expect(parseInt(tx.transcodeRendition.__options.memory, 10)).toBeGreaterThanOrEqual(4);
   });
 });
