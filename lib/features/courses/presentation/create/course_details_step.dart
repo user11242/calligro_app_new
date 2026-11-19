@@ -38,6 +38,13 @@ class _CourseDetailsStepState extends State<CourseDetailsStep> {
   // Default selection for the dialog
   String _selectedDialogIconKey = 'generic';
 
+  @override
+  void dispose() {
+    _customToolController.dispose();
+    _customCurriculumController.dispose();
+    super.dispose();
+  }
+
   // --- 1. THE ICON REGISTRY (The "Keys" you save to DB) ---
   final Map<String, IconData> _iconRegistry = {
     'pen': Icons.edit,

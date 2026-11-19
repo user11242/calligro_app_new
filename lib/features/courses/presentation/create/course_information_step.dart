@@ -35,25 +35,6 @@ class _CourseInformationPageState extends State<CourseInformationPage> {
   String? _selectedWritingType;
   String? _selectedCalligraphyStyle;
 
-  List<String> _getWritingTypes(AppLocalizations l10n) => [
-    l10n.arabicCalligraphy,
-    l10n.normalPenWriting,
-  ];
-
-  List<String> _getCalligraphyTypes(AppLocalizations l10n) => [
-    l10n.kufi,
-    l10n.naskh,
-    l10n.ruqah,
-    l10n.thuluth,
-    l10n.jaliThuluth,
-    l10n.diwani,
-    l10n.jaliDiwani,
-    l10n.persianTaliq,
-    l10n.ijaza,
-    l10n.muhaqqaq,
-    l10n.rayhani,
-  ];
-
   String _getAgeGroupLabel(String ageGroup, String locale) {
     if (ageGroup == '7-10') {
       if (locale == 'ar') return '7-10 سنوات';

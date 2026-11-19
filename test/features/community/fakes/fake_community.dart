@@ -257,8 +257,14 @@ class FakeFollowRepository implements FollowRepository {
     _changes.add(null);
   }
 
+  /// When set, getFollowingIds waits for it (a slow network, to test quick tab switches).
+  Completer<void>? followingGate;
+
   @override
-  Future<List<String>> getFollowingIds(String userId) async => (following[userId] ?? {}).toList();
+  Future<List<String>> getFollowingIds(String userId) async {
+    if (followingGate != null) await followingGate!.future;
+    return (following[userId] ?? {}).toList();
+  }
 }
 
 class FakeUserRepository implements CommunityUserRepository {

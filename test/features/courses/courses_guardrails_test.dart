@@ -87,6 +87,17 @@ void main() {
     Iterable<File> dartIn(String dir) =>
         Directory(dir).listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'));
 
+    test('every controller a course screen keeps as a field is disposed (they leaked on each course created)', () {
+      final field = RegExp(r'final\s+(?:\w+\s+)?(_\w+)\s*=\s*(?:TextEditingController|PageController|ScrollController|TabController)\(');
+      for (final file in Directory('lib/features/courses/presentation').listSync(recursive: true).whereType<File>()) {
+        if (!file.path.endsWith('.dart')) continue;
+        final content = file.readAsStringSync();
+        for (final m in field.allMatches(content)) {
+          expect(content.contains('${m.group(1)}.dispose()'), isTrue, reason: '${file.path}: ${m.group(1)} is never disposed');
+        }
+      }
+    });
+
     test('presentation never talks to Firebase or the store directly (only through CourseScope)', () {
       for (final file in dartIn('lib/features/courses/presentation')) {
         if (file.path.endsWith('course_scope.dart')) continue; // the one composition root

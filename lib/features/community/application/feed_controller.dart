@@ -50,6 +50,10 @@ class CommunityFeedController extends ChangeNotifier {
   bool _disposed = false;
 
   StreamSubscription<List<CommunityPost>>? _feedSub, _pinnedSub;
+
+  /// Bumped on every feed (re)subscription: a slow one that was overtaken by a
+  /// newer tab switch must not open a second, never-stopped listener.
+  int _feedGeneration = 0;
   StreamSubscription<List<String>>? _blockedSub;
 
   List<CommunityPost> get posts =>
@@ -99,9 +103,10 @@ class CommunityFeedController extends ChangeNotifier {
     _hasError = false;
     _rawFeed = const [];
     _notify();
+    final generation = ++_feedGeneration;
     final following =
         _filter == CommunityFilter.friends ? await _follows.getFollowingIds(session.userId) : const <String>[];
-    if (_disposed) return;
+    if (_disposed || generation != _feedGeneration) return; // overtaken by a newer switch
     _feedSub = _repo.watchFeed(_filter, currentUserId: session.userId, followingIds: following).listen((p) {
       _rawFeed = p;
       _isLoading = false;

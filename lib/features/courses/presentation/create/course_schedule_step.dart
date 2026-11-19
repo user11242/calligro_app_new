@@ -615,7 +615,8 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
 
           // WARN IF AM (00:00 to 11:59)
           // picked.period == DayPeriod.am covers 00:00 to 11:59.
-          if (picked.period == DayPeriod.am) {
+          // The step may have closed while the time picker was open.
+          if (picked.period == DayPeriod.am && mounted) {
             bool? switchToPm = await showDialog<bool>(
               context: context,
               builder: (BuildContext context) {
@@ -753,6 +754,7 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
             }
           }
 
+          if (!mounted) return;
           setState(() {
             if (isStart) {
               _startTimeLocal = finalTime;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:calligro_app/features/community/application/feed_controller.dart';
 import 'package:calligro_app/features/community/domain/models/community_models.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -54,6 +56,26 @@ void main() {
     await c.setFilter(CommunityFilter.myPosts);
     await pumpEventQueue();
     expect(ids(c.posts), ['c']);
+  });
+
+  test('switching away from Friends before it loaded: exactly one feed listener, for the last tab', () async {
+    follows.following['s1'] = {'s2'}; // Friends would show post "a"
+    final c = await started(studentSession);
+    follows.followingGate = Completer<void>(); // looking up who I follow is slow…
+    final toFriends = c.setFilter(CommunityFilter.friends); // …so this waits
+    await c.setFilter(CommunityFilter.teachers); // the user moves on at once
+    follows.followingGate!.complete(); // now the slow lookup finishes
+    await toFriends;
+    await pumpEventQueue();
+
+    expect(c.filter, CommunityFilter.teachers);
+    expect(ids(c.posts), ['b']);
+    expect(repo.calls.where((x) => x.startsWith('watchFeed:')), ['watchFeed:all', 'watchFeed:teachers'],
+        reason: 'the late Friends lookup must not open a second (duplicate, never-stopped) feed listener');
+    repo.addPost(postBy('s2', id: 'z', day: 5)); // a friend posts
+    await pumpEventQueue();
+    expect(ids(c.posts), ['b'], reason: 'no hidden Friends listener takes over the screen');
+    c.dispose();
   });
 
   test('Friends loads who I follow first', () async {

@@ -56,6 +56,16 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
   DateTime? _endTime;
   final List<String> _selectedDays = [];
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _courseNameController.dispose();
+    _courseDescriptionController.dispose();
+    _numberOfStudentsController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
+
   // Teacher Identity
   String teacherId = '';
   String teacherName = '';
@@ -225,7 +235,6 @@ class _AddCourseDashboardPageState extends State<AddCourseDashboardPage> {
   Widget _buildStepIndicator(int stepNumber, String label) {
     bool isActive = _currentStep == stepNumber;
     bool isCompleted = _currentStep > stepNumber;
-    bool isSummaryStep = stepNumber == 5;
 
     return Expanded(
       child: Column(

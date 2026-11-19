@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
-import 'package:calligro_app/core/message/app_messenger.dart';
 import 'package:calligro_app/features/courses/domain/course_draft.dart';
 
 // -------------------------------------------------------------------------
@@ -68,11 +67,6 @@ class _CourseSummaryPageState extends State<CourseSummaryPage> {
   /// no external room or password to create).
   Map<String, String>? classroomData = const {'link': CourseDraft.calligroClassroomLink};
   bool _isLoading = false;
-
-  void _showMessage(String title, String msg, MessengerType type) {
-    if (!mounted) return;
-    AppMessenger.showSnackBar(context, title: title, message: msg, type: type);
-  }
 
   String _getLocalizedDay(BuildContext context, String day) {
     final l10n = AppLocalizations.of(context)!;
