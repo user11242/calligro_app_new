@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { auth, db } from "@/shared/firebase/client";
-import { getCourse, getTeacher, watchCourse } from "@/features/payments/data/paymentCourses";
+import { getCourse, watchCourse } from "@/features/courses/data/courses";
+import { getTeacher } from "@/features/teachers/data/teachers";
 import { isEnrolled as isEnrolledIn } from "@/features/payments/domain/enrolment";
 import Navbar from "@/shared/ui/Navbar";
 import Footer from "@/shared/ui/Footer";

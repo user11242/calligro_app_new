@@ -5,7 +5,8 @@ import Footer from "@/shared/ui/Footer";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
 import { db } from "@/shared/firebase/client";
-import { collection, query, limit, getDocs, orderBy, where } from "firebase/firestore";
+import { getFeaturedCourses } from "@/features/courses/data/courses";
+import { getFeaturedTeachers } from "@/features/teachers/data/teachers";
 import Image from "next/image";
 import { Star, ArrowRight, Play, Layout, Users, Sparkles, Search, BookOpen, Clock, ChevronRight, ChevronLeft, CheckCircle, TrendingUp, Quote, Trophy, Medal, Map, Award } from "lucide-react";
 import { formatImageUrl } from "@/shared/utils/utils";
@@ -87,37 +88,9 @@ export default function Home() {
     setMounted(true);
     const fetchData = async () => {
       try {
-        // Fetch teachers
-        const tQuery = query(collection(db, "users"), where("role", "==", "teacher"), limit(3));
-        const tSnap = await getDocs(tQuery);
-        
-        const teachersData = await Promise.all(tSnap.docs.map(async (docSnap) => {
-          const tData = docSnap.data();
-          let studentsCount = 0;
-          try {
-            const courseQuery = query(collection(db, "courses"), where("teacherId", "==", docSnap.id));
-            const courseSnap = await getDocs(courseQuery);
-            courseSnap.docs.forEach(cDoc => {
-              const cData = cDoc.data();
-              if (cData.enrolledStudents && Array.isArray(cData.enrolledStudents)) {
-                studentsCount += cData.enrolledStudents.length;
-              }
-              if (cData.studentsEnrolled) {
-                studentsCount += Number(cData.studentsEnrolled);
-              }
-            });
-          } catch (e) {
-            console.error("Error fetching courses for teacher:", e);
-          }
-          return { id: docSnap.id, ...tData, studentsCount };
-        }));
-        
-        setTeachers(teachersData);
-
-        // Fetch courses for the slider
-        const cQuery = query(collection(db, "courses"), limit(6));
-        const cSnap = await getDocs(cQuery);
-        setFeaturedCourses(cSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        // Featured teachers (with their student counts) and courses: features/teachers + courses data.
+        setTeachers(await getFeaturedTeachers(db, 3));
+        setFeaturedCourses(await getFeaturedCourses(db, 6));
       } catch (err) {
         console.error("Home fetch error:", err);
       } finally {

@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db, auth } from "@/shared/firebase/client";
-import { doc, getDoc, collection, query, where, getDocs, orderBy, onSnapshot } from "firebase/firestore";
+import { watchTeacherCourses } from "@/features/courses/data/courses";
+import { getTeacher } from "@/features/teachers/data/teachers";
+import { isVisibleInCatalog } from "@/features/courses/domain/coursePolicy";
 import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "@/shared/ui/Navbar";
 import CourseCard from "@/features/courses/ui/CourseCard";
@@ -34,65 +36,41 @@ export default function TeacherProfilePage() {
   useEffect(() => {
     if (!teacherId) return;
 
+    // THE LEAK: the courses listener used to be started inside the async function, so
+    // its stop function never reached React and it ran forever. Now it is stopped.
+    let stopCourses: (() => void) | undefined;
+    let cancelled = false;
+
     const fetchTeacherData = async () => {
       try {
-        const teacherDoc = await getDoc(doc(db, "users", teacherId));
-        if (teacherDoc.exists()) {
-          setTeacher({ uid: teacherDoc.id, ...teacherDoc.data() });
-        } else {
+        const teacherData = await getTeacher(db, teacherId);
+        if (cancelled) return;
+        if (!teacherData) {
           router.push("/teachers"); // Redirect if not found
           return;
         }
+        setTeacher(teacherData);
 
-        // Fetch courses where teacherId == this teacher
-        const q = query(
-          collection(db, "courses"), 
-          where("teacherId", "==", teacherId)
-        );
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          const courseList: any[] = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          
-          // Sort manually since we used where() on a different field
-          courseList.sort((a, b) => {
-            const dateA = a.createdAt?.seconds || 0;
-            const dateB = b.createdAt?.seconds || 0;
-            return dateB - dateA; // Descending
-          });
-
+        // This teacher's courses, newest first, live (features/courses).
+        stopCourses = watchTeacherCourses(db, teacherId, (courseList) => {
           setCourses(courseList);
           setLoading(false);
         });
-
-        return () => unsubscribe();
       } catch (error) {
         console.error("Error fetching teacher:", error);
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchTeacherData();
+    return () => {
+      cancelled = true;
+      stopCourses?.();
+    };
   }, [teacherId, router]);
 
-  const filteredCourses = courses.filter(c => {
-    if (c.startDate) {
-      const start = c.startDate.toDate ? c.startDate.toDate() : new Date(c.startDate);
-      if (!isNaN(start.getTime())) {
-        const now = new Date();
-        const enrolledStudents = Array.isArray(c.enrolledStudents) ? c.enrolledStudents : [];
-        const isEnrolled = currentUser ? enrolledStudents.includes(currentUser.uid) : false;
-        
-        // Hide if the course has already started AND the user is not enrolled
-        if (now.getTime() > start.getTime() && !isEnrolled) {
-          return false;
-        }
-      }
-    }
-    return true;
-  });
+  // Started courses are hidden unless you are in them (the shared course rule).
+  const filteredCourses = courses.filter((c) => isVisibleInCatalog(c, currentUser?.uid));
 
   const formatImageUrl = (url?: string) => {
     if (!url) return "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop";

@@ -3,7 +3,8 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { db, auth } from "@/shared/firebase/client";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { watchCatalog } from "@/features/courses/data/courses";
+import { isVisibleInCatalog, matchesCategory, matchesSearch } from "@/features/courses/domain/coursePolicy";
 import { onAuthStateChanged, User } from "firebase/auth";
 import Navbar from "@/shared/ui/Navbar";
 import CourseCard from "@/features/courses/ui/CourseCard";
@@ -43,49 +44,21 @@ function CoursesPageContent() {
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, "courses"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const courseList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+    // Every course, newest first, live (features/courses).
+    return watchCatalog(db, (courseList) => {
       setCourses(courseList);
       setLoading(false);
     });
-    return () => unsubscribe();
   }, []);
 
-  const filteredCourses = courses.filter(c => {
-    if (c.startDate) {
-      const start = c.startDate.toDate ? c.startDate.toDate() : new Date(c.startDate);
-      if (!isNaN(start.getTime())) {
-        const now = new Date();
-        const enrolledStudents = Array.isArray(c.enrolledStudents) ? c.enrolledStudents : [];
-        const isEnrolled = currentUser ? enrolledStudents.includes(currentUser.uid) : false;
-        
-        if (now.getTime() > start.getTime() && !isEnrolled) {
-          return false;
-        }
-      }
-    }
-    const searchTerm = search.toLowerCase();
-    const matchesSearch = 
-      (c.courseName?.toLowerCase().includes(searchTerm) ||
-       c.courseTitle?.toLowerCase().includes(searchTerm) ||
-       c.teacherName?.toLowerCase().includes(searchTerm) ||
-       c.selectedCategory?.toLowerCase().includes(searchTerm) ||
-       c.courseDescription?.toLowerCase().includes(searchTerm));
-    
-    const enrolledStudents = Array.isArray(c.enrolledStudents) ? c.enrolledStudents : [];
-    const isEnrolled = currentUser ? enrolledStudents.includes(currentUser.uid) : false;
-    
-    const matchesCategory = 
-      selectedCategory === "All" || 
-      (selectedCategory === "MyCourses" && isEnrolled) ||
-      (selectedCategory !== "MyCourses" && c.selectedCategory === selectedCategory);
-    
-    return matchesSearch && matchesCategory;
-  });
+  // The shared course rules (features/courses/domain): started courses hidden unless
+  // you are in them; search; category.
+  const filteredCourses = courses.filter(
+    (c) =>
+      isVisibleInCatalog(c, currentUser?.uid) &&
+      matchesSearch(c, search) &&
+      matchesCategory(c, selectedCategory, currentUser?.uid),
+  );
 
   const coursesPerPage = 5;
   const totalPages = Math.ceil(filteredCourses.length / coursesPerPage);

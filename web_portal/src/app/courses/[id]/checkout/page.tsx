@@ -16,7 +16,7 @@ import {
 import Link from "next/link";
 import { useTranslation } from "@/shared/i18n/useTranslation";
 import { requestWhopCheckout } from "@/features/payments/application/whopCheckout";
-import { getCourse } from "@/features/payments/data/paymentCourses";
+import { getCourse } from "@/features/courses/data/courses";
 import { isEnrolled as isEnrolledIn } from "@/features/payments/domain/enrolment";
 import { db as libDb, auth as libAuth } from "@/shared/firebase/client";
 import { ENABLE_8_PERCENT_FEE, FEE_RATE, calculateWebPrice } from "@/features/payments/domain/pricing";

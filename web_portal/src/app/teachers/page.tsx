@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { db } from "@/shared/firebase/client";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { watchTeachers } from "@/features/teachers/data/teachers";
 import Navbar from "@/shared/ui/Navbar";
 import TeacherCard from "@/features/teachers/ui/TeacherCard";
 import { Loader2, Users, Search } from "lucide-react";
@@ -16,17 +16,10 @@ export default function TeachersPage() {
 
   useEffect(() => {
     // Fetch users with role "teacher"
-    const q = query(collection(db, "users"), where("role", "==", "teacher"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const teacherList = snapshot.docs.map(doc => ({
-        uid: doc.id,
-        ...doc.data()
-      }));
+    return watchTeachers(db, (teacherList) => {
       setTeachers(teacherList);
       setLoading(false);
     });
-
-    return () => unsubscribe();
   }, []);
 
   return (

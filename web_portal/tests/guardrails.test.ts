@@ -69,15 +69,13 @@ describe("feature structure: src/features/<feature>/{domain,data,server,ui}, src
   });
 
   it("pages talking to Firestore directly: a FROZEN list that may only shrink as features move to data/", () => {
-    // Moved to features/payments/data: the checkout and success pages.
+    // Moved to feature data layers: checkout + success (payments); home, catalog,
+    // course page, teachers list + page (courses / teachers).
     const frozen = new Set([
       "src/app/admin/layout.tsx",
       "src/app/courses/[id]/certificate/page.tsx",
       "src/app/courses/[id]/classroom/page.tsx",
-      "src/app/courses/[id]/page.tsx",
-      "src/app/courses/page.tsx",
       "src/app/login/page.tsx",
-      "src/app/page.tsx",
       "src/app/profile/page.tsx",
       "src/app/teacher/(main)/certificates/page.tsx",
       "src/app/teacher/(main)/courses/[id]/page.tsx",
@@ -86,8 +84,6 @@ describe("feature structure: src/features/<feature>/{domain,data,server,ui}, src
       "src/app/teacher/(main)/homeworks/page.tsx",
       "src/app/teacher/(main)/layout.tsx",
       "src/app/teacher/courses/[id]/classroom/page.tsx",
-      "src/app/teachers/[id]/page.tsx",
-      "src/app/teachers/page.tsx",
       "src/app/verify/[id]/page.tsx",
       "src/app/verify/page.tsx",
       "src/features/meet/ui/CalligroMeetLayout.tsx",

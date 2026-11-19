@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { db, auth } from "@/shared/firebase/client";
-import { doc, getDoc, collection, query, where, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
+import { getCourse, watchTeacherCourseCount } from "@/features/courses/data/courses";
+import { getTeacher } from "@/features/teachers/data/teachers";
+import { isEnrolled as isEnrolledIn } from "@/features/payments/domain/enrolment";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/shared/ui/Navbar";
 import { motion, AnimatePresence } from "framer-motion";
@@ -122,45 +124,35 @@ export default function CourseDetailsPage() {
 
   useEffect(() => {
     if (!id) return;
+    // THE LEAK: the live count listener used to be started inside the async function,
+    // so its stop function never reached React and it ran forever. Now it is stopped.
+    let stopCount: (() => void) | undefined;
+    let cancelled = false;
 
     const fetchCourse = async () => {
       try {
-        const docRef = doc(db, "courses", id as string);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const courseData: any = docSnap.data();
-          const data = { id: docSnap.id, ...courseData };
+        const data = await getCourse(db, id as string);
+        if (data && !cancelled) {
           setCourse(data);
+          if (isEnrolledIn(data, auth.currentUser?.uid)) setIsEnrolled(true);
 
-          // Check Enrollment
-          const user = auth.currentUser;
-          if (user && courseData.enrolledStudents?.includes(user.uid)) {
-            setIsEnrolled(true);
-          }
-
-          // Fetch Teacher Details
           if (data.teacherId) {
-            const tRef = doc(db, "users", data.teacherId);
-            const tSnap = await getDoc(tRef);
-            if (tSnap.exists()) {
-              setTeacher(tSnap.data());
-            }
-
-            // Fetch Teacher Course Count
-            const q = query(collection(db, "courses"), where("teacherId", "==", data.teacherId));
-            const unsubscribeCount = onSnapshot(q, (snapshot) => {
-              setTeacherCourseCount(snapshot.size);
-            });
-            return () => unsubscribeCount();
+            const teacherData = await getTeacher(db, data.teacherId);
+            if (teacherData && !cancelled) setTeacher(teacherData);
+            if (!cancelled) stopCount = watchTeacherCourseCount(db, data.teacherId, setTeacherCourseCount);
           }
         }
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchCourse();
+    return () => {
+      cancelled = true;
+      stopCount?.();
+    };
   }, [id]);
 
   const formatDate = (ts: any) => {
