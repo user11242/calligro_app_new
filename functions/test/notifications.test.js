@@ -225,6 +225,34 @@ describe('Domain 5: Notifications & Cloud Triggers (Cloud Functions)', () => {
     expect(admin.mockSend).toHaveBeenCalled();
   });
 
+  describe('sendAdminDirectMessage (admin → one user)', () => {
+    const req = { auth: { uid: 'admin1' }, data: { targetUserId: 'u1', title: 'T', body: 'M' } };
+    const adminDoc = { exists: true, data: () => ({ role: 'admin' }) };
+
+    it('saves to the inbox and pushes; reports the push', async () => {
+      admin.getMock.mockResolvedValueOnce(adminDoc).mockResolvedValueOnce({ exists: true, data: () => ({ fcmToken: 'tok' }) });
+      await expect(notifications.sendAdminDirectMessage(req)).resolves.toEqual({ success: true, push: 'sent' });
+    });
+
+    it('a failed push (e.g. an expired phone token) does NOT fail the send: the inbox copy is there', async () => {
+      admin.getMock.mockResolvedValueOnce(adminDoc).mockResolvedValueOnce({ exists: true, data: () => ({ fcmToken: 'old' }) });
+      admin.mockSend.mockRejectedValueOnce(Object.assign(new Error('Requested entity was not found.'), { code: 'messaging/registration-token-not-registered' }));
+      await expect(notifications.sendAdminDirectMessage(req)).resolves.toEqual({ success: true, push: 'failed' });
+    });
+
+    it('no phone registered → inbox only', async () => {
+      admin.getMock.mockResolvedValueOnce(adminDoc).mockResolvedValueOnce({ exists: true, data: () => ({}) });
+      await expect(notifications.sendAdminDirectMessage(req)).resolves.toEqual({ success: true, push: 'none' });
+    });
+
+    it('only admins; unknown user → not-found', async () => {
+      admin.getMock.mockResolvedValueOnce({ exists: true, data: () => ({ role: 'teacher' }) }).mockResolvedValueOnce({ exists: true, data: () => ({}) });
+      await expect(notifications.sendAdminDirectMessage(req)).rejects.toMatchObject({ code: 'permission-denied' });
+      admin.getMock.mockResolvedValueOnce(adminDoc).mockResolvedValueOnce({ exists: false });
+      await expect(notifications.sendAdminDirectMessage(req)).rejects.toMatchObject({ code: 'not-found' });
+    });
+  });
+
   it('sendAdminDirectMessage works', async () => {
     const req = { auth: { uid: 'admin1' }, data: { targetUserId: 'u1', title: 'T', body: 'M' } };
     admin.getMock.mockResolvedValue({ exists: true, data: () => ({ role: 'admin', fcmTokens: ['tok1'] }) });

@@ -783,63 +783,63 @@ exports.sendAdminDirectMessage = onCall(async (request) => {
         throw new HttpsError("invalid-argument", "targetUserId, title, and body are required.");
     }
 
-    // Verify caller is admin
-    const callerDoc = await admin.firestore().collection("users").doc(request.auth.uid).get();
+    // The caller's role and the target user are read together (one round trip, not two).
+    const db = admin.firestore();
+    const [callerDoc, targetDoc] = await Promise.all([
+        db.collection("users").doc(request.auth.uid).get(),
+        db.collection("users").doc(targetUserId).get(),
+    ]);
     if (!callerDoc.exists || callerDoc.data().role !== "admin") {
         throw new HttpsError("permission-denied", "Only admins can send direct notifications.");
     }
+    if (!targetDoc.exists) {
+        throw new HttpsError("not-found", "Target user not found.");
+    }
 
+    // 1. The in-app inbox copy: this is what makes the message "sent".
     try {
-        // Fetch target user for FCM token
-        const targetDoc = await admin.firestore().collection("users").doc(targetUserId).get();
-        if (!targetDoc.exists) {
-            throw new HttpsError("not-found", "Target user not found.");
-        }
+        await db.collection("users").doc(targetUserId).collection("notifications").add({
+            title,
+            body,
+            type: "admin_message",
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (err) {
+        console.error("[sendAdminDirectMessage] Inbox write failed:", err);
+        throw new HttpsError("internal", "Failed to send notification.");
+    }
 
-        const targetData = targetDoc.data();
-        const token = targetData.fcmToken;
-
-        // 1. Save to in-app inbox (correct field names matching notifications_page.dart)
-        await admin.firestore()
-            .collection("users")
-            .doc(targetUserId)
-            .collection("notifications")
-            .add({
-                title,
-                body,
-                type: "admin_message",
-                read: false,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-
-        // 2. Send FCM push notification
-        if (token) {
-            await admin.messaging().send({
-                token,
-                notification: { title, body },
-                data: { type: "admin_message", title, body },
-                android: {
-                    priority: "high",
-                    notification: { channelId: "calligro_alerts" },
-                },
-                apns: {
-                    payload: {
-                        aps: {
-                            alert: { title, body },
-                            sound: "default",
-                        },
+    // 2. The phone push is a bonus: a stale token or a push outage must not turn an
+    //    already-delivered message into an error (the admin then re-sent it, twice).
+    const token = targetDoc.data().fcmToken;
+    if (!token) {
+        console.warn(`[AdminDirect] No FCM token for user ${targetUserId}. In-app notification saved.`);
+        return { success: true, push: "none" };
+    }
+    try {
+        await admin.messaging().send({
+            token,
+            notification: { title, body },
+            data: { type: "admin_message", title, body },
+            android: {
+                priority: "high",
+                notification: { channelId: "calligro_alerts" },
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        alert: { title, body },
+                        sound: "default",
                     },
                 },
-            });
-            console.log(`[AdminDirect] Push sent to user ${targetUserId}`);
-        } else {
-            console.warn(`[AdminDirect] No FCM token for user ${targetUserId}. In-app notification saved.`);
-        }
-
-        return { success: true };
+            },
+        });
+        console.log(`[AdminDirect] Push sent to user ${targetUserId}`);
+        return { success: true, push: "sent" };
     } catch (err) {
-        console.error("[sendAdminDirectMessage] Error:", err);
-        throw new HttpsError("internal", err.message || "Failed to send notification.");
+        console.warn(`[AdminDirect] Push failed for ${targetUserId} (inbox copy saved):`, err.code || err.message);
+        return { success: true, push: "failed" };
     }
 });
 

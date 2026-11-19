@@ -1,4 +1,5 @@
 import 'package:calligro_app/l10n/app_localizations.dart';
+import 'package:calligro_app/features/admin/presentation/widgets/send_user_notification_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:calligro_app/core/theme/colors.dart';
@@ -63,67 +64,19 @@ class UserTile extends StatelessWidget {
     }
   }
 
-  void _showNotificationDialog(BuildContext context) {
+  /// [context] must be a LIVE context (the tile's), never the action sheet's:
+  /// the sheet is already closing, and opening a dialog from it crashed at times.
+  Future<void> _showNotificationDialog(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
-    final titleController = TextEditingController();
-    final bodyController = TextEditingController();
-
-    showDialog(
+    final messenger = ScaffoldMessenger.of(context);
+    final sent = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text(l10n.sendToUser(user.name), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: l10n.notificationTitle,
-                hintStyle: const TextStyle(color: Colors.white30),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: bodyController,
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: l10n.notificationBody,
-                hintStyle: const TextStyle(color: Colors.white30),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-          ],
-        ),
-      ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
-            onPressed: () async {
-              if (titleController.text.isNotEmpty && bodyController.text.isNotEmpty) {
-                await adminService.sendUserNotification(user.id, titleController.text, bodyController.text);
-                if (context.mounted) Navigator.pop(context);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.notificationSent)));
-                }
-              }
-            },
-            child: Text(l10n.send, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
+      builder: (_) => SendUserNotificationDialog(
+        userName: user.name,
+        send: (title, body) => adminService.sendUserNotification(user.id, title, body),
       ),
     );
+    if (sent == true) messenger.showSnackBar(SnackBar(content: Text(l10n.notificationSent)));
   }
 
   void _showUserActions(BuildContext context) {
@@ -135,11 +88,11 @@ class UserTile extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -163,7 +116,7 @@ class UserTile extends StatelessWidget {
                     ),
                     title: Text(l10n.callUser, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheetContext);
                       _makeCall(user.phone!);
                     },
                   ),
@@ -175,7 +128,7 @@ class UserTile extends StatelessWidget {
                     ),
                     title: Text(l10n.whatsappMessage, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheetContext);
                       _openWhatsApp(user.phone!);
                     },
                   ),
@@ -188,8 +141,8 @@ class UserTile extends StatelessWidget {
                   ),
                   title: Text(l10n.sendDirectNotification, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                   onTap: () {
-                    Navigator.pop(context);
-                    _showNotificationDialog(context);
+                    Navigator.pop(sheetContext);
+                    _showNotificationDialog(context); // the tile's live context
                   },
                 ),
                 const Padding(
@@ -201,7 +154,7 @@ class UserTile extends StatelessWidget {
                   title: Text(l10n.makeAdmin, style: const TextStyle(color: Colors.white)),
                   onTap: () async {
                     await adminService.changeUserRole(user.id, 'admin');
-                    if (context.mounted) Navigator.pop(context);
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
                   },
                 ),
                 ListTile(
@@ -209,7 +162,7 @@ class UserTile extends StatelessWidget {
                   title: Text(l10n.makeTeacher, style: const TextStyle(color: Colors.white)),
                   onTap: () async {
                     await adminService.changeUserRole(user.id, 'teacher');
-                    if (context.mounted) Navigator.pop(context);
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
                   },
                 ),
                 ListTile(
@@ -217,7 +170,7 @@ class UserTile extends StatelessWidget {
                   title: Text(l10n.makeStudent, style: const TextStyle(color: Colors.white)),
                   onTap: () async {
                     await adminService.changeUserRole(user.id, 'student');
-                    if (context.mounted) Navigator.pop(context);
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
                   },
                 ),
                 const Padding(
@@ -227,7 +180,10 @@ class UserTile extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
                   title: Text(l10n.deleteUser, style: const TextStyle(color: Colors.redAccent)),
-                  onTap: () => _confirmDelete(context),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _confirmDelete(context); // the tile's live context
+                  },
                 ),
                 const SizedBox(height: 32),
               ],
@@ -240,7 +196,6 @@ class UserTile extends StatelessWidget {
 
   void _confirmDelete(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    Navigator.pop(context); // Close bottom sheet
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
