@@ -28,6 +28,31 @@ void main() {
     });
   });
 
+  group('THE BUG: the pop-up came on the last DAY, before the last class even started', () {
+    // endDate is stored as the start of the last day; the last class is 18:00–19:30 that day.
+    final lastDay = DateTime(2026, 11, 20);
+    final c = RateableCourse(
+      courseId: 'c1', teacherId: 't1', enrolledStudents: const ['s1'],
+      endDate: lastDay, lastClassEnd: DateTime(2026, 11, 20, 19, 30),
+    );
+
+    test('not during the last day before the last class ends', () {
+      expect(RatingPolicy.canRate(c, 's1', DateTime(2026, 11, 20, 9)), isFalse);
+      expect(RatingPolicy.canRate(c, 's1', DateTime(2026, 11, 20, 19, 0)), isFalse, reason: 'class still running');
+    });
+
+    test('right after the last class ends', () {
+      expect(RatingPolicy.canRate(c, 's1', DateTime(2026, 11, 20, 19, 31)), isTrue);
+      expect(RatingPolicy.ratingOpensAt(c), DateTime(2026, 11, 20, 19, 30));
+    });
+
+    test('a course whose class times are unknown waits until the whole last day is over', () {
+      final noTimes = RateableCourse(courseId: 'c2', teacherId: 't1', enrolledStudents: const ['s1'], endDate: lastDay);
+      expect(RatingPolicy.canRate(noTimes, 's1', DateTime(2026, 11, 20, 23, 59)), isFalse);
+      expect(RatingPolicy.canRate(noTimes, 's1', DateTime(2026, 11, 21, 0, 1)), isTrue);
+    });
+  });
+
   group('which course to ask about (THE BUG: the same course kept coming back)', () {
     RateableCourse? next(List<RateableCourse> courses, {Set<String> reviewed = const {}, Map<String, RatingPrompt> prompts = const {}}) =>
         RatingPolicy.nextToPrompt(courses: courses, uid: 's1', reviewedCourseIds: reviewed, prompts: prompts, now: now);

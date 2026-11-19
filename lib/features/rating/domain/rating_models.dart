@@ -83,7 +83,12 @@ class RateableCourse {
   final String courseId;
   final String teacherId;
   final List<String> enrolledStudents;
+  /// The course's last day (stored as the START of that day).
   final DateTime? endDate;
+
+  /// When the last class actually ends (the schedule rule, moved classes included),
+  /// or null when the class times are unknown.
+  final DateTime? lastClassEnd;
 
   /// The stored course document (for the localised course name).
   final Map<String, dynamic> data;
@@ -93,6 +98,7 @@ class RateableCourse {
     required this.teacherId,
     this.enrolledStudents = const [],
     this.endDate,
+    this.lastClassEnd,
     this.data = const {},
   });
 }
@@ -110,13 +116,23 @@ class RatingPolicy {
 
   static bool isValidStars(int stars) => stars >= minStars && stars <= maxStars;
 
-  /// Only an enrolled student, and only after the course has ended.
-  static bool canRate(RateableCourse course, String uid, DateTime now) =>
-      uid.isNotEmpty &&
-      course.teacherId != uid &&
-      course.enrolledStudents.contains(uid) &&
-      course.endDate != null &&
-      now.isAfter(course.endDate!);
+  /// When students may rate: once the last class has ended. Without class times,
+  /// once the whole last day is over (never before the last class). Null: unknown.
+  ///
+  /// (It used to be the end DATE, stored as the start of the last day, so the
+  /// pop-up came on the last morning, before the last class.)
+  static DateTime? ratingOpensAt(RateableCourse course) =>
+      course.lastClassEnd ?? course.endDate?.add(const Duration(days: 1));
+
+  /// Only an enrolled student, and only after the last class has ended.
+  static bool canRate(RateableCourse course, String uid, DateTime now) {
+    final opensAt = ratingOpensAt(course);
+    return uid.isNotEmpty &&
+        course.teacherId != uid &&
+        course.enrolledStudents.contains(uid) &&
+        opensAt != null &&
+        now.isAfter(opensAt);
+  }
 
   /// The ONE course to ask about now, or null: finished, not rated yet, and
   /// not asked too recently or too often. Oldest finished course first.
@@ -134,7 +150,7 @@ class RatingPolicy {
       if (p.timesShown >= maxPrompts) return false;
       return p.lastShownAt == null || !now.isBefore(p.lastShownAt!.add(snooze));
     }).toList()
-      ..sort((a, b) => a.endDate!.compareTo(b.endDate!));
+      ..sort((a, b) => ratingOpensAt(a)!.compareTo(ratingOpensAt(b)!));
     return candidates.isEmpty ? null : candidates.first;
   }
 }

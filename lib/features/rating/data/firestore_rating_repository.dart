@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:calligro_app/features/courses/domain/course_schedule.dart';
+
 import '../domain/rating_models.dart';
 import '../domain/rating_repository.dart';
 
@@ -20,9 +22,20 @@ class FirestoreRatingRepository implements RatingRepository {
           teacherId: d.data()['teacherId'] is String ? d.data()['teacherId'] as String : '',
           enrolledStudents: [for (final s in (d.data()['enrolledStudents'] as List?) ?? const []) if (s is String) s],
           endDate: _date(d.data()['endDate']),
+          lastClassEnd: _lastClassEnd(d.data()),
           data: d.data(),
         ),
     ];
+  }
+
+  /// The end of the course's last class (the shared schedule rule, so a moved last
+  /// class counts at its new time), or null when the class times are unknown.
+  static DateTime? _lastClassEnd(Map<String, dynamic> course) {
+    try {
+      return CourseSchedule.fromMap(course, fallbackOffset: DateTime.now().timeZoneOffset).lastSession?.end;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

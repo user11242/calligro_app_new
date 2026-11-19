@@ -25,6 +25,37 @@ void main() {
     expect([list.single.teacherId, list.single.endDate, list.single.data['courseName']], ['t1', DateTime(2026, 11, 1), 'Thuluth']);
   });
 
+  test('the end of the LAST CLASS comes from the schedule rule (a moved last class included)', () async {
+    // Mondays 18:00–19:30 (UTC), 2026-11-02 … 2026-11-16 (three Mondays).
+    final course = {
+      'teacherId': 't1', 'enrolledStudents': ['s3'],
+      'startDate': Timestamp.fromDate(DateTime.utc(2026, 11, 2)),
+      'endDate': Timestamp.fromDate(DateTime.utc(2026, 11, 16)),
+      'startTime': Timestamp.fromDate(DateTime.utc(2026, 1, 1, 18)),
+      'endTime': Timestamp.fromDate(DateTime.utc(2026, 1, 1, 19, 30)),
+      'selectedDays': ['Monday'],
+      'scheduleUtcOffsetMinutes': 0,
+    };
+    await db.doc('courses/c3').set(course);
+    expect((await repo.enrolledCourses('s3')).single.lastClassEnd, DateTime.utc(2026, 11, 16, 19, 30));
+
+    // The teacher moved the last class to Tuesday 20:00–21:00.
+    await db.doc('courses/c3').update({
+      'sessionMoves': [
+        {
+          'originalStart': Timestamp.fromDate(DateTime.utc(2026, 11, 16, 18)),
+          'newStart': Timestamp.fromDate(DateTime.utc(2026, 11, 17, 20)),
+          'newEnd': Timestamp.fromDate(DateTime.utc(2026, 11, 17, 21)),
+        },
+      ],
+    });
+    expect((await repo.enrolledCourses('s3')).single.lastClassEnd, DateTime.utc(2026, 11, 17, 21));
+  });
+
+  test('no class times → no last-class end (the last day as a whole counts)', () async {
+    expect((await repo.enrolledCourses('s1')).single.lastClassEnd, isNull);
+  });
+
   test('the review is created at its fixed id; a second one is refused', () async {
     const review = Review(id: 'c1_s1', studentId: 's1', teacherId: 't1', courseId: 'c1', rating: 5);
     await repo.submit(review);
