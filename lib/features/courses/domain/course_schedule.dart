@@ -320,4 +320,47 @@ class CourseSchedule {
     }
     return MovePlan(window: w, startDate: start?.toUtc(), endDate: end?.toUtc());
   }
+
+  // ── Joining the live class ──────────────────────────────────────────────
+  /// Students may join from [joinEarly] before a class until [joinLate] after it ends
+  /// (moved classes at their NEW time; the usual time of a moved class is closed).
+  static const joinEarly = Duration(minutes: 10);
+  static const joinLate = Duration(minutes: 30);
+
+  JoinCheck joinCheck(DateTime now) {
+    final all = sessions();
+    // No readable schedule: we cannot tell, so we never lock students out.
+    if (all.isEmpty) return const JoinCheck(JoinStatus.unknown);
+    for (final s in all) {
+      final opens = s.start.subtract(joinEarly);
+      final closes = s.end.add(joinLate);
+      if (!now.isBefore(opens) && now.isBefore(closes)) return JoinCheck(JoinStatus.open, session: s);
+      if (now.isBefore(opens)) return JoinCheck(JoinStatus.opensLater, session: s, opensAt: opens);
+    }
+    return const JoinCheck(JoinStatus.ended);
+  }
+}
+
+enum JoinStatus {
+  /// A class is on (or about to start / just ended): students may join.
+  open,
+
+  /// Locked until [JoinCheck.opensAt].
+  opensLater,
+
+  /// No more classes.
+  ended,
+
+  /// The schedule cannot be read: not locked.
+  unknown,
+}
+
+/// Whether a student may join the live class now, and which class / when it opens.
+class JoinCheck {
+  final JoinStatus status;
+  final CourseSession? session;
+  final DateTime? opensAt;
+  const JoinCheck(this.status, {this.session, this.opensAt});
+
+  bool get canJoin => status == JoinStatus.open || status == JoinStatus.unknown;
 }

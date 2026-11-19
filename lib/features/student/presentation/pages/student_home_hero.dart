@@ -274,8 +274,13 @@ extension _HeroSections on _StudentHomePageState {
                 const SizedBox(height: 20),
                 _CountdownTimer(
                   course: course,
-                  onTimerUpdate: (remaining) {
-                    isButtonEnabled.value = remaining <= Duration.zero;
+                  // Same window as the course page's join bar: 10 minutes before a
+                  // class until 30 minutes after it ends (a moved class at its new time).
+                  onTimerUpdate: (_) {
+                    isButtonEnabled.value = CourseSchedule.fromMap(course, fallbackOffset: DateTime.now().timeZoneOffset)
+                            .joinCheck(DateTime.now())
+                            .status ==
+                        JoinStatus.open;
                   },
                 ),
                 const SizedBox(height: 20),

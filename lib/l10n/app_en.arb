@@ -1599,5 +1599,9 @@
   "notifClassMovedNote": "{course}: the class on {oldTime} is moved to {newTime}. Note: {note}",
   "@notifClassMovedNote": {"placeholders": {"course": {"type": "String"}, "oldTime": {"type": "String"}, "newTime": {"type": "String"}, "note": {"type": "String"}}},
   "notifClassBack": "{course}: the class is back at its usual time, {oldTime}.",
-  "@notifClassBack": {"placeholders": {"course": {"type": "String"}, "oldTime": {"type": "String"}}}
+  "@notifClassBack": {"placeholders": {"course": {"type": "String"}, "oldTime": {"type": "String"}}},
+  "joinOpensAt": "Opens {time}",
+  "@joinOpensAt": {"placeholders": {"time": {"type": "String"}}},
+  "joinWindowHint": "You can join from 10 minutes before the class until 30 minutes after it ends.",
+  "joinCourseEnded": "This course has no more classes"
 }

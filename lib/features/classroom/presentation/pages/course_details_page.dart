@@ -436,7 +436,17 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         });
   }
 
-  /// Teacher: move the NEXT class (the server checks it again, moves the course
+  /// Whether a student may join the live class now (the one schedule rule; a
+  /// moved class at its new time). Before the course loads: not locked.
+  JoinCheck _studentJoinCheck() =>
+      _schedule?.joinCheck(DateTime.now()) ?? const JoinCheck(JoinStatus.unknown);
+
+  void _explainJoinLocked() {
+    final l10n = AppLocalizations.of(context)!;
+    _showMessage(l10n.tooEarly, l10n.joinWindowHint, MessengerType.info);
+  }
+
+    /// Teacher: move the NEXT class (the server checks it again, moves the course
   /// dates for the first / last class, and notifies the students once).
   Future<void> _showRescheduleDialog() async {
     final schedule = _schedule;
@@ -497,6 +507,9 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
         isTeacher: isTeacher,
         onLiveSessionPressed: _launchClassroom,
         onChatPressed: _openCourseChat,
+        // Students only: locked outside the class window (moves included).
+        joinCheck: _role.canManage ? null : _studentJoinCheck,
+        onLockedPressed: _explainJoinLocked,
       ),
       body: NestedScrollView(
         physics: const BouncingScrollPhysics(),

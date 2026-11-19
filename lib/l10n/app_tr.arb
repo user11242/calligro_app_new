@@ -1244,5 +1244,8 @@
   "classBackOnSchedule": "Ders her zamanki saatine döndü.",
   "notifClassMoved": "{course}: {oldTime} dersi {newTime} zamanına alındı.",
   "notifClassMovedNote": "{course}: {oldTime} dersi {newTime} zamanına alındı. Not: {note}",
-  "notifClassBack": "{course}: ders her zamanki saatinde, {oldTime}."
+  "notifClassBack": "{course}: ders her zamanki saatinde, {oldTime}.",
+  "joinOpensAt": "{time} açılır",
+  "joinWindowHint": "Derse, başlamadan 10 dakika önce ile bittikten 30 dakika sonrası arasında katılabilirsiniz.",
+  "joinCourseEnded": "Bu kursun başka dersi yok"
 }

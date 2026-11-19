@@ -187,4 +187,76 @@ void main() {
       expect(schedule().next(t('2026-12-17T00:00:00Z')), isNull);
     });
   });
+
+  group('joining the live class (students): 10 min before the start until 30 min after the end', () {
+    // Classes: Mon & Wed 15:00-16:30 UTC (18:00-19:30 UTC+3), 30 Nov – 16 Dec 2026.
+    final sch = schedule();
+    JoinCheck at(String iso, [CourseSchedule? s]) => (s ?? sch).joinCheck(t(iso));
+
+    test('locked before: one second before the 10-minute mark', () {
+      final c = at('2026-12-02T14:49:59Z');
+      expect(c.canJoin, isFalse);
+      expect(c.status, JoinStatus.opensLater);
+      expect(c.opensAt, t('2026-12-02T14:50:00Z'));
+      expect(c.session!.start, t('2026-12-02T15:00:00Z'));
+    });
+
+    test('open from exactly 10 minutes before, during the class, and up to 30 minutes after it ends', () {
+      for (final iso in ['2026-12-02T14:50:00Z', '2026-12-02T15:00:00Z', '2026-12-02T16:29:59Z', '2026-12-02T16:59:59Z']) {
+        final c = at(iso);
+        expect(c.canJoin, isTrue, reason: iso);
+        expect(c.status, JoinStatus.open, reason: iso);
+        expect(c.session!.start, t('2026-12-02T15:00:00Z'), reason: iso);
+      }
+    });
+
+    test('locked again exactly 30 minutes after the end; the next class is shown', () {
+      final c = at('2026-12-02T17:00:00Z');
+      expect(c.canJoin, isFalse);
+      expect(c.opensAt, t('2026-12-07T14:50:00Z'));
+    });
+
+    test('on a day without a class: locked, with the next opening', () {
+      final c = at('2026-12-03T15:00:00Z');
+      expect(c.canJoin, isFalse);
+      expect(c.opensAt, t('2026-12-07T14:50:00Z'));
+    });
+
+    test('before the course starts: locked until the first class', () {
+      expect(at('2026-11-20T09:00:00Z').opensAt, t('2026-11-30T14:50:00Z'));
+    });
+
+    test('after the last class: ended (no more joining)', () {
+      final c = at('2026-12-16T17:00:00Z');
+      expect(c.canJoin, isFalse);
+      expect(c.status, JoinStatus.ended);
+      expect(c.opensAt, isNull);
+    });
+
+    test('RESCHEDULED: the usual time is locked; the NEW time opens (connected to rescheduling)', () {
+      final moved = schedule(moves: [
+        SessionMove(originalStart: t('2026-12-07T15:00:00Z'), newStart: t('2026-12-08T17:00:00Z'), newEnd: t('2026-12-08T18:00:00Z')),
+      ]);
+      expect(at('2026-12-07T15:10:00Z', moved).canJoin, isFalse, reason: 'nothing at the usual time any more');
+      expect(at('2026-12-07T15:10:00Z', moved).opensAt, t('2026-12-08T16:50:00Z'));
+      expect(at('2026-12-08T16:50:00Z', moved).canJoin, isTrue);
+      expect(at('2026-12-08T18:29:59Z', moved).canJoin, isTrue);
+      expect(at('2026-12-08T18:30:00Z', moved).canJoin, isFalse);
+      expect(at('2026-12-08T16:55:00Z', moved).session!.isRescheduled, isTrue);
+    });
+
+    test('RESCHEDULED to an earlier hour the same day: opens 10 minutes before the new time', () {
+      final earlier = schedule(moves: [
+        SessionMove(originalStart: t('2026-12-07T15:00:00Z'), newStart: t('2026-12-07T10:00:00Z'), newEnd: t('2026-12-07T11:00:00Z')),
+      ]);
+      expect(at('2026-12-07T09:50:00Z', earlier).canJoin, isTrue);
+      expect(at('2026-12-07T14:55:00Z', earlier).canJoin, isFalse, reason: 'the usual 15:00 is gone');
+    });
+
+    test('a course whose schedule cannot be read is NOT locked (never lock students out on bad data)', () {
+      final c = CourseSchedule.fromMap(const {'courseName': 'x'}, fallbackOffset: Duration.zero).joinCheck(t('2026-12-02T15:00:00Z'));
+      expect(c.status, JoinStatus.unknown);
+      expect(c.canJoin, isTrue);
+    });
+  });
 }

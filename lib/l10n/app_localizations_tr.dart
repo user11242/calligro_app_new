@@ -4027,4 +4027,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String notifClassBack(String course, String oldTime) {
     return '$course: ders her zamanki saatinde, $oldTime.';
   }
+
+  @override
+  String joinOpensAt(String time) {
+    return '$time açılır';
+  }
+
+  @override
+  String get joinWindowHint =>
+      'Derse, başlamadan 10 dakika önce ile bittikten 30 dakika sonrası arasında katılabilirsiniz.';
+
+  @override
+  String get joinCourseEnded => 'Bu kursun başka dersi yok';
 }

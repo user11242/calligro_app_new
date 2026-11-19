@@ -74,4 +74,14 @@ void main() {
     expect(rules.contains("get('text', '').size() <= 4000"), isTrue);
     expect(rules.contains("hasOnly(['senderId', 'senderName', 'senderPhotoUrl', 'senderRole', 'text', 'imageUrl', 'createdAt'])"), isTrue);
   });
+
+  test('students join only in the class window, from every entry point (the schedule rule)', () {
+    final page = File('lib/features/classroom/presentation/pages/course_details_page.dart').readAsStringSync();
+    final launch = File('lib/features/classroom/presentation/pages/course_details_classroom.dart').readAsStringSync();
+    final hero = File('lib/features/student/presentation/pages/student_home_hero.dart').readAsStringSync();
+    expect(page.contains('joinCheck: _role.canManage ? null : _studentJoinCheck'), isTrue, reason: 'the join bar is locked for students');
+    expect(launch.contains('if (!_role.canManage && !_studentJoinCheck().canJoin)'), isTrue, reason: 'the join action re-checks');
+    expect(launch.contains('SMART GATING DISABLED'), isFalse);
+    expect(hero.contains('.joinCheck(DateTime.now())'), isTrue, reason: 'the home "Join class now" uses the same window');
+  });
 }

@@ -7508,6 +7508,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{course}: the class is back at its usual time, {oldTime}.'**
   String notifClassBack(String course, String oldTime);
+
+  /// No description provided for @joinOpensAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens {time}'**
+  String joinOpensAt(String time);
+
+  /// No description provided for @joinWindowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can join from 10 minutes before the class until 30 minutes after it ends.'**
+  String get joinWindowHint;
+
+  /// No description provided for @joinCourseEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'This course has no more classes'**
+  String get joinCourseEnded;
 }
 
 class _AppLocalizationsDelegate

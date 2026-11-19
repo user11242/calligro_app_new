@@ -4024,4 +4024,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String notifClassBack(String course, String oldTime) {
     return '$course: the class is back at its usual time, $oldTime.';
   }
+
+  @override
+  String joinOpensAt(String time) {
+    return 'Opens $time';
+  }
+
+  @override
+  String get joinWindowHint =>
+      'You can join from 10 minutes before the class until 30 minutes after it ends.';
+
+  @override
+  String get joinCourseEnded => 'This course has no more classes';
 }

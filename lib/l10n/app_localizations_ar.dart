@@ -4012,4 +4012,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String notifClassBack(String course, String oldTime) {
     return '$course: عادت الحصة إلى موعدها المعتاد، $oldTime.';
   }
+
+  @override
+  String joinOpensAt(String time) {
+    return 'تفتح $time';
+  }
+
+  @override
+  String get joinWindowHint =>
+      'يمكنك الدخول قبل الحصة بـ 10 دقائق وحتى 30 دقيقة بعد انتهائها.';
+
+  @override
+  String get joinCourseEnded => 'لا توجد حصص أخرى في هذه الدورة';
 }

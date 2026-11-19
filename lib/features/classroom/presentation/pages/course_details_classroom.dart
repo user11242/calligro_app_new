@@ -197,43 +197,13 @@ extension _ClassroomSections on _CourseDetailsPageState {
     try {
       debugPrint("DEBUG: Classroom logic triggered for course: ${widget.courseId}");
 
-      /* 🚫 SMART GATING DISABLED AT USER REQUEST (For testing and ad-hoc sessions)
-      if (!isTeacher) {
-        // Smart Gating Logic for Students
-        final now = DateTime.now();
-        
-        // 1. Effective start: the class going on or the next one, moves included (the schedule rule).
-        final current = _schedule?.live(now) ?? _schedule?.next(now);
-        final DateTime effectiveStart = current?.start.toLocal() ?? now;
-
-        // 2. Define Buffers
-        final earlyBuffer = effectiveStart.subtract(const Duration(minutes: 10));
-        final gracePeriodEnd = effectiveStart.add(const Duration(minutes: 120)); // Increased for flexibility
-
-        // Day Check
-        if (selectedDays.isNotEmpty) {
-          final todayName = DateFormat('EEEE').format(now);
-          if (!selectedDays.contains(todayName)) {
-            _showMessage(
-              l10n.tooEarly, 
-              "There is no session scheduled for today. Please check the schedule tab.",
-              MessengerType.info,
-            );
-            return;
-          }
-        }
-
-        if (now.isBefore(earlyBuffer)) {
-          _showMessage(l10n.tooEarly, "The classroom will open 10 minutes before the session starts.", MessengerType.info);
-          return;
-        }
-        
-        if (now.isAfter(gracePeriodEnd)) {
-          _showMessage(l10n.classEnded, "The live session for today has concluded or the grace period has expired.", MessengerType.info);
-          return;
-        }
+      // Students: only from 10 minutes before a class until 30 minutes after it ends
+      // (the one schedule rule — a moved class at its NEW time). The join bar is
+      // locked too; this re-check covers a window that closed while the page was open.
+      if (!_role.canManage && !_studentJoinCheck().canJoin) {
+        _explainJoinLocked();
+        return;
       }
-      */
 
       // ── STEP 1: Request camera & microphone permissions at runtime ──
       // On Android 6+, manifest declarations alone are NOT enough.
