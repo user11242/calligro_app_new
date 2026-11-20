@@ -1,5 +1,6 @@
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/features/classroom/presentation/widgets/next_session_card.dart' show MovedClassBanner;
+import 'package:calligro_app/features/courses/domain/course_schedule.dart';
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:calligro_app/core/widgets/smart_image.dart';
@@ -402,9 +403,12 @@ class _StyledCourseCard extends StatelessWidget {
     final int maxStudents = courseData['maxStudents'] ?? 0;
     final double enrollmentProgress = (studentCount / (maxStudents > 0 ? maxStudents : 1)).clamp(0.0, 1.0);
 
+    final next = CourseSchedule.fromMap(courseData, fallbackOffset: DateTime.now().timeZoneOffset).next(DateTime.now());
+    final bool hasMovedBanner = next != null && next.isRescheduled;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 28),
-      height: 320, // Slightly taller to accommodate more info
+      height: hasMovedBanner ? 395 : 320, // Expands cleanly when rescheduled to prevent overlapping top status badge
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
@@ -497,15 +501,15 @@ class _StyledCourseCard extends StatelessWidget {
                           title,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: 21,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -0.5,
-                            height: 1.1,
+                            height: 1.15,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 20),
+                        SizedBox(height: hasMovedBanner ? 14 : 20),
                         
                         // Glass Stats Row (Updated with Age)
                         Row(
@@ -544,7 +548,7 @@ class _StyledCourseCard extends StatelessWidget {
                         ),
                         // The next class was moved: tag + new time (only then).
                         MovedClassBanner(course: courseData),
-                        const SizedBox(height: 24),
+                        SizedBox(height: hasMovedBanner ? 16 : 24),
                         
                         // Progress Section
                         Row(

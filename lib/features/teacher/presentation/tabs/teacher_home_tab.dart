@@ -404,7 +404,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                   children: [
                     SizedBox(
                       height:
-                          350, // Reduced from 380 to make it slightly smaller
+                          375, // Accommodates rescheduled badge, timer and 2-line title without overflow
                       child: PageView.builder(
                         controller: _heroPageController,
                         itemCount: scheduleList.length,
@@ -722,7 +722,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
             ),
             Container(
               constraints: const BoxConstraints(minHeight: 280),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -805,7 +805,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
 
                   // Middle Section: Name and Timer
                   Center(
@@ -815,7 +815,7 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                       children: [
                         if (rescheduled) ...[
                           const RescheduledTag(compact: true),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                         ],
                         AutoTranslatedText(CourseUtils.getLocalizedCourseName(context, data),
                           textAlign: TextAlign.center,
@@ -824,25 +824,25 @@ class _TeacherHomeTabState extends State<TeacherHomeTab> {
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.5,
-                            height: 1.3,
+                            height: 1.25,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (timerWidget != null) ...[
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           timerWidget,
                         ],
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
 
                   // Action Button
                   Container(
                     width: double.infinity,
-                    height: 52,
+                    height: 48,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [

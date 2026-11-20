@@ -152,20 +152,34 @@ class _CourseDetailsFloatingBarState extends State<CourseDetailsFloatingBar> {
     );
   }
 
-  /// Locked: grey, a lock, and when it opens ("Opens Wed, Dec 2 5:50 PM") or that the course is over.
+  /// Locked: solid elevated card, clear gold lock icon, and high-contrast readable label ("Opens Wed, Dec 2 5:50 PM").
   Widget _buildLockedButton(AppLocalizations l10n, JoinCheck check) {
     final locale = Localizations.localeOf(context).toString();
     final opens = check.opensAt?.toLocal();
     final label = check.status == JoinStatus.ended || opens == null
         ? l10n.joinCourseEnded
         : l10n.joinOpensAt('${DateFormat.MMMEd(locale).format(opens)} ${DateFormat.jm(locale).format(opens)}');
-    return SizedBox(
+    return Container(
       height: 56,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2B2B2B),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.18),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Material(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -173,20 +187,39 @@ class _CourseDetailsFloatingBarState extends State<CourseDetailsFloatingBar> {
           onTap: widget.onLockedPressed,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.lock_clock, size: 22, color: Colors.white54),
-              const SizedBox(width: 10),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    label,
-                    key: const Key('live-session-locked-label'),
-                    style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w800),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGold.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.lock_clock_rounded,
+                    size: 18,
+                    color: AppColors.accentGold,
                   ),
                 ),
-              ),
-            ]),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      key: const Key('live-session-locked-label'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
