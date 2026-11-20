@@ -192,6 +192,68 @@ void main() {
       expect((data['imageUrl'] as String).isNotEmpty, isTrue);
     });
 
+    group('PDFs', () {
+      late Directory dir;
+      setUp(() => dir = Directory.systemTemp.createTempSync('chat_pdf_'));
+      tearDown(() => dir.deleteSync(recursive: true));
+      File pdfOf(int bytes) => File('${dir.path}/sheet.pdf')..writeAsBytesSync(List.filled(bytes, 1));
+
+      Future<CourseChatService> as(String uid, String role) async {
+        await fakeFirestore.collection('users').doc(uid).set({'name': uid, 'role': role});
+        return CourseChatService(
+          firestore: fakeFirestore,
+          auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: uid)),
+          storage: mockStorage,
+        );
+      }
+
+      Future<Map<String, dynamic>> lastMessage() async =>
+          (await fakeFirestore.collection('courses').doc('c1').collection('messages').get()).docs.single.data();
+
+      test('the course teacher sends a PDF: link and name are saved, text may be empty', () async {
+        final service = await as('t1', 'teacher');
+        await service.sendMessage(courseId: 'c1', text: '', pdfFile: pdfOf(10), pdfName: 'Lesson 3', courseTeacherId: 't1');
+        final m = await lastMessage();
+        expect(m['senderRole'], 'teacher');
+        expect(m['fileName'], 'Lesson 3.pdf');
+        expect(m['fileUrl'], isA<String>());
+        expect(m.keys, containsAll(['fileUrl', 'fileName']));
+      });
+
+      test('text and image messages keep their old shape (no file fields)', () async {
+        final service = await as('s1', 'student');
+        await service.sendMessage(courseId: 'c1', text: 'hi', courseTeacherId: 't1');
+        expect((await lastMessage()).keys, isNot(contains('fileUrl')));
+      });
+
+      test('a student or an admin cannot send a PDF', () async {
+        final student = await as('s1', 'student');
+        await expectLater(
+            student.sendMessage(courseId: 'c1', text: '', pdfFile: pdfOf(10), pdfName: 'x.pdf', courseTeacherId: 't1'),
+            throwsA(isA<ChatFileNotAllowed>()));
+        final admin = await as('a1', 'admin');
+        await expectLater(
+            admin.sendMessage(courseId: 'c1', text: '', pdfFile: pdfOf(10), pdfName: 'x.pdf', courseTeacherId: 't1'),
+            throwsA(isA<ChatFileNotAllowed>()));
+        expect((await fakeFirestore.collection('courses').doc('c1').collection('messages').get()).docs, isEmpty);
+      });
+
+      test('a PDF over 25 MB is refused before uploading', () async {
+        final service = await as('t1', 'teacher');
+        await expectLater(
+            service.sendMessage(
+                courseId: 'c1', text: '', pdfFile: pdfOf(ChatPolicy.maxPdfBytes + 1), pdfName: 'big.pdf', courseTeacherId: 't1'),
+            throwsA(isA<ChatFileTooLarge>()));
+      });
+    });
+
+    test('a stored PDF message reads back with its file', () {
+      final m = CourseChatMessage.fromMap('m1', {'senderId': 't1', 'text': '', 'fileUrl': ' https://x/a.pdf ', 'fileName': 'a.pdf'});
+      expect(m.hasFile, isTrue);
+      expect(m.fileUrl, 'https://x/a.pdf');
+      expect(CourseChatMessage.fromMap('m2', {'senderId': 's1', 'text': 'hi'}).hasFile, isFalse);
+    });
+
     test('getMessagesStream emits messages ordered newest-first', () async {
       final auth = MockFirebaseAuth(signedIn: true);
       final service = CourseChatService(

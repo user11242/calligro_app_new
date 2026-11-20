@@ -1603,5 +1603,10 @@
   "joinOpensAt": "Opens {time}",
   "@joinOpensAt": {"placeholders": {"time": {"type": "String"}}},
   "joinWindowHint": "You can join from 10 minutes before the class until 30 minutes after it ends.",
-  "joinCourseEnded": "This course has no more classes"
+  "joinCourseEnded": "This course has no more classes",
+  "chatAttachPdf": "Attach a PDF",
+  "chatPdfTooLarge": "The PDF is larger than 25 MB",
+  "chatPdfOnlyTeacher": "Only the course teacher can send PDFs",
+  "fileDownloadFailed": "Could not download the file, please try again",
+  "chatPdfTapToSave": "Tap to open or save"
 }

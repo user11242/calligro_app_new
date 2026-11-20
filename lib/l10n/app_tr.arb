@@ -1247,5 +1247,10 @@
   "notifClassBack": "{course}: ders her zamanki saatinde, {oldTime}.",
   "joinOpensAt": "{time} açılır",
   "joinWindowHint": "Derse, başlamadan 10 dakika önce ile bittikten 30 dakika sonrası arasında katılabilirsiniz.",
-  "joinCourseEnded": "Bu kursun başka dersi yok"
+  "joinCourseEnded": "Bu kursun başka dersi yok",
+  "chatAttachPdf": "PDF ekle",
+  "chatPdfTooLarge": "PDF 25 MB'tan büyük",
+  "chatPdfOnlyTeacher": "Yalnızca kursun öğretmeni PDF gönderebilir",
+  "fileDownloadFailed": "Dosya indirilemedi, lütfen tekrar deneyin",
+  "chatPdfTapToSave": "Açmak veya kaydetmek için dokunun"
 }

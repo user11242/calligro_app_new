@@ -7526,6 +7526,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This course has no more classes'**
   String get joinCourseEnded;
+
+  /// No description provided for @chatAttachPdf.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach a PDF'**
+  String get chatAttachPdf;
+
+  /// No description provided for @chatPdfTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'The PDF is larger than 25 MB'**
+  String get chatPdfTooLarge;
+
+  /// No description provided for @chatPdfOnlyTeacher.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the course teacher can send PDFs'**
+  String get chatPdfOnlyTeacher;
+
+  /// No description provided for @fileDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download the file, please try again'**
+  String get fileDownloadFailed;
+
+  /// No description provided for @chatPdfTapToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to open or save'**
+  String get chatPdfTapToSave;
 }
 
 class _AppLocalizationsDelegate

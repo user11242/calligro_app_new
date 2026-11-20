@@ -12,6 +12,8 @@ class ChatMessageBubble extends StatelessWidget {
   final bool isMine;
   final VoidCallback? onLongPress;
   final ValueChanged<String>? onImageTap;
+  /// Tapping the PDF card (download, then the phone's save / open sheet).
+  final VoidCallback? onFileTap;
 
   const ChatMessageBubble({
     super.key,
@@ -19,6 +21,7 @@ class ChatMessageBubble extends StatelessWidget {
     required this.isMine,
     this.onLongPress,
     this.onImageTap,
+    this.onFileTap,
   });
 
   @override
@@ -63,6 +66,10 @@ class ChatMessageBubble extends StatelessWidget {
                 ],
                 if (message.hasImage) ...[
                   _buildImageAttachment(message.imageUrl!),
+                  if (message.text.isNotEmpty || message.hasFile) const SizedBox(height: 8),
+                ],
+                if (message.hasFile) ...[
+                  _buildFileAttachment(l10n),
                   if (message.text.isNotEmpty) const SizedBox(height: 8),
                 ],
                 if (message.text.isNotEmpty)
@@ -170,6 +177,51 @@ class ChatMessageBubble extends StatelessWidget {
           color: AppColors.accentGold,
           fontSize: 10,
           fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileAttachment(AppLocalizations l10n) {
+    return InkWell(
+      key: const Key('chat_file_attachment'),
+      onTap: onFileTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 200),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.black26,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 30),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.fileName ?? 'PDF',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.chatPdfTapToSave,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.download_rounded, color: AppColors.accentGold, size: 22),
+          ],
         ),
       ),
     );

@@ -288,19 +288,30 @@ service cloud.firestore {
             (d.imageUrl is string && d.imageUrl.matches(
               'https://firebasestorage[.]googleapis[.]com/v0/b/[^/]+/o/course_chats%2F' + courseId + '%2F' + request.auth.uid + '_[^/?#]+([?].*)?'));
         }
+        // A PDF only from the course's TEACHER, from this course's chat folder, uploaded by
+        // them (course_chats/<courseId>/<uid>_<time>.pdf), with a short name.
+        function chatFileOk(d) {
+          return (d.get('fileUrl', null) == null && d.get('fileName', null) == null) ||
+            (get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid &&
+              d.fileUrl is string && d.fileUrl.matches(
+                'https://firebasestorage[.]googleapis[.]com/v0/b/[^/]+/o/course_chats%2F' + courseId + '%2F' + request.auth.uid + '_[^/?#]+[.]pdf([?].*)?') &&
+              d.fileName is string && d.fileName.size() > 0 && d.fileName.size() <= 200);
+        }
         // The "teacher" / "admin" badge must be true (CourseChatService._resolveSenderRole),
-        // the time is the server's, text up to 4000 characters, text or an image.
+        // the time is the server's, text up to 4000 characters, text, an image or a PDF.
         allow create: if isSignedIn() &&
-          request.resource.data.keys().hasOnly(['senderId', 'senderName', 'senderPhotoUrl', 'senderRole', 'text', 'imageUrl', 'createdAt']) &&
+          request.resource.data.keys().hasOnly(['senderId', 'senderName', 'senderPhotoUrl', 'senderRole', 'text', 'imageUrl', 'fileUrl', 'fileName', 'createdAt']) &&
           request.resource.data.senderId == request.auth.uid &&
           isCourseMember(courseId) &&
           request.resource.data.get('createdAt', request.time) == request.time &&
           request.resource.data.get('text', '') is string &&
           request.resource.data.get('text', '').size() <= 4000 &&
-          (request.resource.data.get('text', '').size() > 0 || request.resource.data.get('imageUrl', null) != null) &&
+          (request.resource.data.get('text', '').size() > 0 || request.resource.data.get('imageUrl', null) != null ||
+            request.resource.data.get('fileUrl', null) != null) &&
           request.resource.data.senderName is string && chatNameOk(request.resource.data) &&
           chatPhotoOk(request.resource.data) &&
           chatImageOk(request.resource.data) &&
+          chatFileOk(request.resource.data) &&
           (request.resource.data.get('senderRole', 'student') == 'student' ||
             (request.resource.data.senderRole == 'teacher' &&
               get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid) ||

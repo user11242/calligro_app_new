@@ -1346,5 +1346,10 @@
   "notifClassBack": "{course}: عادت الحصة إلى موعدها المعتاد، {oldTime}.",
   "joinOpensAt": "تفتح {time}",
   "joinWindowHint": "يمكنك الدخول قبل الحصة بـ 10 دقائق وحتى 30 دقيقة بعد انتهائها.",
-  "joinCourseEnded": "لا توجد حصص أخرى في هذه الدورة"
+  "joinCourseEnded": "لا توجد حصص أخرى في هذه الدورة",
+  "chatAttachPdf": "إرفاق ملف PDF",
+  "chatPdfTooLarge": "حجم ملف PDF أكبر من 25 ميغابايت",
+  "chatPdfOnlyTeacher": "فقط مدرّس الدورة يمكنه إرسال ملفات PDF",
+  "fileDownloadFailed": "تعذر تنزيل الملف، حاول مرة أخرى",
+  "chatPdfTapToSave": "اضغط للفتح أو الحفظ"
 }

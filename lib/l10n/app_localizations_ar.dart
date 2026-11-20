@@ -4024,4 +4024,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get joinCourseEnded => 'لا توجد حصص أخرى في هذه الدورة';
+
+  @override
+  String get chatAttachPdf => 'إرفاق ملف PDF';
+
+  @override
+  String get chatPdfTooLarge => 'حجم ملف PDF أكبر من 25 ميغابايت';
+
+  @override
+  String get chatPdfOnlyTeacher => 'فقط مدرّس الدورة يمكنه إرسال ملفات PDF';
+
+  @override
+  String get fileDownloadFailed => 'تعذر تنزيل الملف، حاول مرة أخرى';
+
+  @override
+  String get chatPdfTapToSave => 'اضغط للفتح أو الحفظ';
 }

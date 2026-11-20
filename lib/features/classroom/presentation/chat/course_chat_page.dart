@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:calligro_app/core/message/app_messenger.dart';
+import 'package:calligro_app/core/services/document_files.dart';
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:calligro_app/core/widgets/smart_image.dart';
 import 'package:calligro_app/features/classroom/domain/course_chat_message.dart';
@@ -9,6 +10,7 @@ import 'package:calligro_app/features/classroom/presentation/chat/chat_message_b
 import 'package:calligro_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Real-time group chat room shared by a course's teacher, enrolled students,
@@ -45,7 +47,14 @@ class _CourseChatPageState extends State<CourseChatPage> {
   late final Stream<List<CourseChatMessage>> _messagesStream;
 
   File? _selectedImage;
+  /// A PDF the teacher picked (sent with the next message) and its original name.
+  File? _selectedPdf;
+  String? _selectedPdfName;
   bool _isSending = false;
+
+  /// Only the course's teacher attaches PDFs (CourseChatService and the rules agree).
+  bool get _canAttachPdf =>
+      widget.isTeacher && widget.courseTeacherId != null && widget.courseTeacherId == _uid;
 
   String? get _uid => widget.currentUserId ?? _chatService.currentUid;
 
@@ -77,12 +86,42 @@ class _CourseChatPageState extends State<CourseChatPage> {
     }
   }
 
+  Future<void> _pickPdf() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+      final picked = result?.files.single;
+      if (picked == null || picked.path == null || !mounted) return;
+      if (picked.size > ChatPolicy.maxPdfBytes) {
+        final l10n = AppLocalizations.of(context)!;
+        AppMessenger.showSnackBar(context, title: l10n.error, message: l10n.chatPdfTooLarge, type: MessengerType.error);
+        return;
+      }
+      setState(() {
+        _selectedPdf = File(picked.path!);
+        _selectedPdfName = picked.name;
+      });
+    } catch (_) {
+      // Picker cancelled or not permitted.
+    }
+  }
+
+  Future<void> _openFile(CourseChatMessage message) async {
+    try {
+      await DocumentFiles.save(message.fileUrl!, message.fileName ?? '');
+    } catch (_) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      AppMessenger.showSnackBar(context, title: l10n.error, message: l10n.fileDownloadFailed, type: MessengerType.error);
+    }
+  }
+
   Future<void> _sendMessage() async {
     if (_isSending) return;
 
     final text = _messageController.text.trim();
     final image = _selectedImage;
-    if (text.isEmpty && image == null) return;
+    final pdf = _selectedPdf;
+    if (text.isEmpty && image == null && pdf == null) return;
 
     setState(() => _isSending = true);
 
@@ -91,20 +130,30 @@ class _CourseChatPageState extends State<CourseChatPage> {
         courseId: widget.courseId,
         text: text,
         imageFile: image,
+        pdfFile: pdf,
+        pdfName: _selectedPdfName,
         courseTeacherId: widget.courseTeacherId,
       );
 
       if (mounted) {
         _messageController.clear();
-        setState(() => _selectedImage = null);
+        setState(() {
+          _selectedImage = null;
+          _selectedPdf = null;
+          _selectedPdfName = null;
+        });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         final l10n = AppLocalizations.of(context)!;
         AppMessenger.showSnackBar(
           context,
           title: l10n.error,
-          message: l10n.sendMessageFailed,
+          message: e is ChatFileTooLarge
+              ? l10n.chatPdfTooLarge
+              : e is ChatFileNotAllowed
+                  ? l10n.chatPdfOnlyTeacher
+                  : l10n.sendMessageFailed,
           type: MessengerType.error,
         );
       }
@@ -346,6 +395,7 @@ class _CourseChatPageState extends State<CourseChatPage> {
                       isMine: isMine,
                       onLongPress: () => _showMessageActions(message),
                       onImageTap: _openImagePreview,
+                      onFileTap: () => _openFile(message),
                     );
                   },
                 );
@@ -437,6 +487,40 @@ class _CourseChatPageState extends State<CourseChatPage> {
               ),
               const SizedBox(height: 8),
             ],
+            if (_selectedPdf != null) ...[
+              Container(
+                key: const Key('course_chat_selected_pdf'),
+                padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _selectedPdfName ?? 'PDF',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setState(() {
+                        _selectedPdf = null;
+                        _selectedPdfName = null;
+                      }),
+                      icon: const Icon(Icons.close, size: 18, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -447,6 +531,16 @@ class _CourseChatPageState extends State<CourseChatPage> {
                     color: Colors.white.withValues(alpha: 0.75),
                   ),
                 ),
+                if (_canAttachPdf)
+                  IconButton(
+                    key: const Key('course_chat_attach_pdf'),
+                    tooltip: l10n.chatAttachPdf,
+                    onPressed: _isSending ? null : _pickPdf,
+                    icon: Icon(
+                      Icons.picture_as_pdf_rounded,
+                      color: Colors.white.withValues(alpha: 0.75),
+                    ),
+                  ),
                 Expanded(
                   child: TextField(
                     controller: _messageController,

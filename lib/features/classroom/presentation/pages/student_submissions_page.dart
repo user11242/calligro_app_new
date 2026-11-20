@@ -5,7 +5,7 @@ import 'package:calligro_app/features/classroom/presentation/classroom_scope.dar
 import 'package:calligro_app/core/theme/colors.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:calligro_app/l10n/app_localizations.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:calligro_app/core/services/document_files.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:typed_data';
 import 'dart:ui' show ImageFilter;
@@ -226,6 +226,28 @@ class _SubmissionCardState extends State<_SubmissionCard> {
     }
   }
 
+  /// A PDF (or any other document): saved through the phone's own sheet (DocumentFiles.save).
+  Future<void> _saveDocument(String url, String name) async {
+    if (_isDownloading) return;
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    setState(() => _isDownloading = true);
+    try {
+      await DocumentFiles.save(url, name);
+    } catch (e) {
+      debugPrint("Error downloading submission: $e");
+      if (mounted) {
+        AppMessenger.showSnackBar(
+          context,
+          title: isArabic ? 'خطأ في التنزيل' : 'Download Error',
+          message: isArabic ? 'تعذر تنزيل الملف، حاول مرة أخرى' : 'Could not download the file, please try again',
+          type: MessengerType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
   void _openFile(String url, String name, String studentName, String timeStr) {
     if (_isImageFile(url, name)) {
       Navigator.push(
@@ -241,7 +263,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
         ),
       );
     } else {
-      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      _saveDocument(url, name);
     }
   }
 
@@ -433,7 +455,7 @@ class _SubmissionCardState extends State<_SubmissionCard> {
             if (isImage) {
               _saveImageToGallery(url, name, studentName, timeStr);
             } else {
-              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+              _saveDocument(url, name);
             }
           },
           borderRadius: BorderRadius.circular(12),

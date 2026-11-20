@@ -4039,4 +4039,19 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get joinCourseEnded => 'Bu kursun başka dersi yok';
+
+  @override
+  String get chatAttachPdf => 'PDF ekle';
+
+  @override
+  String get chatPdfTooLarge => 'PDF 25 MB\'tan büyük';
+
+  @override
+  String get chatPdfOnlyTeacher => 'Yalnızca kursun öğretmeni PDF gönderebilir';
+
+  @override
+  String get fileDownloadFailed => 'Dosya indirilemedi, lütfen tekrar deneyin';
+
+  @override
+  String get chatPdfTapToSave => 'Açmak veya kaydetmek için dokunun';
 }

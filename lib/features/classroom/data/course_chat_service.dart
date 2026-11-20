@@ -39,11 +39,14 @@ class CourseChatService {
         .map((snap) => [for (final d in snap.docs) CourseChatMessage.fromMap(d.id, d.data())]);
   }
 
-  /// Sends a text and/or image message into [courseId]'s group chat.
+  /// Sends a text, image and/or PDF message into [courseId]'s group chat.
+  /// Only the course's teacher may attach a PDF ([pdfFile], shown as [pdfName]).
   Future<void> sendMessage({
     required String courseId,
     required String text,
     File? imageFile,
+    File? pdfFile,
+    String? pdfName,
     String? courseTeacherId,
   }) async {
     final user = _auth.currentUser;
@@ -52,10 +55,14 @@ class CourseChatService {
     }
 
     final trimmedText = text.trim();
-    if (trimmedText.isEmpty && imageFile == null) {
+    if (trimmedText.isEmpty && imageFile == null && pdfFile == null) {
       return;
     }
     if (trimmedText.length > ChatPolicy.maxTextLength) throw const ChatMessageTooLong();
+    if (pdfFile != null) {
+      if (courseTeacherId == null || courseTeacherId != user.uid) throw const ChatFileNotAllowed();
+      if (await pdfFile.length() > ChatPolicy.maxPdfBytes) throw const ChatFileTooLarge();
+    }
 
     final profile = await _resolveSenderProfile(user);
     final senderRole = _resolveSenderRole(
@@ -69,6 +76,13 @@ class CourseChatService {
       imageUrl = await _uploadChatImage(courseId, user.uid, imageFile);
     }
 
+    String? fileUrl;
+    String? fileName;
+    if (pdfFile != null) {
+      fileUrl = await _uploadChatPdf(courseId, user.uid, pdfFile);
+      fileName = _cleanPdfName(pdfName);
+    }
+
     await _messagesRef(courseId).add({
       'senderId': user.uid,
       'senderName': profile.name,
@@ -76,6 +90,9 @@ class CourseChatService {
       'senderRole': senderRole,
       'text': trimmedText,
       'imageUrl': imageUrl,
+      // Only written with a PDF, so text and image messages keep the exact shape older apps write.
+      'fileUrl': ?fileUrl,
+      'fileName': ?fileName,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -172,5 +189,24 @@ class CourseChatService {
     await ref.putFile(imageFile);
     return ref.getDownloadURL();
   }
-}
 
+  /// The name shown on the file card: the picked name, ending in ".pdf", at most
+  /// [ChatPolicy.maxFileNameLength] characters.
+  static String _cleanPdfName(String? name) {
+    var clean = (name ?? '').trim();
+    if (clean.isEmpty) clean = 'document.pdf';
+    if (!clean.toLowerCase().endsWith('.pdf')) clean = '$clean.pdf';
+    if (clean.length > ChatPolicy.maxFileNameLength) {
+      clean = '${clean.substring(0, ChatPolicy.maxFileNameLength - 4)}.pdf';
+    }
+    return clean;
+  }
+
+  Future<String> _uploadChatPdf(String courseId, String uid, File pdfFile) async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage.ref().child('course_chats').child(courseId).child('${uid}_$timestamp.pdf');
+    // storage.rules accept a chat PDF only as application/pdf.
+    await ref.putFile(pdfFile, SettableMetadata(contentType: 'application/pdf'));
+    return ref.getDownloadURL();
+  }
+}

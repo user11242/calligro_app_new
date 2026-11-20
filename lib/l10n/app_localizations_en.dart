@@ -4036,4 +4036,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get joinCourseEnded => 'This course has no more classes';
+
+  @override
+  String get chatAttachPdf => 'Attach a PDF';
+
+  @override
+  String get chatPdfTooLarge => 'The PDF is larger than 25 MB';
+
+  @override
+  String get chatPdfOnlyTeacher => 'Only the course teacher can send PDFs';
+
+  @override
+  String get fileDownloadFailed =>
+      'Could not download the file, please try again';
+
+  @override
+  String get chatPdfTapToSave => 'Tap to open or save';
 }

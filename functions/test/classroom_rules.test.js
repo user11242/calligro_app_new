@@ -160,6 +160,28 @@ describe('course chat', () => {
       await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { imageUrl: bad })), bad);
     }
   });
+  const pdf = (uid, course = 'c1') =>
+    `https://firebasestorage.googleapis.com/v0/b/calligro.appspot.com/o/course_chats%2F${course}%2F${uid}_1700000000.pdf?alt=media&token=t`;
+  it('the course teacher sends a PDF (text may be empty); the name comes with it', async () => {
+    await assertSucceeds(addDoc(collection(as('teach'), 'courses/c1/messages'),
+      msg('teach', 'teacher', { text: '', fileUrl: pdf('teach'), fileName: 'Lesson 3 - Alif.pdf' })));
+    await assertSucceeds(addDoc(collection(as('teach'), 'courses/c1/messages'),
+      msg('teach', 'teacher', { text: 'Homework sheet', fileUrl: pdf('teach'), fileName: 'sheet.pdf' })));
+  });
+  it('PDFs: never from a student or an admin, never an outside or someone else\'s file, always named', async () => {
+    await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'),
+      msg('student', 'student', { fileUrl: pdf('student'), fileName: 'x.pdf' })), 'student');
+    await assertFails(addDoc(collection(as('admin'), 'courses/c1/messages'),
+      msg('admin', 'admin', { fileUrl: pdf('admin'), fileName: 'x.pdf' })), 'admin');
+    for (const bad of ['https://evil.example.com/x.pdf', pdf('student'), pdf('teach', 'other-course'), img('teach')]) {
+      await assertFails(addDoc(collection(as('teach'), 'courses/c1/messages'),
+        msg('teach', 'teacher', { fileUrl: bad, fileName: 'x.pdf' })), bad);
+    }
+    await assertFails(addDoc(collection(as('teach'), 'courses/c1/messages'), msg('teach', 'teacher', { fileUrl: pdf('teach') })), 'no name');
+    await assertFails(addDoc(collection(as('teach'), 'courses/c1/messages'),
+      msg('teach', 'teacher', { fileUrl: pdf('teach'), fileName: 'x'.repeat(201) })), 'name too long');
+    await assertFails(addDoc(collection(as('teach'), 'courses/c1/messages'), msg('teach', 'teacher', { fileName: 'x.pdf' })), 'a name without a file');
+  });
   it('length: up to 4000 characters; no empty message; no extra fields', async () => {
     await assertSucceeds(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { text: 'x'.repeat(4000) })));
     await assertFails(addDoc(collection(as('student'), 'courses/c1/messages'), msg('student', 'student', { text: 'x'.repeat(4001) })));

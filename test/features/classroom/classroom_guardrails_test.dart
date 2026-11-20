@@ -88,7 +88,12 @@ void main() {
   test('chat message limits match the rules (4000 characters, only the app\'s fields)', () {
     final rules = File('firestore.rules').readAsStringSync();
     expect(rules.contains("get('text', '').size() <= 4000"), isTrue);
-    expect(rules.contains("hasOnly(['senderId', 'senderName', 'senderPhotoUrl', 'senderRole', 'text', 'imageUrl', 'createdAt'])"), isTrue);
+    expect(rules.contains("hasOnly(['senderId', 'senderName', 'senderPhotoUrl', 'senderRole', 'text', 'imageUrl', 'fileUrl', 'fileName', 'createdAt'])"), isTrue);
+    // The service writes exactly those fields (fileUrl / fileName only with a teacher's PDF).
+    final service = File('lib/features/classroom/data/course_chat_service.dart').readAsStringSync();
+    for (final field in ['senderId', 'senderName', 'senderPhotoUrl', 'senderRole', 'text', 'imageUrl', 'fileUrl', 'fileName', 'createdAt']) {
+      expect(service.contains("'$field'"), isTrue, reason: field);
+    }
   });
 
   test('students join only in the class window, from every entry point (the schedule rule)', () {

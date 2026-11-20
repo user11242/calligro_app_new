@@ -176,6 +176,51 @@ void main() {
       expect(find.text('Report Message'), findsOneWidget);
       expect(find.text('Delete Message'), findsOneWidget);
     });
+
+    group('PDFs', () {
+      testWidgets('only the course teacher gets the PDF button (not students, not admins)', (tester) async {
+        final firestore = FakeFirebaseFirestore();
+        Future<void> openAs(String uid, {bool teacher = false, bool admin = false}) async {
+          await tester.pumpWidget(buildTestablePage(
+            firestore: firestore,
+            auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: uid)),
+            isTeacher: teacher,
+            isAdmin: admin,
+          ));
+          await tester.pumpAndSettle();
+        }
+
+        await openAs('t1', teacher: true);
+        expect(find.byKey(const Key('course_chat_attach_pdf')), findsOneWidget);
+        await openAs('s1');
+        expect(find.byKey(const Key('course_chat_attach_pdf')), findsNothing);
+        await openAs('a1', admin: true);
+        expect(find.byKey(const Key('course_chat_attach_pdf')), findsNothing);
+      });
+
+      testWidgets('a PDF message shows a file card with its name, for everyone', (tester) async {
+        final firestore = FakeFirebaseFirestore();
+        await firestore.collection('courses').doc('c1').collection('messages').add({
+          'senderId': 't1',
+          'senderName': 'Dr. Ibrahim',
+          'senderRole': 'teacher',
+          'text': 'Practice sheet for Thursday',
+          'imageUrl': null,
+          'fileUrl': 'https://firebasestorage.googleapis.com/v0/b/x/o/course_chats%2Fc1%2Ft1_1.pdf?alt=media',
+          'fileName': 'Alif practice.pdf',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 11, 12, 10, 0)),
+        });
+        await tester.pumpWidget(buildTestablePage(
+          firestore: firestore,
+          auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 's1')),
+        ));
+        await tester.pumpAndSettle();
+
+        final card = find.byKey(const Key('chat_file_attachment'));
+        expect(card, findsOneWidget);
+        expect(find.descendant(of: card, matching: find.text('Alif practice.pdf')), findsOneWidget);
+        expect(find.text('Practice sheet for Thursday'), findsOneWidget);
+      });
+    });
   });
 }
-

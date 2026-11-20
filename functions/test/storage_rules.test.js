@@ -121,6 +121,20 @@ describe('course chat images', () => {
   });
 });
 
+describe('course chat PDFs', () => {
+  const pdfMeta = { contentType: 'application/pdf' };
+  it('only the course teacher uploads a PDF, under their own name; members read it', async () => {
+    await assertSucceeds(put(as('t1'), 'course_chats/c1/t1_10.pdf', pdfMeta));
+    await assertSucceeds(getBytes(ref(as('s1'), 'course_chats/c1/t1_10.pdf')));
+    await assertFails(put(as('s1'), 'course_chats/c1/s1_10.pdf', pdfMeta), 'a student');
+    await assertFails(put(as('s2'), 'course_chats/c1/s2_10.pdf', pdfMeta), 'an outsider');
+  });
+  it('must really be a PDF, and at most 25 MB', async () => {
+    await assertFails(put(as('t1'), 'course_chats/c1/t1_11.pdf', { contentType: 'text/html' }), 'not a PDF');
+    await assertFails(put(as('t1'), 'course_chats/c1/t1_12.pdf', pdfMeta, 'x'.repeat(25 * 1024 * 1024 + 1)), 'too big');
+  });
+});
+
 describe('anything else', () => {
   it('no uploads to unknown paths', async () => {
     await assertFails(put(as('s1'), 'random/thing.jpg'));

@@ -7,6 +7,9 @@ class CourseChatMessage {
   final String senderRole;
   final String text;
   final String? imageUrl;
+  /// A PDF the course's teacher attached (Storage link) and its original name.
+  final String? fileUrl;
+  final String? fileName;
   final DateTime? createdAt;
 
   const CourseChatMessage({
@@ -17,6 +20,8 @@ class CourseChatMessage {
     required this.senderRole,
     required this.text,
     this.imageUrl,
+    this.fileUrl,
+    this.fileName,
     this.createdAt,
   });
 
@@ -28,6 +33,9 @@ class CourseChatMessage {
 
   /// True when this message includes an attached image URL.
   bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
+
+  /// True when this message carries a PDF.
+  bool get hasFile => fileUrl != null && fileUrl!.isNotEmpty;
 
 
   /// Creates a [CourseChatMessage] from a document ID and raw field map.
@@ -45,6 +53,8 @@ class CourseChatMessage {
     final rawName = data['senderName']?.toString().trim();
     final rawPhoto = data['senderPhotoUrl']?.toString().trim();
     final rawImage = data['imageUrl']?.toString().trim();
+    final rawFile = data['fileUrl']?.toString().trim();
+    final rawFileName = data['fileName']?.toString().trim();
 
     return CourseChatMessage(
       id: id,
@@ -55,6 +65,8 @@ class CourseChatMessage {
       senderRole: data['senderRole']?.toString() ?? 'student',
       text: data['text']?.toString() ?? '',
       imageUrl: (rawImage != null && rawImage.isNotEmpty) ? rawImage : null,
+      fileUrl: (rawFile != null && rawFile.isNotEmpty) ? rawFile : null,
+      fileName: (rawFileName != null && rawFileName.isNotEmpty) ? rawFileName : null,
       createdAt: parsedDate,
     );
   }
@@ -67,6 +79,20 @@ class ChatMessageTooLong implements Exception {
   String toString() => 'ChatMessageTooLong';
 }
 
+/// Only the course's teacher attaches PDFs to the chat.
+class ChatFileNotAllowed implements Exception {
+  const ChatFileNotAllowed();
+  @override
+  String toString() => 'ChatFileNotAllowed';
+}
+
+/// The PDF is bigger than [ChatPolicy.maxPdfBytes] (storage.rules refuse bigger).
+class ChatFileTooLarge implements Exception {
+  const ChatFileTooLarge();
+  @override
+  String toString() => 'ChatFileTooLarge';
+}
+
 /// Who may remove a chat message: its sender, the course's teacher, an admin
 /// (firestore.rules agree).
 class ChatPolicy {
@@ -74,6 +100,12 @@ class ChatPolicy {
 
   /// Longest message text (firestore.rules refuse longer).
   static const maxTextLength = 4000;
+
+  /// Largest PDF the teacher may attach (storage.rules: 25 MB).
+  static const maxPdfBytes = 25 * 1024 * 1024;
+
+  /// Longest file name kept with a PDF (firestore.rules).
+  static const maxFileNameLength = 200;
 
   static bool canDelete(CourseChatMessage message, String? uid, {required bool isTeacher, required bool isAdmin}) =>
       (uid != null && message.senderId == uid) || isTeacher || isAdmin;

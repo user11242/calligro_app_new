@@ -63,7 +63,11 @@ service firebase.storage {
     // Course chat images: "<uid>_<time>.jpg", course members only.
     match /course_chats/{courseId}/{fileName} {
       allow read: if isCourseMember(courseId) || isAdmin();
-      allow write: if isNamedByMe(fileName) && isCourseMember(courseId);
+      // Images: any course member. PDFs: only the course's teacher, a real PDF, up to 25 MB.
+      allow write: if isNamedByMe(fileName) && isCourseMember(courseId) &&
+        (!fileName.matches('.*[.][pP][dD][fF]') ||
+          (isCourseTeacher(courseId) && request.resource != null &&
+            request.resource.contentType == 'application/pdf' && request.resource.size <= 25 * 1024 * 1024));
     }
 
     // Anything else (gallery, older uploads): readable, never writable from the app.
