@@ -1,6 +1,8 @@
   // lib/main.dart
 
   import 'package:calligro_app/features/notifications/presentation/notification_services.dart';
+import 'package:calligro_app/features/courses/application/join_lock.dart';
+import 'package:calligro_app/features/courses/data/firestore_app_features.dart';
 import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
 import 'package:flutter/material.dart';
   import 'package:flutter/foundation.dart';
@@ -157,6 +159,9 @@ import 'package:flutter/material.dart';
         developer.log("🔥 Error connecting to emulators: $e");
       }
     }
+
+    // The admins' remote switch for the students' Join-button lock (live).
+    JoinLock.start(FirestoreAppFeatures().watch());
 
     // ✅ Setup Crashlytics
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;

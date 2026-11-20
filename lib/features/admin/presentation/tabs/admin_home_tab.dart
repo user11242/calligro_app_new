@@ -1,4 +1,5 @@
 import 'package:calligro_app/features/admin/presentation/pages/admin_courses_mgmt.dart';
+import 'package:calligro_app/features/admin/presentation/widgets/join_lock_switch_card.dart';
 import 'package:calligro_app/features/admin/presentation/pages/admin_users_management_page.dart';
 import 'package:calligro_app/features/admin/presentation/pages/admin_pending_teachers.dart';
 import 'package:calligro_app/features/admin/presentation/pages/admin_activity_page.dart';
@@ -141,6 +142,10 @@ class _AdminHomeTabState extends State<AdminHomeTab> {
                         MaterialPageRoute(builder: (context) => const AdminVersionControlPage()),
                       ),
                     ),
+                    const SizedBox(height: 10),
+
+                    // Remote switch: the students' Join-button class-time lock
+                    const JoinLockSwitchCard(),
                     const SizedBox(height: 10),
 
                     // Pricing Tiers Control Card

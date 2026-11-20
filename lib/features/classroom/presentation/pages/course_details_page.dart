@@ -4,6 +4,7 @@ import 'package:calligro_app/features/classroom/domain/classroom_models.dart';
 import 'package:calligro_app/features/classroom/presentation/classroom_scope.dart';
 import 'package:calligro_app/features/classroom/presentation/widgets/next_session_card.dart';
 import 'package:calligro_app/features/classroom/presentation/widgets/reschedule_sheet.dart';
+import 'package:calligro_app/features/courses/application/join_lock.dart';
 import 'package:calligro_app/features/courses/domain/course_schedule.dart';
 import 'package:calligro_app/features/profile/presentation/pages/public_profile_page.dart';
 import 'package:flutter/material.dart';
@@ -437,7 +438,8 @@ class _CourseDetailsPageState extends State<CourseDetailsPage>
   /// Whether a student may join the live class now (the one schedule rule; a
   /// moved class at its new time). Before the course loads: not locked.
   JoinCheck _studentJoinCheck() =>
-      _schedule?.joinCheck(DateTime.now()) ?? const JoinCheck(JoinStatus.unknown);
+      // JoinLock: the admins' remote switch (OFF = never locked, on every phone at once).
+      JoinLock.apply(_schedule?.joinCheck(DateTime.now()) ?? const JoinCheck(JoinStatus.unknown));
 
   void _explainJoinLocked() {
     final l10n = AppLocalizations.of(context)!;
