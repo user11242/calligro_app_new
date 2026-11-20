@@ -1,8 +1,8 @@
+import 'dart:math' as math;
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' as intl;
 import 'package:path_provider/path_provider.dart';
 
 class SubmissionWatermarkHelper {
@@ -25,8 +25,6 @@ class SubmissionWatermarkHelper {
     required Uint8List imageBytes,
     required String studentName,
     required String assignmentTitle,
-    required String teacherName,
-    DateTime? submissionDate,
     bool isRtl = true,
   }) async {
     final codec = await ui.instantiateImageCodec(imageBytes);
@@ -50,9 +48,6 @@ class SubmissionWatermarkHelper {
     final titleFontSize = (24.0 * scale).clamp(22.0, 96.0);
     final fontSize = (19.0 * scale).clamp(17.0, 78.0);
     final labelFontSize = (16.0 * scale).clamp(15.0, 65.0);
-
-    final date = submissionDate ?? DateTime.now();
-    final formattedDate = intl.DateFormat('yyyy-MM-dd • hh:mm a').format(date);
 
     // 3. Build text layout (Dark theme with Gold accents to match Calligro brand)
     final textDirection = isRtl ? TextDirection.rtl : TextDirection.ltr;
@@ -86,51 +81,30 @@ class SubmissionWatermarkHelper {
           ),
         ),
         TextSpan(
-          text: '$studentName   |   ',
+          text: studentName,
           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        TextSpan(
-          text: isRtl ? 'المعلم: ' : 'Teacher: ',
-          style: TextStyle(
-            fontSize: labelFontSize,
-            color: const Color(0xFFD4AF37), // AppColors.accentGold
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        TextSpan(
-          text: '$teacherName\n',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        TextSpan(
-          text: isRtl ? 'تاريخ التسليم: ' : 'Submitted: ',
-          style: TextStyle(
-            fontSize: labelFontSize,
-            color: Colors.white60,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        TextSpan(
-          text: formattedDate,
-          style: TextStyle(
-            fontSize: labelFontSize,
-            color: Colors.white70,
-            fontWeight: FontWeight.w500,
-          ),
         ),
       ],
     );
 
-    final maxBadgeTextWidth = (imgW - (80.0 * scale)).clamp(300.0, imgW * 0.92);
+    // The badge is turned 90° and runs along the left edge, so its length follows the image HEIGHT.
+    // At most 92% of the height; never a crash on a small picture (a clamp with min > max throws).
+    final maxBadgeTextWidth = math.min(imgH * 0.92, math.max(imgH - (80.0 * scale), 300.0));
     textPainter.text = textSpan;
     textPainter.layout(maxWidth: maxBadgeTextWidth);
 
     final badgeW = textPainter.width + (badgePaddingH * 2);
     final badgeH = textPainter.height + (badgePaddingV * 2);
 
-    // 4. Badge Position (Top Left / Right with margin)
+    // 4. Badge position: bottom-left corner, turned 90° clockwise (reads from top to bottom).
+    // Drawn upright at (0, 0) in a turned frame: it ends [margin] above the image's bottom
+    // and [margin] from its left edge, its length running down the left edge.
     final margin = 28.0 * scale;
-    final badgeLeft = isRtl ? (imgW - badgeW - margin) : margin;
-    final badgeTop = margin;
+    const badgeLeft = 0.0;
+    const badgeTop = 0.0;
+    canvas.save();
+    canvas.translate(margin + badgeH, imgH - margin - badgeW);
+    canvas.rotate(math.pi / 2);
 
     final badgeRRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(badgeLeft, badgeTop, badgeW, badgeH),
@@ -177,6 +151,7 @@ class SubmissionWatermarkHelper {
       canvas,
       Offset(badgeLeft + badgePaddingH, badgeTop + badgePaddingV),
     );
+    canvas.restore();
 
     // 5. Finalize stamped image
     final picture = recorder.endRecording();
@@ -192,7 +167,6 @@ class SubmissionWatermarkHelper {
     required File inputFile,
     required String studentName,
     required String assignmentTitle,
-    required String teacherName,
     bool isRtl = true,
   }) async {
     if (!isSupportedImage(inputFile.path)) {
@@ -205,7 +179,6 @@ class SubmissionWatermarkHelper {
         imageBytes: bytes,
         studentName: studentName,
         assignmentTitle: assignmentTitle,
-        teacherName: teacherName,
         isRtl: isRtl,
       );
 

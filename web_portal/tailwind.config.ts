@@ -1,10 +1,13 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  // Every folder that holds UI. A class used only in a folder missing here is never
+  // generated (the page silently loses that style): tests/tailwindContent.test.ts checks it.
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/features/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/shared/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {

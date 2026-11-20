@@ -120,21 +120,18 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
     }
 
     final isRtl = Directionality.of(context) == TextDirection.rtl;
-    final courses = CourseScope.of(context).courses;
     setState(() => _isSubmitting = true);
     try {
-      // Watermark a newly picked image with the student / assignment / teacher.
+      // Watermark a newly picked image with the student and the assignment.
       String? localPath;
       if (_pickedFile != null) {
         File fileToUpload = File(_pickedFile!.path!);
         if (SubmissionWatermarkHelper.isSupportedImage(_pickedFile!.path!)) {
           final me = await _work!.repository.studentProfile(uid);
-          final teacherName = (await courses.watchCourse(widget.courseId).first)?.teacherName ?? 'Teacher';
           fileToUpload = await SubmissionWatermarkHelper.watermarkSubmissionFile(
             inputFile: fileToUpload,
             studentName: me.name.isEmpty ? 'Student' : me.name,
             assignmentTitle: widget.assignment.title.isEmpty ? 'Assignment' : widget.assignment.title,
-            teacherName: teacherName.isEmpty ? 'Teacher' : teacherName,
             isRtl: isRtl,
           );
         }

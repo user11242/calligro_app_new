@@ -13,7 +13,7 @@ abstract interface class VersionConfigStore {
   Future<Map<String, dynamic>> load();
   Future<void> save(Map<String, dynamic> fields);
 
-  /// This device's installed version, e.g. ('1.0.25', 108).
+  /// This device's installed version, e.g. ('1.0.26', 109).
   Future<(String, int)> installedVersion();
 }
 

@@ -192,7 +192,6 @@ class _SubmissionCardState extends State<_SubmissionCard> {
             imageBytes: bytes,
             studentName: studentName,
             assignmentTitle: widget.assignmentTitle,
-            teacherName: 'Teacher',
             isRtl: isRtl,
           );
         } catch (e) {
@@ -535,7 +534,6 @@ class _SubmissionImageViewerPageState extends State<SubmissionImageViewerPage> {
             imageBytes: bytes,
             studentName: widget.studentName,
             assignmentTitle: widget.assignmentTitle,
-            teacherName: 'Teacher',
             isRtl: isRtl,
           );
         } catch (e) {

@@ -66,3 +66,5 @@ test_*.dart
 recording_service/livekit.yaml
 recording_service/config.yaml
 recording_service/.env
+.claude/
+
