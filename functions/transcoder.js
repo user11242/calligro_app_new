@@ -23,7 +23,7 @@ const { getFunctions } = require("firebase-admin/functions");
 const { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const fs = require("fs");
-const { BUCKET, makeS3, runFfmpeg, writeConcatList, joinParts, removeFiles } = require("./media.js");
+const { BUCKET, makeS3, runFfmpeg, withRelay, writeConcatList, joinParts, removeFiles } = require("./media.js");
 const path = require("path");
 const os = require("os");
 
@@ -181,7 +181,8 @@ async function processRendition({ courseId, recordingId, label, part, parts }, s
   const key = renditionKey(recording.r2FilePath, label);
 
   try {
-    await transcodeStream(inputUrl, localOutput, spec.height, spec.videoBitrate, spec.audioBitrate);
+    await withRelay((local) =>
+      transcodeStream(local(inputUrl), localOutput, spec.height, spec.videoBitrate, spec.audioBitrate));
     await s3.send(new PutObjectCommand({
       Bucket: BUCKET, Key: key, Body: fs.createReadStream(localOutput), ContentType: "video/mp4",
     }));
@@ -236,8 +237,9 @@ async function processPart({ courseId, recordingId, label, part, parts }, secret
     const localPart = path.join(os.tmpdir(), `transcode_${recordingId}_${label}_part${part}.ts`);
     const key = partKey(recording.r2FilePath, label, part);
     try {
-      await transcodePart(await signed(recording.r2FilePath), localPart, part * CHUNK_SECONDS, CHUNK_SECONDS,
-        spec.height, spec.videoBitrate, spec.audioBitrate);
+      const inputUrl = await signed(recording.r2FilePath);
+      await withRelay((local) => transcodePart(local(inputUrl), localPart, part * CHUNK_SECONDS, CHUNK_SECONDS,
+        spec.height, spec.videoBitrate, spec.audioBitrate));
       await s3.send(new PutObjectCommand({
         Bucket: BUCKET, Key: key, Body: fs.createReadStream(localPart), ContentType: "video/mp2t",
       }));
@@ -259,8 +261,10 @@ async function processPart({ courseId, recordingId, label, part, parts }, secret
   const key = renditionKey(recording.r2FilePath, label);
   try {
     const urls = await Promise.all(keys.map(signed));
-    writeConcatList(listPath, urls);
-    await joinParts(listPath, localOutput);
+    await withRelay((local) => {
+      writeConcatList(listPath, urls.map(local));
+      return joinParts(listPath, localOutput);
+    });
     await s3.send(new PutObjectCommand({
       Bucket: BUCKET, Key: key, Body: fs.createReadStream(localOutput), ContentType: "video/mp4",
     }));

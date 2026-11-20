@@ -79,7 +79,10 @@ jest.mock("ffmpeg-static", () => "/fake/ffmpeg");
 // Fake ffmpeg: writes the output file (last arg) and exits 0, or exits 1 for failing heights.
 jest.mock("child_process", () => ({
   spawn: (cmd, args) => {
-    mockState.spawns.push({ cmd, args });
+    // ffmpeg is only ever given local relay addresses; map them back to what they forward to.
+    const { relayTargetOf } = require("../media.js");
+    const realOf = (text) => text.replace(/http:\/\/127\.0\.0\.1:\d+\/\d+\/media\.\w+/g, (u) => relayTargetOf(u) || `UNRELAYED ${u}`);
+    mockState.spawns.push({ cmd, args, input: realOf(args[args.indexOf("-i") + 1] || "") });
     const { EventEmitter: MockEmitter } = require("events");
     const proc = new MockEmitter();
     proc.stderr = new MockEmitter();
@@ -91,7 +94,11 @@ jest.mock("child_process", () => ({
       } else {
         const fsm = require("fs");
         const concatList = args.includes("concat") ? args[args.indexOf("-i") + 1] : null;
-        if (concatList) mockState.concatLists.push(fsm.readFileSync(concatList, "utf8"));
+        if (concatList) {
+          const raw = fsm.readFileSync(concatList, "utf8");
+          mockState.rawConcatLists.push(raw);
+          mockState.concatLists.push(realOf(raw));
+        }
         fsm.writeFileSync(args[args.length - 1], "fake mp4 bytes");
         proc.emit("close", 0);
       }
@@ -130,6 +137,7 @@ beforeEach(() => {
   mockState.spawns = [];
   mockState.deletes = [];
   mockState.concatLists = [];
+  mockState.rawConcatLists = [];
   mockState.ffmpegFailFor = new Set();
   seedWorld();
   jest.spyOn(console, "log").mockImplementation(() => {});
@@ -225,7 +233,9 @@ describe("transcodeRendition (background worker)", () => {
     await task("720p");
     const { cmd, args } = mockState.spawns[0];
     expect(cmd).toBe("/fake/ffmpeg");
-    expect(args[args.indexOf("-i") + 1]).toBe(`https://signed.example/${FILE}?exp=7200`);
+    // ffmpeg reads a local relay address (it cannot look up host names), forwarding to the signed url.
+    expect(args[args.indexOf("-i") + 1]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/1\/media\.mp4$/);
+    expect(mockState.spawns[0].input).toBe(`https://signed.example/${FILE}?exp=7200`);
     expect(args[args.indexOf("-vf") + 1]).toBe("scale=-2:720");
     expect(args[args.indexOf("-b:v") + 1]).toBe("1400k");
     expect(args[args.indexOf("-b:a") + 1]).toBe("128k");
@@ -426,6 +436,7 @@ describe("long classes are converted in 20-minute pieces (a task may run 30 minu
       const lines = mockState.concatLists[0].trim().split("\n");
       expect(lines).toEqual([0, 1, 2, 3, 4, 5].map((i) =>
         `file 'https://signed.example/courses/c1/recordings/recording-c1-1000_480p.part${i}.ts?exp=7200'`));
+      expect(mockState.rawConcatLists[0]).not.toContain("https://"); // only relay addresses reach ffmpeg
       const join = mockState.spawns[mockState.spawns.length - 1].args;
       expect(join).toEqual(expect.arrayContaining(["-c", "copy", "+faststart"]));
 

@@ -15,7 +15,7 @@ const { FakeLiveKitServer, EgressStatus } = require("./helpers/fakeLiveKit");
 
 const mockState = {
   db: null, lk: null, r2: new Map(), puts: [], deletes: [], enqueued: [], queueNames: [],
-  spawns: [], concatLists: [], ffmpegFail: false, alerts: [],
+  spawns: [], concatLists: [], rawConcatLists: [], ffmpegFail: false, alerts: [],
 };
 
 const mockSecrets = {
@@ -116,13 +116,20 @@ jest.mock("@aws-sdk/s3-request-presigner", () => ({
 jest.mock("ffmpeg-static", () => "/fake/ffmpeg");
 jest.mock("child_process", () => ({
   spawn: (cmd, args) => {
+    // ffmpeg is only ever given local relay addresses; map them back to what they forward to.
+    const { relayTargetOf } = require("../media.js");
+    const realOf = (text) => text.replace(/http:\/\/127\.0\.0\.1:\d+\/\d+\/media\.\w+/g, (u) => relayTargetOf(u) || `UNRELAYED ${u}`);
     mockState.spawns.push({ cmd, args });
     const { EventEmitter: MockEmitter } = require("events");
     const proc = new MockEmitter();
     proc.stderr = new MockEmitter();
     setImmediate(() => {
       const fsm = require("fs");
-      if (args.includes("concat")) mockState.concatLists.push(fsm.readFileSync(args[args.indexOf("-i") + 1], "utf8"));
+      if (args.includes("concat")) {
+        const raw = fsm.readFileSync(args[args.indexOf("-i") + 1], "utf8");
+        mockState.rawConcatLists.push(raw);
+        mockState.concatLists.push(realOf(raw));
+      }
       if (mockState.ffmpegFail) {
         proc.stderr.emit("data", Buffer.from("Invalid data found when processing input"));
         proc.emit("close", 1);
@@ -182,7 +189,7 @@ beforeEach(() => {
   mockState.db = new FakeFirestore();
   mockState.lk = new FakeLiveKitServer();
   mockState.r2 = new Map();
-  Object.assign(mockState, { puts: [], deletes: [], enqueued: [], queueNames: [], spawns: [], concatLists: [], ffmpegFail: false, alerts: [] });
+  Object.assign(mockState, { puts: [], deletes: [], enqueued: [], queueNames: [], spawns: [], concatLists: [], rawConcatLists: [], ffmpegFail: false, alerts: [] });
   mockState.db.seed("users/T1", { name: "Teacher", role: "teacher" });
   mockState.db.seed("users/s1", { name: "Student", role: "student" });
   mockState.db.seed("courses/c1", { title: "Thuluth Basics", teacherId: "T1", enrolledStudents: ["s1"] });
@@ -209,7 +216,7 @@ describe("helpers", () => {
     expect(H.fileDurationSeconds({})).toBe(0);
   });
   test("resource settings", () => {
-    expect(safety.recordingWatchdog.__options.schedule).toBe("every 15 minutes");
+    expect(safety.recordingWatchdog.__options.schedule).toBe("every 5 minutes");
     expect(safety.recordingWatchdog.__options.maxInstances).toBe(1);
     const r = safety.rebuildRecording.__options;
     expect(r.timeoutSeconds).toBe(1800); // the Cloud Tasks maximum
@@ -220,11 +227,76 @@ describe("helpers", () => {
 
 // ═════════════════════════════════════════════════════════════════════════════
 describe("watchdog: recordings the recorder never reported on", () => {
-  test("a recording started less than 20 minutes ago is left alone", async () => {
+  test("a recording started less than 20 minutes ago and still recording is left alone", async () => {
+    seedRecording({ startedAt: Timestamp.fromMillis(NOW - 10 * MIN) });
+    mockState.lk.addEgress(ROOM, EgressStatus.ACTIVE, EG);
+    const before = mockState.db.writes.length;
+    await watchdog();
+    expect(mockState.db.writes.length).toBe(before);
+    expect(mockState.lk.callsTo("stopEgress")).toEqual([]);
+  });
+
+  test("a recording started less than 20 minutes ago that already ended is left to its report", async () => {
     seedRecording({ startedAt: Timestamp.fromMillis(NOW - 10 * MIN) });
     await watchdog();
-    expect(mockState.lk.callsTo("listEgress")).toEqual([]);
     expect(egressDoc().status).toBe("active");
+  });
+
+  describe("the recorder was KILLED (rehearsal Test 2): LiveKit still lists it as active", () => {
+    const killedAt = (minutesAgo) => {
+      seedRecording({ startedAt: Timestamp.fromMillis(NOW - minutesAgo * MIN) });
+      mockState.lk.addEgress(ROOM, EgressStatus.ACTIVE, EG);
+      mockState.lk.crashEgress(EG, NOW - minutesAgo * MIN);
+    };
+
+    test("class still going → recovery of the first part AND a new recorder for the rest", async () => {
+      killedAt(8); // well inside the first 20 minutes: a crash is not waited out
+      mockState.lk.addParticipant(ROOM, { identity: "T1_mobile", role: "moderator" });
+      await watchdog();
+      expect(egressDoc()).toMatchObject({ status: "recovering", recovery: { state: "checking", reason: "recorder_lost" } });
+      expect(mockState.lk.callsTo("stopEgress")).toEqual([["stopEgress", EG]]); // LiveKit's stale entry tidied
+      const fresh = mockState.lk.egresses.find((e) => e.kind === "participant");
+      expect(fresh).toBeDefined();
+      expect(mockState.db.get(`activeRecordings/${fresh.egressId}`)).toMatchObject({ status: "active", safetyNet: true });
+    });
+
+    test("class already over → recovery only", async () => {
+      killedAt(30);
+      await watchdog();
+      expect(egressDoc().status).toBe("recovering");
+      expect(mockState.lk.callsTo("startParticipantEgress")).toEqual([]);
+    });
+
+    test("a recorder that started under 2 minutes ago may not have joined yet: left alone", async () => {
+      killedAt(1);
+      await watchdog();
+      expect(egressDoc().status).toBe("active");
+      expect(mockState.lk.callsTo("stopEgress")).toEqual([]);
+    });
+
+    test("if LiveKit cannot list the room, the recorder is assumed alive (never stop a working one)", async () => {
+      killedAt(30);
+      mockState.lk.failAlways.listParticipants = new Error("timeout");
+      await watchdog();
+      expect(egressDoc().status).toBe("active");
+      expect(mockState.lk.callsTo("stopEgress")).toEqual([]);
+    });
+
+    test("the room is gone (everyone left) → dead", async () => {
+      killedAt(30);
+      mockState.lk.rooms.delete(ROOM);
+      mockState.lk.failAlways.listParticipants = Object.assign(new Error("requested room does not exist"), { code: "not_found" });
+      await watchdog();
+      expect(egressDoc().status).toBe("recovering");
+    });
+
+    test("a LIVE recorder (in the room) with storage unreachable is NOT treated as dead (rehearsal Test 3)", async () => {
+      seedRecording({ startedAt: Timestamp.fromMillis(NOW - 30 * MIN) });
+      mockState.lk.addEgress(ROOM, EgressStatus.ACTIVE, EG); // no pieces arriving, but it is in the room
+      await watchdog();
+      expect(egressDoc().status).toBe("active");
+      expect(mockState.lk.callsTo("stopEgress")).toEqual([]);
+    });
   });
 
   test("a class still recording after 2 hours is left alone", async () => {
@@ -402,6 +474,7 @@ describe("rebuildRecording (joins the live pieces into the lesson)", () => {
     expect(lines).toHaveLength(12); // the playlist is not a piece
     expect(lines[0]).toBe(`file 'https://signed.example/${PREFIX}seg_00000.ts'`);
     expect(lines[11]).toBe(`file 'https://signed.example/${PREFIX}seg_00011.ts'`);
+    expect(mockState.rawConcatLists[0]).not.toContain("https://"); // only relay addresses reach ffmpeg
     const join = mockState.spawns[0].args;
     expect(join).toEqual(expect.arrayContaining(["-c", "copy", "+faststart"]));
 

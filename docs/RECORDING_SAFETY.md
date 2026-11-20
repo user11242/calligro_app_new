@@ -113,8 +113,10 @@ Use a test course with a test teacher and one test student.
    - Within about an hour: admin notice **Recording recovered (pieces)**, and the lesson
      (first ~3 minutes) plays in the app.
 3. **Upload failure (backup).** Start a test class. On the server, block R2 for the
-   recorder by adding the R2 host (from `R2_ENDPOINT`) to `/etc/hosts` as `127.0.0.1`.
-   End the class after 2 minutes, wait 1 minute, then remove the line again.
+   recorder by adding the R2 host (from `R2_ENDPOINT`) to `/etc/hosts` twice, as
+   `127.0.0.1 <host>` AND `::1 <host>` (the server also reaches R2 over IPv6; with the
+   IPv4 line alone nothing is blocked). Check with `getent ahosts <host>` (only 127.0.0.1
+   and ::1). End the class after 2 minutes, wait 1 minute, then remove both lines again.
    - `/opt/calligro-recordings/backup` contains the files, the next safety check uploads
      them (`/var/log/calligro-safety.log`), and the admins get **Recording recovered**.
    - If the backup folder stays empty, the recorder version handles upload failures

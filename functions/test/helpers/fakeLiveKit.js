@@ -39,7 +39,24 @@ class FakeLiveKitServer {
   addEgress(roomName, status = EgressStatus.ACTIVE, egressId = `EG_seed_${++this._egressSeq}`) {
     const e = { egressId, roomName, status, kind: "seed" };
     this.egresses.push(e);
+    if (status <= EgressStatus.ENDING) this._recorderJoins(e);
     return e;
+  }
+  /**
+   * The recorder process is killed (crash, restart): it leaves the class but LiveKit
+   * keeps listing the egress as ACTIVE, exactly like the real server does.
+   */
+  crashEgress(egressId, startedAtMs) {
+    const e = this.egresses.find((x) => x.egressId === egressId);
+    if (startedAtMs) e.startedAt = BigInt(startedAtMs) * 1000000n;
+    this.rooms.get(e.roomName)?.delete(egressId);
+  }
+  /** Like the real recorder: a hidden participant named after its egress id. */
+  _recorderJoins(e) {
+    if (!this.rooms.has(e.roomName)) this.rooms.set(e.roomName, new Map());
+    this.rooms.get(e.roomName).set(e.egressId, {
+      identity: e.egressId, name: "", metadata: "", tracks: [], permission: { hidden: true, recorder: true },
+    });
   }
   participant(roomName, identity) { return this.rooms.get(roomName)?.get(identity); }
   callsTo(method) { return this.calls.filter((c) => c[0] === method); }
@@ -98,6 +115,7 @@ class FakeLiveKitServer {
     const e = this.egresses.find((x) => x.egressId === egressId);
     if (!e) throw new Error("egress not found");
     e.status = EgressStatus.ENDING;
+    this.rooms.get(e.roomName)?.delete(egressId);
     return { ...e };
   }
   async startParticipantEgress(roomName, identity, output, opts) {
@@ -106,6 +124,7 @@ class FakeLiveKitServer {
     if (!this.participant(roomName, identity)) throw new Error(`participant ${identity} not in room`);
     const e = { egressId: `EG_part_${++this._egressSeq}`, roomName, status: EgressStatus.STARTING, kind: "participant" };
     this.egresses.push(e);
+    this._recorderJoins(e);
     return { ...e };
   }
   async startTrackCompositeEgress(roomName, output, opts) {
@@ -113,6 +132,7 @@ class FakeLiveKitServer {
     if (this.rejectSegments && output.segments) throw new Error("multiple outputs not supported");
     const e = { egressId: `EG_track_${++this._egressSeq}`, roomName, status: EgressStatus.STARTING, kind: "track" };
     this.egresses.push(e);
+    this._recorderJoins(e);
     return { ...e };
   }
 }

@@ -46,8 +46,8 @@ const {
   PutObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, DeleteObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const { EgressClient } = require("livekit-server-sdk");
-const { BUCKET, makeS3, writeConcatList, joinParts, removeFiles } = require("./media.js");
+const { EgressClient, RoomServiceClient } = require("livekit-server-sdk");
+const { BUCKET, makeS3, withRelay, writeConcatList, joinParts, removeFiles } = require("./media.js");
 const schedule = require("./schedule.js");
 const { notifyAdmins } = require("./notifications.js");
 
@@ -78,6 +78,8 @@ const BACKUP_WAIT_MS = 30 * MIN;
 const WEBHOOK_GRACE_MS = 10 * MIN;
 /** A recording started less than this ago is left alone by the watchdog. */
 const FRESH_MS = 20 * MIN;
+/** A recorder joins its class within seconds; before this it may simply not be there yet. */
+const RECORDER_JOIN_GRACE_MS = 2 * MIN;
 /** No class is this long: a recorder still running after this is stuck and gets stopped. */
 const MAX_RECORDING_MS = 8 * HOUR;
 /** Joined in memory (/tmp is RAM): above this the rebuild is left to a person. */
@@ -135,6 +137,34 @@ function fileDurationSeconds(egressInfo) {
   } catch (_) {
     return 0;
   }
+}
+
+/**
+ * Is this recorder really in its class? A recorder joins the room as a hidden participant
+ * named after its egress id. False only when LiveKit answered and it is not there (or the
+ * room is gone); if LiveKit cannot be asked, it is assumed present.
+ */
+async function recorderInRoom(roomService, roomName, egressId) {
+  try {
+    const people = await roomService.listParticipants(roomName);
+    return (people || []).some((p) => p.identity === egressId);
+  } catch (err) {
+    if (/not.?found|does not exist/i.test(`${err.code || ""} ${err.message || ""}`)) return false; // room closed
+    return true;
+  }
+}
+
+/**
+ * LiveKit lists [egress] as running, but its recorder has left the class: it was killed
+ * (crash, restart, out of memory) before it could report. LiveKit then keeps it "active"
+ * forever, so the "recording ended" webhook never comes. Recorders younger than
+ * RECORDER_JOIN_GRACE_MS are never called dead.
+ */
+async function isDeadRecorder(roomService, egress, startedAtMs, now) {
+  if (!egress || !isRunning(egressStatus(egress.status))) return false;
+  const started = nanosToMs(egress.startedAt) || startedAtMs;
+  if (!started || now - started < RECORDER_JOIN_GRACE_MS) return false;
+  return !(await recorderInRoom(roomService, egress.roomName, egress.egressId));
 }
 
 /** Where a session's live pieces go. */
@@ -419,9 +449,8 @@ async function advanceRecovery(egressId, session, s3, secrets, now) {
 }
 
 /** The recorder never reported on this recording: find out what happened. */
-async function checkActiveRecording(egressId, session, egressClient, s3, secrets, now) {
+async function checkActiveRecording(egressId, session, egressClient, s3, secrets, now, roomService) {
   const startedAtMs = toMs(session.startedAt);
-  if (startedAtMs && now - startedAtMs < FRESH_MS) return "fresh";
 
   let egress = null;
   try {
@@ -434,12 +463,21 @@ async function checkActiveRecording(egressId, session, egressClient, s3, secrets
   const status = egress ? egressStatus(egress.status) : null;
 
   if (egress && isRunning(status)) {
-    if (startedAtMs && now - startedAtMs > MAX_RECORDING_MS) {
-      await egressClient.stopEgress(egressId).catch((e) => console.warn("Stop of a stuck recorder failed:", e.message));
-      return "stopped_stuck";
+    const dead = await isDeadRecorder(roomService, { roomName: session.roomName, ...egress }, startedAtMs, now);
+    if (!dead) {
+      if (startedAtMs && now - startedAtMs > MAX_RECORDING_MS) {
+        await egressClient.stopEgress(egressId).catch((e) => console.warn("Stop of a stuck recorder failed:", e.message));
+        return "stopped_stuck";
+      }
+      return "running";
     }
-    return "running";
+    // Killed without reporting: try to tidy LiveKit's stale entry (it usually times out), then recover.
+    console.warn(`🛟 Recorder ${egressId} left the class but LiveKit still lists it as running`);
+    await egressClient.stopEgress(egressId).catch(() => {});
+    return recoverAndRestart(egressId, session, "recorder_lost", null);
   }
+  // Ended recently: its webhook is normally handling it.
+  if (startedAtMs && now - startedAtMs < FRESH_MS) return "fresh";
 
   const endedMs = egress ? nanosToMs(egress.endedAt) || nanosToMs(egress.updatedAt) : null;
   if (endedMs && now - endedMs < WEBHOOK_GRACE_MS) return "waiting_for_webhook";
@@ -452,12 +490,15 @@ async function checkActiveRecording(egressId, session, egressClient, s3, secrets
     return "saved_missed_report";
   }
 
-  await beginRecovery({
-    session: { ...session, egressId }, egressId,
-    reason: !egress ? "recorder_lost" : isSuccess(status) ? "file_missing" : "recorder_failed",
-  });
+  return recoverAndRestart(egressId, session,
+    !egress ? "recorder_lost" : isSuccess(status) ? "file_missing" : "recorder_failed", endedMs);
+}
+
+/** Starts recovering a lost recording and, if the class is still going, records the rest of it. */
+async function recoverAndRestart(egressId, session, reason, endedMs) {
+  await beginRecovery({ session: { ...session, egressId }, egressId, reason });
   if (endedMs) await egressRef(egressId).set({ recovery: { egressEndedAtMs: endedMs } }, { merge: true });
-  // If the class is still going, record the rest of it (lazy require: livekit.js requires this file).
+  // Lazy require: livekit.js requires this file.
   try {
     const restart = await require("./livekit.js")._internal.restartRecordingIfTeacherInClass(session.courseId, session.teacherId);
     if (restart === "restarted") return "recovery_started_and_restarted";
@@ -532,8 +573,11 @@ async function rebuild(egressId, secrets) {
   const localOutput = path.join(os.tmpdir(), `rebuild_${egressId}.mp4`);
   const target = rebuiltPathFor(session);
   try {
-    writeConcatList(listPath, await Promise.all(segments.map((s) => sign(s.key))));
-    await joinParts(listPath, localOutput);
+    const urls = await Promise.all(segments.map((s) => sign(s.key)));
+    await withRelay((local) => {
+      writeConcatList(listPath, urls.map(local));
+      return joinParts(listPath, localOutput);
+    });
     await s3.send(new PutObjectCommand({
       Bucket: BUCKET, Key: target, Body: fs.createReadStream(localOutput), ContentType: "video/mp4",
     }));
@@ -593,9 +637,9 @@ exports.rebuildRecording = onTaskDispatched({
   }
 });
 
-/** Every 15 minutes: no recording is left unchecked. */
+/** Every 5 minutes: no recording is left unchecked (a dead recorder costs at most ~5 min of class). */
 exports.recordingWatchdog = onSchedule({
-  schedule: "every 15 minutes",
+  schedule: "every 5 minutes",
   region: REGION,
   timeoutSeconds: 540,
   memory: "512MiB",
@@ -606,6 +650,7 @@ exports.recordingWatchdog = onSchedule({
   const secrets = readR2Secrets();
   const s3 = makeS3(secrets);
   const egressClient = new EgressClient(LIVEKIT_URL, livekitApiKey.value(), livekitApiSecret.value());
+  const roomService = new RoomServiceClient(LIVEKIT_URL, livekitApiKey.value(), livekitApiSecret.value());
   const report = {};
   const count = (k) => { report[k] = (report[k] || 0) + 1; };
   const safely = async (label, fn) => {
@@ -619,7 +664,7 @@ exports.recordingWatchdog = onSchedule({
 
   const active = await db().collection("activeRecordings").where("safetyNet", "==", true).where("status", "==", "active").get();
   for (const doc of active.docs) {
-    await safely(doc.id, () => checkActiveRecording(doc.id, { ...doc.data(), egressId: doc.id }, egressClient, s3, secrets, now));
+    await safely(doc.id, () => checkActiveRecording(doc.id, { ...doc.data(), egressId: doc.id }, egressClient, s3, secrets, now, roomService));
   }
 
   for (const status of ["recovering", "needs_manual"]) {
@@ -681,5 +726,5 @@ exports.helpers = {
   SEGMENT_SECONDS, SEGMENTS_ROOT, MIN_FILE_BYTES, BACKUP_WAIT_MS, WEBHOOK_GRACE_MS, FRESH_MS, MAX_RECORDING_MS,
   MAX_REBUILD_BYTES, KEEP_SEGMENTS_MS, REBUILD_STUCK_MS, REBUILD_QUEUE,
   segmentsPrefixFor, segmentOutput, segmentIndex, rebuiltPathFor, nanosToMs, fileDurationSeconds,
-  objectSize, saveReadyRecording, beginRecovery, makeS3,
+  objectSize, saveReadyRecording, beginRecovery, makeS3, isDeadRecorder,
 };

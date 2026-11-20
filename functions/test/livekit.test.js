@@ -687,6 +687,21 @@ describe("startAutomatedRecording", () => {
     expect(mockState.lk.callsTo("startParticipantEgress")).toEqual([]);
   });
 
+  test("a KILLED recorder (left the class, LiveKit still says active) does not block Record", async () => {
+    mockState.lk.addParticipant(ROOM, { identity: "T1_mobile", role: "moderator" });
+    mockState.lk.addEgress(ROOM, EgressStatus.ACTIVE, "EG_dead");
+    mockState.lk.crashEgress("EG_dead", Date.now() - 5 * 60 * 1000);
+    await expect(start("T1")).resolves.toMatchObject({ status: "started" });
+    expect(mockState.lk.callsTo("stopEgress")).toEqual([]); // LiveKit cannot stop a dead one (times out): not tried
+    expect(mockState.lk.callsTo("startParticipantEgress")).toHaveLength(1);
+  });
+
+  test("a recorder that just started and has not joined yet still counts (no duplicate)", async () => {
+    mockState.lk.addEgress(ROOM, EgressStatus.ACTIVE, "EG_new");
+    mockState.lk.crashEgress("EG_new", Date.now() - 30 * 1000);
+    await expect(start("T1")).resolves.toEqual({ status: "already_recording", egressId: "EG_new" });
+  });
+
   test("finished/failed egresses don't block a new recording", async () => {
     mockState.lk.addParticipant(ROOM, { identity: "T1_mobile", role: "moderator" });
     for (const s of [EgressStatus.ENDING, EgressStatus.COMPLETE, EgressStatus.FAILED, EgressStatus.ABORTED]) mockState.lk.addEgress(ROOM, s);
@@ -1103,6 +1118,76 @@ describe("livekitWebhook", () => {
       mockState.db = new FakeFirestore();
       await runWebhook(await signedWebhook(joined("s1")));
       expect(mockState.db.writes).toEqual([]);
+    });
+  });
+
+  describe("a kicked student who comes back with their OLD pass is removed again", () => {
+    const today = () => new Date().toISOString().split("T")[0];
+    const att = (uid) => `courses/c1/meetingAttendance/${today()}/participants/${uid}`;
+    // LiveKit reports the participant as it joined; the old token still carries its metadata.
+    const rejoin = (identity, role = "participant") => {
+      const p = mockState.lk.addParticipant(ROOM, { identity, role });
+      return signedWebhook({ event: "participant_joined", room: { name: ROOM }, participant: { ...p } });
+    };
+
+    const moderate = (uid, data) => call(lk.moderateParticipant, uid, { courseId: "c1", ...data });
+
+    beforeEach(() => {
+      mockState.db.seed(`activeRooms/${ROOM}`, { courseId: "c1", roomName: ROOM });
+      mockState.lk.addParticipant(ROOM, { identity: "T1_mobile", role: "moderator" });
+      mockState.lk.addParticipant(ROOM, { identity: "s1" });
+      mockState.lk.addParticipant(ROOM, { identity: "s2" });
+    });
+
+    test("kick, then the student rejoins with the old pass → out again, not marked present", async () => {
+      await moderate("T1", { action: "kick", targetIdentity: "s1" });
+      expect(mockState.lk.participant(ROOM, "s1")).toBeUndefined();
+
+      now = NOW + 30 * 1000;
+      const res = await runWebhook(await rejoin("s1"));
+      expect(res.statusCode).toBe(200);
+      expect(mockState.lk.participant(ROOM, "s1")).toBeUndefined();
+      expect(mockState.db.has(att("s1"))).toBe(false);
+    });
+
+    test("every later attempt during the block is removed too", async () => {
+      await moderate("T1", { action: "kick", targetIdentity: "s1" });
+      for (const minutes of [1, 60, 4 * 60 - 1]) {
+        now = NOW + minutes * 60 * 1000;
+        await runWebhook(await rejoin("s1"));
+        expect(mockState.lk.participant(ROOM, "s1")).toBeUndefined();
+      }
+    });
+
+    test("after the block expires (next class) the student joins normally", async () => {
+      await moderate("T1", { action: "kick", targetIdentity: "s1" });
+      now = NOW + 4 * HOUR + 1000;
+      await runWebhook(await rejoin("s1"));
+      expect(mockState.lk.participant(ROOM, "s1")).toBeDefined();
+      expect(mockState.db.get(att("s1")).isOnline).toBe(true);
+    });
+
+    test("other students, and students never kicked, are not touched", async () => {
+      await moderate("T1", { action: "kick", targetIdentity: "s1" });
+      await runWebhook(await rejoin("s3"));
+      expect(mockState.lk.participant(ROOM, "s3")).toBeDefined();
+      expect(mockState.lk.participant(ROOM, "s2")).toBeDefined();
+      expect(mockState.lk.callsTo("removeParticipant")).toHaveLength(1); // only the kick itself
+    });
+
+    test("a moderator is never removed, even with a block document under their id", async () => {
+      mockState.db.seed(`activeRooms/${ROOM}/blockedParticipants/T1`, {
+        reason: "kicked_by_admin", expiresAt: Timestamp.fromMillis(NOW + HOUR),
+      });
+      await runWebhook(await rejoin("T1_mobile", "moderator"));
+      expect(mockState.lk.participant(ROOM, "T1_mobile")).toBeDefined();
+    });
+
+    test("if LiveKit cannot be reached the webhook still answers 200 (no retry storm)", async () => {
+      await moderate("T1", { action: "kick", targetIdentity: "s1" });
+      mockState.lk.failNext.removeParticipant = new Error("down");
+      const res = await runWebhook(await rejoin("s1"));
+      expect(res.statusCode).toBe(200);
     });
   });
 

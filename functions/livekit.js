@@ -448,11 +448,20 @@ async function startRecordingFor({ courseId, uid, audioTrackId, videoTrackId, or
     livekitApiSecret.value()
   );
 
-  // Don't start another egress if one is already active for this room
+  // Don't start another egress if one is already recording this room. A recorder that was
+  // killed without reporting stays "active" at LiveKit forever (LiveKit cannot even stop it:
+  // the request times out), so it is ignored, otherwise nobody could record this class
+  // again; the watchdog recovers what it saved.
   const activeEgresses = await egressClient.listEgress({ roomName: secureRoomName });
   const activeOnes = activeEgresses.filter(e => e.status <= 1); // 0=Starting, 1=Active
   if (activeOnes.length > 0) {
-    return { status: "already_recording", egressId: activeOnes[0].egressId };
+    const roomService = new RoomServiceClient(LIVEKIT_URL, livekitApiKey.value(), livekitApiSecret.value());
+    for (const e of activeOnes) {
+      if (!(await safety.isDeadRecorder(roomService, { roomName: secureRoomName, ...e }, null, Date.now()))) {
+        return { status: "already_recording", egressId: e.egressId };
+      }
+      console.warn(`🛟 Ignoring dead recorder ${e.egressId} (left the class, still listed as active)`);
+    }
   }
 
   const timestamp = Date.now();
@@ -652,6 +661,31 @@ exports.startAutomatedRecording = onCall({
 // --------------------
 const { onRequest } = require("firebase-functions/v2/https");
 const { WebhookReceiver } = require("livekit-server-sdk");
+
+/**
+ * Removes [participant] from [room] again if they were kicked and the block is still active.
+ * Moderators (teacher, admins) are never removed. Returns true if they were removed.
+ */
+async function removeIfBlocked(room, participant) {
+  const roomName = room && room.name;
+  if (!roomName || !participant || !participant.identity) return false;
+  if (isModeratorParticipant(participant)) return false;
+  const cleanUid = participant.identity.replace(/_mobile$/, "");
+  try {
+    const block = await admin.firestore()
+      .collection("activeRooms").doc(roomName)
+      .collection("blockedParticipants").doc(cleanUid)
+      .get();
+    if (!block.exists || !isBlockActive(block.data())) return false;
+    const roomService = new RoomServiceClient(LIVEKIT_URL, livekitApiKey.value(), livekitApiSecret.value());
+    await roomService.removeParticipant(roomName, participant.identity);
+    console.log(`Removed ${participant.identity} again: kicked from ${roomName}, came back with an old pass`);
+    return true;
+  } catch (err) {
+    console.warn("Kick re-check failed:", err.message);
+    return false;
+  }
+}
 
 exports.livekitWebhook = onRequest({
   secrets: [livekitApiKey, livekitApiSecret, r2PublicUrl, r2AccessKey, r2SecretKey, r2Endpoint]
@@ -881,6 +915,13 @@ exports.livekitWebhook = onRequest({
           console.error("Error processing room_finished recording finalization:", rfErr);
         }
       }
+    }
+
+    // ── 🔒 SEC-KICK: a removed student coming back with their OLD pass is put out again ──
+    // Their old token stays valid at LiveKit for up to 4h, so the token check alone is not
+    // enough: this catches every way back in (app, old app versions, website).
+    if (event.event === "participant_joined" && await removeIfBlocked(event.room, event.participant)) {
+      return res.status(200).send("ok");
     }
 
     // ── Handle participant_joined & participant_left: Real attendance tracking ──
