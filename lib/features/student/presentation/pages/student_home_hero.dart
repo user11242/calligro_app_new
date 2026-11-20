@@ -68,7 +68,7 @@ extension _HeroSections on _StudentHomePageState {
           children: [
             SizedBox(
               height:
-                  360, // Increased to accommodate Arabic text without overflow
+                  380, // Accommodates countdown timer, rescheduled banner, and localized text without overflow
               child: PageView.builder(
                 controller: _heroPageController,
                 itemCount: activeCourses.length,
@@ -155,7 +155,7 @@ extension _HeroSections on _StudentHomePageState {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Column(
               children: [
                 Row(
@@ -191,14 +191,15 @@ extension _HeroSections on _StudentHomePageState {
                   ],
                 ),
                 if (moved) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Text(
                     formatSessionTime(context, nextClass.start, nextClass.end),
                     key: const Key('hero-moved-time'),
                     style: const TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.w700),
                   ),
-                ],
-                const SizedBox(height: 16),
+                  const SizedBox(height: 10),
+                ] else
+                  const SizedBox(height: 14),
                 AutoTranslatedText(
                   CourseUtils.getLocalizedCourseName(context, course),
                   style: const TextStyle(
@@ -209,6 +210,7 @@ extension _HeroSections on _StudentHomePageState {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -271,7 +273,7 @@ extension _HeroSections on _StudentHomePageState {
                       ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: moved ? 12 : 16),
                 _CountdownTimer(
                   course: course,
                   // Same window as the course page's join bar: 10 minutes before a
@@ -282,7 +284,7 @@ extension _HeroSections on _StudentHomePageState {
                         CourseSchedule.fromMap(course, fallbackOffset: DateTime.now().timeZoneOffset).joinCheck(DateTime.now()));
                   },
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: moved ? 14 : 18),
                 ValueListenableBuilder<bool>(
                   valueListenable: isButtonEnabled,
                   builder: (context, enabled, child) {
@@ -324,7 +326,7 @@ extension _HeroSections on _StudentHomePageState {
                           disabledForegroundColor: Colors.white.withOpacity(
                             0.2,
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                             side: BorderSide(
