@@ -15,6 +15,8 @@ const bank = { selectedMethod: 'bankTransfer', cliq: null, bankTransfer: { iban:
 const cliq = { selectedMethod: 'cliq', cliq: { alias: 'ALI.H', holderName: 'Ali' }, bankTransfer: null };
 
 async function clear() {
+  // A private doc can exist under a uid with no users/{uid} doc (t3): delete those directly.
+  await Promise.all(['t1', 't2', 't3'].map((uid) => db.doc(`users/${uid}/private/payout`).delete()));
   for (const c of ['users', 'teachers']) {
     const snap = await db.collection(c).get();
     for (const d of snap.docs) {
@@ -67,4 +69,36 @@ test('running it again is harmless', async () => {
   const again = await migratePayoutToPrivate(db, { ...quiet, apply: true });
   expect(again.found).toBe(0);
   expect((await db.doc('users/t1/private/payout').get()).get('bankTransfer').iban).toBe(bank.bankTransfer.iban);
+});
+
+describe('copy only (--keep-public): while old app versions still need the public copy', () => {
+  const copyOnly = { ...quiet, apply: true, keepPublic: true };
+
+  test('every teacher gets the private copy; the public copies stay exactly as they were', async () => {
+    const r = await migratePayoutToPrivate(db, copyOnly);
+    expect(r).toMatchObject({ found: 3, moved: 2, keptExisting: 1, cleaned: 0 });
+    expect((await db.doc('users/t1/private/payout').get()).get('bankTransfer').iban).toBe(bank.bankTransfer.iban);
+    expect((await db.doc('users/t3/private/payout').get()).get('cliq')).toEqual(cliq.cliq);
+    expect((await db.doc('users/t2/private/payout').get()).get('savedByNewApp')).toBe(true); // newer one kept
+    for (const path of ['users/t1', 'teachers/t1', 'users/t2', 'teachers/t3']) {
+      expect((await db.doc(path).get()).get('payoutSettings')).toBeDefined(); // old apps still work
+    }
+  });
+
+  test('dry run of copy-only changes nothing', async () => {
+    const r = await migratePayoutToPrivate(db, { ...quiet, keepPublic: true });
+    expect(r.found).toBe(3);
+    expect((await db.doc('users/t1/private/payout').get()).exists).toBe(false);
+  });
+
+  test('running it twice is harmless; the full move later removes the public copies and keeps the private ones', async () => {
+    await migratePayoutToPrivate(db, copyOnly);
+    const again = await migratePayoutToPrivate(db, copyOnly);
+    expect(again).toMatchObject({ found: 3, moved: 0, keptExisting: 3, cleaned: 0 });
+
+    const full = await migratePayoutToPrivate(db, { ...quiet, apply: true });
+    expect(full).toMatchObject({ found: 3, moved: 0, keptExisting: 3, cleaned: 4 });
+    expect((await db.doc('users/t1').get()).get('payoutSettings')).toBeUndefined();
+    expect((await db.doc('users/t1/private/payout').get()).get('bankTransfer').iban).toBe(bank.bankTransfer.iban);
+  });
 });

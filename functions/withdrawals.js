@@ -50,7 +50,11 @@ function balanceOf({ sales, courses, withdrawals, now }) {
 async function createWithdrawal(db, uid, { methodLabel, now = Date.now() } = {}) {
   const user = (await db.collection("users").doc(uid).get()).data();
   if (!user || user.role !== "teacher") throw new HttpsError("permission-denied", "Only teachers can withdraw.");
-  const payout = (await db.doc(`users/${uid}/private/payout`).get()).data();
+  // The private details (users/{uid}/private/payout). Teachers who saved theirs before
+  // that move still have them only on the old public profile until the copy runs
+  // (migrations/migrate_payout_private.js --keep-public): read that as a fallback.
+  const privatePayout = (await db.doc(`users/${uid}/private/payout`).get()).data();
+  const payout = privatePayout && privatePayout.selectedMethod ? privatePayout : user.payoutSettings;
   if (!payout || !payout.selectedMethod) throw new HttpsError("failed-precondition", "Add a payout method first.");
 
   return db.runTransaction(async (tx) => {

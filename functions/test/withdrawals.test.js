@@ -97,6 +97,17 @@ describe('requestWithdrawal', () => {
     await expect(createWithdrawal(db, 't1', { now: NOW })).rejects.toThrow('No funds available');
   });
 
+  it('a teacher whose details are still only on the old public profile can withdraw (before the copy runs)', async () => {
+    await db.doc('users/t1/private/payout').delete();
+    await db.doc('users/t1').set({ role: 'teacher', name: 'Ustadh Ali', payoutSettings: { selectedMethod: 'western' } });
+    expect(await createWithdrawal(db, 't1', { now: NOW })).toEqual({ requestedAmount: 125, netAmount: 115, fee: 10 });
+  });
+
+  it('the private details win over the old public copy', async () => {
+    await db.doc('users/t1').set({ role: 'teacher', name: 'Ustadh Ali', payoutSettings: { selectedMethod: 'western' } });
+    expect(await createWithdrawal(db, 't1', { now: NOW })).toEqual({ requestedAmount: 125, netAmount: 125, fee: 0 }); // private = cliq
+  });
+
   it('no payout method, not a teacher, nothing available → refused', async () => {
     await db.doc('users/t1/private/payout').delete();
     await expect(createWithdrawal(db, 't1', { now: NOW })).rejects.toThrow('payout method');

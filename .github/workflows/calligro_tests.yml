@@ -77,7 +77,7 @@ jobs:
       - name: Run rules tests against the Firestore + Storage emulators
         run: >
           firebase emulators:exec --only firestore,storage --project demo-calligro
-          "cd functions && npx jest test/security_rules.test.js test/community_rules.test.js test/storage_rules.test.js test/migrate_payout_private.test.js test/profile_sync.test.js test/profile_rules.test.js test/course_rules.test.js test/purchases.test.js test/schedule.test.js test/reschedule_notice.test.js test/notifications.test.js"
+          "cd functions && npx jest test/security_rules.test.js test/community_rules.test.js test/storage_rules.test.js test/migrate_payout_private.test.js test/profile_sync.test.js test/profile_rules.test.js test/course_rules.test.js test/purchases.test.js test/schedule.test.js test/reschedule_notice.test.js test/notifications.test.js test/withdrawals.test.js"
 
       - name: Run Whop enrolment tests against the Firestore emulator
         run: >
