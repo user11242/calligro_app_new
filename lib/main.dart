@@ -4,6 +4,7 @@
 import 'package:calligro_app/features/courses/application/join_lock.dart';
 import 'package:calligro_app/features/courses/data/firestore_app_features.dart';
 import 'package:calligro_app/features/profile/presentation/pages/my_profile_tab.dart';
+import 'package:calligro_app/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
   import 'package:flutter/foundation.dart';
   import 'dart:convert';
@@ -333,10 +334,7 @@ class CalligroApp extends StatelessWidget {
       selector: (_, provider) => provider.locale,
       builder: (context, locale, child) {
         return MaterialApp(
-          theme: ThemeData(
-            scaffoldBackgroundColor: Colors.black,
-            canvasColor: Colors.black,
-          ),
+          theme: AppTheme.build(),
           navigatorKey: DeepLinkService().navigatorKey,
           debugShowCheckedModeBanner: false,
           locale: locale,
