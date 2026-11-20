@@ -141,21 +141,21 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
     });
   }
 
-  /// A tap on the stage: on the teacher's own camera → focus there; anywhere else → show / hide controls.
-  void _onStageTap(TapUpDetails d) {
-    if (_controller.canZoomCamera) {
-      final hit = meetVideoAt(d.globalPosition, View.of(context).viewId);
-      if (hit != null && hit.tag == MeetVideoTag.localCamera) {
-        _controller.focusCamera(hit.fraction.dx, hit.fraction.dy);
-        _focusRingTimer?.cancel();
-        setState(() => _focusRingAt = d.localPosition);
-        _focusRingTimer = Timer(const Duration(milliseconds: 900), () {
-          if (mounted) setState(() => _focusRingAt = null);
-        });
-        return;
-      }
-    }
-    _toggleControls();
+  /// A tap anywhere on the stage shows / hides the controls.
+  void _onStageTap(TapUpDetails d) => _toggleControls();
+
+  /// A long press on the teacher's own camera picture focuses the camera there
+  /// (a tap only toggles the controls, so the controls are always reachable).
+  void _onStageLongPress(LongPressStartDetails d) {
+    if (!_controller.canZoomCamera) return;
+    final hit = meetVideoAt(d.globalPosition, View.of(context).viewId);
+    if (hit == null || hit.tag != MeetVideoTag.localCamera) return;
+    _controller.focusCamera(hit.fraction.dx, hit.fraction.dy);
+    _focusRingTimer?.cancel();
+    setState(() => _focusRingAt = d.localPosition);
+    _focusRingTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) setState(() => _focusRingAt = null);
+    });
   }
 
   void _toggleControls() {
@@ -305,6 +305,7 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
                 key: const Key('tap-layer'),
                 behavior: HitTestBehavior.translucent,
                 onTapUp: _onStageTap,
+                onLongPressStart: _onStageLongPress,
                 // Teacher with the camera on: pinch zooms the camera; pinches add up (CameraZoomPolicy).
                 onScaleStart: zoom ? (_) => _zoomAtPinchStart = _controller.cameraZoom : null,
                 onScaleUpdate: zoom

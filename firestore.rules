@@ -409,9 +409,9 @@ service cloud.firestore {
           get(/databases/$(database)/documents/courses/$(courseId)).data.enrolledStudents.hasAny([request.auth.uid]) ||
           isAdmin()
         );
-        // The course's teacher may only rename (the file, status and links are the server's).
+        // The course's teacher or an admin may only rename (the file, status and links are the server's).
         allow update: if isSignedIn() &&
-          get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid &&
+          (get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid || isAdmin()) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title']);
         allow create, delete: if false; // Created by Cloud Functions
       }

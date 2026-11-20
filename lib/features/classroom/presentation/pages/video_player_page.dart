@@ -385,27 +385,6 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
           ),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          if (!_isPlayingIntro) ...[
-            Center(
-              child: _QualitySelectorButton(
-                currentQuality: _selectedQuality,
-                onQualityChanged: _changeQuality,
-                availableQualities: widget.qualities,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: _PlaybackSpeedButton(
-                  currentSpeed: _currentSpeed,
-                  onSpeedChanged: _setPlaybackRate,
-                ),
-              ),
-            ),
-          ],
-        ],
         flexibleSpace: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -546,6 +525,9 @@ class _QualitySelectorButton extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
+      // Landscape is short: let the sheet use most of the height, and scroll the options.
+      isScrollControlled: true,
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.9),
       backgroundColor: const Color(0xFF1E2026),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -584,6 +566,12 @@ class _QualitySelectorButton extends StatelessWidget {
                   ),
                 ),
                 const Divider(color: Colors.white10),
+                Flexible(
+                  child: SingleChildScrollView(
+                    key: const Key('quality-options'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                 ...options.map((opt) {
                   final id = opt['id']!;
                   final isSelected = (currentQuality == id);
@@ -636,6 +624,10 @@ class _QualitySelectorButton extends StatelessWidget {
                     },
                   );
                 }),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -702,6 +694,9 @@ class _PlaybackSpeedButton extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
+      // Landscape is short: let the sheet use most of the height, and scroll the options.
+      isScrollControlled: true,
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.9),
       backgroundColor: const Color(0xFF1E2026),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -740,6 +735,12 @@ class _PlaybackSpeedButton extends StatelessWidget {
                   ),
                 ),
                 const Divider(color: Colors.white10),
+                Flexible(
+                  child: SingleChildScrollView(
+                    key: const Key('speed-options'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                 ...speeds.map((speed) {
                   final isSelected = (currentSpeed == speed);
                   return ListTile(
@@ -763,6 +764,10 @@ class _PlaybackSpeedButton extends StatelessWidget {
                     },
                   );
                 }),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

@@ -107,15 +107,28 @@ void main() {
     expect(find.byKey(const Key('camera-zoom')), findsNothing);
   });
 
-  group('teacher tap-to-focus', () {
+  group('teacher focus: LONG press focuses, a tap shows / hides the controls', () {
     bool controlsVisible(WidgetTester tester) =>
         tester.widget<IgnorePointer>(find.ancestor(of: find.byKey(const Key('toggle-mic')), matching: find.byType(IgnorePointer)).first).ignoring == false;
 
-    testWidgets('tapping their own camera picture focuses there, shows the focus box, and keeps the controls', (tester) async {
+    testWidgets('a tap on their own camera picture shows / hides the controls and does NOT focus', (tester) async {
+      await open(tester); // alone: their own camera is full screen
+      final before = controlsVisible(tester);
+      await tester.tapAt(tester.getCenter(find.byKey(const Key('stage-focus'))));
+      await tester.pump();
+      expect(room.cameraFocusPoints, isEmpty);
+      expect(find.byKey(const Key('camera-focus-ring')), findsNothing);
+      expect(controlsVisible(tester), !before);
+      await tester.tapAt(tester.getCenter(find.byKey(const Key('stage-focus'))));
+      await tester.pump();
+      expect(controlsVisible(tester), before, reason: 'a second tap brings them back');
+    });
+
+    testWidgets('a long press on their own camera picture focuses there, shows the focus box, and keeps the controls', (tester) async {
       await open(tester); // alone: their own camera is full screen
       final before = controlsVisible(tester);
       final area = tester.getRect(find.byKey(const Key('stage-focus')));
-      await tester.tapAt(area.topLeft + Offset(area.width * 0.25, area.height * 0.5));
+      await tester.longPressAt(area.topLeft + Offset(area.width * 0.25, area.height * 0.5));
       await tester.pump();
       expect(room.cameraFocusPoints, hasLength(1));
       expect(room.cameraFocusPoints.single.$1, closeTo(0.25, 0.02));
@@ -143,8 +156,10 @@ void main() {
       expect(controlsVisible(tester), !before);
     });
 
-    testWidgets('students: a tap never focuses anything', (tester) async {
+    testWidgets('students: a tap or a long press never focuses anything', (tester) async {
       await open(tester, teacher: false);
+      await tester.longPressAt(tester.getCenter(find.byKey(const Key('stage-focus'))));
+      await tester.pump();
       await tester.tapAt(tester.getCenter(find.byKey(const Key('stage-focus'))));
       await tester.pump();
       expect(room.cameraFocusPoints, isEmpty);

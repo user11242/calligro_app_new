@@ -179,6 +179,12 @@ describe('recordings', () => {
     await assertFails(updateDoc(doc(as('teach'), 'courses/c1/recordings/r1'), { videoUrl: 'https://evil/x.mp4' }));
     await assertFails(updateDoc(doc(as('student'), 'courses/c1/recordings/r1'), { title: 'x' }));
   });
+
+  it('an admin renames too (the app shows them the edit button), but nothing else', async () => {
+    await assertSucceeds(updateDoc(doc(as('admin'), 'courses/c1/recordings/r1'), { title: 'Lesson 1' }));
+    await assertFails(updateDoc(doc(as('admin'), 'courses/c1/recordings/r1'), { status: 'failed' }));
+    await assertFails(updateDoc(doc(as('outsider'), 'courses/c1/recordings/r1'), { title: 'x' }));
+  });
 });
 
 describe('moving a session (FirestoreBoardRepository.reschedule)', () => {
