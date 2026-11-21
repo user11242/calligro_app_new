@@ -1,5 +1,4 @@
 import 'package:calligro_app/features/meet/application/meet_controller.dart';
-import 'package:calligro_app/features/meet/application/connection_quality_monitor.dart';
 import 'package:calligro_app/features/meet/data/meet_backend.dart';
 import 'package:calligro_app/features/meet/domain/meet_participant.dart';
 import 'package:calligro_app/features/meet/domain/meet_protocol.dart';
@@ -26,7 +25,6 @@ void main() {
     bool mic = false,
     bool camera = false,
     MeetCameraPosition position = MeetCameraPosition.front,
-    ConnectionQualityMonitor? qualityMonitor,
   }) {
     if (teacher) {
       room.identityOnConnect = 'T1_mobile';
@@ -43,7 +41,6 @@ void main() {
       startWithMic: mic,
       startWithCamera: camera,
       cameraPosition: position,
-      qualityMonitor: qualityMonitor ?? ConnectionQualityMonitor(),
       connectGrace: Duration.zero,
       endMeetingSignalDelay: Duration.zero,
     );
@@ -507,12 +504,15 @@ void main() {
 
   // ═══════════════════════════════════════════════════════════════════════
   group('audio-only mode', () {
-    test('poor connection for a while → we are asked to switch', () async {
-      c = make(qualityMonitor: ConnectionQualityMonitor(poorQualityTriggerSeconds: 0));
-      await c.join();
-      room.emit(const LocalConnectionQualityChanged(MeetConnectionQuality.poor));
+    test('a poor connection shows NO "switch to audio only" prompt (removed on purpose)', () async {
+      c = await joined();
+      final before = effects.length;
+      for (var i = 0; i < 5; i++) {
+        room.emit(const LocalConnectionQualityChanged(MeetConnectionQuality.poor));
+      }
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(effect<PromptAudioOnlyEffect>(), isNotNull);
+      expect(effects.length, before);
+      expect(c.isAudioOnly, isFalse);
     });
 
     test('on: stop receiving video; off: receive it again', () async {

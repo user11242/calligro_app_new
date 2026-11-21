@@ -1,4 +1,3 @@
-import 'package:calligro_app/features/meet/application/connection_quality_monitor.dart';
 import 'package:calligro_app/features/meet/application/meet_controller.dart';
 import 'package:calligro_app/features/meet/data/meet_backend.dart';
 import 'package:calligro_app/features/meet/domain/meet_policies.dart';
@@ -27,7 +26,6 @@ void main() {
       isTeacher: teacher,
       teacherId: 'T1',
       startWithCamera: camera,
-      qualityMonitor: ConnectionQualityMonitor(),
       connectGrace: Duration.zero,
     );
     await c.join();

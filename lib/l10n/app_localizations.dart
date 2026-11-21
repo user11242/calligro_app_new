@@ -7198,24 +7198,6 @@ abstract class AppLocalizations {
   /// **'Could not load chat messages.'**
   String get errorLoadingChat;
 
-  /// No description provided for @meetWeakConnectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Weak connection'**
-  String get meetWeakConnectionTitle;
-
-  /// No description provided for @meetWeakConnectionBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Your internet connection looks weak. Switch to audio-only mode to save data and keep the audio clear?'**
-  String get meetWeakConnectionBody;
-
-  /// No description provided for @meetEnableAudioOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Switch to audio only'**
-  String get meetEnableAudioOnly;
-
   /// No description provided for @meetAudioOnlyOn.
   ///
   /// In en, this message translates to:

@@ -9,7 +9,6 @@ import { VideoPresets, RoomOptions, DisconnectReason } from "livekit-client";
 import { shouldRetryWithRelay } from "@/features/meet/domain/disconnect";
 import "@livekit/components-styles";
 import CalligroMeetLayout from "./CalligroMeetLayout";
-import ResilienceManager from "./ResilienceManager";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { useTranslation } from "@/shared/i18n/useTranslation";
@@ -311,7 +310,6 @@ export default function CalligroMeetRoom({
               }}
               className="flex-1 flex flex-col overflow-hidden relative"
             >
-              <ResilienceManager />
               <CalligroMeetLayout 
                 courseId={courseId} 
                 isTeacher={isTeacher} 

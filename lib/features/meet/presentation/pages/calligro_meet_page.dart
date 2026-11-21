@@ -200,8 +200,6 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
             background: const Color(0xFFC72C41), foreground: Colors.white, seconds: 5);
       case PlaySoundEffect(:final sound):
         _platform.playSound(sound);
-      case PromptAudioOnlyEffect():
-        _promptAudioOnly();
       case LeaveMeetingEffect(:final delay):
         Future<void>.delayed(delay, _close);
     }
@@ -230,13 +228,6 @@ class _CalligroMeetPageState extends State<CalligroMeetPage> with WidgetsBinding
         backgroundColor: background,
       ),
     );
-  }
-
-  Future<void> _promptAudioOnly() async {
-    if (_controller.isAudioOnly) return;
-    final accept = await showAudioOnlyPrompt(context);
-    _controller.audioOnlyPromptClosed();
-    if (accept) await _controller.setAudioOnly(true);
   }
 
   void _close() {

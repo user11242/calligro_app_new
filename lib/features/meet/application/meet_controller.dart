@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import 'connection_quality_monitor.dart';
 import '../data/meet_backend.dart';
 import '../domain/meet_message_handler.dart';
 import '../domain/meet_participant.dart';
@@ -73,10 +72,6 @@ class PlaySoundEffect extends MeetEffect {
   const PlaySoundEffect(this.sound);
 }
 
-class PromptAudioOnlyEffect extends MeetEffect {
-  const PromptAudioOnlyEffect();
-}
-
 /// Close the meet page after [delay] (lets the user read the notice).
 class LeaveMeetingEffect extends MeetEffect {
   final Duration delay;
@@ -103,7 +98,6 @@ class MeetController extends ChangeNotifier {
   final String? teacherId;
   final bool _startWithMic;
   final bool _startWithCamera;
-  final ConnectionQualityMonitor _qualityMonitor;
   final Duration _connectGrace;
   final Duration _endMeetingSignalDelay;
   final Duration _leaveDelay;
@@ -125,7 +119,6 @@ class MeetController extends ChangeNotifier {
     bool startWithMic = false,
     bool startWithCamera = false,
     MeetCameraPosition cameraPosition = MeetCameraPosition.front,
-    ConnectionQualityMonitor? qualityMonitor,
     Duration connectGrace = const Duration(milliseconds: 800),
     Duration endMeetingSignalDelay = const Duration(milliseconds: 500),
     Duration leaveDelay = const Duration(seconds: 2),
@@ -139,7 +132,6 @@ class MeetController extends ChangeNotifier {
         _startWithMic = startWithMic,
         _startWithCamera = startWithCamera,
         _cameraPosition = cameraPosition,
-        _qualityMonitor = qualityMonitor ?? ConnectionQualityMonitor(),
         _connectGrace = connectGrace,
         _endMeetingSignalDelay = endMeetingSignalDelay,
         _leaveDelay = leaveDelay,
@@ -572,9 +564,6 @@ class MeetController extends ChangeNotifier {
     _emit(MeetNoticeEffect(enabled ? MeetNotice.audioOnlyOn : MeetNotice.audioOnlyOff));
   }
 
-  /// Call when the audio-only prompt is dismissed (accepted or not).
-  void audioOnlyPromptClosed() => _qualityMonitor.onPromptClosed();
-
   Future<void> onAppPaused() async {
     if (!_room.isConnected) return;
     _cameraDisabledOnPause = LifecycleCameraPolicy.shouldDisableCameraOnPause(
@@ -631,8 +620,8 @@ class MeetController extends ChangeNotifier {
       case RecordingStatusChanged(:final isRecording):
         _recording.syncFromServer(isRecording);
         _notify();
-      case LocalConnectionQualityChanged(:final quality):
-        _qualityMonitor.handleConnectionQualityUpdate(quality, () => _emit(const PromptAudioOnlyEffect()));
+      case LocalConnectionQualityChanged():
+        break; // No "weak connection → audio only?" prompt: removed on purpose.
       case DataMessageReceived(:final data, :final senderIdentity, :final senderMetadata):
         _applyAction(MeetMessageHandler(
           localIdentity: _room.localIdentity,
@@ -730,7 +719,6 @@ class MeetController extends ChangeNotifier {
     _disposed = true;
     // Fail-safe: the teacher's app closed while recording → stop it (NOT end the class).
     if (isTeacher) _recording.stopInBackground();
-    _qualityMonitor.dispose();
     _subscription.cancel();
     _effects.close();
     _room.dispose();

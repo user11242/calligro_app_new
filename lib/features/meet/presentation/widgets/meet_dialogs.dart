@@ -65,39 +65,6 @@ Future<bool> showConfirmKickDialog(BuildContext context) =>
         confirmKey: const Key('dialog-confirm-kick'),
         small: true);
 
-/// Weak connection: offer audio-only mode. True = switch to audio only.
-Future<bool> showAudioOnlyPrompt(BuildContext context) async {
-  final l10n = AppLocalizations.of(context)!;
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: const Color(0xFF1E2028),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Row(
-        children: [
-          const Icon(Icons.network_check, color: Colors.orange, size: 22),
-          const SizedBox(width: 8),
-          Text(l10n.meetWeakConnectionTitle, style: _titleStyle.copyWith(fontSize: 16)),
-        ],
-      ),
-      content: Text(l10n.meetWeakConnectionBody, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: Text(l10n.cancel, style: const TextStyle(color: Colors.white54)),
-        ),
-        ElevatedButton(
-          key: const Key('dialog-audio-only'),
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEBB937), foregroundColor: Colors.black),
-          onPressed: () => Navigator.pop(ctx, true),
-          child: Text(l10n.meetEnableAudioOnly, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ),
-      ],
-    ),
-  );
-  return result ?? false;
-}
-
 /// Blocking spinner while the server ends the class.
 void showBlockingProgress(BuildContext context) {
   showDialog<void>(

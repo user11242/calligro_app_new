@@ -3839,16 +3839,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errorLoadingChat => 'تعذر تحميل رسائل المحادثة.';
 
   @override
-  String get meetWeakConnectionTitle => 'ضعف في الاتصال';
-
-  @override
-  String get meetWeakConnectionBody =>
-      'يبدو أن اتصال الإنترنت لديك ضعيف. هل ترغب في التحويل إلى وضع الصوت فقط لتوفير استهلاك البيانات وتحسين جودة الصوت؟';
-
-  @override
-  String get meetEnableAudioOnly => 'تفعيل وضع الصوت فقط';
-
-  @override
   String get meetAudioOnlyOn => 'تم تفعيل وضع الصوت فقط';
 
   @override

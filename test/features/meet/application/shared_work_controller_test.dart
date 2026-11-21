@@ -1,4 +1,3 @@
-import 'package:calligro_app/features/meet/application/connection_quality_monitor.dart';
 import 'package:calligro_app/features/meet/application/meet_controller.dart';
 import 'package:calligro_app/features/meet/data/meet_backend.dart';
 import 'package:calligro_app/features/meet/domain/meet_participant.dart';
@@ -30,7 +29,6 @@ void main() {
       serverUrl: 'wss://lk',
       isTeacher: teacher,
       teacherId: 'T1',
-      qualityMonitor: ConnectionQualityMonitor(),
       connectGrace: Duration.zero,
       endMeetingSignalDelay: Duration.zero,
       clock: () => now,

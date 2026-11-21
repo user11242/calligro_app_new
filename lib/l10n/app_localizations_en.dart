@@ -3848,16 +3848,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorLoadingChat => 'Could not load chat messages.';
 
   @override
-  String get meetWeakConnectionTitle => 'Weak connection';
-
-  @override
-  String get meetWeakConnectionBody =>
-      'Your internet connection looks weak. Switch to audio-only mode to save data and keep the audio clear?';
-
-  @override
-  String get meetEnableAudioOnly => 'Switch to audio only';
-
-  @override
   String get meetAudioOnlyOn => 'Audio-only mode is on';
 
   @override

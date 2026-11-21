@@ -98,3 +98,11 @@ describe("feature structure: src/features/<feature>/{domain,data,server,ui}, src
   });
 });
 
+
+describe("meeting: no weak-connection pop-up", () => {
+  it('the "weak connection → switch to audio only?" prompt stays removed (owner\'s decision)', () => {
+    const room = fs.readFileSync("src/features/meet/ui/CalligroMeetRoom.tsx", "utf8");
+    expect(room).not.toMatch(/ResilienceManager|AudioOnlyPrompt|useConnectionResilience/);
+    expect(fs.existsSync("src/features/meet/ui/AudioOnlyPrompt.tsx")).toBe(false);
+  });
+});

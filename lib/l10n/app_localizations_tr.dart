@@ -3853,16 +3853,6 @@ class AppLocalizationsTr extends AppLocalizations {
   String get errorLoadingChat => 'Sohbet mesajları yüklenemedi.';
 
   @override
-  String get meetWeakConnectionTitle => 'Zayıf bağlantı';
-
-  @override
-  String get meetWeakConnectionBody =>
-      'İnternet bağlantınız zayıf görünüyor. Veri tasarrufu yapmak ve sesi net tutmak için yalnızca ses moduna geçmek ister misiniz?';
-
-  @override
-  String get meetEnableAudioOnly => 'Yalnızca sese geç';
-
-  @override
   String get meetAudioOnlyOn => 'Yalnızca ses modu açık';
 
   @override
